@@ -27,6 +27,19 @@ function flight(ball: BallState, hoop = HOOP, dt = 1 / 120) {
   return { ball, scores };
 }
 describe("court collision regressions", () => {
+  it("clears rounded board corners without a phantom bank contact", () => {
+    const clear = stepBall(
+      ballAt({ x: 1.525, y: 5.175, z: -5.3 }, { x: 0, y: 0, z: -35 }),
+      1 / 30,
+    );
+    expect(clear.ball.contacts?.board).toBe(0);
+    expect(clear.ball.v.z).toBeLessThan(0);
+    const edge = stepBall(
+      ballAt({ x: 1.4, y: 5, z: -5.3 }, { x: 0, y: 0, z: -35 }),
+      1 / 30,
+    );
+    expect(edge.ball.contacts?.board).toBeGreaterThan(0);
+  });
   it("catches high shots at the real upper backboard and fast crossings", () => {
     const high = stepBall(
       ballAt({ x: 0, y: 4.96, z: -5.3 }, { x: 0, y: 0, z: -35 }),
