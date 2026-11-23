@@ -1837,7 +1837,8 @@
   }
   .last-split {
     right: 16px;
-    bottom: 171px;
+    top: 198px;
+    bottom: auto;
     font-size: 9px;
   }
   .basket-score {
@@ -1850,16 +1851,31 @@
     font-size: 28px;
   }
   .basketball-controls {
-    top: 178px;
+    top: 190px;
     left: 16px;
-    width: 175px;
+    width: calc(100% - 32px);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
   }
   .basketball-controls nav {
     display: none;
   }
+  .basketball-switches {
+    margin-top: 0;
+  }
+  .scene-basketball .challenge-heading {
+    top: 105px;
+  }
+  .scene-basketball .challenge-heading p {
+    display: none;
+  }
+  .scene-rowing .challenge-heading h1 {
+    font-size: 25px;
+  }
   .basketball-mode-select {
     display: block;
-    width: 100%;
+    width: calc(100% - 165px);
     min-height: 44px;
     border: 1px solid #bbbda2;
     border-radius: 5px;
@@ -1876,6 +1892,7 @@
     font-size: 11px;
   }
   .basketball-controls p {
+    flex-basis: 100%;
     font-size: 12px;
     margin-top: 8px;
   }
@@ -1883,7 +1900,7 @@
     top: auto;
     right: 16px;
     bottom: calc(64px + env(safe-area-inset-bottom));
-    width: 226px;
+    width: min(226px, calc(100% - 136px));
     padding: 14px;
   }
   .shot-panel .stamina-label,
@@ -2028,6 +2045,7 @@
   }
   .last-split {
     bottom: 117px;
+    top: auto;
     right: 20px;
   }
   .scene-basketball .basket-score {

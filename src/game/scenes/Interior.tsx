@@ -12,6 +12,14 @@ import { Walker } from "../world/Hub";
 import { useGame } from "../core/store";
 import { doors } from "../core/world";
 import { CognitionFurnishings, GymFurnishings } from "./CognitionGym";
+import { HouseInterior } from "./HouseInterior";
+import { KitchenInterior } from "./KitchenInterior";
+import { newRunId } from "../../shared/run-id";
+
+const rewardInterior = (game: "dice" | "cooking", coins: number) =>
+  useGame
+    .getState()
+    .award(`${game}-${newRunId()}`, coins, Math.ceil(coins / 2));
 
 export function Interior() {
   const scene = useGame((s) => s.scene),
@@ -80,6 +88,8 @@ export function Interior() {
         </>
       ) : null}
       {scene === "cognition" && <CognitionFurnishings />}
+      {scene === "kappa" && <HouseInterior onReward={rewardInterior} />}
+      {scene === "kitchen" && <KitchenInterior onReward={rewardInterior} />}
       {scene === "gym" && <GymFurnishings />}
       <Box p={[0, 0.1, 5.5]} s={[2, 0.12, 1.6]} c="#7d8d75" />
       <Box p={[-1.3, 1.3, 6.1]} s={[0.2, 2.6, 0.2]} c="#9f825f" />
