@@ -29,6 +29,7 @@ export function Walker({ interior = false }: { interior?: boolean }) {
     const state = useGame.getState(),
       dt = Math.min(delta, 0.04);
     let [dx, dz] = movement();
+    let remaining = Infinity;
     if (Math.hypot(dx, dz) > 0.1) {
       runtime.target = null;
       runtime.path = [];
@@ -38,9 +39,12 @@ export function Walker({ interior = false }: { interior?: boolean }) {
     } else if (runtime.target) {
       const [tx, tz] = runtime.target;
       const distance = Math.hypot(tx - runtime.x, tz - runtime.z);
-      if (distance < 0.18) {
+      if (distance < 0.0001) {
+        runtime.x = tx;
+        runtime.z = tz;
         runtime.target = runtime.path.shift() ?? null;
       } else {
+        remaining = distance;
         dx = (tx - runtime.x) / distance;
         dz = (tz - runtime.z) / distance;
       }
@@ -58,8 +62,8 @@ export function Walker({ interior = false }: { interior?: boolean }) {
         [runtime.x, runtime.z] = moveWorld(
           runtime.x,
           runtime.z,
-          dx * dt * 4.6,
-          dz * dt * 4.6,
+          dx * Math.min(dt * 4.6, remaining),
+          dz * Math.min(dt * 4.6, remaining),
         );
       runtime.heading = Math.atan2(dx, dz);
     }

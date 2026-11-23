@@ -65,6 +65,20 @@ describe("walkable physical world", () => {
       ).toBeLessThan(1.2);
     }
   });
+  it("traverses a Study-to-Court corner without cutting the collision edge", () => {
+    let position: [number, number] = [0, -4.8];
+    const path = findPath(position, [7.1, 2.2]);
+    for (const target of path) {
+      for (let frame = 0; frame < 200; frame++) {
+        const dx = target[0] - position[0], dz = target[1] - position[1], distance = Math.hypot(dx, dz);
+        if (distance < 0.0001) break;
+        const step = Math.min(4.6 / 60, distance);
+        position = moveWorld(...position, dx / distance * step, dz / distance * step);
+      }
+      expect(Math.hypot(position[0] - target[0], position[1] - target[1])).toBeLessThan(0.001);
+    }
+    expect(Math.hypot(position[0] - 7.1, position[1] - 2.2)).toBeLessThan(1.9);
+  });
 });
 describe("rowing simulation", () => {
   const run = (burst = false) => {
