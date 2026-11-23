@@ -78,6 +78,15 @@ describe("court collision regressions", () => {
         .score,
     ).toBe(false);
   });
+  it("clears the front rim at close range on a perfect arc or lob release", () => {
+    for (const distance of [1.2, 1.5, 2, 2.5, 3]) {
+      for (const style of ["arc", "lob"] as const) {
+        expect(
+          flight(launchBall(0, HOOP.z + distance, 0.62, 0, HOOP, style)).scores,
+        ).toBe(1);
+      }
+    }
+  });
   it("has consistent scoring at 30 and 120 Hz and never scores twice", () => {
     expect(flight(launchBall(0, 5, 0.62), HOOP, 1 / 30).scores).toBe(1);
     expect(flight(launchBall(0, 5, 0.62)).scores).toBe(1);

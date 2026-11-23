@@ -32,8 +32,13 @@ export function launchBall(
   style: ShotStyle = "arc",
 ): BallState {
   const d = Math.max(1, Math.hypot(hoop.x - x, z - hoop.z));
-  const elevation = Math.PI * (style === "lob" ? 0.37 : 0.29);
   const h = hoop.y - 1.65;
+  // Short shots need a steeper gather to clear the near rim and descend into
+  // the basket. A fixed 52-degree arc reaches a two-meter target on the rise.
+  const elevation = Math.max(
+    Math.PI * (style === "lob" ? 0.37 : 0.29),
+    Math.atan2(2 * h + 1.6, Math.max(0.35, d - 0.5)),
+  );
   const base = Math.sqrt(
     (GRAVITY * d * d) /
       (2 *
