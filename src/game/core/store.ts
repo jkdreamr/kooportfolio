@@ -54,7 +54,7 @@ type State = {
   save: Save;
   paused: boolean;
   build: boolean;
-  panel: "none" | "help" | "avatar" | "memories" | "settings";
+  panel: "none" | "help" | "avatar" | "memories" | "settings" | "profile";
   near: string;
   notice: string;
   muted: boolean;

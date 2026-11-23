@@ -177,7 +177,7 @@ export default function Game() {
     else if (g.near === "race") {
       runtime.raceCadence = 30;
       g.go("rowing");
-    } else if (g.near === "read") useGame.setState({ panel: "memories" });
+    } else if (g.near === "read") useGame.setState({ panel: "profile" });
   }, []);
   useInput(interact);
   useEffect(() => {

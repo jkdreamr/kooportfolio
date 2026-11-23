@@ -319,8 +319,7 @@ export function Hud({ interact }: { interact: () => void }) {
   const g = useGame(),
     [confirmBuild, setConfirmBuild] = useState<"garden" | "boathouse" | null>(
       null,
-    ),
-    [read, setRead] = useState(false);
+    );
   const hub = g.scene === "hub",
     interior = g.scene === "boathouse" || g.scene === "office",
     game = g.scene === "rowing" || g.scene === "basketball";
@@ -405,7 +404,7 @@ export function Hud({ interact }: { interact: () => void }) {
               </strong>
             </div>
             <button
-              onClick={() => (g.near === "read" ? setRead(true) : interact())}
+              onClick={interact}
             >
               <kbd>E</kbd>
               {g.near === "exit"
@@ -752,8 +751,8 @@ export function Hud({ interact }: { interact: () => void }) {
           </div>
         </Modal>
       )}
-      {read && (
-        <Modal eyebrow="" title="Joshua Koo" close={() => setRead(false)}>
+      {g.panel === "profile" && (
+        <Modal eyebrow="" title="Joshua Koo" close={closePanel}>
           <p>{profile.bio}</p>
           <div className="study-links">
             {profile.socials.map(([name, url]) => (
