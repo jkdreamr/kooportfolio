@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { freshSave, parseSave, reward, upgrade } from "../src/shared/save";
+import { freshSave, parseSave, reward, upgrade, writeGuestSave, SAVE_KEY } from "../src/shared/save";
 import { canWalk, doors, findPath, moveWorld } from "../src/game/core/world";
 import {
   dailySeed,
@@ -14,6 +14,15 @@ import {
 } from "../src/game/core/basketball";
 
 describe("guest save trust boundary", () => {
+  it("refuses a stale tab write after another tab earns coins", () => {
+    const entries = new Map<string, string>();
+    const storage = { getItem: (key: string) => entries.get(key) ?? null, setItem: (key: string, value: string) => { entries.set(key, value); } };
+    const baseline = writeGuestSave(storage, freshSave(), null);
+    const earned = reward(freshSave(), "race", 75, 30);
+    expect(writeGuestSave(storage, earned, baseline)).not.toBeNull();
+    expect(writeGuestSave(storage, freshSave(), baseline)).toBeNull();
+    expect(parseSave(storage.getItem(SAVE_KEY)).coins).toBe(75);
+  });
   it("round trips actual progress and rejects corrupt or unknown schema", () => {
     const save = upgrade(reward(freshSave(), "finish-1", 90, 30), "garden");
     expect(parseSave(JSON.stringify(save))).toEqual(save);

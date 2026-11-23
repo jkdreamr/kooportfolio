@@ -328,6 +328,7 @@ export function Hud({ interact }: { interact: () => void }) {
   useEffect(() => {
     if (
       !g.notice ||
+      g.notice.includes("Another tab") ||
       g.notice.includes("storage") ||
       g.notice.includes("saved file")
     )

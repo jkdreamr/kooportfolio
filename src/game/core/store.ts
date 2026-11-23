@@ -6,13 +6,16 @@ import {
   SAVE_KEY,
   type Save,
   upgrade,
+  writeGuestSave,
 } from "../../shared/save";
 import { canWalk, findPath } from "./world";
 export type Scene = "hub" | "boathouse" | "rowing" | "basketball" | "office";
 let storageIssue = "";
+let savedRaw: string | null = null;
 function load() {
   try {
-    return parseSave(localStorage.getItem(SAVE_KEY));
+    savedRaw = localStorage.getItem(SAVE_KEY);
+    return parseSave(savedRaw);
   } catch {
     storageIssue =
       "Your saved file could not be read. This session is temporary; your previous data has not been overwritten.";
@@ -126,7 +129,13 @@ export const useGame = create<State>((set, get) => ({
     set({ save: s });
     if (!writeAllowed) return;
     try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify(s));
+      const written = writeGuestSave(localStorage, s, savedRaw);
+      if (written === null) {
+        writeAllowed = false;
+        set({ paused: true, notice: "Another tab changed this save. Reload to resume saving; progress here is temporary." });
+        return;
+      }
+      savedRaw = written;
     } catch {
       set({
         notice:
