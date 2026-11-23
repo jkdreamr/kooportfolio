@@ -1,4 +1,5 @@
 .interior-game {
+  box-sizing: border-box;
   width: min(320px, calc(100vw - 36px));
   padding: 14px 16px;
   border: 2px solid #735434;
