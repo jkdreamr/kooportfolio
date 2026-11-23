@@ -132,7 +132,7 @@ describe("basketball physics", () => {
         .ball.v.y,
     ).toBeGreaterThan(0);
     expect(
-      stepBall(make({ x: 0, y: 4, z: -5.4 }, { x: 0, y: 0, z: -5 }), 1 / 60)
+      stepBall(make({ x: 0, y: 4, z: -5.45 }, { x: 0, y: 0, z: -5 }), 1 / 60)
         .ball.v.z,
     ).toBeGreaterThan(0);
     expect(

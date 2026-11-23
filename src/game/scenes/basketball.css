@@ -1,0 +1,83 @@
+.basketball-controls {
+  position: absolute;
+  top: 225px;
+  left: 36px;
+  width: 235px;
+  color: #3e554b;
+  pointer-events: auto;
+  font:
+    12px/1.4 system-ui,
+    sans-serif;
+}
+.basketball-controls nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  max-width: 225px;
+}
+.basketball-controls button {
+  border: 1px solid #bbbda2;
+  border-radius: 5px;
+  padding: 8px 10px;
+  background: #f8f1dfed;
+  color: #526153;
+  font: inherit;
+  cursor: pointer;
+  min-height: 36px;
+}
+.basketball-controls button[aria-pressed="true"] {
+  background: #45665d;
+  color: #fff0d1;
+  border-color: #45665d;
+}
+.basketball-controls button:focus-visible {
+  outline: 3px solid #ad6b38;
+  outline-offset: 3px;
+}
+.basketball-switches {
+  display: flex;
+  gap: 5px;
+  margin-top: 8px;
+}
+.basketball-controls p {
+  margin: 18px 0 0;
+  font-size: 13px;
+  text-shadow: 0 1px #fff1d7;
+}
+.basketball-controls p span {
+  color: #997138;
+  margin-right: 8px;
+  font-size: 11px;
+}
+.basketball-controls p b {
+  margin-left: 5px;
+  color: #997138;
+  font-weight: 500;
+}
+.basketball-controls small {
+  font-size: 10px;
+}
+.game-shell:has(.basketball-controls[data-mode="practice"])
+  .basket-score
+  > div:last-child,
+.game-shell:has(.basketball-controls[data-mode="practice"])
+  .basket-score
+  > span {
+  display: none;
+}
+@media (max-width: 700px) {
+  .basketball-controls {
+    top: 160px;
+    left: 16px;
+    width: 175px;
+    font-size: 10px;
+  }
+  .basketball-controls button {
+    padding: 7px 8px;
+    min-height: 36px;
+  }
+  .basketball-controls p {
+    font-size: 11px;
+    margin-top: 10px;
+  }
+}
