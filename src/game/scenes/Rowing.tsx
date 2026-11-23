@@ -14,6 +14,7 @@ import {
   type RaceState,
 } from "../core/rowing";
 import { sound } from "../core/sound";
+import { newRunId } from "../../shared/run-id";
 export const useRaceHud = create<{ race: RaceState; place: number }>(() => ({
   race: newRace(),
   place: 1,
@@ -116,7 +117,7 @@ export function Rowing() {
     accumulator = useRef(0),
     nextHud = useRef(0),
     done = useRef(false),
-    id = useRef(crypto.randomUUID());
+    id = useRef(newRunId());
   const length = runtime.raceLength,
     seed = runtime.raceSeed;
   useFrame(({ camera }, delta) => {

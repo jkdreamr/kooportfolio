@@ -18,6 +18,7 @@ import { runtime, useGame } from "../core/store";
 import { keys, movement } from "../core/input";
 import { launchBall, stepBall, type BallState } from "../core/basketball";
 import { sound } from "../core/sound";
+import { newRunId } from "../../shared/run-id";
 export const useBasketHud = create<{
   time: number;
   score: number;
@@ -48,7 +49,7 @@ export function Basketball() {
     done = useRef(false),
     holding = useRef(true),
     shotDistance = useRef(0),
-    id = useRef(crypto.randomUUID()),
+    id = useRef(newRunId()),
     feedback = useRef("Hold to shoot. Release at the mark."),
     nextHud = useRef(0);
   const save = useGame((s) => s.save);
