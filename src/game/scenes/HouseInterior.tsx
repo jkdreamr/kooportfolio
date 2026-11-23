@@ -1,6 +1,6 @@
 import { useEffect, useReducer, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Box, Ball, Cylinder, Ring, Sign } from "../world/Models";
+import { Box, Ball, Cylinder, Ring } from "../world/Models";
 import { diceReducer, newDiceGame } from "../core/interiorGames";
 import {
   Barrel,
@@ -108,17 +108,40 @@ function Fireplace() {
 }
 function Pennant({ x }: { x: number }) {
   return (
-    <group position={[x, 2.8, -5.52]}>
-      <Box s={[1.08, 1.8, 0.12]} c="#285c43" />
-      <Box p={[0, 0.95, 0.04]} s={[1.35, 0.14, 0.2]} c="#c8a452" />
-      <Box p={[0, -0.75, 0.08]} s={[0.92, 0.14, 0.04]} c="#c8a452" />
-      <Sign
-        text="ΚΣ"
-        p={[0, 0.1, 0.07]}
-        size={[0.9, 0.65]}
-        color="#285c43"
-        ink="#f4dfa0"
-      />
+    <group position={[x, 3, -5.52]}>
+      <Box s={[1.6, 2.1, 0.12]} c="#285c43" />
+      <Box p={[0, 1.1, 0.04]} s={[1.85, 0.14, 0.2]} c="#c8a452" />
+      <Box p={[0, -0.9, 0.08]} s={[1.42, 0.14, 0.04]} c="#c8a452" />
+      {/* Raised brass letters stay readable at game-camera distance. */}
+      <group position={[-0.06, 0.1, 0.1]}>
+        <Box p={[-0.47, 0, 0]} s={[0.1, 0.8, 0.04]} c="#edcf7d" />
+        <Box
+          p={[-0.29, 0.21, 0]}
+          s={[0.1, 0.5, 0.04]}
+          r={[0, 0, -0.7]}
+          c="#edcf7d"
+        />
+        <Box
+          p={[-0.29, -0.21, 0]}
+          s={[0.1, 0.5, 0.04]}
+          r={[0, 0, 0.7]}
+          c="#edcf7d"
+        />
+        <Box p={[0.32, 0.36, 0]} s={[0.5, 0.1, 0.04]} c="#edcf7d" />
+        <Box p={[0.32, -0.36, 0]} s={[0.5, 0.1, 0.04]} c="#edcf7d" />
+        <Box
+          p={[0.25, 0.18, 0]}
+          s={[0.1, 0.5, 0.04]}
+          r={[0, 0, 0.7]}
+          c="#edcf7d"
+        />
+        <Box
+          p={[0.25, -0.18, 0]}
+          s={[0.1, 0.5, 0.04]}
+          r={[0, 0, -0.7]}
+          c="#edcf7d"
+        />
+      </group>
     </group>
   );
 }
@@ -241,7 +264,6 @@ function DiceTable({ onReward }: InteriorGameProps) {
 export function HouseInterior(props: InteriorGameProps) {
   return (
     <group>
-      <Pennant x={-3.3} />
       <Pennant x={0} />
       <Fireplace />
       <Sofa p={[-4.15, 0, -1.6]} rotation={Math.PI / 2} />

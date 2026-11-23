@@ -1,6 +1,6 @@
-import { useRef, type ReactNode } from "react";
+import { useMemo, useRef, type ReactNode } from "react";
 import { Html } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { Box, Ball, Cylinder, Ring } from "../world/Models";
 import { useGame } from "../core/store";
@@ -22,9 +22,16 @@ export function GameControls({
   name: string;
   position?: [number, number, number];
 }) {
+  const gl = useThree((s) => s.gl);
+  // Drei otherwise changes targets when R3F connects its event source on the
+  // first frame, tearing down its React root during another root's commit.
+  const portal = useMemo(
+    () => ({ current: gl.domElement.parentElement! }),
+    [gl],
+  );
   const hidden = useGame((s) => s.paused || s.panel !== "none" || s.build);
   return hidden ? null : (
-    <Html position={position} center zIndexRange={[20, 0]}>
+    <Html portal={portal} position={position} center zIndexRange={[20, 0]}>
       <section
         className="interior-game"
         aria-label={name}
