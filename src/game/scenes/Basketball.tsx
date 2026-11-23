@@ -233,7 +233,8 @@ export function Basketball() {
     }
     if (runtime.shoot && holding.current && !buzzer) {
       holding.current = false;
-      shotDistance.current = Math.hypot(runtime.x - hoop.x, runtime.z - hoop.z);
+      // Points follow the painted line, even when the Daily hoop moves.
+      shotDistance.current = Math.hypot(runtime.x - HOOP.x, runtime.z - HOOP.z);
       const spot = COURT_SPOTS[target()];
       spotShot.current =
         Math.hypot(runtime.x - spot.x, runtime.z - spot.z) < 1.05;
