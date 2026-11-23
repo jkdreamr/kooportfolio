@@ -70,7 +70,16 @@ function CourtControls() {
   const { mode, style, assist } = useBasketOptions();
   const { challenge, target } = useBasketHud();
   return (
-    <div className="basketball-controls" data-mode={mode}>
+    <div
+      className="basketball-controls"
+      data-mode={mode}
+      onKeyDown={(event) => {
+        if (event.key === " ") event.stopPropagation();
+      }}
+      onKeyUp={(event) => {
+        if (event.key === " ") event.stopPropagation();
+      }}
+    >
       <nav aria-label="Court mode">
         {(Object.keys(MODES) as BasketMode[]).map((m) => (
           <button
