@@ -962,6 +962,37 @@
 }
 .race-touch {
   display: none;
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: calc(72px + env(safe-area-inset-bottom));
+  justify-content: space-between;
+  gap: 15px;
+}
+.race-touch button {
+  width: 68px;
+  height: 61px;
+  background: #f0f0d9e8;
+  border: 1px solid #91a477;
+  color: #42592d;
+  font-size: 25px;
+  border-radius: 50%;
+  touch-action: none;
+  user-select: none;
+}
+.race-touch button.burst {
+  font: 11px Arial;
+  width: 84px;
+  border-radius: 12px;
+  background: #6d854f;
+  color: #fff;
+}
+@media (pointer: coarse) {
+  .joystick { display: block; }
+  .race-touch { display: flex; }
+  .icon-button, .close-button { min-width: 44px; min-height: 44px; }
+  .aim-label input { min-height: 44px; }
+  .aim-label button { min-width: 44px; min-height: 44px; }
 }
 .basket-score {
   position: absolute;
