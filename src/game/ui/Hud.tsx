@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { runtime, useGame, type Scene } from "../core/store";
+import { runtime, useGame, walkTo, type Scene } from "../core/store";
 import { touch } from "../core/input";
 import { dailySeed, raceTime } from "../core/rowing";
 import { useRaceHud } from "../scenes/Rowing";
 import { useBasketHud } from "../scenes/Basketball";
 import { Icon } from "./Icon";
-import { doors } from "../core/world";
+import { doors, isInterior } from "../core/world";
+import { useGym } from "../scenes/CognitionGym";
 import { profile } from "../../content/profile";
 import { WorldLabels } from "../world/Labels";
 
@@ -261,7 +262,7 @@ function Modal({
   close,
 }: {
   title: string;
-  eyebrow: string;
+  eyebrow?: string;
   children: React.ReactNode;
   close: () => void;
 }) {
@@ -321,8 +322,9 @@ export function Hud({ interact }: { interact: () => void }) {
       null,
     );
   const hub = g.scene === "hub",
-    interior = g.scene === "boathouse" || g.scene === "office",
+    interior = isInterior(g.scene),
     game = g.scene === "rowing" || g.scene === "basketball";
+  const reps = useGym((s) => s.reps);
   const closePanel = () => useGame.setState({ panel: "none" });
   useEffect(() => {
     if (
@@ -384,7 +386,7 @@ export function Hud({ interact }: { interact: () => void }) {
           >
             ← Exit
           </button>
-          <h1>{g.scene === "boathouse" ? "Boathouse" : "Study"}</h1>
+          <h1>{doors.find((door) => door.id === g.scene)?.name}</h1>
         </div>
       )}
       {g.scene === "rowing" && <RaceHud />}
@@ -400,12 +402,14 @@ export function Hud({ interact }: { interact: () => void }) {
                     ? "Coxswain Regatta"
                     : g.near === "read"
                       ? "Meet Joshua"
-                      : doors.find((d) => d.id === g.near)?.name}
+                      : g.near === "desk"
+                        ? "Desk"
+                        : g.near === "lift"
+                          ? `${reps} reps`
+                          : doors.find((d) => d.id === g.near)?.name}
               </strong>
             </div>
-            <button
-              onClick={interact}
-            >
+            <button onClick={interact}>
               <kbd>E</kbd>
               {g.near === "exit"
                 ? "Exit"
@@ -413,7 +417,11 @@ export function Hud({ interact }: { interact: () => void }) {
                   ? "Race"
                   : g.near === "read"
                     ? "Read"
-                    : "Enter"}{" "}
+                    : g.near === "desk"
+                      ? "Open"
+                      : g.near === "lift"
+                        ? "Lift"
+                        : "Enter"}{" "}
               <Icon name="arrow" size={17} />
             </button>
           </div>
@@ -528,8 +536,8 @@ export function Hud({ interact }: { interact: () => void }) {
           {[
             [
               "home",
-              "Explore",
-              () => useGame.setState({ build: false, panel: "none" }),
+              "Places",
+              () => useGame.setState({ build: false, panel: "places" }),
             ],
             [
               "build",
@@ -559,7 +567,7 @@ export function Hud({ interact }: { interact: () => void }) {
                   ? icon === "build"
                     ? "active"
                     : ""
-                  : g.panel === icon || (icon === "home" && g.panel === "none")
+                  : g.panel === icon || (icon === "home" && g.panel === "places")
                     ? "active"
                     : ""
               }
@@ -748,6 +756,41 @@ export function Hud({ interact }: { interact: () => void }) {
               Finish games to earn local coins. Build adds visible architecture,
               never paid advantages.
             </p>
+          </div>
+        </Modal>
+      )}
+      {g.panel === "places" && (
+        <Modal title="Places" close={closePanel}>
+          <nav className="places-list" aria-label="Walk to a place">
+            {doors.map((door) => (
+              <button
+                key={door.id}
+                onClick={() => {
+                  closePanel();
+                  if (g.scene !== "hub") g.go("hub");
+                  walkTo(door.x, door.z);
+                }}
+              >
+                <span>{door.name}</span>
+                <Icon name="arrow" size={18} />
+              </button>
+            ))}
+          </nav>
+        </Modal>
+      )}
+      {g.panel === "desk" && (
+        <Modal title="Desk" close={closePanel}>
+          <div className="study-links">
+            <a
+              href="https://github.com/jkdreamr"
+              target="_blank"
+              rel="noreferrer"
+            >
+              GitHub <span>↗</span>
+            </a>
+            <a href="/work" target="_blank" rel="noreferrer">
+              Work <span>↗</span>
+            </a>
           </div>
         </Modal>
       )}

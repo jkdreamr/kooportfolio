@@ -747,6 +747,24 @@
   border-bottom: 1px solid #dfdfca;
   font-size: 12px;
 }
+.places-list {
+  display: grid;
+  gap: 5px;
+}
+.places-list button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 48px;
+  padding: 10px 14px;
+  color: #304e31;
+  background: #e5e8d1;
+  border: 1px solid #bec5a1;
+  border-radius: 5px;
+  font: inherit;
+  text-align: left;
+}
+.places-list button:hover { background: #d4ddbc; }
 .joystick {
   display: none;
   position: absolute;
@@ -988,11 +1006,24 @@
   color: #fff;
 }
 @media (pointer: coarse) {
-  .joystick { display: block; }
-  .race-touch { display: flex; }
-  .icon-button, .close-button { min-width: 44px; min-height: 44px; }
-  .aim-label input { min-height: 44px; }
-  .aim-label button { min-width: 44px; min-height: 44px; }
+  .joystick {
+    display: block;
+  }
+  .race-touch {
+    display: flex;
+  }
+  .icon-button,
+  .close-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .aim-label input {
+    min-height: 44px;
+  }
+  .aim-label button {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
 .basket-score {
   position: absolute;

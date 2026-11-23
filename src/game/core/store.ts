@@ -8,8 +8,8 @@ import {
   upgrade,
   writeGuestSave,
 } from "../../shared/save";
-import { canWalk, findPath } from "./world";
-export type Scene = "hub" | "boathouse" | "rowing" | "basketball" | "office";
+import { canWalk, findPath, isInterior, type PlaceId } from "./world";
+export type Scene = "hub" | "rowing" | PlaceId;
 let storageIssue = "";
 let savedRaw: string | null = null;
 function load() {
@@ -54,7 +54,15 @@ type State = {
   save: Save;
   paused: boolean;
   build: boolean;
-  panel: "none" | "help" | "avatar" | "memories" | "settings" | "profile";
+  panel:
+    | "none"
+    | "help"
+    | "avatar"
+    | "memories"
+    | "settings"
+    | "profile"
+    | "places"
+    | "desk";
   near: string;
   notice: string;
   muted: boolean;
@@ -90,7 +98,7 @@ export const useGame = create<State>((set, get) => ({
     if (get().scene === "hub") get().persist();
     if (scene === "hub") {
       [runtime.x, runtime.z] = get().save.position;
-    } else if (scene === "boathouse" || scene === "office") {
+    } else if (isInterior(scene)) {
       runtime.x = 0;
       runtime.z = 4;
     } else if (scene === "basketball") {
@@ -132,7 +140,11 @@ export const useGame = create<State>((set, get) => ({
       const written = writeGuestSave(localStorage, s, savedRaw);
       if (written === null) {
         writeAllowed = false;
-        set({ paused: true, notice: "Another tab changed this save. Reload to resume saving; progress here is temporary." });
+        set({
+          paused: true,
+          notice:
+            "Another tab changed this save. Reload to resume saving; progress here is temporary.",
+        });
         return;
       }
       savedRaw = written;

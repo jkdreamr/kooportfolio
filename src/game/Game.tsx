@@ -19,6 +19,8 @@ import { Basketball } from "./scenes/Basketball";
 import { Hud } from "./ui/Hud";
 import { runtime, useGame, type Scene } from "./core/store";
 import { useInput } from "./core/input";
+import { doors, isInterior } from "./core/world";
+import { useGym } from "./scenes/CognitionGym";
 import "./game.css";
 
 class WorldBoundary extends Component<
@@ -88,13 +90,13 @@ function World() {
   const scene = useGame((s) => s.scene),
     run = useGame((s) => s.run),
     quality = useGame((s) => s.quality);
-  const flat = scene === "hub" || scene === "boathouse" || scene === "office";
+  const flat = scene === "hub" || isInterior(scene);
   return (
     <>
       {flat ? (
         <OrthographicCamera
           makeDefault
-          position={[24, 28, 32]}
+          position={[28, 34, 38]}
           zoom={29}
           near={0.1}
           far={220}
@@ -110,28 +112,28 @@ function World() {
       )}
       <color
         attach="background"
-        args={[scene === "rowing" ? "#d5e0ce" : "#eae7dc"]}
+        args={[scene === "rowing" ? "#d5e0ce" : "#dce5c7"]}
       />
       <fog
         attach="fog"
         args={[
-          scene === "rowing" ? "#d5e0ce" : "#eae7dc",
+          scene === "rowing" ? "#d5e0ce" : "#dce5c7",
           scene === "rowing" ? 65 : 65,
           scene === "rowing" ? 120 : 160,
         ]}
       />
-      <hemisphereLight args={["#fff6e4", "#69854f", 1.9]} />
-      <ambientLight intensity={0.35} color="#f1e2c8" />
+      <hemisphereLight args={["#fff6e4", "#4f713b", 1.4]} />
+      <ambientLight intensity={0.3} color="#f1e2c8" />
       <directionalLight
         position={[-12, 24, 12]}
-        intensity={3}
+        intensity={2.4}
         color="#fff0cc"
         castShadow={quality === "high" && scene !== "rowing"}
         shadow-mapSize={[2048, 2048]}
-        shadow-camera-left={-24}
-        shadow-camera-right={24}
-        shadow-camera-top={22}
-        shadow-camera-bottom={-22}
+        shadow-camera-left={-35}
+        shadow-camera-right={35}
+        shadow-camera-top={32}
+        shadow-camera-bottom={-32}
         shadow-normalBias={0.05}
         shadow-bias={-0.0003}
       />
@@ -146,7 +148,7 @@ function World() {
         </mesh>
       )}
       {scene === "hub" && <Hub />}
-      {(scene === "boathouse" || scene === "office") && <Interior />}
+      {isInterior(scene) && <Interior key={scene} />}
       {scene === "rowing" && <Rowing key={`race-${run}`} />}
       {scene === "basketball" && <Basketball key={`basket-${run}`} />}
       <FrameMetrics />
@@ -168,16 +170,15 @@ export default function Game() {
   const interact = useCallback(() => {
     const g = useGame.getState();
     if (g.paused || g.build || g.panel !== "none") return;
-    if (
-      g.scene === "hub" &&
-      ["boathouse", "basketball", "office"].includes(g.near)
-    )
+    if (g.scene === "hub" && doors.some((door) => door.id === g.near))
       g.go(g.near as Scene);
     else if (g.near === "exit") g.go("hub");
     else if (g.near === "race") {
       runtime.raceCadence = 30;
       g.go("rowing");
     } else if (g.near === "read") useGame.setState({ panel: "profile" });
+    else if (g.near === "desk") useGame.setState({ panel: "desk" });
+    else if (g.near === "lift") useGym.getState().lift();
   }, []);
   useInput(interact);
   useEffect(() => {
