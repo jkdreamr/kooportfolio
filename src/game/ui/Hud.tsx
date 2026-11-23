@@ -3,7 +3,7 @@ import { runtime, useGame, walkTo, type Scene } from "../core/store";
 import { touch } from "../core/input";
 import { dailySeed, raceTime } from "../core/rowing";
 import { useRaceHud } from "../scenes/Rowing";
-import { useBasketHud } from "../scenes/Basketball";
+import { CourtControls, useBasketHud } from "../scenes/Basketball";
 import { Icon } from "./Icon";
 import { doors, isInterior } from "../core/world";
 import { useGym } from "../scenes/CognitionGym";
@@ -47,11 +47,50 @@ export function Joystick() {
 }
 export function RaceHud() {
   const { race, place } = useRaceHud();
+  const pointers = useRef(new Map<number, "left" | "right" | "burst">());
+  const [held, setHeld] = useState<string[]>([]);
+  const updateTouch = () => {
+    const values = [...pointers.current.values()];
+    runtime.steer =
+      Number(values.includes("right")) - Number(values.includes("left"));
+    runtime.burst = values.includes("burst");
+    setHeld(values);
+  };
+  const touchButton = (control: "left" | "right" | "burst") => ({
+    "data-held": held.includes(control),
+    onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
+      event.currentTarget.setPointerCapture(event.pointerId);
+      pointers.current.set(event.pointerId, control);
+      updateTouch();
+    },
+    onPointerUp: (event: React.PointerEvent<HTMLButtonElement>) => {
+      pointers.current.delete(event.pointerId);
+      updateTouch();
+    },
+    onPointerCancel: (event: React.PointerEvent<HTMLButtonElement>) => {
+      pointers.current.delete(event.pointerId);
+      updateTouch();
+    },
+    onLostPointerCapture: (event: React.PointerEvent<HTMLButtonElement>) => {
+      pointers.current.delete(event.pointerId);
+      updateTouch();
+    },
+  });
+  useEffect(
+    () => () => {
+      runtime.steer = 0;
+      runtime.burst = false;
+    },
+    [],
+  );
   return (
     <>
       <div className="challenge-heading">
         <h1>Regatta</h1>
-        <p>A / D steer · 1 / 2 / 3 cadence · hold Space for a burst</p>
+        <p className="keyboard-hint">
+          A / D steer · 1 / 2 / 3 cadence · hold Space for a burst
+        </p>
+        <p className="touch-hint">Steer with arrows · hold burst</p>
       </div>
       <div className="race-progress">
         <div
@@ -117,10 +156,10 @@ export function RaceHud() {
         </div>
         <p>
           {race.bank
-            ? "Shallow water — steer back between the buoys."
+            ? "Shallows — steer inside the buoys."
             : race.stamina < 20
-              ? "Your crew needs a breather. Settle the pace."
-              : "The pale currents give you a little extra speed."}
+              ? "Low energy — settle the pace."
+              : "Pale water runs faster."}
         </p>
       </div>
       {race.splits.length > 0 && (
@@ -130,37 +169,13 @@ export function RaceHud() {
         </div>
       )}
       <div className="race-touch">
-        <button
-          aria-label="Steer left"
-          onPointerDown={(e) => {
-            e.currentTarget.setPointerCapture(e.pointerId);
-            runtime.steer = -1;
-          }}
-          onPointerUp={() => (runtime.steer = 0)}
-          onPointerCancel={() => (runtime.steer = 0)}
-        >
+        <button aria-label="Steer left" {...touchButton("left")}>
           ←
         </button>
-        <button
-          className="burst"
-          onPointerDown={(e) => {
-            e.currentTarget.setPointerCapture(e.pointerId);
-            runtime.burst = true;
-          }}
-          onPointerUp={() => (runtime.burst = false)}
-          onPointerCancel={() => (runtime.burst = false)}
-        >
+        <button className="burst" {...touchButton("burst")}>
           BURST
         </button>
-        <button
-          aria-label="Steer right"
-          onPointerDown={(e) => {
-            e.currentTarget.setPointerCapture(e.pointerId);
-            runtime.steer = 1;
-          }}
-          onPointerUp={() => (runtime.steer = 0)}
-          onPointerCancel={() => (runtime.steer = 0)}
-        >
+        <button aria-label="Steer right" {...touchButton("right")}>
           →
         </button>
       </div>
@@ -173,7 +188,10 @@ export function BasketHud() {
     <>
       <div className="challenge-heading">
         <h1>Court</h1>
-        <p>WASD move · hold & release Space to shoot · Q / E adjust aim</p>
+        <p className="keyboard-hint">
+          WASD move · hold & release Space to shoot · Q / E adjust aim
+        </p>
+        <p className="touch-hint">Drag to move · hold & release to shoot</p>
       </div>
       <div className="basket-score">
         <div>
@@ -201,7 +219,7 @@ export function BasketHud() {
           <i style={{ width: `${hud.charge * 100}%` }} />
           <b />
         </div>
-        <p>Aim at the little gold zone. Get closer for an easier shot.</p>
+        <p className="shot-instruction">Release in gold. Closer is easier.</p>
         <label className="aim-label">
           AIM{" "}
           <input
@@ -338,7 +356,7 @@ export function Hud({ interact }: { interact: () => void }) {
     return () => clearTimeout(t);
   }, [g.notice]);
   return (
-    <div className="game-ui">
+    <div className={`game-ui scene-${g.scene}`}>
       <header className="game-header">
         <a className="game-brand" href="/">
           <span className="brand-glyph">
@@ -390,7 +408,12 @@ export function Hud({ interact }: { interact: () => void }) {
         </div>
       )}
       {g.scene === "rowing" && <RaceHud />}
-      {g.scene === "basketball" && <BasketHud />}
+      {g.scene === "basketball" && (
+        <>
+          <BasketHud />
+          <CourtControls />
+        </>
+      )}
       {(hub || interior) && !g.build && (
         <>
           <div className={`context-action ${g.near ? "visible" : ""}`}>
@@ -567,7 +590,8 @@ export function Hud({ interact }: { interact: () => void }) {
                   ? icon === "build"
                     ? "active"
                     : ""
-                  : g.panel === icon || (icon === "home" && g.panel === "places")
+                  : g.panel === icon ||
+                      (icon === "home" && g.panel === "places")
                     ? "active"
                     : ""
               }
@@ -589,7 +613,10 @@ export function Hud({ interact }: { interact: () => void }) {
         </span>
         <button onClick={() => useGame.setState({ panel: "help" })}>
           <Icon name="help" size={15} />
-          <span>{game ? "Controls" : "WASD / E"}</span>
+          <span className="keyboard-hint">
+            {game ? "Controls" : "WASD / E"}
+          </span>
+          <span className="touch-hint">Controls</span>
         </button>
       </div>
       {g.notice && (
@@ -732,24 +759,39 @@ export function Hud({ interact }: { interact: () => void }) {
           <div className="help-grid">
             <b>Wander</b>
             <p>
-              WASD / arrows, click the ground or a building label. Touch: drag
-              the round joystick.
+              <span className="keyboard-hint">
+                WASD / arrows or click the ground.
+              </span>
+              <span className="touch-hint">
+                Drag the round joystick or tap the ground.
+              </span>{" "}
+              Choose a building label to walk there.
             </p>
             <b>Doors</b>
             <p>
-              Walk to the door and press E or the Enter button. Inside, walk
-              back to the exit mat.
+              Walk to the door and{" "}
+              <span className="keyboard-hint">press E or </span>tap Enter.
+              Inside, walk back to the exit mat.
             </p>
             <b>Row</b>
             <p>
-              A/D to steer. 1/2/3 for cadence. Space for a burst. Push too hard
-              and your crew tires. Stay inside the buoys.
+              <span className="keyboard-hint">
+                A/D to steer. 1/2/3 for cadence. Space for a burst.{" "}
+              </span>
+              <span className="touch-hint">
+                Hold arrows to steer and BURST to sprint. Tap a pace.{" "}
+              </span>
+              Stay inside the buoys; sprinting drains energy.
             </p>
             <b>Shoot</b>
             <p>
-              WASD to find a spot. Hold Space or the shot button, release in the
-              gold power zone. Q/E or the aim slider adds an angle. Chase
-              rebounds or wait for a new ball.
+              <span className="keyboard-hint">
+                WASD to move. Hold Space or Shoot. Q/E to aim.{" "}
+              </span>
+              <span className="touch-hint">
+                Drag the joystick. Hold Shoot; slide to aim.{" "}
+              </span>
+              Release in the gold. Chase rebounds or wait for a new ball.
             </p>
             <b>Grow</b>
             <p>

@@ -9,6 +9,9 @@
     12px/1.4 system-ui,
     sans-serif;
 }
+.basketball-mode-select {
+  display: none;
+}
 .basketball-controls nav {
   display: flex;
   flex-wrap: wrap;

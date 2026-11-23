@@ -77,7 +77,9 @@ describe("rowing strokes and race timing", () => {
     expect(settle.time).toBeGreaterThan(rhythm.time);
     expect(push.stamina).toBeLessThan(rhythm.stamina);
     expect(burst.stamina).toBeLessThan(rhythm.stamina);
-    expect(burst.time).toBeLessThan(rhythm.time);
+    // A short sprint is faster; holding it for the whole race exhausts the crew.
+    expect(drive(30, true, 80).time).toBeLessThan(drive(30, false, 80).time);
+    expect(burst.time).toBeGreaterThan(rhythm.time);
   });
   it("aligns the visible fast-water line with the simulated current", () => {
     for (const seed of [1, 2, 30])

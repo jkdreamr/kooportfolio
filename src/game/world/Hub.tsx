@@ -115,8 +115,11 @@ export function Walker({ interior = false }: { interior?: boolean }) {
     camera.lookAt(follow.current.x, interior ? 0.5 : 0.7, follow.current.z);
     if (camera instanceof THREE.OrthographicCamera) {
       const fitted = Math.max(
-        9,
-        Math.min((size.width - 100) / 57, (size.height - 180) / 39),
+        3.5,
+        Math.min(
+          (size.width - 70) / 57,
+          (size.height - (size.height < 500 ? 120 : 180)) / 39,
+        ),
       );
       const targetZoom = interior
         ? Math.min(44, (size.width - 25) / 17, (size.height - 170) / 17)
