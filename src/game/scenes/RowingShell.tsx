@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { RaceState } from "../core/rowing";
@@ -39,6 +39,7 @@ export function RowingShell({
     geometry.rotateX(-Math.PI / 2);
     return geometry;
   }, []);
+  useEffect(() => () => hull.dispose(), [hull]);
   useFrame(() => {
     const s = state();
     const moving = s.time >= 0;

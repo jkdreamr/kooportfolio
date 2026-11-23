@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { create } from "zustand";
 import * as THREE from "three";
@@ -116,6 +116,13 @@ function River({ length, seed }: { length: number; seed: number }) {
     g.setIndex(indices);
     return g;
   }, [length, seed]);
+  useEffect(
+    () => () => {
+      geometry.dispose();
+      channel.dispose();
+    },
+    [geometry, channel],
+  );
   return (
     <group>
       <mesh geometry={geometry} receiveShadow>
