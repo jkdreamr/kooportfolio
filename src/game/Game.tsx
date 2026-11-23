@@ -2,6 +2,8 @@ import {
   Component,
   useCallback,
   useEffect,
+  useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -86,10 +88,48 @@ function FrameMetrics() {
   });
   return null;
 }
+function Sun() {
+  const light = useRef<THREE.DirectionalLight>(null);
+  const target = useMemo(() => new THREE.Object3D(), []);
+  const quality = useGame((s) => s.quality);
+  useFrame(({ camera }) => {
+    const race = useGame.getState().scene === "rowing";
+    target.position.set(
+      race ? camera.position.x : 0,
+      0,
+      race ? camera.position.z - 18 : 0,
+    );
+    target.updateMatrixWorld();
+    light.current?.position.set(
+      target.position.x - 12,
+      24,
+      target.position.z + 12,
+    );
+  });
+  return (
+    <>
+      <primitive object={target} />
+      <directionalLight
+        ref={light}
+        target={target}
+        intensity={3.1}
+        color="#fff0cc"
+        castShadow={quality === "high"}
+        shadow-mapSize={[2048, 2048]}
+        shadow-camera-left={-35}
+        shadow-camera-right={35}
+        shadow-camera-top={32}
+        shadow-camera-bottom={-32}
+        shadow-camera-far={100}
+        shadow-normalBias={0.05}
+        shadow-bias={-0.0003}
+      />
+    </>
+  );
+}
 function World() {
   const scene = useGame((s) => s.scene),
-    run = useGame((s) => s.run),
-    quality = useGame((s) => s.quality);
+    run = useGame((s) => s.run);
   const flat = scene === "hub" || isInterior(scene);
   return (
     <>
@@ -122,21 +162,14 @@ function World() {
           scene === "rowing" ? 120 : 160,
         ]}
       />
-      <hemisphereLight args={["#fff6e4", "#4f713b", 1.4]} />
-      <ambientLight intensity={0.3} color="#f1e2c8" />
+      <hemisphereLight args={["#dceaff", "#465638", 0.95]} />
+      <ambientLight intensity={0.16} color="#f1e2c8" />
       <directionalLight
-        position={[-12, 24, 12]}
-        intensity={2.4}
-        color="#fff0cc"
-        castShadow={quality === "high" && scene !== "rowing"}
-        shadow-mapSize={[2048, 2048]}
-        shadow-camera-left={-35}
-        shadow-camera-right={35}
-        shadow-camera-top={32}
-        shadow-camera-bottom={-32}
-        shadow-normalBias={0.05}
-        shadow-bias={-0.0003}
+        position={[16, 15, -24]}
+        intensity={0.8}
+        color="#c7e6ff"
       />
+      <Sun />
       {scene !== "rowing" && (
         <mesh
           rotation={[-Math.PI / 2, 0, 0]}
@@ -222,7 +255,7 @@ export default function Game() {
           frameloop={paused ? "demand" : "always"}
           onCreated={({ gl }) => {
             gl.toneMapping = THREE.ACESFilmicToneMapping;
-            gl.toneMappingExposure = 1.05;
+            gl.toneMappingExposure = 0.98;
             gl.domElement.addEventListener("webglcontextlost", (e) => {
               e.preventDefault();
               setLost(true);

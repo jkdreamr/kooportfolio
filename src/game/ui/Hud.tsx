@@ -9,6 +9,7 @@ import { doors, isInterior } from "../core/world";
 import { useGym } from "../scenes/CognitionGym";
 import { profile } from "../../content/profile";
 import { WorldLabels } from "../world/Labels";
+import { ROOM } from "../core/room";
 
 export function Joystick() {
   const pad = useRef<HTMLDivElement>(null),
@@ -399,7 +400,8 @@ export function Hud({ interact }: { interact: () => void }) {
           <button
             className="back-link"
             onClick={() => {
-              runtime.target = [0, 5];
+              runtime.path = [];
+              runtime.target = [0, ROOM.doorZ];
             }}
           >
             ← Exit

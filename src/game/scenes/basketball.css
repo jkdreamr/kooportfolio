@@ -60,6 +60,15 @@
 .basketball-controls small {
   font-size: 10px;
 }
+@media (min-width: 701px) and (min-height: 501px) {
+  .scene-basketball .challenge-heading p {
+    max-width: 280px;
+    line-height: 1.6;
+  }
+  .scene-basketball .basketball-controls {
+    top: 280px;
+  }
+}
 .game-shell:has(.basketball-controls[data-mode="practice"])
   .basket-score
   > div:last-child,
