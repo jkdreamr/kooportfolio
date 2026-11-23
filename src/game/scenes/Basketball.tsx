@@ -3,16 +3,7 @@ import { Line } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { create } from "zustand";
 import * as THREE from "three";
-import {
-  Ball,
-  Bench,
-  Box,
-  Cylinder,
-  Flowers,
-  Ring,
-  Sign,
-  Tree,
-} from "../world/Models";
+import { Ball, Cylinder, Flowers, Ring, Sign, Tree } from "../world/Models";
 import { runtime, useGame } from "../core/store";
 import { keys, movement } from "../core/input";
 import {
@@ -29,6 +20,13 @@ import {
 import { sound } from "../core/sound";
 import { newRunId } from "../../shared/run-id";
 import { BasketballPlayer } from "./BasketballPlayer";
+import {
+  CourtBall,
+  CourtBlock as Box,
+  CourtDeck,
+  CourtSidelines,
+  HoopHardware,
+} from "./CourtDetails";
 import "./basketball.css";
 
 export type BasketMode = "warmup" | "practice" | "attack" | "daily";
@@ -441,19 +439,9 @@ export function Basketball() {
   );
   return (
     <group>
-      <Box p={[0, -0.35, 0]} s={[16.3, 0.7, 20.3]} c="#b59b76" />
-      <Box p={[0, -0.04, 0]} s={[15.9, 0.3, 19.9]} c="#dbc99c" />
-      <Box p={[0, 0.02, 0]} s={[14, 0.2, 17]} c="#ba7759" />
-      <Box p={[0, 0.125, -3.5]} s={[5, 0.012, 7]} c="#547e78" sharp />
-      {Array.from({ length: 12 }, (_, i) => (
-        <Box
-          key={i}
-          p={[-6.42 + i * 1.16, 0.123, 0]}
-          s={[0.012, 0.005, 16.8]}
-          c="#b16f54"
-          sharp
-        />
-      ))}
+      <CourtDeck />
+      <CourtSidelines />
+      <Box p={[0, 0.125, -3.5]} s={[5, 0.012, 7]} c="#2e655b" sharp />
       <Line
         points={[
           [-6, 0.15, 8],
@@ -491,6 +479,7 @@ export function Basketball() {
         <Ring radius={0.95} tube={0.018} c="#f8df9b" />
       </group>
       <group ref={hoopMesh}>
+        <HoopHardware />
         <Box p={[0, 0.4, -6.6]} s={[1.6, 0.65, 1.5]} c="#3d6666" />
         <Cylinder p={[0, 2.3, -6.35]} s={[0.16, 4.6, 0.16]} c="#526f6b" />
         <Box p={[0, 4.25, -6.1]} s={[0.2, 0.2, 0.8]} c="#526f6b" />
@@ -561,7 +550,7 @@ export function Basketball() {
         />
       </group>
       <group ref={ballMesh}>
-        <Ball s={[0.23, 0.23, 0.23]} c="#e58b3d" />
+        <CourtBall />
         <Ring radius={0.231} tube={0.012} c="#65422c" r={[0, 0, 0]} />
         <Ring radius={0.231} tube={0.012} c="#65422c" r={[0, Math.PI / 2, 0]} />
         <Ring radius={0.231} tube={0.012} c="#65422c" />
@@ -581,8 +570,6 @@ export function Basketball() {
         ))}
       </group>
       <Sign text="COURT 01" p={[0, 5.9, -8.5]} size={[3.5, 0.65]} />
-      <Bench p={[-9, 0, 1]} rotation={Math.PI / 2} />
-      <Bench p={[9, 0, -2]} rotation={-Math.PI / 2} />
       <Tree p={[-10, 0, -7]} variant={1} />
       <Tree p={[10, 0, -7]} />
       <Flowers p={[-8, 0, 7]} />
