@@ -1,7 +1,8 @@
 import { useRef, type RefObject } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { Ball, Box } from "../world/Models";
+import { Ball } from "../world/Models";
+import { CourtBlock as Box } from "./CourtDetails";
 import { runtime, useGame } from "../core/store";
 
 // Court-only rig: planted feet, a two-handed gather, then a short follow-through.
@@ -67,6 +68,10 @@ export function BasketballPlayer({
         ))}
       </group>
       <Box p={[0, 1.49, 0.02]} s={[0.76, 0.66, 0.65]} c="#efc5a0" />
+      {[-0.4, 0.4].map((x) => (
+        <Ball key={x} p={[x, 1.48, 0.02]} s={[0.1, 0.14, 0.13]} c="#e2ac82" />
+      ))}
+      <Box p={[0, 1.43, 0.37]} s={[0.13, 0.13, 0.13]} c="#e7b18a" />
       <Box p={[0, 1.81, -0.02]} s={[0.8, 0.22, 0.7]} c="#3e3936" />
       <Box p={[-0.34, 1.59, -0.1]} s={[0.15, 0.34, 0.59]} c="#3e3936" />
       {[-0.16, 0.16].map((x) => (
