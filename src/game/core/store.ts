@@ -7,7 +7,7 @@ import {
   type Save,
   upgrade,
 } from "../../shared/save";
-import { canWalk } from "./world";
+import { canWalk, findPath } from "./world";
 export type Scene = "hub" | "boathouse" | "rowing" | "basketball" | "office";
 let storageIssue = "";
 function load() {
@@ -42,6 +42,10 @@ export const runtime = {
   burst: false,
   active: true,
 };
+export function walkTo(x: number, z: number) {
+  runtime.path = findPath([runtime.x, runtime.z], [x, z]);
+  runtime.target = runtime.path.shift() ?? null;
+}
 type State = {
   scene: Scene;
   save: Save;

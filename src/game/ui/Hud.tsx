@@ -7,6 +7,7 @@ import { useBasketHud } from "../scenes/Basketball";
 import { Icon } from "./Icon";
 import { doors } from "../core/world";
 import { profile } from "../../content/profile";
+import { WorldLabels } from "../world/Labels";
 
 export function Joystick() {
   const pad = useRef<HTMLDivElement>(null),
@@ -372,6 +373,7 @@ export function Hud({ interact }: { interact: () => void }) {
           </button>
         </div>
       </header>
+      {hub && !g.build && <WorldLabels />}
       {interior && (
         <div className="interior-heading">
           <button

@@ -33,7 +33,7 @@ export function Interior() {
       <Window p={[-3.1, 3, -5.78]} width={1.6} />
       <Window p={[3.1, 3, -5.78]} width={1.6} />
       <Sign
-        text={office ? "CURIOSITY LIVES HERE" : "EVERY STROKE COUNTS"}
+        text={office ? "STUDY" : "BOATHOUSE"}
         p={[0, 4, -5.72]}
         size={[4.5, 0.65]}
       />

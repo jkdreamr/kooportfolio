@@ -1,5 +1,4 @@
 import { useRef } from "react";
-import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import {
@@ -17,14 +16,10 @@ import {
   Sign,
   Tree,
 } from "./Models";
-import { runtime, useGame } from "../core/store";
+import { runtime, useGame, walkTo } from "../core/store";
 import { movement } from "../core/input";
-import { canWalk, doors, findPath, moveWorld } from "../core/world";
-
-export function walkTo(x: number, z: number) {
-  runtime.path = findPath([runtime.x, runtime.z], [x, z]);
-  runtime.target = runtime.path.shift() ?? null;
-}
+import { canWalk, doors, moveWorld } from "../core/world";
+import { LabelProjection } from "./Labels";
 export function Walker({ interior = false }: { interior?: boolean }) {
   const avatar = useRef<THREE.Group>(null);
   const save = useGame((s) => s.save);
@@ -361,33 +356,10 @@ export function Hub() {
         <Sign text="MORE TO COME" p={[0, 1.5, 1.4]} size={[2.7, 0.5]} />
         <Box p={[0, 1, 1.3]} s={[3.8, 0.4, 0.15]} c="#c9aa7a" />
       </group>
-      {doors.map((door, i) => (
-        <Html
-          key={door.id}
-          center
-          position={[door.x, i === 2 ? 8.2 : i === 0 ? 7.1 : 4.2, door.z - 1.2]}
-          zIndexRange={[12, 11]}
-        >
-          <button
-            className="world-label"
-            onClick={() => walkTo(door.x, door.z)}
-          >
-            <span className="label-dot" />
-            {door.name}
-            <span className="label-level">
-              {i === 0
-                ? `LV ${save.upgrades.boathouse}`
-                : i === 2
-                  ? "LV 1"
-                  : "PLAY"}{" "}
-              ↗
-            </span>
-          </button>
-        </Html>
-      ))}
       <Npc origin={[-3.5, 0.15, 3]} color="#bf8066" />
       <Npc origin={[6, 0.15, 6]} color="#d3ad68" />
       <Walker />
+      <LabelProjection />
     </group>
   );
 }
