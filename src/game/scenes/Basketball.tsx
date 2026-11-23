@@ -16,7 +16,7 @@ export function Basketball() {
   const predicted = useMemo(() => Array.from({ length: 18 }, () => new THREE.Vector3()), []);
   const line = useRef<THREE.Group>(null);
   useFrame(({ camera }, delta) => {
-    const g = useGame.getState(); if (g.paused || g.result || !runtime.active) return;
+    const g = useGame.getState(); if (g.paused || g.result || g.panel !== 'none' || !runtime.active) return;
     const dt = Math.min(delta, .04); elapsed.current += dt;
     let [dx, dz] = movement(); const xx = dx; dx = xx * .91 + dz * .41; dz = dz * .91 - xx * .41;
     runtime.moving = Math.hypot(dx, dz) > .1;

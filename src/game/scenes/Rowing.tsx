@@ -28,7 +28,7 @@ export function Rowing() {
   const state = useRef(newRace()), accumulator = useRef(0), nextHud = useRef(0), done = useRef(false), id = useRef(crypto.randomUUID());
   const length = runtime.raceLength, seed = runtime.raceSeed;
   useFrame(({ camera }, delta) => {
-    const game = useGame.getState(); if (game.paused || game.result || !runtime.active) return;
+    const game = useGame.getState(); if (game.paused || game.result || game.panel !== 'none' || !runtime.active) return;
     accumulator.current += Math.min(delta, .1);
     while (accumulator.current >= TICK) {
       const steer = (Number(keys.has('d') || keys.has('arrowright')) - Number(keys.has('a') || keys.has('arrowleft'))) || runtime.steer;

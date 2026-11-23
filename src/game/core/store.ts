@@ -1,10 +1,12 @@
 import { create } from 'zustand';
 import { freshSave, parseSave, reward, SAVE_KEY, type Save, upgrade } from '../../shared/save';
+import { canWalk } from './world';
 export type Scene = 'hub' | 'boathouse' | 'rowing' | 'basketball' | 'office';
 let storageIssue = '';
 function load() { try { return parseSave(localStorage.getItem(SAVE_KEY)); } catch { storageIssue = 'Your saved file could not be read. This session is temporary; your previous data has not been overwritten.'; return freshSave(); } }
 let writeAllowed = true;
 const initial = load();
+if (!canWalk(...initial.position)) initial.position = [0, 5];
 if (storageIssue) writeAllowed = false;
 export const runtime = { x: initial.position[0], z: initial.position[1], heading: 0, moving: false, target: null as [number, number] | null, path: [] as [number, number][], near: '', raceCadence: 30, raceLength: 360, raceSeed: 1, shoot: false, shooting: false, aim: 0, charge: 0, steer: 0, burst: false, active: true };
 type State = {
@@ -18,7 +20,7 @@ export const useGame = create<State>((set, get) => ({
   go(scene) {
     if (get().scene === 'hub') get().persist();
     if (scene === 'hub') { [runtime.x, runtime.z] = get().save.position; } else if (scene === 'boathouse' || scene === 'office') { runtime.x = 0; runtime.z = 4; } else if (scene === 'basketball') { runtime.x = 0; runtime.z = 5; }
-    runtime.target = null; runtime.path = []; runtime.near = ''; runtime.shoot = false; runtime.shooting = false;
+    runtime.target = null; runtime.path = []; runtime.near = ''; runtime.shoot = false; runtime.shooting = false; runtime.aim = 0; runtime.steer = 0; runtime.burst = false;
     set({ scene, near: '', result: null, build: false, paused: false, panel: 'none', run: get().run + 1 });
   },
   setNear(near) { if (get().near !== near) set({ near }); },
