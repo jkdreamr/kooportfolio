@@ -33,11 +33,13 @@ export function launchBall(
 ): BallState {
   const d = Math.max(1, Math.hypot(hoop.x - x, z - hoop.z));
   const h = hoop.y - 1.65;
-  // Short shots need a steeper gather to clear the near rim and descend into
-  // the basket. A fixed 52-degree arc reaches a two-meter target on the rise.
+  // Clear the near rim on short gathers, and keep the arrival slope steeper
+  // than 45 degrees at midrange. Crossing the hoop center alone is not enough
+  // clearance for a ball with volume.
   const elevation = Math.max(
     Math.PI * (style === "lob" ? 0.37 : 0.29),
     Math.atan2(2 * h + 1.6, Math.max(0.35, d - 0.5)),
+    Math.atan((2 * h) / d + 1.05),
   );
   const base = Math.sqrt(
     (GRAVITY * d * d) /
