@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { profile } from "../content/profile";
 
 export function Portfolio() {
-  const path = location.pathname;
+  const path = location.pathname.replace(/\/+$/, "") || "/";
   const [loose, setLoose] = useState(path === "/about");
   const [broken, setBroken] = useState(false);
   const [drag, setDrag] = useState({ x: 0, y: 0 });
