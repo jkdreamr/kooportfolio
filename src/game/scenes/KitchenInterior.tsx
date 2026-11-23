@@ -3,12 +3,14 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { Box, Ball, Cylinder, Ring } from "../world/Models";
 import {
-  cookingReducer,
-  newCookingGame,
+  RECIPES,
+  type CookingAction,
   SOUP_INGREDIENTS,
   type CookingGame,
   type Ingredient,
 } from "../core/interiorGames";
+import { newRestaurant, restaurantReducer } from "../core/restaurant";
+import { CraftedBox, Customer, WallSconce } from "./CraftedDetails";
 import {
   Barrel,
   Bottle,
@@ -118,8 +120,8 @@ function Cabinet({
 }) {
   return (
     <group position={p}>
-      <Box p={[0, 0.58, 0]} s={[width, 1.16, 1.25]} c="#356b65" />
-      <Box p={[0, 1.23, 0]} s={[width + 0.06, 0.18, 1.4]} c="#e1cb9d" />
+      <CraftedBox p={[0, 0.58, 0]} s={[width, 1.16, 1.25]} c="#356b65" />
+      <CraftedBox p={[0, 1.23, 0]} s={[width + 0.06, 0.25, 1.4]} c="#e1cb9d" />
       {[-1, 1].map((side) => (
         <group key={side}>
           <Box
@@ -192,8 +194,8 @@ function Stove({
     });
   });
   return (
-    <group position={[2.3, 0, -4.7]}>
-      <Box p={[0, 0.65, 0]} s={[2.5, 1.3, 1.6]} c="#a77e51" />
+    <group position={[5.8, 0, -10.3]} scale={1.3}>
+      <CraftedBox p={[0, 0.65, 0]} s={[2.5, 1.3, 1.6]} c="#a77e51" />
       <Box p={[0, 0.66, 0.84]} s={[1.75, 0.95, 0.09]} c="#3e453d" />
       <Box p={[0, 0.53, 0.91]} s={[1.3, 0.48, 0.05]} c="#252f2c" />
       <Box p={[0, 0.99, 0.97]} s={[1.45, 0.08, 0.09]} c="#c29c51" />
@@ -263,20 +265,32 @@ function Stove({
   );
 }
 
-/** Furnishings/game only. Mount inside the shared 11×13 room shell. */
+/** Furnishings/game only. Mount inside the shared 22×26 room shell. */
 export function KitchenInterior({ onReward }: InteriorGameProps) {
-  const [game, dispatch] = useReducer(
-    cookingReducer,
+  const [shift, shiftDispatch] = useReducer(
+    restaurantReducer,
     undefined,
-    newCookingGame,
+    newRestaurant,
   );
+  const game = shift.batch;
+  const dispatch = (action: CookingAction) =>
+    shiftDispatch({ type: "prep", action });
+  const active = shift.orders.find((order) => order.id === shift.active);
   const heat = useRef(0),
+    tick = useRef(0),
     marker = useRef<HTMLElement>(null),
     rewarded = useRef(false),
     knife = useRef<THREE.Group>(null);
   const finish = () => dispatch({ type: "finish", heat: heat.current });
   useFrame((_, dt) => {
     if (!gameIsActive()) return;
+    if (shift.status === "open") {
+      tick.current += dt;
+      if (tick.current >= 0.25) {
+        shiftDispatch({ type: "tick", dt: tick.current });
+        tick.current = 0;
+      }
+    }
     if (game.stage === "cook") {
       heat.current = Math.min(1, heat.current + dt / 7);
       if (marker.current) marker.current.style.left = `${heat.current * 100}%`;
@@ -291,30 +305,30 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
       );
   });
   useEffect(() => {
-    if (game.stage === "done" && !rewarded.current) {
+    if (shift.status === "over" && !rewarded.current) {
       rewarded.current = true;
-      if (game.quality !== "burnt")
-        onReward?.("cooking", game.quality === "perfect" ? 12 : 6);
+      if (shift.tips > 0) onReward?.("cooking", shift.tips);
     }
-  }, [game.stage, game.quality, onReward]);
+  }, [shift.status, shift.tips, onReward]);
   const start = () => {
     heat.current = 0;
     rewarded.current = false;
-    dispatch({ type: "start" });
+    tick.current = 0;
+    shiftDispatch({ type: "open" });
   };
   const chop = () => dispatch({ type: "chop" });
   return (
     <group>
       {/* A ceramic backsplash, not another room shell. */}
-      {Array.from({ length: 24 }, (_, i) => (
+      {Array.from({ length: 48 }, (_, i) => (
         <Box
           key={i}
-          p={[-4.4 + (i % 12) * 0.79, 1.65 + Math.floor(i / 12) * 0.43, -5.66]}
-          s={[0.75, 0.39, 0.035]}
+          p={[-9.8 + (i % 24) * 0.84, 1.9 + Math.floor(i / 24) * 0.57, -11.55]}
+          s={[0.78, 0.51, 0.14]}
           c={i % 3 === 0 ? "#7d9d8a" : "#e7d6aa"}
         />
       ))}
-      <group position={[-2.7, 0, -4.6]}>
+      <group position={[-5.8, 0, -10.5]} scale={1.35}>
         <Cabinet p={[0, 0, 0]} width={4.1} />
         {SOUP_INGREDIENTS.map((kind, i) => (
           <Crate
@@ -341,7 +355,11 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
           </group>
         ))}
       </group>
-      <group position={[-4.4, 0, -1.35]} rotation={[0, Math.PI / 2, 0]}>
+      <group
+        position={[-9.6, 0, -4.7]}
+        scale={1.3}
+        rotation={[0, Math.PI / 2, 0]}
+      >
         <Cabinet p={[0, 0, 0]} width={3.4} />
         <Box p={[0, 1.35, 0]} s={[1.5, 0.11, 0.9]} c="#577f78" />
         <Box p={[0, 1.4, 0]} s={[1.22, 0.08, 0.68]} c="#a3b9a2" />
@@ -356,14 +374,14 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
         <Box p={[1.15, 1.4, 0]} s={[0.5, 0.08, 0.6]} c="#d3d5b6" />
         <Box p={[1.15, 1.45, 0]} s={[0.36, 0.02, 0.5]} c="#8aa695" />
       </group>
-      <Box p={[-5.05, 3.15, -1.25]} s={[0.13, 0.12, 3.6]} c="#674a32" />
-      {[-2.5, -1.35, -0.2].map((z, i) => (
-        <HangingPan key={z} p={[-4.98, 2.35, z]} radius={0.3 + i * 0.055} />
+      <CraftedBox p={[-10.5, 3.5, -4.7]} s={[0.18, 0.18, 5.5]} c="#674a32" />
+      {[-6.4, -4.7, -3].map((z, i) => (
+        <HangingPan key={z} p={[-10.4, 2.65, z]} radius={0.38 + i * 0.055} />
       ))}
       <Stove stage={game.stage} onFinish={finish} />
-      <group position={[0, 0, 0]}>
+      <group position={[-1.8, 0, -4]} scale={1.45}>
         <Table size={[3.8, 1.8]} />
-        <Box p={[0, 1.27, 0]} s={[3.9, 0.15, 1.95]} c="#dfbb75" />
+        <CraftedBox p={[0, 1.27, 0]} s={[3.9, 0.25, 1.95]} c="#dfbb75" />
         {[-1.3, -0.65, 0, 0.65, 1.3].map((x) => (
           <Box key={x} p={[x, 1.355, 0]} s={[0.017, 0.012, 1.83]} c="#b88b47" />
         ))}
@@ -418,7 +436,7 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
           />
         ))}
       </group>
-      <group position={[3.7, 0, 0.8]}>
+      <group position={[8.8, 0, -3.5]} scale={1.2}>
         <Table size={[1.65, 2.4]} />
         <Box p={[0, 1.26, 0]} s={[1.7, 0.05, 2.45]} c="#c3d1b1" />
         {[-0.65, 0.15, 0.85].map((z, i) => (
@@ -440,21 +458,146 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
         ))}
         <Stool p={[0, 0, 2]} color="#598074" />
       </group>
-      <Barrel p={[-4.25, 0, 2.45]} />
-      <Plant p={[4.45, 0, -2.3]} />
-      <GameControls name="Cooking game">
-        {game.stage === "idle" ? (
-          <button onClick={start}>Make soup</button>
+      <Barrel p={[-9.1, 0, 0.5]} />
+      <Plant p={[9.2, 0, 9]} />
+      <WallSconce p={[-1.6, 3.3, -11.5]} />
+      <WallSconce p={[9, 3.3, -11.5]} />
+      <group position={[0, 0, 2.4]}>
+        <CraftedBox p={[0, 0.76, 0]} s={[14.8, 1.5, 1.35]} c="#365e50" />
+        <CraftedBox p={[0, 1.58, 0]} s={[15.2, 0.3, 1.65]} c="#bd914f" />
+        <CraftedBox p={[0, 1.77, 0]} s={[14.6, 0.12, 1.38]} c="#ecd3a0" />
+        {[-6, -3, 0, 3, 6].map((x) => (
+          <group key={x}>
+            <CraftedBox p={[x, 0.83, 0.69]} s={[2.5, 1.1, 0.12]} c="#4b7b65" />
+            <CraftedBox
+              p={[x, 0.3, 0.78]}
+              s={[2.3, 0.09, 0.1]}
+              c="#d1ab5b"
+              metal
+            />
+          </group>
+        ))}
+        {shift.orders.map((order) => (
+          <group key={order.id} position={[-4.8 + order.seat * 4.8, 0, 0]}>
+            <group
+              position={[0, 0, 1.9]}
+              rotation={[0, Math.PI, 0]}
+              scale={1.3}
+            >
+              <Customer
+                p={[0, 0, 0]}
+                color={["#8e4535", "#3e6d7f", "#7b7242"][order.seat]}
+                index={order.seat}
+              />
+            </group>
+            <group
+              position={[0, 2.9, 1.9]}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (gameIsActive() && shift.active === null) {
+                  heat.current = 0;
+                  shiftDispatch({ type: "take", id: order.id });
+                }
+              }}
+            >
+              <CraftedBox
+                s={[1.25, 0.75, 0.14]}
+                c={order.id === shift.active ? "#f4d277" : "#f6e3ba"}
+              />
+              <Ball
+                p={[0, 0, 0.13]}
+                s={[0.24, 0.2, 0.06]}
+                c={RECIPES[order.recipe].color}
+              />
+              <Box p={[0, -0.46, 0]} s={[1.2, 0.1, 0.08]} c="#6a4c30" />
+              <Box
+                p={[
+                  -0.6 + (order.patience / order.maxPatience) * 0.6,
+                  -0.46,
+                  0.06,
+                ]}
+                s={[
+                  Math.max(0.01, (order.patience / order.maxPatience) * 1.2),
+                  0.1,
+                  0.06,
+                ]}
+                c={order.patience > 12 ? "#6c9a50" : "#b75835"}
+              />
+            </group>
+          </group>
+        ))}
+      </group>
+      {[-6, 6].map((x) => (
+        <group key={x} position={[x, 0, 8.1]}>
+          <Table size={[3, 2]} />
+          <CraftedBox p={[0, 1.26, 0]} s={[3.2, 0.18, 2.2]} c="#cba268" />
+          {[-1, 1].map((side) => (
+            <Stool key={side} p={[side * 1.8, 0, 0]} color="#9e4f36" />
+          ))}
+          <Bottle p={[0, 1.4, 0]} color="#608255" />
+        </group>
+      ))}
+      <GameControls name="Cooking game" position={[0, 0.4, 6]}>
+        {shift.status === "closed" ? (
+          <>
+            <button onClick={start}>Open kitchen</button>
+            <p>90 seconds. Take orders, cook, serve.</p>
+          </>
+        ) : shift.status === "over" ? (
+          <>
+            <h2>Shift complete</h2>
+            <div className="interior-score">
+              <span>
+                Served <strong>{shift.served}</strong>
+              </span>
+              <span>
+                Tips <strong>{shift.tips}</strong>
+              </span>
+            </div>
+            <p>{shift.missed} customers left</p>
+            <button onClick={start}>Next shift</button>
+          </>
         ) : (
           <>
-            <h2>Garden soup</h2>
+            <div className="kitchen-shift">
+              <b>{Math.ceil(shift.remaining)}s</b>
+              <span>{shift.served} served</span>
+              <b>{shift.tips} tips</b>
+            </div>
+            <div className="kitchen-orders" aria-label="Customer orders">
+              {shift.orders.map((order) => (
+                <button
+                  key={order.id}
+                  className={order.id === shift.active ? "active" : ""}
+                  disabled={shift.active !== null}
+                  onClick={() => {
+                    heat.current = 0;
+                    shiftDispatch({ type: "take", id: order.id });
+                  }}
+                >
+                  <b>{order.name}</b>
+                  <span>{RECIPES[order.recipe].name}</span>
+                  <meter
+                    aria-label={`${order.name} patience`}
+                    min={0}
+                    max={order.maxPatience}
+                    value={order.patience}
+                  />
+                </button>
+              ))}
+            </div>
+            {active && <h2>{RECIPES[active.recipe].name}</h2>}
+            {shift.active === null && <p role="status">{shift.feedback}</p>}
             {game.stage === "gather" && (
               <>
                 <div className="interior-ingredients">
                   {SOUP_INGREDIENTS.map((ingredient) => (
                     <button
                       key={ingredient}
-                      disabled={game.ingredients.includes(ingredient)}
+                      disabled={
+                        game.ingredients.includes(ingredient) ||
+                        !RECIPES[game.recipe].ingredients.includes(ingredient)
+                      }
                       onClick={() =>
                         dispatch({ type: "ingredient", ingredient })
                       }
@@ -464,7 +607,7 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
                     </button>
                   ))}
                 </div>
-                <p>Take one of each.</p>
+                <p>{RECIPES[game.recipe].ingredients.join(" + ")}</p>
               </>
             )}
             {game.stage === "chop" && (
@@ -485,7 +628,9 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
             {game.stage === "serve" && (
               <>
                 <button onClick={() => dispatch({ type: "serve" })}>
-                  {game.quality === "burnt" ? "Clear the pot" : "Serve soup"}
+                  {game.quality === "burnt"
+                    ? "Clear the pot"
+                    : `Serve ${active?.name ?? "soup"}`}
                 </button>
                 <p>
                   {game.quality === "perfect"
@@ -496,18 +641,12 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
                 </p>
               </>
             )}
-            {game.stage === "done" && (
-              <>
-                <button onClick={start}>Cook again</button>
-                <p role="status">
-                  {game.quality === "burnt"
-                    ? "Try a shorter simmer."
-                    : game.quality === "perfect"
-                      ? "Three bowls. Perfect batch."
-                      : "Three bowls served."}
-                </p>
-              </>
-            )}
+            <button
+              className="kitchen-end"
+              onClick={() => shiftDispatch({ type: "end" })}
+            >
+              Close kitchen
+            </button>
           </>
         )}
       </GameControls>
