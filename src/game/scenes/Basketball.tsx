@@ -1,5 +1,5 @@
 import { useMemo, useRef } from "react";
-import { Html, Line } from "@react-three/drei";
+import { Line } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { create } from "zustand";
 import * as THREE from "three";
@@ -27,6 +27,7 @@ import {
   type ShotStyle,
 } from "../core/basketball";
 import { sound } from "../core/sound";
+import { newRunId } from "../../shared/run-id";
 import { BasketballPlayer } from "./BasketballPlayer";
 import "./basketball.css";
 
@@ -66,7 +67,7 @@ export const useBasketHud = create<{
   made: 0,
 }));
 
-function CourtControls() {
+export function CourtControls() {
   const { mode, style, assist } = useBasketOptions();
   const { challenge, target } = useBasketHud();
   return (
@@ -80,6 +81,21 @@ function CourtControls() {
         if (event.key === " ") event.stopPropagation();
       }}
     >
+      <select
+        className="basketball-mode-select"
+        aria-label="Court mode"
+        value={mode}
+        onChange={(event) => {
+          useBasketOptions.setState({ mode: event.target.value as BasketMode });
+          useGame.getState().go("basketball");
+        }}
+      >
+        {(Object.keys(MODES) as BasketMode[]).map((m) => (
+          <option key={m} value={m}>
+            {MODES[m].label}
+          </option>
+        ))}
+      </select>
       <nav aria-label="Court mode">
         {(Object.keys(MODES) as BasketMode[]).map((m) => (
           <button
@@ -143,7 +159,7 @@ export function Basketball() {
     spotShot = useRef(false),
     challenge = useRef(0),
     seed = useRef(dailyCourtSeed()),
-    id = useRef(crypto.randomUUID()),
+    id = useRef(newRunId()),
     feedback = useRef("Release in the gold."),
     nextHud = useRef(0),
     lastBounce = useRef(-1),
@@ -571,9 +587,6 @@ export function Basketball() {
       <Tree p={[10, 0, -7]} />
       <Flowers p={[-8, 0, 7]} />
       <Flowers p={[8, 0, 7]} />
-      <Html fullscreen zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}>
-        <CourtControls />
-      </Html>
     </group>
   );
 }

@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { freshSave, parseSave, reward, upgrade } from "../src/shared/save";
+import {
+  freshSave,
+  parseSave,
+  reward,
+  upgrade,
+  writeGuestSave,
+  SAVE_KEY,
+} from "../src/shared/save";
 import { canWalk, doors, findPath, moveWorld } from "../src/game/core/world";
 import {
   dailySeed,
@@ -14,6 +21,20 @@ import {
 } from "../src/game/core/basketball";
 
 describe("guest save trust boundary", () => {
+  it("refuses a stale tab write after another tab earns coins", () => {
+    const entries = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => entries.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        entries.set(key, value);
+      },
+    };
+    const baseline = writeGuestSave(storage, freshSave(), null);
+    const earned = reward(freshSave(), "race", 75, 30);
+    expect(writeGuestSave(storage, earned, baseline)).not.toBeNull();
+    expect(writeGuestSave(storage, freshSave(), baseline)).toBeNull();
+    expect(parseSave(storage.getItem(SAVE_KEY)).coins).toBe(75);
+  });
   it("round trips actual progress and rejects corrupt or unknown schema", () => {
     const save = upgrade(reward(freshSave(), "finish-1", 90, 30), "garden");
     expect(parseSave(JSON.stringify(save))).toEqual(save);
@@ -42,7 +63,8 @@ describe("guest save trust boundary", () => {
 });
 describe("walkable physical world", () => {
   it("cannot tunnel through a building or leave the island", () => {
-    expect(moveWorld(-7.2, 5, 0, -8)[1]).toBeGreaterThan(1.3);
+    const house = doors.find(door => door.id === "boathouse")!;
+    expect(moveWorld(house.x, house.z + 2, 0, -8)[1]).toBeGreaterThan(house.footprint[1] + house.footprint[3]);
     const p = moveWorld(0, 5, 100, 100);
     expect(canWalk(...p)).toBe(true);
   });
@@ -55,6 +77,29 @@ describe("walkable physical world", () => {
         Math.hypot(path.at(-1)![0] - door.x, path.at(-1)![1] - door.z),
       ).toBeLessThan(1.2);
     }
+  });
+  it("traverses a Study-to-Court corner without cutting the collision edge", () => {
+    const study = doors.find(door => door.id === "office")!, court = doors.find(door => door.id === "basketball")!;
+    let position: [number, number] = [study.x, study.z];
+    const path = findPath(position, [court.x, court.z]);
+    for (const target of path) {
+      for (let frame = 0; frame < 200; frame++) {
+        const dx = target[0] - position[0],
+          dz = target[1] - position[1],
+          distance = Math.hypot(dx, dz);
+        if (distance < 0.0001) break;
+        const step = Math.min(4.6 / 60, distance);
+        position = moveWorld(
+          ...position,
+          (dx / distance) * step,
+          (dz / distance) * step,
+        );
+      }
+      expect(
+        Math.hypot(position[0] - target[0], position[1] - target[1]),
+      ).toBeLessThan(0.001);
+    }
+    expect(Math.hypot(position[0] - court.x, position[1] - court.z)).toBeLessThan(1.9);
   });
 });
 describe("rowing simulation", () => {

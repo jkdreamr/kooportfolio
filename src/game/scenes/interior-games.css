@@ -1,0 +1,114 @@
+.interior-game {
+  width: min(320px, calc(100vw - 36px));
+  padding: 14px 16px;
+  border: 2px solid #735434;
+  border-radius: 12px;
+  background: #fff6df;
+  box-shadow:
+    0 5px 0 #493725,
+    0 9px 24px #382f2630;
+  color: #403326;
+  font-family: "Trebuchet MS", sans-serif;
+  text-align: center;
+  user-select: none;
+}
+.interior-game h2 {
+  font:
+    700 17px/1.2 "Trebuchet MS",
+    sans-serif;
+  margin: 0 0 8px;
+}
+.interior-game p {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  min-height: 2.8em;
+}
+.interior-game button {
+  border: 1px solid #365c40;
+  border-bottom-width: 3px;
+  border-radius: 7px;
+  padding: 10px 14px;
+  min-height: 44px;
+  background: #42794d;
+  color: #fff7df;
+  font:
+    700 14px/1.2 "Trebuchet MS",
+    sans-serif;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.interior-game button:hover:not(:disabled) {
+  background: #32683e;
+}
+.interior-game button:focus-visible {
+  outline: 3px solid #ce8a26;
+  outline-offset: 3px;
+}
+.interior-game button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.interior-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.interior-actions button {
+  flex: 1;
+}
+.interior-score {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  margin: 4px 0 12px;
+}
+.interior-score strong {
+  font-size: 24px;
+  margin-left: 4px;
+}
+.interior-score span:nth-child(2) {
+  color: #9b5633;
+}
+.interior-ingredients {
+  display: flex;
+  gap: 6px;
+}
+.interior-ingredients button {
+  padding: 9px 7px;
+  font-size: 12px;
+  flex: 1;
+}
+.interior-heat {
+  position: relative;
+  height: 16px;
+  margin: 12px 0;
+  border: 2px solid #735434;
+  border-radius: 5px;
+  background: linear-gradient(
+    90deg,
+    #e2b669 0% 50%,
+    #6c9a50 50% 76%,
+    #c46a42 76%
+  );
+}
+.interior-heat i {
+  position: absolute;
+  top: -5px;
+  bottom: -5px;
+  width: 5px;
+  border: 1px solid white;
+  background: #392e26;
+  border-radius: 2px;
+  transform: translateX(-50%);
+}
+@media (max-width: 600px) {
+  .interior-game {
+    padding: 10px 12px;
+  }
+  .interior-game p {
+    font-size: 11px;
+  }
+}

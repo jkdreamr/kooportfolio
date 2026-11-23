@@ -13,6 +13,16 @@ export type Save = {
   rewards: string[];
 };
 export const SAVE_KEY = "joshua-exe-save-v1";
+export function writeGuestSave(
+  storage: Pick<Storage, "getItem" | "setItem">,
+  save: Save,
+  expected: string | null,
+): string | null {
+  if (storage.getItem(SAVE_KEY) !== expected) return null;
+  const raw = JSON.stringify(save);
+  storage.setItem(SAVE_KEY, raw);
+  return raw;
+}
 export const freshSave = (): Save => ({
   version: 1,
   revision: 0,

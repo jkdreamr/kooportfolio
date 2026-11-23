@@ -10,9 +10,21 @@ import {
 } from "../world/Models";
 import { Walker } from "../world/Hub";
 import { useGame } from "../core/store";
+import { doors } from "../core/world";
+import { CognitionFurnishings, GymFurnishings } from "./CognitionGym";
+import { HouseInterior } from "./HouseInterior";
+import { KitchenInterior } from "./KitchenInterior";
+import { newRunId } from "../../shared/run-id";
+
+const rewardInterior = (game: "dice" | "cooking", coins: number) =>
+  useGame
+    .getState()
+    .award(`${game}-${newRunId()}`, coins, Math.ceil(coins / 2));
 
 export function Interior() {
-  const office = useGame((s) => s.scene === "office");
+  const scene = useGame((s) => s.scene),
+    office = scene === "office";
+  const name = doors.find((door) => door.id === scene)?.name ?? "";
   return (
     <group>
       <Box p={[0, -0.25, 0]} s={[11, 0.5, 13]} c="#b89770" />
@@ -32,11 +44,7 @@ export function Interior() {
       <Box p={[0, 4.9, -5.7]} s={[11, 0.3, 0.35]} c="#9e805c" />
       <Window p={[-3.1, 3, -5.78]} width={1.6} />
       <Window p={[3.1, 3, -5.78]} width={1.6} />
-      <Sign
-        text={office ? "CURIOSITY LIVES HERE" : "EVERY STROKE COUNTS"}
-        p={[0, 4, -5.72]}
-        size={[4.5, 0.65]}
-      />
+      <Sign text={name.toUpperCase()} p={[0, 4, -5.72]} size={[4.5, 0.65]} />
       <Box
         p={[0, 0.1, -2]}
         s={[4.2, 0.1, 3]}
@@ -62,7 +70,7 @@ export function Interior() {
           <Flowers p={[-4.3, 1.2, -4]} />
           <Bench p={[-2.5, 0, -2.7]} />
         </>
-      ) : (
+      ) : scene === "boathouse" ? (
         <>
           <group position={[-3.8, 1.4, -0.7]} rotation={[0, 0, 0.45]}>
             <Boat color="#e6bc77" pace={0} />
@@ -78,7 +86,11 @@ export function Interior() {
           <Cylinder p={[3.5, 1.5, -5.2]} s={[0.25, 0.8, 0.25]} c="#d6b569" />
           <Box p={[3.5, 1.1, -5.2]} s={[0.8, 0.12, 0.6]} c="#826a4a" />
         </>
-      )}
+      ) : null}
+      {scene === "cognition" && <CognitionFurnishings />}
+      {scene === "kappa" && <HouseInterior onReward={rewardInterior} />}
+      {scene === "kitchen" && <KitchenInterior onReward={rewardInterior} />}
+      {scene === "gym" && <GymFurnishings />}
       <Box p={[0, 0.1, 5.5]} s={[2, 0.12, 1.6]} c="#7d8d75" />
       <Box p={[-1.3, 1.3, 6.1]} s={[0.2, 2.6, 0.2]} c="#9f825f" />
       <Box p={[1.3, 1.3, 6.1]} s={[0.2, 2.6, 0.2]} c="#9f825f" />
