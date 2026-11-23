@@ -78,8 +78,8 @@ describe("court collision regressions", () => {
         .score,
     ).toBe(false);
   });
-  it("clears the front rim at close range on a perfect arc or lob release", () => {
-    for (const distance of [1.2, 1.5, 2, 2.5, 3]) {
+  it("clears the front rim across the playable range on a perfect release", () => {
+    for (let distance = 1.2; distance <= 12.7; distance += 0.25) {
       for (const style of ["arc", "lob"] as const) {
         expect(
           flight(launchBall(0, HOOP.z + distance, 0.62, 0, HOOP, style)).scores,
