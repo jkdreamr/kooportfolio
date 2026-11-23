@@ -243,7 +243,9 @@ export function Rowing() {
     id = useRef(newRunId());
   const length = runtime.raceLength,
     seed = runtime.raceSeed;
-  const record = useRef(readRaceRecord(length, seed));
+  const record = useRef(
+    readRaceRecord(length, seed, undefined, useGame.getState().save.bestRace),
+  );
   const look = useRef(new THREE.Vector3(0, 0, -8));
   const desired = useMemo(() => new THREE.Vector3(), []);
   useFrame(({ camera }, delta) => {
@@ -303,7 +305,9 @@ export function Rowing() {
       done.current = true;
       const coins = 45 + (4 - place) * 10 + (length > 400 ? 25 : 0),
         best = game.save.bestRace;
-      const personalBest = saveRaceRecord(s, length, seed);
+      const personalBest =
+        (!record.current || s.time < record.current.time) &&
+        saveRaceRecord(s, length, seed);
       game.award(id.current, coins, 30, {
         bestRace:
           length === 360 && seed === 1
