@@ -1,38 +1,78 @@
+import { WORLD_BOUNDS } from "../../shared/world-bounds";
+
 export const doors = [
   {
     id: "boathouse",
-    name: "The Boathouse",
-    x: -7.2,
-    z: 1.5,
-    hint: "A river. A crew. A little competition.",
+    name: "Boathouse",
+    x: -13,
+    z: 6,
+    anchor: [-13, 6.8, 3] as const,
+    footprint: [-13, 3, 3.25, 2.1] as const,
   },
   {
     id: "basketball",
-    name: "The Court",
-    x: 7.1,
-    z: 2.2,
-    hint: "Find your spot. Find your shot.",
+    name: "Court",
+    x: 12,
+    z: 5.2,
+    anchor: [12, 4.3, 2] as const,
+    footprint: [12, 2, 3.2, 2.5] as const,
   },
   {
     id: "office",
-    name: "The Study",
+    name: "Study",
     x: 0,
-    z: -4.8,
-    hint: "A little more about Joshua.",
+    z: -8.8,
+    anchor: [0, 8.1, -11.8] as const,
+    footprint: [0, -11.8, 3.1, 2.1] as const,
+  },
+  {
+    id: "kappa",
+    name: "Kappa Sigma",
+    x: -11,
+    z: -5.5,
+    anchor: [-11, 8.8, -9] as const,
+    footprint: [-11, -9, 3.7, 2.7] as const,
+  },
+  {
+    id: "cognition",
+    name: "Cognition",
+    x: 11,
+    z: -5.5,
+    anchor: [11, 7.6, -9] as const,
+    footprint: [11, -9, 3.5, 2.6] as const,
+  },
+  {
+    id: "kitchen",
+    name: "Kitchen",
+    x: -5,
+    z: 8.9,
+    anchor: [-5, 5.8, 6] as const,
+    footprint: [-5, 6, 2.35, 1.95] as const,
+  },
+  {
+    id: "gym",
+    name: "Gym",
+    x: 5.5,
+    z: 12.3,
+    anchor: [5.5, 6.2, 9] as const,
+    footprint: [5.5, 9, 2.85, 2.5] as const,
   },
 ] as const;
-const obstacles = [
-  [-7.2, -1, 3.1, 2.05],
-  [7.1, -1, 3.2, 2.5],
-  [0, -7, 3, 1.7],
+export type PlaceId = (typeof doors)[number]["id"];
+export function isInterior(scene: string) {
+  return doors.some((door) => door.id === scene && scene !== "basketball");
+}
+const obstacles: ReadonlyArray<readonly number[]> = [
+  ...doors.map((door) => door.footprint),
+  [0, 0, 1.5, 1.5],
 ];
 export function canWalk(x: number, z: number) {
   if (
-    x < -13 ||
-    x > 13 ||
-    z < -10 ||
-    z > 8.2 ||
-    (x / 15) ** 2 + ((z + 1) / 13) ** 2 > 1
+    x < WORLD_BOUNDS.minX ||
+    x > WORLD_BOUNDS.maxX ||
+    z < WORLD_BOUNDS.minZ ||
+    z > WORLD_BOUNDS.maxZ ||
+    (x / 23) ** 2 + ((z + 1) / 19) ** 2 > 1
   )
     return false;
   return !obstacles.some(
@@ -68,7 +108,7 @@ export function findPath(
     seen = new Map<string, number>(),
     parents = new Map<string, string>();
   seen.set(key(sx, sz), 0);
-  for (let n = 0; n < 2400 && open.length; n++) {
+  for (let n = 0; n < 6000 && open.length; n++) {
     open.sort((a, b) => a.f - b.f);
     const cur = open.shift()!,
       ck = key(cur.x, cur.z);

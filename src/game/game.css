@@ -275,7 +275,17 @@
   border-radius: 0 11px 11px 0;
   margin-left: 3px;
 }
+.world-labels {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+}
 .world-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  visibility: hidden;
   font-size: 11px;
   letter-spacing: 0.4px;
   white-space: nowrap;
@@ -289,10 +299,9 @@
   border-radius: 7px;
   color: #35472d;
   pointer-events: auto;
-  transition: transform 0.2s;
+  transition: background-color 0.2s;
 }
 .world-label:hover {
-  transform: translateY(-3px);
   background: #fff9e9;
 }
 .world-label > span:last-child {
@@ -738,6 +747,27 @@
   border-bottom: 1px solid #dfdfca;
   font-size: 12px;
 }
+.places-list {
+  display: grid;
+  gap: 5px;
+}
+.places-list button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 48px;
+  padding: 10px 14px;
+  color: #304e31;
+  background: #e5e8d1;
+  border: 1px solid #bec5a1;
+  border-radius: 5px;
+  font: inherit;
+  text-align: left;
+}
+
+.places-list button:hover {
+  background: #d4ddbc;
+}
 .joystick {
   display: none;
   position: absolute;
@@ -953,6 +983,50 @@
 }
 .race-touch {
   display: none;
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: calc(72px + env(safe-area-inset-bottom));
+  justify-content: space-between;
+  gap: 15px;
+}
+.race-touch button {
+  width: 68px;
+  height: 61px;
+  background: #f0f0d9e8;
+  border: 1px solid #91a477;
+  color: #42592d;
+  font-size: 25px;
+  border-radius: 50%;
+  touch-action: none;
+  user-select: none;
+}
+.race-touch button.burst {
+  font: 11px Arial;
+  width: 84px;
+  border-radius: 12px;
+  background: #6d854f;
+  color: #fff;
+}
+@media (pointer: coarse) {
+  .joystick {
+    display: block;
+  }
+  .race-touch {
+    display: flex;
+  }
+  .icon-button,
+  .close-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .aim-label input {
+    min-height: 44px;
+  }
+  .aim-label button {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
 .basket-score {
   position: absolute;
@@ -1637,5 +1711,420 @@
   }
   .build-heading {
     top: 100px;
+  }
+}
+
+/* Essential game information stays readable; input hints follow the device. */
+.touch-hint {
+  display: none;
+}
+.challenge-heading p,
+.race-control-panel p,
+.shot-panel p {
+  color: #41553c;
+  font-size: 12px;
+}
+.stamina-label,
+.race-instruments small,
+.basket-score small {
+  color: #536348;
+  font-size: 10px;
+  letter-spacing: 0.8px;
+}
+.cadence-switch button {
+  color: #425738;
+  min-height: 48px;
+  font-size: 12px;
+}
+.cadence-switch small {
+  font-size: 9px;
+}
+.race-touch button[data-held="true"] {
+  color: #fff9df;
+  background: #36502d;
+  border-color: #243b20;
+  box-shadow:
+    inset 0 3px 6px #152b3170,
+    0 0 0 3px #eff8ba;
+  transform: translateY(2px);
+}
+.context-prompt > button,
+.close-button,
+.aim-label button {
+  min-height: 44px;
+  min-width: 44px;
+}
+.aim-label input {
+  min-height: 44px;
+}
+.modal-scrim {
+  padding-top: max(16px, env(safe-area-inset-top));
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+@media (pointer: coarse), (max-width: 700px) {
+  .keyboard-hint {
+    display: none;
+  }
+  .touch-hint {
+    display: inline;
+  }
+  .challenge-heading .touch-hint {
+    display: block;
+  }
+  .challenge-heading p {
+    font-size: 11px;
+    max-width: 210px;
+    line-height: 1.5;
+  }
+  .stamina-label,
+  .race-instruments small,
+  .basket-score small {
+    font-size: 9px;
+    letter-spacing: 0.4px;
+  }
+  .race-instruments {
+    top: 104px;
+    right: 16px;
+    padding: 12px 0;
+  }
+  .race-instruments > div {
+    padding: 0 12px;
+    min-width: 64px;
+  }
+  .race-instruments strong {
+    font-size: 25px;
+    margin-top: 5px;
+  }
+  .race-instruments > div:nth-child(3) {
+    display: none;
+  }
+  .race-control-panel {
+    left: 16px;
+    bottom: 171px;
+    width: 240px;
+    padding: 14px;
+  }
+  .race-control-panel p {
+    font-size: 11px;
+    line-height: 1.4;
+    margin: 8px 0 0;
+  }
+  .cadence-switch button {
+    font-size: 11px;
+    padding: 7px 0;
+  }
+  .cadence-switch small {
+    font-size: 9px;
+    margin-bottom: 3px;
+  }
+  .energy-track {
+    margin: 8px 0 10px;
+  }
+  .race-touch {
+    bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+  .race-touch button,
+  .race-touch button.burst {
+    font-size: 18px;
+    font-weight: 600;
+  }
+  .race-touch button.burst {
+    font-size: 12px;
+  }
+  .race-progress {
+    bottom: calc(43px + env(safe-area-inset-bottom));
+  }
+  .last-split {
+    right: 16px;
+    top: 198px;
+    bottom: auto;
+    font-size: 9px;
+  }
+  .basket-score {
+    top: 108px;
+    right: 16px;
+    padding: 12px 16px;
+    gap: 18px;
+  }
+  .basket-score strong {
+    font-size: 28px;
+  }
+  .basketball-controls {
+    top: 190px;
+    left: 16px;
+    width: calc(100% - 32px);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .basketball-controls nav {
+    display: none;
+  }
+  .basketball-switches {
+    margin-top: 0;
+  }
+  .scene-basketball .challenge-heading {
+    top: 105px;
+  }
+  .scene-basketball .challenge-heading p {
+    display: none;
+  }
+  .scene-rowing .challenge-heading h1 {
+    font-size: 25px;
+  }
+  .basketball-mode-select {
+    display: block;
+    width: calc(100% - 165px);
+    min-height: 44px;
+    border: 1px solid #bbbda2;
+    border-radius: 5px;
+    padding: 8px;
+    background: #f8f1dff2;
+    color: #304b3c;
+    font:
+      12px system-ui,
+      sans-serif;
+  }
+  .basketball-controls button {
+    min-height: 44px;
+    padding: 6px 9px;
+    font-size: 11px;
+  }
+  .basketball-controls p {
+    flex-basis: 100%;
+    font-size: 12px;
+    margin-top: 8px;
+  }
+  .shot-panel {
+    top: auto;
+    right: 16px;
+    bottom: calc(64px + env(safe-area-inset-bottom));
+    width: min(226px, calc(100% - 136px));
+    padding: 14px;
+  }
+  .shot-panel .stamina-label,
+  .aim-label {
+    font-size: 10px;
+  }
+  .shot-panel .shot-instruction {
+    display: none;
+  }
+  .power-track {
+    margin: 10px 0;
+    height: 8px;
+  }
+  .aim-label {
+    gap: 6px;
+  }
+  .aim-label input {
+    min-width: 0;
+    flex: 1;
+  }
+  .aim-label button {
+    font-size: 10px;
+  }
+  .shoot-button {
+    min-height: 48px;
+    padding: 10px;
+    margin-top: 8px;
+    font-size: 12px;
+  }
+  .shot-feedback {
+    bottom: calc(259px + env(safe-area-inset-bottom));
+    max-width: calc(100% - 32px);
+    font-size: 13px;
+    white-space: normal;
+    text-align: center;
+  }
+  .game-shell:has(.shot-panel) .joystick {
+    left: 16px;
+    bottom: calc(88px + env(safe-area-inset-bottom));
+  }
+  .icon-button,
+  .close-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+@media (max-height: 500px) and (min-width: 701px) {
+  .game-header {
+    height: 56px;
+    padding: 10px 20px;
+  }
+  .world-heading,
+  .interior-heading,
+  .challenge-heading {
+    top: max(70px, env(safe-area-inset-top));
+    left: 20px;
+  }
+  .world-heading h1,
+  .interior-heading h1,
+  .challenge-heading h1 {
+    font-size: 25px;
+    margin: 0;
+  }
+  .world-heading > span,
+  .challenge-heading > p,
+  .world-heading > p {
+    display: none;
+  }
+  .world-toolbar {
+    bottom: calc(30px + env(safe-area-inset-bottom));
+    left: 50%;
+    gap: 5px;
+  }
+  .world-toolbar > button,
+  .world-toolbar > a {
+    width: 48px;
+    height: 48px;
+  }
+  .world-toolbar > button small {
+    display: none;
+  }
+  .joystick {
+    left: 20px;
+    bottom: 35px;
+  }
+  .context-prompt {
+    bottom: 95px;
+  }
+  .objective-card {
+    display: none;
+  }
+  .world-label {
+    min-height: 32px;
+    padding: 7px 10px;
+    font-size: 10px;
+  }
+  .scene-rowing .race-instruments {
+    top: 70px;
+    right: 20px;
+    padding: 9px 0;
+  }
+  .race-instruments > div {
+    padding: 0 12px;
+    min-width: 65px;
+  }
+  .race-instruments strong {
+    font-size: 23px;
+  }
+  .race-control-panel {
+    left: 20px;
+    bottom: 112px;
+    width: 230px;
+    padding: 10px 12px;
+  }
+  .race-control-panel p {
+    display: none;
+  }
+  .race-control-panel .energy-track {
+    margin: 5px 0 7px;
+  }
+  .cadence-switch button {
+    min-height: 44px;
+    padding: 4px 0;
+  }
+  .race-touch {
+    bottom: calc(43px + env(safe-area-inset-bottom));
+    left: 20px;
+    right: 20px;
+  }
+  .race-touch button,
+  .race-touch button.burst {
+    height: 54px;
+  }
+  .race-touch button.burst {
+    margin-left: auto;
+    margin-right: 8px;
+  }
+  .race-progress {
+    bottom: 24px;
+    width: calc(100% - 280px);
+  }
+  .last-split {
+    bottom: 117px;
+    top: auto;
+    right: 20px;
+  }
+  .scene-basketball .basket-score {
+    top: 70px;
+    right: 20px;
+    padding: 8px 15px;
+  }
+  .basket-score strong {
+    font-size: 25px;
+  }
+  .basket-score > span {
+    height: 28px;
+  }
+  .basketball-controls {
+    top: 70px;
+    left: 145px;
+    width: 330px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .basketball-mode-select {
+    width: 135px;
+  }
+  .basketball-switches {
+    margin-top: 0;
+  }
+  .basketball-controls p {
+    flex-basis: 100%;
+    margin: 0;
+    font-size: 11px;
+  }
+  .scene-basketball .shot-panel {
+    bottom: calc(30px + env(safe-area-inset-bottom));
+    width: 235px;
+    padding: 11px;
+  }
+  .scene-basketball .shot-feedback {
+    bottom: 135px;
+    left: 43%;
+    max-width: 250px;
+    font-size: 12px;
+  }
+  .game-shell:has(.shot-panel) .joystick {
+    bottom: 38px;
+  }
+  .game-modal {
+    padding: 20px 26px;
+    max-width: 510px;
+  }
+  .game-modal h2 {
+    font-size: 27px;
+    margin: 0 0 8px;
+    padding-right: 40px;
+  }
+  .game-modal .result-score {
+    font-size: 42px;
+    line-height: 1;
+    margin: 3px 0;
+  }
+  .game-modal .result-detail {
+    font-size: 11px;
+    margin: 6px 0;
+  }
+  .game-modal .reward-line {
+    margin: 8px 0;
+  }
+  .game-modal > .primary-button {
+    min-height: 44px;
+    padding: 10px;
+    margin-top: 6px;
+  }
+  .game-modal > .quiet-button {
+    min-height: 36px;
+    padding: 8px;
+    margin-top: 5px;
+  }
+  .game-modal > .local-note {
+    margin-top: 5px;
+    font-size: 9px;
   }
 }

@@ -3,8 +3,22 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { runtime, useGame } from "../core/store";
+import { RoofShingles, StoneFooting } from "./ArchitectureDetail";
 
-const rounded = new RoundedBoxGeometry(1, 1, 1, 2, 0.055);
+const rounded = new Map<string, RoundedBoxGeometry>();
+function roundedGeometry(size: [number, number, number]) {
+  const key = size.join(":");
+  if (!rounded.has(key))
+    rounded.set(
+      key,
+      new RoundedBoxGeometry(
+        ...size,
+        1,
+        Math.min(0.13, Math.min(...size) * 0.24),
+      ),
+    );
+  return rounded.get(key)!;
+}
 const box = new THREE.BoxGeometry(1, 1, 1);
 const sphere = new THREE.SphereGeometry(1, 12, 8);
 const cyl = new THREE.CylinderGeometry(1, 1, 1, 12);
@@ -30,13 +44,14 @@ export function Box({
 }: Props & { sharp?: boolean }) {
   return (
     <mesh
-      geometry={sharp ? box : rounded}
+      geometry={sharp ? box : roundedGeometry(s)}
       material={material(c)}
       position={p}
-      scale={s}
+      scale={sharp ? s : undefined}
       rotation={r}
       castShadow
       receiveShadow
+      dispose={null}
     />
   );
 }
@@ -404,6 +419,15 @@ export function House({
       <Box p={[0, 0.42, 2.58]} s={[1.8, 0.2, 1]} c="#d7c8aa" />
       <Box p={[0, 0.19, 3]} s={[2.1, 0.18, 0.7]} c="#c6b99e" />
       <Box p={[0, 3.55, 0]} s={[6.6, 0.38, 4.85]} c="#795a3c" />
+      <StoneFooting width={6} depth={4.2} />
+      <RoofShingles
+        width={6.6}
+        depth={4.95}
+        y={3.55}
+        rise={1.55}
+        color={roof}
+        hip={false}
+      />
       {[-1, 1].map((side) => (
         <group
           key={side}
@@ -411,22 +435,6 @@ export function House({
           rotation={[0, 0, side * -0.45]}
         >
           <Box s={[3.5, 0.4, 4.95]} c={roof} />
-          {Array.from({ length: 12 }, (_, i) => (
-            <Box
-              key={i}
-              p={[0, 0.12, i * 0.4 - 2.2]}
-              s={[3.5, 0.08, 0.045]}
-              c={study ? "#5e8b7d" : "#e77b41"}
-            />
-          ))}
-          {[-1, 0, 1].map((i) => (
-            <Box
-              key={i}
-              p={[i * 1.1, 0.11, 0]}
-              s={[0.05, 0.08, 4.9]}
-              c={study ? "#63755f" : "#a86351"}
-            />
-          ))}
         </group>
       ))}
       <Box p={[0, 5.1, 0]} s={[0.36, 0.38, 5.1]} c={roof} />

@@ -2,19 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { profile } from "../content/profile";
 
 export function Portfolio() {
-  const path = location.pathname;
+  const path = location.pathname.replace(/\/+$/, "") || "/";
   const [loose, setLoose] = useState(path === "/about");
   const [broken, setBroken] = useState(false);
   const [drag, setDrag] = useState({ x: 0, y: 0 });
   const start = useRef<{ x: number; y: number } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [returning] = useState(() => {
-    try {
-      return !!localStorage.getItem("joshua-exe-save-v1");
-    } catch {
-      return false;
-    }
-  });
   useEffect(
     () => () => {
       if (timer.current) clearTimeout(timer.current);
@@ -218,11 +211,6 @@ export function Portfolio() {
       </main>
       <footer className="site-footer">
         <span>© {new Date().getFullYear()} JOSHUA KOO</span>
-        <span className="footer-secret">A very serious portfolio.</span>
-        <button onClick={enter}>
-          {returning ? "Resume your little world" : "Skip to the little world"}{" "}
-          <span>↗</span>
-        </button>
       </footer>
       {broken && (
         <div className="paper-portal" aria-hidden="true">

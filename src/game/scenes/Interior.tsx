@@ -10,33 +10,62 @@ import {
 } from "../world/Models";
 import { Walker } from "../world/Hub";
 import { useGame } from "../core/store";
+import { doors } from "../core/world";
+import { CognitionFurnishings, GymFurnishings } from "./CognitionGym";
+import { HouseInterior } from "./HouseInterior";
+import { KitchenInterior } from "./KitchenInterior";
+import { newRunId } from "../../shared/run-id";
+import { ROOM } from "../core/room";
+import { RoomDressing } from "./RoomDressing";
+import type { PlaceId } from "../core/world";
+
+const rewardInterior = (game: "dice" | "cooking", coins: number) =>
+  useGame
+    .getState()
+    .award(`${game}-${newRunId()}`, coins, Math.ceil(coins / 2));
 
 export function Interior() {
-  const office = useGame((s) => s.scene === "office");
+  const scene = useGame((s) => s.scene),
+    office = scene === "office";
+  const name = doors.find((door) => door.id === scene)?.name ?? "";
   return (
     <group>
-      <Box p={[0, -0.25, 0]} s={[11, 0.5, 13]} c="#b89770" />
-      {Array.from({ length: 22 }, (_, i) => (
+      <Box
+        p={[0, -0.4, 0]}
+        s={[ROOM.width + 0.6, 0.8, ROOM.depth + 0.6]}
+        c="#6f624c"
+      />
+      <Box p={[0, -0.13, 0]} s={[ROOM.width, 0.3, ROOM.depth]} c="#9d7851" />
+      {Array.from({ length: 28 }, (_, i) => (
         <Box
           key={i}
-          p={[i * 0.5 - 5.25, 0.02, 0]}
-          s={[0.47, 0.08, 12.5]}
+          p={[(i - 13.5) * 0.78, 0.02, 0]}
+          s={[0.75, 0.09, 25.7]}
           c={i % 3 ? "#c8ab80" : "#bd9b70"}
         />
       ))}
-      <Box p={[0, 2.5, -6]} s={[11, 5, 0.3]} c="#e6d4b3" />
-      <Box p={[-5.4, 2.1, 0]} s={[0.3, 4.3, 12]} c="#d8c4a1" />
-      {[-5, 0, 5].map((x) => (
-        <Box key={x} p={[x, 2.5, -5.75]} s={[0.23, 5, 0.22]} c="#9e805c" />
+      <Box p={[0, 2.8, -12.8]} s={[22, 5.6, 0.4]} c="#e6d4b3" />
+      <Box p={[-10.8, 2.4, 0]} s={[0.4, 4.8, 26]} c="#d8c4a1" />
+      {[-10.5, -5.25, 0, 5.25, 10.5].map((x) => (
+        <group key={x}>
+          <Box p={[x, 2.8, -12.5]} s={[0.36, 5.6, 0.38]} c="#8f6b43" />
+          <Box p={[x, 0.35, -12.3]} s={[0.65, 0.7, 0.6]} c="#a99874" />
+          <Box p={[x, 5.35, -12.3]} s={[0.7, 0.45, 0.6]} c="#c4a36b" />
+        </group>
       ))}
-      <Box p={[0, 4.9, -5.7]} s={[11, 0.3, 0.35]} c="#9e805c" />
-      <Window p={[-3.1, 3, -5.78]} width={1.6} />
-      <Window p={[3.1, 3, -5.78]} width={1.6} />
-      <Sign
-        text={office ? "CURIOSITY LIVES HERE" : "EVERY STROKE COUNTS"}
-        p={[0, 4, -5.72]}
-        size={[4.5, 0.65]}
-      />
+      <Box p={[0, 5.6, -12.5]} s={[22.5, 0.38, 0.65]} c="#785a39" />
+      <Box p={[0, 0.35, -12.5]} s={[22, 0.45, 0.4]} c="#967347" />
+      <Box p={[-10.5, 0.35, 0]} s={[0.4, 0.45, 26]} c="#967347" />
+      {[-7.8, -2.6, 2.6, 7.8].map((x) => (
+        <Window key={x} p={[x, 3.5, -12.5]} width={2.4} />
+      ))}
+      <Sign text={name.toUpperCase()} p={[0, 4.4, -12.25]} size={[4.5, 0.65]} />
+      {[-7.5, 7.5].map((x) => (
+        <group key={x}>
+          <Bench p={[x, 0, 7.8]} />
+          <Flowers p={[x, 0, 10.5]} />
+        </group>
+      ))}
       <Box
         p={[0, 0.1, -2]}
         s={[4.2, 0.1, 3]}
@@ -62,7 +91,7 @@ export function Interior() {
           <Flowers p={[-4.3, 1.2, -4]} />
           <Bench p={[-2.5, 0, -2.7]} />
         </>
-      ) : (
+      ) : scene === "boathouse" ? (
         <>
           <group position={[-3.8, 1.4, -0.7]} rotation={[0, 0, 0.45]}>
             <Boat color="#e6bc77" pace={0} />
@@ -78,13 +107,17 @@ export function Interior() {
           <Cylinder p={[3.5, 1.5, -5.2]} s={[0.25, 0.8, 0.25]} c="#d6b569" />
           <Box p={[3.5, 1.1, -5.2]} s={[0.8, 0.12, 0.6]} c="#826a4a" />
         </>
-      )}
-      <Box p={[0, 0.1, 5.5]} s={[2, 0.12, 1.6]} c="#7d8d75" />
-      <Box p={[-1.3, 1.3, 6.1]} s={[0.2, 2.6, 0.2]} c="#9f825f" />
-      <Box p={[1.3, 1.3, 6.1]} s={[0.2, 2.6, 0.2]} c="#9f825f" />
-      <Box p={[0, 2.6, 6.1]} s={[2.8, 0.2, 0.2]} c="#9f825f" />
-      <Sign text="← VILLAGE" p={[0, 2.9, 6.15]} size={[2, 0.45]} />
-      <Flowers p={[4.6, 0, 4.6]} />
+      ) : null}
+      {scene === "cognition" && <CognitionFurnishings />}
+      {scene === "kappa" && <HouseInterior onReward={rewardInterior} />}
+      {scene === "kitchen" && <KitchenInterior onReward={rewardInterior} />}
+      {scene === "gym" && <GymFurnishings />}
+      <RoomDressing scene={scene as PlaceId} />
+      <Box p={[0, 0.1, ROOM.doorZ]} s={[3, 0.12, 2]} c="#4f7966" />
+      <Box p={[-1.7, 1.6, 12.3]} s={[0.35, 3.2, 0.4]} c="#8c6947" />
+      <Box p={[1.7, 1.6, 12.3]} s={[0.35, 3.2, 0.4]} c="#8c6947" />
+      <Box p={[0, 3.2, 12.3]} s={[3.8, 0.38, 0.5]} c="#8c6947" />
+      <Sign text="← VILLAGE" p={[0, 3.55, 12.35]} size={[2.8, 0.55]} />
       <Walker interior />
     </group>
   );

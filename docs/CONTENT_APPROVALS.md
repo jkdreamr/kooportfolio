@@ -1,3 +1,7 @@
+# User-requested village locations
+
+Joshua explicitly requested Kappa Sigma fraternity, a Cognition office, a gym and a kitchen. These names authorize original fictional village locations, not claims about his membership, employment, a real floor plan or private information. No affiliation claim has been added to his verified public biography. The windmill, growing beds and music corner are original environmental props; the music link remains Joshua's verified public SoundCloud.
+
 # Content and provenance
 
 Verified directly from the publicly returned HTML of https://joshuakoo.xyz on 2026-11-23: name, Stanford CS + math, coxswain, investment intern @ CRV; email joskoo@stanford.edu; X, GitHub, Instagram, LinkedIn, SoundCloud URLs. No other factual accomplishments, projects, dates, music tracks or anecdotes are asserted.
