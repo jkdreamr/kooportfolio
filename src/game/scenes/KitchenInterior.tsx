@@ -278,7 +278,7 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
   useFrame((_, dt) => {
     if (!gameIsActive()) return;
     if (game.stage === "cook") {
-      heat.current = Math.min(1, heat.current + Math.min(dt, 0.05) / 7);
+      heat.current = Math.min(1, heat.current + dt / 7);
       if (marker.current) marker.current.style.left = `${heat.current * 100}%`;
       if (heat.current >= 1) dispatch({ type: "finish", heat: 1 });
     }
