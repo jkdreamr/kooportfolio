@@ -105,6 +105,54 @@
   border-radius: 2px;
   transform: translateX(-50%);
 }
+.kitchen-shift {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+.kitchen-orders {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.kitchen-orders button {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 3px;
+  background: #ead8b0;
+  color: #493725;
+  border-color: #ab8752;
+  font-size: 12px;
+}
+.kitchen-orders button:disabled {
+  opacity: 0.75;
+}
+.kitchen-orders button.active {
+  background: #f3d17e;
+  opacity: 1;
+  border-color: #91632d;
+}
+.kitchen-orders button span {
+  display: block;
+  font-size: 10px;
+  margin-top: 3px;
+}
+.kitchen-orders meter {
+  display: block;
+  width: 90%;
+  height: 10px;
+  margin: 5px auto 0;
+}
+.interior-game .kitchen-end {
+  padding: 5px 10px;
+  min-height: 44px;
+  background: transparent;
+  border: 0;
+  color: #71583b;
+  font-size: 11px;
+  margin-top: 6px;
+}
 @media (max-width: 600px) {
   .interior-game {
     padding: 10px 12px;

@@ -43,10 +43,15 @@ export function GameControls({
         const halfWidth =
           (panel.current?.offsetWidth ?? Math.min(320, size.width - 36)) / 2;
         const x = ((projected.x + 1) * size.width) / 2;
+        const halfHeight = (panel.current?.offsetHeight ?? 160) / 2;
         // Keep a room-anchored panel on screen even with a narrow camera crop.
         return [
           THREE.MathUtils.clamp(x, halfWidth + 12, size.width - halfWidth - 12),
-          ((1 - projected.y) * size.height) / 2,
+          THREE.MathUtils.clamp(
+            ((1 - projected.y) * size.height) / 2,
+            halfHeight + 12,
+            size.height - halfHeight - 12,
+          ),
         ];
       }}
     >

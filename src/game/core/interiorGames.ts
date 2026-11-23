@@ -87,20 +87,40 @@ export function diceReducer(game: DiceGame, action: DiceAction): DiceGame {
 
 export const SOUP_INGREDIENTS = ["Tomato", "Carrot", "Herbs"] as const;
 export type Ingredient = (typeof SOUP_INGREDIENTS)[number];
+export const RECIPES = {
+  garden: {
+    name: "Garden soup",
+    ingredients: ["Tomato", "Carrot", "Herbs"] as readonly Ingredient[],
+    color: "#d77a35",
+  },
+  tomato: {
+    name: "Tomato soup",
+    ingredients: ["Tomato", "Herbs"] as readonly Ingredient[],
+    color: "#bc4932",
+  },
+  carrot: {
+    name: "Carrot soup",
+    ingredients: ["Carrot", "Herbs"] as readonly Ingredient[],
+    color: "#dda13b",
+  },
+};
+export type RecipeId = keyof typeof RECIPES;
 export type CookingGame = {
+  recipe: RecipeId;
   stage: "idle" | "gather" | "chop" | "cook" | "serve" | "done";
   ingredients: Ingredient[];
   chops: number;
   quality: "perfect" | "good" | "burnt" | null;
 };
-export const newCookingGame = (): CookingGame => ({
+export const newCookingGame = (recipe: RecipeId = "garden"): CookingGame => ({
+  recipe,
   stage: "idle",
   ingredients: [],
   chops: 0,
   quality: null,
 });
 export type CookingAction =
-  | { type: "start" }
+  | { type: "start"; recipe?: RecipeId }
   | { type: "ingredient"; ingredient: Ingredient }
   | { type: "chop" }
   | { type: "finish"; heat: number }
@@ -110,17 +130,21 @@ export function cookingReducer(
   action: CookingAction,
 ): CookingGame {
   if (action.type === "start" && ["idle", "done"].includes(game.stage))
-    return { ...newCookingGame(), stage: "gather" };
+    return { ...newCookingGame(action.recipe), stage: "gather" };
   if (
     action.type === "ingredient" &&
     game.stage === "gather" &&
+    RECIPES[game.recipe].ingredients.includes(action.ingredient) &&
     !game.ingredients.includes(action.ingredient)
   ) {
     const ingredients = [...game.ingredients, action.ingredient];
     return {
       ...game,
       ingredients,
-      stage: ingredients.length === 3 ? "chop" : "gather",
+      stage:
+        ingredients.length === RECIPES[game.recipe].ingredients.length
+          ? "chop"
+          : "gather",
     };
   }
   if (action.type === "chop" && game.stage === "chop") {
