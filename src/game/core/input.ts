@@ -1,31 +1,67 @@
-import { useEffect } from 'react';
-import { runtime, useGame } from './store';
+import { useEffect } from "react";
+import { runtime, useGame } from "./store";
 export const keys = new Set<string>();
 export const touch = { x: 0, z: 0 };
 export function useInput(interact: () => void) {
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).matches('input,textarea,select')) return;
+      if ((e.target as HTMLElement).matches("input,textarea,select")) return;
       const k = e.key.toLowerCase();
-      if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault();
+      if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k))
+        e.preventDefault();
       keys.add(k);
       if (e.repeat) return;
-      if (k === 'escape') { const s = useGame.getState(); if (s.panel !== 'none') useGame.setState({ panel: 'none' }); else if (s.build) useGame.setState({ build: false }); else useGame.setState({ paused: !s.paused }); }
-      if (k === 'e') interact();
-      if (k === '1') runtime.raceCadence = 24;
-      if (k === '2') runtime.raceCadence = 30;
-      if (k === '3') runtime.raceCadence = 36;
-      if (k === ' ' && useGame.getState().scene === 'basketball') runtime.shooting = true;
+      if (k === "escape") {
+        const s = useGame.getState();
+        if (s.panel !== "none") useGame.setState({ panel: "none" });
+        else if (s.build) useGame.setState({ build: false });
+        else useGame.setState({ paused: !s.paused });
+      }
+      if (k === "e") interact();
+      if (k === "1") runtime.raceCadence = 24;
+      if (k === "2") runtime.raceCadence = 30;
+      if (k === "3") runtime.raceCadence = 36;
+      if (k === " " && useGame.getState().scene === "basketball")
+        runtime.shooting = true;
     };
-    const up = (e: KeyboardEvent) => { keys.delete(e.key.toLowerCase()); if (e.key === ' ' && runtime.shooting) { runtime.shooting = false; runtime.shoot = true; } };
-    const blur = () => { keys.clear(); touch.x = 0; touch.z = 0; runtime.shooting = false; runtime.burst = false; };
-    window.addEventListener('keydown', down); window.addEventListener('keyup', up); window.addEventListener('blur', blur);
-    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('blur', blur); blur(); };
+    const up = (e: KeyboardEvent) => {
+      keys.delete(e.key.toLowerCase());
+      if (e.key === " " && runtime.shooting) {
+        runtime.shooting = false;
+        runtime.shoot = true;
+      }
+    };
+    const blur = () => {
+      keys.clear();
+      touch.x = 0;
+      touch.z = 0;
+      runtime.shooting = false;
+      runtime.burst = false;
+    };
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    window.addEventListener("blur", blur);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", blur);
+      blur();
+    };
   }, [interact]);
 }
 export function movement(): [number, number] {
-  let x = Number(keys.has('d') || keys.has('arrowright')) - Number(keys.has('a') || keys.has('arrowleft')) + touch.x;
-  let z = Number(keys.has('s') || keys.has('arrowdown')) - Number(keys.has('w') || keys.has('arrowup')) + touch.z;
-  const length = Math.hypot(x, z); if (length > 1) { x /= length; z /= length; }
+  let x =
+    Number(keys.has("d") || keys.has("arrowright")) -
+    Number(keys.has("a") || keys.has("arrowleft")) +
+    touch.x;
+  let z =
+    Number(keys.has("s") || keys.has("arrowdown")) -
+    Number(keys.has("w") || keys.has("arrowup")) +
+    touch.z;
+  const length = Math.hypot(x, z);
+  if (length > 1) {
+    x /= length;
+    z /= length;
+  }
   return [x, z];
 }

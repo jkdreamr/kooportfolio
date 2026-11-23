@@ -22,4 +22,4 @@ This is a **local guest first slice**, not a finished global game service. Saves
 
 ## Staging only
 
-Read the audit and [deployment runbook](docs/DEPLOYMENT.md). Deploy only after verifying the Cloudflare account is Workers Free with no charges. `CONFIRMED_WORKERS_FREE=yes CLOUDFLARE_ACCOUNT_ID=<verified-free-account> npm run deploy:staging`. Never add paid bindings. No DNS or production cutover. CI is intentionally not enabled until free runner eligibility is verified; all checks can be run locally.
+Read the audit and [deployment runbook](docs/DEPLOYMENT.md). Deploy only after verifying the Cloudflare account is Workers Free with no charges. `CONFIRMED_WORKERS_FREE=yes CLOUDFLARE_ACCOUNT_ID=<verified-free-account> npm run deploy:staging`. Never add paid bindings. No DNS or production cutover. CI uses only standard free Linux runners in this public repository, without cache/artifact storage; all checks can also be run locally.
