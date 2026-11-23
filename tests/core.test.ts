@@ -21,6 +21,21 @@ import {
 } from "../src/game/core/basketball";
 
 describe("guest save trust boundary", () => {
+  it("keeps earned progress after exploring the expanded village edges", () => {
+    for (const position of [
+      [19, 0],
+      [-19, 0],
+      [0, 16],
+      [0, -17],
+    ] as [number, number][]) {
+      expect(canWalk(...position)).toBe(true);
+      const save = {
+        ...upgrade(reward(freshSave(), "race", 90, 30), "garden"),
+        position,
+      };
+      expect(parseSave(JSON.stringify(save))).toEqual(save);
+    }
+  });
   it("refuses a stale tab write after another tab earns coins", () => {
     const entries = new Map<string, string>();
     const storage = {
@@ -63,8 +78,10 @@ describe("guest save trust boundary", () => {
 });
 describe("walkable physical world", () => {
   it("cannot tunnel through a building or leave the island", () => {
-    const house = doors.find(door => door.id === "boathouse")!;
-    expect(moveWorld(house.x, house.z + 2, 0, -8)[1]).toBeGreaterThan(house.footprint[1] + house.footprint[3]);
+    const house = doors.find((door) => door.id === "boathouse")!;
+    expect(moveWorld(house.x, house.z + 2, 0, -8)[1]).toBeGreaterThan(
+      house.footprint[1] + house.footprint[3],
+    );
     const p = moveWorld(0, 5, 100, 100);
     expect(canWalk(...p)).toBe(true);
   });
@@ -79,7 +96,8 @@ describe("walkable physical world", () => {
     }
   });
   it("traverses a Study-to-Court corner without cutting the collision edge", () => {
-    const study = doors.find(door => door.id === "office")!, court = doors.find(door => door.id === "basketball")!;
+    const study = doors.find((door) => door.id === "office")!,
+      court = doors.find((door) => door.id === "basketball")!;
     let position: [number, number] = [study.x, study.z];
     const path = findPath(position, [court.x, court.z]);
     for (const target of path) {
@@ -99,7 +117,9 @@ describe("walkable physical world", () => {
         Math.hypot(position[0] - target[0], position[1] - target[1]),
       ).toBeLessThan(0.001);
     }
-    expect(Math.hypot(position[0] - court.x, position[1] - court.z)).toBeLessThan(1.9);
+    expect(
+      Math.hypot(position[0] - court.x, position[1] - court.z),
+    ).toBeLessThan(1.9);
   });
 });
 describe("rowing simulation", () => {

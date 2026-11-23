@@ -1,3 +1,5 @@
+import { WORLD_BOUNDS } from "../../shared/world-bounds";
+
 export const doors = [
   {
     id: "boathouse",
@@ -66,10 +68,10 @@ const obstacles: ReadonlyArray<readonly number[]> = [
 ];
 export function canWalk(x: number, z: number) {
   if (
-    x < -22 ||
-    x > 22 ||
-    z < -18 ||
-    z > 17 ||
+    x < WORLD_BOUNDS.minX ||
+    x > WORLD_BOUNDS.maxX ||
+    z < WORLD_BOUNDS.minZ ||
+    z > WORLD_BOUNDS.maxZ ||
     (x / 23) ** 2 + ((z + 1) / 19) ** 2 > 1
   )
     return false;
