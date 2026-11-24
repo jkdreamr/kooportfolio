@@ -11,7 +11,12 @@ export type InteriorGameProps = {
 };
 export function gameIsActive() {
   const state = useGame.getState();
-  return !state.paused && !state.build && state.panel === "none";
+  return (
+    !state.paused &&
+    !state.build &&
+    state.panel === "none" &&
+    state.near !== "exit"
+  );
 }
 export function GameControls({
   children,
