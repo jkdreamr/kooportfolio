@@ -140,7 +140,8 @@ export function GoInterior() {
     const row = Math.floor(point / GO_SIZE), col = point % GO_SIZE;
     const next = ({ ArrowLeft: row * GO_SIZE + Math.max(0, col - 1),
       ArrowRight: row * GO_SIZE + Math.min(GO_SIZE - 1, col + 1),
-      ArrowUp: Math.max(0, point - GO_SIZE), ArrowDown: Math.min(80, point + GO_SIZE),
+      ArrowUp: Math.max(0, row - 1) * GO_SIZE + col,
+      ArrowDown: Math.min(GO_SIZE - 1, row + 1) * GO_SIZE + col,
       Home: row * GO_SIZE, End: row * GO_SIZE + GO_SIZE - 1 } as Record<string, number>)[event.key];
     if (next !== undefined) {
       event.preventDefault(); setFocus(next); buttons.current[next]?.focus();
