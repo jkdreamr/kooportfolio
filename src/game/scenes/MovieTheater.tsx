@@ -100,10 +100,16 @@ function TheaterViewer() {
   const close = useRef<HTMLButtonElement>(null);
   const dialog = useRef<HTMLElement>(null);
   const gl = useThree((s) => s.gl);
+  const setFrameloop = useThree((s) => s.setFrameloop);
   const portal = useMemo(
     () => ({ current: gl.domElement.parentElement! }),
     [gl],
   );
+  useEffect(() => {
+    // The opaque viewer covers the world. Don't render 3D behind video.
+    setFrameloop("demand");
+    return () => setFrameloop(useGame.getState().paused ? "demand" : "always");
+  }, [setFrameloop, hidden]);
   useEffect(() => {
     const previous = document.activeElement;
     close.current?.focus();

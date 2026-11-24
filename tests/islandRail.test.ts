@@ -9,7 +9,10 @@ describe("coastal railway", () => {
     expect(Math.hypot(before.x - after.x, before.z - after.z)).toBeLessThan(
       0.02,
     );
-    expect(Math.abs(before.heading - after.heading)).toBeLessThan(0.001);
+    const headingDelta = before.heading - after.heading;
+    expect(
+      Math.abs(Math.atan2(Math.sin(headingDelta), Math.cos(headingDelta))),
+    ).toBeLessThan(0.001);
     expect(railPose(0).x).toBeCloseTo(-ISLAND_RAIL.radiusX);
     expect(railPose(0).z).toBeCloseTo(ISLAND_RAIL.station[1]);
   });
