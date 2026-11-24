@@ -174,10 +174,20 @@ function Skater({
   );
 }
 
-/** Hub model only. Parcel: 32×24, centered at (-50, 50); mounting belongs to Hub. */
-export function SkateParkBuilding() {
+/** Hub model only. The full-size 32×24 parcel is positioned by the world layout. */
+export function SkateParkBuilding({
+  position = [-50, 0, 50],
+  rotation = 0,
+}: {
+  position?: [number, number, number];
+  rotation?: number;
+}) {
   return (
-    <group position={[-50, 0, 50]} scale={[1.42, 1, 0.9]}>
+    <group
+      position={position}
+      rotation={[0, rotation, 0]}
+      scale={[1.42, 1, 0.9]}
+    >
       <SkateParkTerrain detailed={false} />
     </group>
   );

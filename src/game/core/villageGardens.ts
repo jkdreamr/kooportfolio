@@ -2,6 +2,7 @@ import { WORLD_ELLIPSE } from "../../shared/world-bounds";
 import { isKoreaGardenWalk, isKoreaLandmarkArea } from "./koreaLandmarks";
 import type { WorldId } from "./worlds";
 import { POND } from "./pond";
+import { isStanfordTownSpace } from "./stanfordLayout";
 import { KOREA_EXERCISE_YARD } from "./regionalActivities";
 
 type Plot = {
@@ -52,6 +53,7 @@ const districts: readonly (readonly [
 
 function reserved(x: number, z: number, world: WorldId) {
   return (
+    (world === "stanford" && isStanfordTownSpace(x, z, 2)) ||
     Math.abs(x) < 4 ||
     Math.abs(z + 9) < 3 ||
     Math.abs(z - 10) < 3 ||
