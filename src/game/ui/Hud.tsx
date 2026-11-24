@@ -10,6 +10,8 @@ import { useGym } from "../scenes/CognitionGym";
 import { profile } from "../../content/profile";
 import { WorldLabels } from "../world/Labels";
 import { ROOM } from "../core/room";
+import { RoomStory } from "./RoomStory";
+import type { PlaceId } from "../core/world";
 
 export function Joystick() {
   const pad = useRef<HTMLDivElement>(null),
@@ -407,6 +409,13 @@ export function Hud({ interact }: { interact: () => void }) {
           </button>
           <h1>{doors.find((door) => door.id === g.scene)?.name}</h1>
         </div>
+      )}
+      {interior && (
+        <RoomStory
+          key={g.scene}
+          scene={g.scene as PlaceId}
+          hidden={g.paused || g.panel !== "none"}
+        />
       )}
       {g.scene === "rowing" && <RaceHud />}
       {g.scene === "basketball" && (
