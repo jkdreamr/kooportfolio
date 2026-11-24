@@ -38,16 +38,13 @@ export const usePhotoBooth = create<PhotoState>(() => ({
   z: 0,
 }));
 
-export function requestPhoto(
-  final = false,
-  resolution: PhotoResolution = "preview",
-) {
+export function requestPhoto(final = false) {
   const { pose, frame, x, z } = usePhotoBooth.getState();
   usePhotoBooth.setState({
     request: {
       id: ++sequence,
       final,
-      resolution,
+      resolution: final ? "full" : "preview",
       pose,
       frame,
       date: new Date(),
