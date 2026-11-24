@@ -33,7 +33,7 @@ import { newRunId } from "../../shared/run-id";
 import { labTone } from "./labAudio";
 import "./lab-rooms.css";
 
-const colors = ["#ed9c43", "#5cb9a6", "#d26754", "#9c9ed1"];
+const colors = ["#7699bb", "#75a59a", "#bf8791", "#aa9cc0"];
 const laneX = [-3.3, -1.1, 1.1, 3.3];
 const PAD_FLASH_MS = 220;
 
@@ -93,10 +93,12 @@ function useLabClose(id: "music" | "math", cancelRound: () => void) {
 function LabControls({
   name,
   active = false,
+  tone,
   children,
 }: {
   name: string;
   active?: boolean;
+  tone?: "beat";
   children: ReactNode;
 }) {
   const gl = useThree((s) => s.gl);
@@ -122,7 +124,7 @@ function LabControls({
     >
       <section
         key={active ? "game" : "room"}
-        className={`lab-controls${active ? " lab-game" : ""}`}
+        className={`lab-controls${active ? " lab-game" : ""}${tone ? ` lab-${tone}` : ""}`}
         aria-label={name}
         tabIndex={-1}
         ref={focusGame}
@@ -165,23 +167,23 @@ function WalkFloor() {
 function Speaker({ x, z = -8 }: { x: number; z?: number }) {
   return (
     <group position={[x, 0, z]}>
-      <Box p={[0, 0.18, 0]} s={[2.7, 0.36, 2]} c="#4a352c" />
-      <Box p={[0, 2.2, 0]} s={[2.1, 4.1, 1.65]} c="#393e3c" />
-      <Box p={[0, 2.2, 0.85]} s={[1.85, 3.8, 0.14]} c="#252e2c" />
+      <Box p={[0, 0.18, 0]} s={[2.7, 0.36, 2]} c="#343e4a" />
+      <Box p={[0, 2.2, 0]} s={[2.1, 4.1, 1.65]} c="#3b4654" />
+      <Box p={[0, 2.2, 0.85]} s={[1.85, 3.8, 0.14]} c="#242c37" />
       {[1.4, 3.1].map((y, i) => (
         <group key={y} position={[0, y, 1]}>
           <Cylinder
             s={[i ? 0.42 : 0.72, 0.18, i ? 0.42 : 0.72]}
             r={[Math.PI / 2, 0, 0]}
-            c="#b38949"
+            c="#7d8b9a"
           />
           <Cylinder
             p={[0, 0, 0.12]}
             s={[i ? 0.31 : 0.59, 0.12, i ? 0.31 : 0.59]}
             r={[Math.PI / 2, 0, 0]}
-            c="#27302e"
+            c="#273241"
           />
-          <Ball p={[0, 0, 0.2]} s={[0.2, 0.2, 0.1]} c="#5f716c" />
+          <Ball p={[0, 0, 0.2]} s={[0.2, 0.2, 0.1]} c="#627486" />
         </group>
       ))}
       {[-0.85, 0.85].flatMap((sx) =>
@@ -190,7 +192,7 @@ function Speaker({ x, z = -8 }: { x: number; z?: number }) {
             key={`${sx}${y}`}
             p={[sx, y, 0.96]}
             s={[0.07, 0.07, 0.05]}
-            c="#d4ae64"
+            c="#a6b3c1"
           />
         )),
       )}
@@ -202,10 +204,10 @@ function StudioDressing() {
   const room = roomFor("music");
   return (
     <>
-      <Box p={[0, 0.18, -4.6]} s={[11.2, 0.2, 14]} c="#493b35" />
-      <Box p={[0, 0.3, -4.6]} s={[10.7, 0.1, 13.7]} c="#3d514e" />
+      <Box p={[0, 0.18, -4.6]} s={[11.2, 0.2, 14]} c="#262e39" />
+      <Box p={[0, 0.3, -4.6]} s={[10.7, 0.1, 13.7]} c="#414d5c" />
       {[-5.4, 5.4].map((x) => (
-        <Box key={x} p={[x, 0.32, -4.6]} s={[0.15, 0.15, 14]} c="#b58a43" />
+        <Box key={x} p={[x, 0.32, -4.6]} s={[0.08, 0.07, 14]} c="#8894a1" />
       ))}
       <Speaker x={-7.7} />
       <Speaker x={7.7} />
@@ -235,7 +237,7 @@ function StudioDressing() {
             <Box
               p={[-1.8 + i * 0.32, 1.58, 0.4]}
               s={[0.26, 0.1, 0.65]}
-              c="#decfaa"
+              c="#e6ebf1"
             />
             <Cylinder
               p={[-1.8 + i * 0.32, 1.64, -0.35]}
@@ -248,13 +250,13 @@ function StudioDressing() {
       </group>
       <group position={[room.width / 2 - 2.5, 0, 0.8]}>
         <Cylinder p={[0, 0.15, 0]} s={[0.9, 0.25, 0.9]} c="#4e5448" />
-        <Cylinder p={[0, 1.8, 0]} s={[0.08, 3.5, 0.08]} c="#a69773" />
+        <Cylinder p={[0, 1.8, 0]} s={[0.08, 3.5, 0.08]} c="#8894a1" />
         <Cylinder p={[0, 3.7, 0]} s={[0.22, 0.65, 0.22]} c="#343c37" />
         <Ring
           p={[0, 3.6, 0.4]}
           radius={0.5}
           tube={0.04}
-          c="#a69773"
+          c="#8894a1"
           r={[0, 0, 0]}
         />
       </group>
@@ -264,8 +266,8 @@ function StudioDressing() {
         text={BEAT_PAD_KEYS.join("     ")}
         p={[0, 1.8, -10.8]}
         size={[7, 0.8]}
-        color="#293e38"
-        ink="#eed294"
+        color="#2b3543"
+        ink="#f8fafc"
       />
     </>
   );
@@ -306,7 +308,7 @@ function BeatVisuals({
     <>
       {laneX.map((x, lane) => (
         <group key={x}>
-          <Box p={[x, 0.4, -6]} s={[0.08, 0.06, 9.8]} c={colors[lane]} />
+          <Box p={[x, 0.4, -6]} s={[0.055, 0.04, 9.8]} c="#8894a1" />
           <group
             position={[x, 0.4, -2]}
             onPointerDown={(e) => {
@@ -320,9 +322,9 @@ function BeatVisuals({
               onHit(lane);
             }}
           >
-            <Cylinder p={[0, 0.14, 0]} s={[0.95, 0.28, 0.95]} c="#242e2c" />
+            <Cylinder p={[0, 0.14, 0]} s={[0.95, 0.28, 0.95]} c="#25303d" />
             <Cylinder p={[0, 0.33, 0]} s={[0.79, 0.2, 0.79]} c={colors[lane]} />
-            <Ring p={[0, 0.46, 0]} radius={0.61} tube={0.045} c="#f0d9a4" />
+            <Ring p={[0, 0.46, 0]} radius={0.61} tube={0.025} c="#d7e0e9" />
             <mesh
               position={[0, 0.445, 0]}
               rotation={[-Math.PI / 2, 0, 0]}
@@ -335,7 +337,7 @@ function BeatVisuals({
         </group>
       ))}
       <group ref={pulse} position={[0, 0.43, 1.3]}>
-        <Ring radius={0.8} tube={0.08} c="#e4ba64" />
+        <Ring radius={0.8} tube={0.045} c="#b1bdca" />
       </group>
       <group ref={notes}>
         {game.current.notes.map((note, i) => (
@@ -345,7 +347,7 @@ function BeatVisuals({
             visible={false}
           >
             <Box s={[1.4, 0.27, 0.55]} c={colors[note.lane]} />
-            <Box p={[0, 0.18, 0]} s={[0.9, 0.06, 0.25]} c="#f3db9e" />
+            <Box p={[0, 0.18, 0]} s={[0.9, 0.06, 0.25]} c="#eef2f6" />
           </group>
         ))}
       </group>
@@ -477,7 +479,7 @@ export function BeatLabInterior() {
       <WalkFloor />
       <StudioDressing />
       <BeatVisuals game={game} lit={lit} onHit={play} />
-      <LabControls name="Beat Lab controls" active={active}>
+      <LabControls name="Beat Lab controls" active={active} tone="beat">
         {active ? (
           <>
             <header className="lab-game-topbar">
@@ -569,7 +571,7 @@ export function BeatLabInterior() {
                 </footer>
               </>
             ) : (
-              <p>Walk up to the brass ring.</p>
+              <p>Walk up to the ring.</p>
             )}
           </>
         )}
