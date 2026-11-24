@@ -254,7 +254,6 @@
     max-height: 180px;
     padding: 6px 10px;
     border-radius: 5px;
-    transform: translateY(calc(-1 * env(safe-area-inset-bottom)));
   }
   .interior-game--sheet .kitchen-shift {
     margin-bottom: 2px;
@@ -291,6 +290,11 @@
   .interior-game--sheet .interior-heat {
     margin: 5px 0 8px;
     height: 12px;
+  }
+}
+@media (min-width: 700px) and (max-height: 599px) {
+  .interior-game--left {
+    max-height: calc(100dvh - 124px);
   }
 }
 @media (max-width: 600px) {

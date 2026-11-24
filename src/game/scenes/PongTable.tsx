@@ -112,7 +112,12 @@ export function PongTable({
         </group>
       </group>
       {active && (
-        <GameControls name="Cup pong game" position={[7.5, 0.6, 5]} mobileSheet>
+        <GameControls
+          name="Cup pong game"
+          position={[7.5, 0.6, 5]}
+          mobileSheet
+          dock="left"
+        >
           {navigation}
           <div className="pong-score">
             <b>{6 - game.cups.length}/6 cups</b>

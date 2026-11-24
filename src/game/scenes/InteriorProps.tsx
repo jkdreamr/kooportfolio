@@ -23,11 +23,13 @@ export function GameControls({
   name,
   position = [0, 0.6, 3.5],
   mobileSheet = false,
+  dock = "right",
 }: {
   children: ReactNode;
   name: string;
   position?: [number, number, number];
   mobileSheet?: boolean;
+  dock?: "left" | "right";
 }) {
   const gl = useThree((s) => s.gl);
   // Drei otherwise changes targets when R3F connects its event source on the
@@ -53,8 +55,32 @@ export function GameControls({
           (panel.current?.offsetWidth ?? Math.min(320, size.width - 36)) / 2;
         const x = ((projected.x + 1) * size.width) / 2;
         const halfHeight = (panel.current?.offsetHeight ?? 160) / 2;
-        if (mobileSheet && size.width <= 700 && size.height >= 600)
-          return [size.width / 2, size.height - 235 - halfHeight];
+        const joystick = gl.domElement
+          .closest(".game-shell")
+          ?.querySelector<HTMLElement>(".joystick")
+          ?.getBoundingClientRect();
+        const canvas = gl.domElement.getBoundingClientRect();
+        if (mobileSheet && size.width <= 700 && size.height >= 600) {
+          const bottom = joystick?.height
+            ? joystick.top - canvas.top - 12
+            : size.height - 235;
+          return [
+            size.width / 2,
+            Math.max(halfHeight + 76, bottom - halfHeight),
+          ];
+        }
+        // The pong rack is on the right; use the opposite side even on a
+        // landscape phone, without occupying its movement joystick.
+        if (dock === "left" && size.width >= 700)
+          return [
+            halfWidth +
+              (joystick?.height ? joystick.right - canvas.left + 16 : 24),
+            THREE.MathUtils.clamp(
+              size.height - halfHeight - (size.height < 600 ? 48 : 96),
+              halfHeight + 76,
+              size.height - halfHeight - 12,
+            ),
+          ];
         // Wide screens have room for a side card; keep the customers/table clear.
         if (size.width >= 900)
           return [
@@ -78,7 +104,7 @@ export function GameControls({
     >
       <section
         ref={panel}
-        className={`interior-game${mobileSheet ? " interior-game--sheet" : ""}`}
+        className={`interior-game${mobileSheet ? " interior-game--sheet" : ""}${dock === "left" ? " interior-game--left" : ""}`}
         aria-label={name}
         onPointerDown={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
