@@ -9,6 +9,9 @@ export const SKATE = {
   comboWindow: 2.4,
   duration: 60,
 } as const;
+/** World-space gate target for the host's Exit button; z > 23 shows the exit prompt. */
+export const SKATE_EXIT: [number, number] = [0, 24];
+
 export const SKATE_RAILS = [
   { x: -3.6, from: -7, to: 2, height: 0.7 },
   { x: 5.5, from: 2, to: 7, height: 0.55 },
@@ -150,11 +153,22 @@ export function stepSkate(g: SkateState, input: SkateInput, delta: number) {
       },
       dt / steps,
     );
-    if (g.phase !== "riding") break;
+  }
+  // Deadline uses active elapsed time, not the capped physics budget. A slow
+  // frame may simplify contacts but must never grant extra scoring time.
+  g.time += delta;
+  if (g.mode === "run" && g.time + 1e-8 >= SKATE.duration) {
+    g.time = SKATE.duration;
+    if (g.grounded && !g.trick) bankSkateCombo(g);
+    else {
+      g.combo = g.count = g.comboTime = 0;
+    }
+    g.trick = null;
+    g.phase = "done";
+    g.speed = 0;
   }
 }
 function integrate(g: SkateState, input: SkateInput, dt: number) {
-  g.time += dt;
   g.messageTime = Math.max(0, g.messageTime - dt);
   g.railLock = Math.max(0, g.railLock - dt);
   if (g.bailTime > 0) {
@@ -274,14 +288,5 @@ function integrate(g: SkateState, input: SkateInput, dt: number) {
   if (g.combo && g.grounded && g.rail < 0) {
     g.comboTime -= dt;
     if (g.comboTime <= 0) bankSkateCombo(g);
-  }
-  if (g.mode === "run" && g.time >= SKATE.duration) {
-    if (g.grounded && !g.trick) bankSkateCombo(g);
-    else {
-      g.combo = g.count = g.comboTime = 0;
-    }
-    g.trick = null;
-    g.phase = "done";
-    g.speed = 0;
   }
 }

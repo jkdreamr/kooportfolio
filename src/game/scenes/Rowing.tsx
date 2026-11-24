@@ -14,6 +14,7 @@ import {
   riverCenter,
   riverTangent,
   rivalInput,
+  rowingLeaderboardBoard,
   stepRace,
   TICK,
   type RaceState,
@@ -28,6 +29,7 @@ import {
 import { RowingShell } from "./RowingShell";
 import { RowingWater } from "./RowingWater";
 import { RowingBanks } from "./RowingBanks";
+import { recordLeaderboardResult } from "../core/leaderboard";
 export const useRaceHud = create<{
   race: RaceState;
   place: number;
@@ -208,7 +210,8 @@ export function Rowing() {
     done = useRef(false),
     id = useRef(newRunId());
   const length = runtime.raceLength,
-    seed = runtime.raceSeed;
+    seed = runtime.raceSeed,
+    mode = runtime.raceMode;
   const record = useRef(
     readRaceRecord(length, seed, undefined, useGame.getState().save.bestRace),
   );
@@ -269,6 +272,13 @@ export function Rowing() {
     }
     if (s.finished && !done.current) {
       done.current = true;
+      const board = rowingLeaderboardBoard(mode, length, seed);
+      if (board)
+        recordLeaderboardResult({
+          id: id.current,
+          board,
+          score: Math.round(s.time * 1000),
+        });
       const coins = 45 + (4 - place) * 10 + (length > 400 ? 25 : 0),
         best = game.save.bestRace;
       const personalBest =

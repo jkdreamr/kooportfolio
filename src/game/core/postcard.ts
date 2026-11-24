@@ -3,7 +3,7 @@ export const PHOTO_HEIGHT = 960;
 export const CARD_WIDTH = PHOTO_WIDTH + 128;
 export const CARD_HEIGHT = PHOTO_HEIGHT + 192;
 export type PhotoPose = "wave" | "smile" | "cheer";
-export type PostcardFrame = "cream" | "pine";
+export type PostcardFrame = "slate" | "pine";
 
 /** WebGL readback starts at the bottom; ImageData starts at the top. */
 export function uprightPixels(
@@ -51,14 +51,13 @@ export function composePostcard(
   card.height = CARD_HEIGHT;
   const context = card.getContext("2d");
   if (!context) throw new Error("Postcard canvas unavailable");
-  context.fillStyle = frame === "pine" ? "#203c32" : "#f4ebd7";
+  context.fillStyle = frame === "pine" ? "#203c32" : "#304650";
   context.fillRect(0, 0, card.width, card.height);
   context.drawImage(photo, 64, 64);
-  context.fillStyle = frame === "pine" ? "#f4ebd7" : "#203c32";
-  context.font = "italic 38px Georgia, serif";
-  context.fillText("A little hello from the village.", 66, 1083);
-  context.font = "19px monospace";
-  context.fillText("JOSHUA.EXE", 68, 1119);
+  context.fillStyle = "#f5f4e9";
+  context.font = '700 25px "Trebuchet MS", Arial, sans-serif';
+  context.fillText("JOSHUA.EXE", 68, 1097);
+  context.font = '22px "Trebuchet MS", Arial, sans-serif';
   context.textAlign = "right";
   context.fillText(
     date.toLocaleDateString("en-US", {
@@ -67,7 +66,7 @@ export function composePostcard(
       year: "numeric",
     }),
     CARD_WIDTH - 68,
-    1119,
+    1097,
   );
   return card;
 }

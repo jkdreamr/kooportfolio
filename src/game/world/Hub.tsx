@@ -13,11 +13,14 @@ import {
 } from "./Models";
 import { runtime, useGame, walkTo } from "../core/store";
 import { movement } from "../core/input";
-import { canWalk, doors, moveWorld } from "../core/world";
+import { canWalk, doorsInWorld, moveWorld } from "../core/world";
 import { LabelProjection } from "./Labels";
 import { Landscape } from "./Landscape";
+import { HomeWorldEnvironment } from "./HomeWorldEnvironment";
+import { KoreaWorldEnvironment } from "./KoreaWorldEnvironment";
 import { Bulletin } from "./Bulletin";
-import { ROOM } from "../core/room";
+import { roomFor } from "../core/room";
+import { useGameMode } from "../core/gameMode";
 import { NpcCrowd } from "./VillageNpcs";
 import { nearbyNpcId } from "../core/npcState";
 import { BadmintonPavilion } from "../scenes/BadmintonCourt";
@@ -26,11 +29,16 @@ import { WritingShell } from "./WritingShell";
 import { StadiumBuilding } from "../scenes/Stadium";
 import { MovieTheaterBuilding } from "../scenes/MovieTheater";
 import { IslandTrain } from "./IslandTrain";
+import { WorldTravel } from "./WorldTravel";
 import { WORLD_ELLIPSE } from "../../shared/world-bounds";
 import { PhotoBooth } from "./PhotoBooth";
 import { StargazingHill } from "./StargazingHill";
 import { SkateParkBuilding } from "../scenes/SkatePark";
 import { BeatLabShell, MathLabShell } from "./LabBuildings";
+import { GoShell } from "./GoShell";
+import { HooverKey } from "./HooverTowerDoor";
+import { HOOVER, HOOVER_KEY, HOOVER_STASH } from "../core/hoover";
+import { moveInterior } from "../core/houseRooms";
 import {
   KappaShell,
   CognitionShell,
@@ -41,25 +49,28 @@ import {
 export function Walker({
   interior = false,
   locked = false,
+  followCamera = true,
 }: {
   interior?: boolean;
   locked?: boolean;
+  followCamera?: boolean;
 }) {
   const avatar = useRef<THREE.Group>(null),
     save = useGame((s) => s.save);
   const { camera, size } = useThree();
   const follow = useRef(new THREE.Vector3()),
     desired = useRef(new THREE.Vector3()),
-    offset = useRef(new THREE.Vector3());
+    offset = useRef(new THREE.Vector3()),
+    cameraScene = useRef("");
   useFrame((_, delta) => {
     const state = useGame.getState(),
       dt = Math.min(delta, 0.04);
-    if (locked) {
+    if (locked || useGameMode.getState().active) {
       runtime.moving = false;
       state.setNear("");
       return;
     }
-    let [dx, dz] = movement(),
+    let [dx, dz] = state.overlayLocked ? [0, 0] : movement(),
       remaining = Infinity;
     if (Math.hypot(dx, dz) > 0.1) {
       runtime.target = null;
@@ -83,20 +94,18 @@ export function Walker({
     runtime.moving =
       !state.paused &&
       !state.build &&
+      !state.overlayLocked &&
       state.panel === "none" &&
       Math.hypot(dx, dz) > 0.1;
     if (runtime.moving) {
       const step = Math.min(dt * (interior ? 4 : 4.6), remaining);
       if (interior) {
-        runtime.x = THREE.MathUtils.clamp(
-          runtime.x + dx * step,
-          -ROOM.walkX,
-          ROOM.walkX,
-        );
-        runtime.z = THREE.MathUtils.clamp(
-          runtime.z + dz * step,
-          ROOM.minZ,
-          ROOM.maxZ,
+        [runtime.x, runtime.z] = moveInterior(
+          state.scene,
+          runtime.x,
+          runtime.z,
+          dx * step,
+          dz * step,
         );
       } else
         [runtime.x, runtime.z] = moveWorld(
@@ -104,6 +113,7 @@ export function Walker({
           runtime.z,
           dx * step,
           dz * step,
+          state.world,
         );
       runtime.heading = Math.atan2(dx, dz);
     }
@@ -118,7 +128,10 @@ export function Walker({
     }
     let near = "";
     if (interior) {
-      if (runtime.z > ROOM.doorZ - 1.3 && Math.abs(runtime.x) < 2.2)
+      if (
+        runtime.z > roomFor(state.scene).doorZ - 1.3 &&
+        Math.abs(runtime.x) < 2.2
+      )
         near = "exit";
       if (Math.hypot(runtime.x, runtime.z + 2) < 2.5) {
         near =
@@ -131,27 +144,56 @@ export function Walker({
             } as Record<string, string>
           )[state.scene] ?? "";
       }
+      if (
+        state.scene === "secret" &&
+        !state.save.memories.includes(HOOVER_STASH) &&
+        Math.hypot(runtime.x - HOOVER.chest[0], runtime.z - HOOVER.chest[1]) < 3
+      )
+        near = "stash";
     } else {
       near =
-        doors.find((d) => Math.hypot(d.x - runtime.x, d.z - runtime.z) < 1.9)
-          ?.id ?? "";
+        doorsInWorld(state.world).find(
+          (d) => Math.hypot(d.x - runtime.x, d.z - runtime.z) < 1.9,
+        )?.id ?? "";
       if (!near && Math.hypot(runtime.x, runtime.z + 4.6) < 1.9) near = "read";
-      if (!near && Math.hypot(runtime.x + 6, runtime.z + 4.4) < 1.9)
+      if (
+        !near &&
+        state.world === "korea" &&
+        Math.hypot(runtime.x + 6, runtime.z + 4.4) < 1.9
+      )
         near = "photo";
       if (!near && Math.hypot(runtime.x + 19, runtime.z + 30) < 1.9)
         near = "stargazing";
+      if (
+        !near &&
+        state.world === "stanford" &&
+        !state.save.memories.includes(HOOVER_KEY) &&
+        Math.hypot(runtime.x - HOOVER.key[0], runtime.z - HOOVER.key[1]) < 1.2
+      )
+        near = "hoover-key";
+      if (
+        !near &&
+        state.world === "stanford" &&
+        state.save.memories.includes(HOOVER_KEY) &&
+        Math.hypot(runtime.x - HOOVER.door[0], runtime.z - HOOVER.door[1]) < 1.5
+      )
+        near = "hoover-door";
       if (!near) near = nearbyNpcId(runtime.x, runtime.z);
     }
-    state.setNear(near);
+    state.setNear(state.overlayLocked ? "" : near);
+    if (!followCamera) return;
     const mobile = size.width < 700 || size.height < 500;
-    const closeInterior = interior && (mobile || size.height < 500);
     desired.current.set(
-      interior ? (closeInterior ? runtime.x * 0.8 : 0) : runtime.x * 0.92,
+      interior ? runtime.x * 0.9 : runtime.x * 0.92,
       0,
-      interior ? (closeInterior ? runtime.z * 0.8 : 0) : runtime.z * 0.92,
+      interior ? runtime.z * 0.9 - 2 : runtime.z * 0.92,
     );
+    if (interior && cameraScene.current !== state.scene) {
+      follow.current.copy(desired.current);
+      cameraScene.current = state.scene;
+    }
     follow.current.lerp(desired.current, 1 - Math.exp(-dt * 3));
-    if (interior) offset.current.set(18, 23, 29);
+    if (interior) offset.current.set(15, 21, 25);
     else offset.current.set(28, 34, 38);
     camera.position.copy(offset.current.add(follow.current));
     camera.lookAt(follow.current.x, interior ? 0.5 : 0.7, follow.current.z);
@@ -165,9 +207,15 @@ export function Walker({
         ),
       );
       const targetZoom = interior
-        ? closeInterior
-          ? 24
-          : Math.min(38, (size.width - 35) / 35, (size.height - 170) / 29)
+        ? mobile
+          ? Math.max(
+              20,
+              Math.min(34, size.width / 12, (size.height - 90) / 11.5),
+            )
+          : Math.max(
+              26,
+              Math.min(52, size.width / 23, (size.height - 100) / 14),
+            )
         : state.build
           ? fitted * 0.9
           : mobile
@@ -259,34 +307,57 @@ function Garden({ level }: { level: number }) {
   );
 }
 
+const updateTravel = (traveling: boolean) => useGame.setState({ traveling });
+
 export function Hub() {
   const [trainRiding, setTrainRiding] = useState(false);
   const save = useGame((s) => s.save),
-    build = useGame((s) => s.build);
+    build = useGame((s) => s.build),
+    world = useGame((s) => s.world),
+    traveling = useGame((s) => s.traveling);
   return (
     <group>
-      <Landscape />
+      <Landscape world={world} />
+      {world === "home" && <HomeWorldEnvironment />}
+      {world === "korea" && <KoreaWorldEnvironment />}
       <Bulletin />
       <Wildlife />
-      <SkateParkBuilding />
-      <group position={[-6, 0, -6.2]}>
-        <PhotoBooth />
-      </group>
+      {world === "stanford" && !save.memories.includes(HOOVER_KEY) && (
+        <group position={[HOOVER.key[0], 0.2, HOOVER.key[1]]}>
+          <HooverKey />
+        </group>
+      )}
+      {world === "stanford" && <SkateParkBuilding />}
+      {world === "korea" && (
+        <group position={[-6, 0, -6.2]}>
+          <PhotoBooth />
+        </group>
+      )}
       <StargazingHill position={[-19, 0, -38]} />
-      <IslandTrain onRidingChange={setTrainRiding} />
+      {world !== "korea" && (
+        <IslandTrain disabled={traveling} onRidingChange={setTrainRiding} />
+      )}
+      <WorldTravel
+        world={world}
+        disabled={trainRiding}
+        onTravelChange={updateTravel}
+        onArrive={(destination, mode) =>
+          useGame.getState().travel(destination, mode)
+        }
+      />
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
         position={[0, 0.24, 12]}
         onPointerDown={(e) => {
           e.stopPropagation();
-          if (!build && canWalk(e.point.x, e.point.z))
+          if (!build && canWalk(e.point.x, e.point.z, world))
             walkTo(e.point.x, e.point.z);
         }}
       >
         <planeGeometry args={[174, 184]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
-      {doors.map((door) => (
+      {doorsInWorld(world).map((door) => (
         <group
           key={door.id}
           position={[door.footprint[0], 0, door.footprint[1]]}
@@ -296,8 +367,10 @@ export function Hub() {
             <House p={[0, 0, 0]} level={save.upgrades.boathouse} />
           )}
           {door.id === "office" && <House p={[0, 0, 0]} kind="study" />}
-          {door.id === "go" && <House p={[0, 0, 0]} kind="study" />}
-          {door.id === "theater" && <MovieTheaterBuilding p={[0, 0, 0]} />}
+          {door.id === "go" && <GoShell />}
+          {door.id === "theater" && (
+            <MovieTheaterBuilding p={[0, 0, 0]} korean={world === "korea"} />
+          )}
           {door.id === "writing" && <WritingShell p={[0, 0, 0]} />}
           {door.id === "stadium" && <StadiumBuilding />}
           {door.id === "badminton" && <BadmintonPavilion />}
@@ -310,9 +383,9 @@ export function Hub() {
           {door.id === "gym" && <GymShell />}
         </group>
       ))}
-      <Garden level={save.upgrades.garden} />
+      {world === "home" && <Garden level={save.upgrades.garden} />}
       <NpcCrowd />
-      <Walker locked={trainRiding} />
+      <Walker locked={trainRiding || traveling} />
       <LabelProjection />
     </group>
   );

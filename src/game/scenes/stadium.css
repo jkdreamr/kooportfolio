@@ -59,6 +59,84 @@
 .interior-game .stadium-controls p {
   text-align: center;
 }
+
+/* A single exit button docks below the playing surface, opposite the stick. */
+.game-shell .scene-stadium .context-action {
+  left: auto;
+  right: 24px;
+  bottom: calc(100px + env(safe-area-inset-bottom));
+  width: 140px;
+  min-width: 0;
+  padding: 6px;
+  transform: translateY(8px);
+}
+.game-shell .scene-stadium .context-action.visible {
+  transform: none;
+}
+.game-shell .scene-stadium .context-action > div {
+  display: none;
+}
+.game-shell .scene-stadium .context-action > button {
+  width: 100%;
+  justify-content: center;
+  margin: 0;
+}
+
+@media (max-width: 699px) and (orientation: portrait) {
+  .interior-game:has(.stadium-controls) {
+    width: min(250px, calc(100vw - 144px));
+  }
+  .stadium-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 12px;
+  }
+  .stadium-score,
+  .stadium-aim,
+  .stadium-power {
+    grid-column: 1 / -1;
+  }
+  .stadium-score {
+    margin-bottom: 0;
+    gap: 6px;
+  }
+  .stadium-score strong {
+    font-size: 13px;
+  }
+  .stadium-score span {
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .stadium-score b {
+    padding: 0 2px;
+  }
+  .stadium-power {
+    margin-bottom: 6px;
+  }
+  .interior-game .stadium-controls button {
+    grid-column: 2;
+    grid-row: 4;
+    width: 90px;
+  }
+  .interior-game .stadium-controls p {
+    grid-column: 1;
+    grid-row: 4;
+    align-self: center;
+    text-align: left;
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+  .game-shell .scene-stadium .context-action {
+    right: 18px;
+    width: 130px;
+    bottom: calc(104px + env(safe-area-inset-bottom));
+  }
+}
+@media (max-width: 699px) and (max-height: 650px) and (orientation: portrait) {
+  .game-shell .scene-stadium .context-action {
+    bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+}
 @media (max-height: 500px) {
   .stadium-score {
     margin-bottom: 3px;
