@@ -67,7 +67,7 @@ export const THEATER_PROGRAM: readonly TheaterFilm[] = [
   },
 ];
 
-// Official BANGTANTV / KBS WORLD uploads; full episodes, not fan reuploads.
+// Official channel uploads; full episodes, not fan reuploads.
 // Watch metadata confirmed OK + playableInEmbed for every entry.
 export const KOREA_THEATER_PROGRAM: readonly TheaterFilm[] = [
   ...[
@@ -102,6 +102,27 @@ export const KOREA_THEATER_PROGRAM: readonly TheaterFilm[] = [
       kind: "Full episode",
     }),
   ),
+  {
+    id: "OP9I2w7UMDc",
+    title: "IU's Palette",
+    episode: "Episode 19 · With SUGA",
+    channel: "IU Official",
+    kind: "Full episode",
+  },
+  {
+    id: "5LGPm58E8qA",
+    title: "Jessi's Showterview",
+    episode: "Episode 55 · With TWICE",
+    channel: "SBS Mobidic",
+    kind: "Full episode",
+  },
+  {
+    id: "BeDkwcm-nJ4",
+    title: "Going Seventeen",
+    episode: "Episode 68 · Don't Lie: CLUE, Part 1",
+    channel: "SEVENTEEN",
+    kind: "Full episode",
+  },
   {
     id: "isOGD_7hNIY",
     title: "Parasite",
