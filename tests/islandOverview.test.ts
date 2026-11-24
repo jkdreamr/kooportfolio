@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { OrthographicCamera, Vector3 } from "three";
-import { islandFollow, islandZoom } from "../src/game/core/islandCamera";
+import {
+  islandFollow,
+  islandZoom,
+  ISLAND_CAMERA_OFFSET,
+} from "../src/game/core/islandCamera";
 import {
   fitIsland,
   MAX_WORLD_ZOOM,
@@ -30,9 +34,13 @@ describe("whole-island camera", () => {
         height / 2,
         -height / 2,
         0.1,
-        220,
+        350,
       );
-      camera.position.set(28, 34, WORLD_ELLIPSE.centerZ + 38);
+      camera.position.set(
+        ISLAND_CAMERA_OFFSET[0],
+        ISLAND_CAMERA_OFFSET[1],
+        WORLD_ELLIPSE.centerZ + ISLAND_CAMERA_OFFSET[2],
+      );
       camera.lookAt(0, 0.7, WORLD_ELLIPSE.centerZ);
       camera.zoom = islandZoom(width, height);
       camera.updateProjectionMatrix();

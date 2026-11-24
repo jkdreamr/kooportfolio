@@ -1,7 +1,10 @@
 import { Vector3 } from "three";
 import { WORLD_ELLIPSE } from "../../shared/world-bounds";
 
-const direction = new Vector3(28, 34, 38).normalize();
+// Stay behind the entire island; the old close camera clipped the foreground
+// when zoomed out because orthographic zoom does not change viewing distance.
+export const ISLAND_CAMERA_OFFSET = [70, 85, 95] as const;
+const direction = new Vector3(...ISLAND_CAMERA_OFFSET).normalize();
 const right = new Vector3()
   .crossVectors(new Vector3(0, 1, 0), direction)
   .normalize();

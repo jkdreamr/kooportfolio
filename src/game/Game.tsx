@@ -171,10 +171,10 @@ function World() {
       {flat ? (
         <OrthographicCamera
           makeDefault
-          position={[28, 34, 38]}
+          position={[70, 85, 95]}
           zoom={29}
           near={0.1}
-          far={220}
+          far={350}
         />
       ) : (
         <PerspectiveCamera

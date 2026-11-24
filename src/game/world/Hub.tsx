@@ -24,7 +24,11 @@ import { Bulletin } from "./Bulletin";
 import { roomFor } from "../core/room";
 import { useGameMode } from "../core/gameMode";
 import { useWorldView } from "../core/worldView";
-import { islandZoom, islandFollow } from "../core/islandCamera";
+import {
+  islandZoom,
+  islandFollow,
+  ISLAND_CAMERA_OFFSET,
+} from "../core/islandCamera";
 import { NpcCrowd } from "./VillageNpcs";
 import { nearbyNpcId } from "../core/npcState";
 import { BadmintonPavilion } from "../scenes/BadmintonCourt";
@@ -209,7 +213,7 @@ export function Walker({
     }
     follow.current.lerp(desired.current, 1 - Math.exp(-dt * 3));
     if (interior) offset.current.set(15, 21, 25);
-    else offset.current.set(28, 34, 38);
+    else offset.current.set(...ISLAND_CAMERA_OFFSET);
     camera.position.copy(offset.current.add(follow.current));
     camera.lookAt(follow.current.x, interior ? 0.5 : 0.7, follow.current.z);
     if (camera instanceof THREE.OrthographicCamera) {
