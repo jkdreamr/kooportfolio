@@ -1,5 +1,6 @@
 import type { WorldId } from "./worlds";
 import { KOREA_PICNIC_GUEST, KOREA_RAMEN_COUNTER } from "./koreaDistrict";
+import { HOME_DESTINATION_CENTERS } from "./homeLayout";
 
 export const GARDEN_REGROW_SECONDS = 35;
 export const PICNIC_MEAL_SECONDS = 30;
@@ -15,10 +16,28 @@ export const COINS = {
   fish: 8,
 } as const;
 export const PARCEL_DOORS = [
-  { id: "go", name: "Go", p: [-42, 23.2] },
-  { id: "writing", name: "Writing", p: [0, -42.5] },
+  {
+    id: "go",
+    name: "Go",
+    p: [HOME_DESTINATION_CENTERS.go[0], HOME_DESTINATION_CENTERS.go[1] + 4.2],
+  },
+  {
+    id: "writing",
+    name: "Writing",
+    p: [
+      HOME_DESTINATION_CENTERS.writing[0],
+      HOME_DESTINATION_CENTERS.writing[1] + 3.5,
+    ],
+  },
   { id: "music", name: "Beat Lab", p: [-11, -20.5] },
-  { id: "kitchen", name: "Kitchen", p: [-8, 16.4] },
+  {
+    id: "kitchen",
+    name: "Kitchen",
+    p: [
+      HOME_DESTINATION_CENTERS.kitchen[0],
+      HOME_DESTINATION_CENTERS.kitchen[1] + 4.35,
+    ],
+  },
 ] as const;
 export const BOOK_SPOTS = [
   [17, 29],
@@ -81,7 +100,7 @@ export const activitySpots: readonly {
   { id: "harvest-2", world: "home", p: [23.5, 42] },
   { id: "harvest-3", world: "home", p: [23.5, 55] },
   { id: "produce", world: "home", p: [25, -8.8] },
-  { id: "postbox", world: "home", p: [4, -4.6] },
+  { id: "postbox", world: "home", p: [16, -4.6] },
   ...PARCEL_DOORS.map((d, i) => ({
     id: `parcel-${i}` as RegionalAction,
     world: "home" as const,

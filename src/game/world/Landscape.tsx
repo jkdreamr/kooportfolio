@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { Box, Cylinder, Ball, Bench, Boat, Cone, Sign } from "./Models";
+import { Box, Cylinder, Ball, Bench, Boat, Cone } from "./Models";
 import { NaturalTrees, type TreePlacement } from "./TreeArt";
 import { KoreaRiverGround } from "./KoreaRiverGround";
 import { GroundGrass, Scenery } from "./Scenery";
@@ -216,13 +216,7 @@ export function Landscape({ world = "stanford" }: { world?: WorldId }) {
           ))}
         </>
       )}
-      {world === "home" && (
-        <>
-          <Orchard />
-          <MusicCorner />
-          <Windmill />
-        </>
-      )}
+      {world === "home" && <Windmill />}
       <Bench p={[-2.7, 0.2, 3.4]} />
       <Bench p={[2.8, 0.2, -2.9]} rotation={Math.PI} />
       {[-1, 1].map((side) => (
@@ -237,57 +231,6 @@ export function Landscape({ world = "stanford" }: { world?: WorldId }) {
   );
 }
 
-function Orchard() {
-  return (
-    <group position={[-18, 0, 26]}>
-      {[-2.5, 0, 2.5].map((x) => (
-        <group key={x}>
-          <Box p={[x, 0.28, 0]} s={[1.5, 0.4, 3.2]} c="#705239" />
-          {[-1, 0, 1].map((z) => (
-            <group key={z}>
-              <Ball p={[x, 0.65, z]} s={[0.44, 0.4, 0.4]} c="#438e3e" />
-              <Ball
-                p={[x + 0.18, 0.78, z + 0.15]}
-                s={[0.12, 0.12, 0.12]}
-                c="#cc6135"
-              />
-            </group>
-          ))}
-        </group>
-      ))}
-    </group>
-  );
-}
-function MusicCorner() {
-  return (
-    <group position={[-29, 0, 23]}>
-      <Cylinder p={[0, 0.24, 0]} s={[2.35, 0.45, 2.35]} c="#8c6b45" />
-      <Box p={[0, 1.15, -0.5]} s={[2.7, 0.18, 1.1]} c="#b29a68" />
-      {[-0.7, 0.7].map((x) => (
-        <Cylinder key={x} p={[x, 1.3, -0.5]} s={[0.4, 0.1, 0.4]} c="#303e38" />
-      ))}
-      {[-1.8, 1.8].map((x) => (
-        <group key={x}>
-          <Box p={[x, 0.9, -0.5]} s={[0.65, 1.5, 0.65]} c="#37463d" />
-          <Cylinder
-            p={[x, 1.05, -0.12]}
-            s={[0.22, 0.06, 0.22]}
-            r={[Math.PI / 2, 0, 0]}
-            c="#a28a52"
-          />
-        </group>
-      ))}
-      <Sign
-        text="♪"
-        p={[0, 1.5, 0.08]}
-        size={[0.6, 0.6]}
-        color="#3c6448"
-        ink="#ebcc81"
-      />
-      <Bench p={[0, 0, 2.8]} />
-    </group>
-  );
-}
 function Windmill() {
   return (
     <group position={[-34, 0, -24]} scale={0.8}>

@@ -16,6 +16,7 @@ import { runtime, useGame } from "../src/game/core/store";
 import { activitySpots } from "../src/game/core/regionalActivities";
 import { grassSites } from "../src/game/core/scenery";
 import { HOME_PATH_FOOTPRINTS } from "../src/game/world/HomeWorldEnvironment";
+import { HOME_DESTINATION_CENTERS } from "../src/game/core/homeLayout";
 import { KOREA_RIVER_FOOTPRINT } from "../src/game/world/KoreaRiverGround";
 import { isOnKoreaLand, KOREA_MARKET } from "../src/game/core/koreaDistrict";
 import {
@@ -144,7 +145,9 @@ describe("separate worlds", () => {
       expect(row[i].x - row[i - 1].x).toBeLessThan(15);
     }
     const homeCinema = doorsInWorld("home").find(({ id }) => id === "theater");
-    expect(homeCinema?.footprint.slice(0, 2)).toEqual([-38, -39]);
+    expect(homeCinema?.footprint.slice(0, 2)).toEqual(
+      HOME_DESTINATION_CENTERS.theater,
+    );
   });
   it("routes a player from the photo booth corner to Korea's airport", () => {
     const [x, , z] = PHOTO_BOOTH_ORIGIN;
