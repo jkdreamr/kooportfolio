@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { KOREA_LANDMARKS } from "../core/koreaLandmarks";
 import { POND } from "../core/pond";
 import { NaturalTrees, type TreePlacement } from "./TreeArt";
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
@@ -151,7 +152,122 @@ export const KOREA_PUBLIC_TREES: readonly TreePlacement[] = [
   { p: [-39, 0, 45], size: 0.85, variant: 2 },
 ];
 
-export function KoreaPublicGrounds() {
+function MonumentPart({
+  p,
+  s,
+  c,
+  r,
+  shape = "box",
+}: {
+  p: [number, number, number];
+  s: [number, number, number];
+  c: string;
+  r?: [number, number, number];
+  shape?: "box" | "ball" | "column";
+}) {
+  return (
+    <mesh position={p} scale={s} rotation={r} castShadow receiveShadow>
+      {shape === "box" && <boxGeometry />}
+      {shape === "ball" && <sphereGeometry args={[0.5, 12, 8]} />}
+      {shape === "column" && <cylinderGeometry args={[0.4, 0.5, 1, 12]} />}
+      <meshStandardMaterial color={c} roughness={0.8} />
+    </mesh>
+  );
+}
+
+function KingSejong({ onVisit }: { onVisit: (x: number, z: number) => void }) {
+  const {
+    origin: [x, z],
+    approach,
+  } = KOREA_LANDMARKS.sejong;
+  const bronze = "#8c683e";
+  return (
+    <group
+      name="king-sejong-statue"
+      position={[x, 0, z]}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+        onVisit(...approach);
+      }}
+    >
+      <MonumentPart p={[0, 0.29, 0]} s={[4.1, 0.28, 3.4]} c="#9e9282" />
+      <MonumentPart p={[0, 0.9, 0]} s={[3.35, 1.1, 2.8]} c="#6e6c63" />
+      <MonumentPart p={[0, 1.5, 0]} s={[3.55, 0.22, 3]} c="#a39a87" />
+      <MonumentPart p={[0, 1, 1.41]} s={[1.4, 0.4, 0.04]} c="#b09965" />
+      <MonumentPart p={[0, 2.26, -0.74]} s={[2.5, 1.36, 0.41]} c="#654f37" />
+      <MonumentPart
+        shape="column"
+        p={[0, 2.13, 0.29]}
+        s={[2.5, 1.07, 1.95]}
+        c={bronze}
+      />
+      <MonumentPart
+        shape="column"
+        p={[0, 3.18, -0.18]}
+        s={[1.98, 1.67, 1.45]}
+        c={bronze}
+      />
+      <MonumentPart p={[0, 3.28, 0.54]} s={[0.53, 0.48, 0.08]} c="#b3894c" />
+      <MonumentPart
+        shape="ball"
+        p={[0.89, 2.77, 0.48]}
+        s={[0.94, 1.13, 0.96]}
+        c={bronze}
+      />
+      <MonumentPart
+        p={[0.92, 3.07, 0.86]}
+        s={[0.65, 0.13, 0.58]}
+        r={[0.12, -0.11, 0]}
+        c="#c6a563"
+      />
+      <MonumentPart
+        shape="ball"
+        p={[-0.98, 3.22, 0.34]}
+        s={[0.88, 1.16, 1.03]}
+        c={bronze}
+      />
+      <MonumentPart
+        shape="ball"
+        p={[-1.15, 3.94, 0.68]}
+        s={[0.43, 0.61, 0.46]}
+        c="#ab8250"
+      />
+      <MonumentPart
+        shape="ball"
+        p={[0, 4.23, 0.05]}
+        s={[0.9, 1, 0.84]}
+        c="#ab8250"
+      />
+      <MonumentPart
+        shape="ball"
+        p={[0, 3.89, 0.35]}
+        s={[0.39, 0.72, 0.29]}
+        c="#624d34"
+      />
+      <MonumentPart
+        shape="column"
+        p={[0, 4.79, -0.09]}
+        s={[0.98, 0.82, 0.88]}
+        c="#5d4d38"
+      />
+      {[1, -1].map((side) => (
+        <MonumentPart
+          key={side}
+          p={[side * 0.6, 4.92, -0.1]}
+          s={[0.51, 0.15, 0.33]}
+          r={[0, 0, side * 0.3]}
+          c="#5d4d38"
+        />
+      ))}
+    </group>
+  );
+}
+
+export function KoreaPublicGrounds({
+  onVisit,
+}: {
+  onVisit: (x: number, z: number) => void;
+}) {
   return (
     <>
       {grounds.map(({ name, geometry, color }) => (
@@ -168,6 +284,7 @@ export function KoreaPublicGrounds() {
       ))}
       <WorldSceneryParts parts={parts} />
       <NaturalTrees trees={KOREA_PUBLIC_TREES} />
+      <KingSejong onVisit={onVisit} />
     </>
   );
 }

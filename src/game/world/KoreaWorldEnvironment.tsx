@@ -220,7 +220,7 @@ export function KoreaWorldEnvironment({
 }) {
   return (
     <group name="korea-environment">
-      <KoreaPublicGrounds />
+      <KoreaPublicGrounds onVisit={onVisitLandmark} />
       <WorldSceneryParts parts={paving} />
       <WorldSceneryParts parts={park} />
       <NaturalTrees trees={trees} />

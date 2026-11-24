@@ -28,8 +28,15 @@ const village = {
   approach: [-32.7, KOREA_MAIN_STREET_Z],
   height: 3.8,
 } as const;
+const sejong = {
+  id: "sejong",
+  name: "King Sejong Statue",
+  origin: [-18.8, -2.4],
+  approach: [-18.8, 1.1],
+  height: 5.6,
+} as const;
 
-export const KOREA_LANDMARKS = { namsan, palace, village };
+export const KOREA_LANDMARKS = { namsan, palace, village, sejong };
 export const KOREA_MAIN_STREET = [7.5, KOREA_MAIN_STREET_Z, 81, 3.2] as const;
 export const KOREA_GARDEN_WALKS = [
   KOREA_MAIN_STREET,
@@ -53,15 +60,18 @@ export function isKoreaGardenWalk(x: number, z: number, mx = 0, mz = mx) {
       Math.abs(x - cx) <= width / 2 + mx && Math.abs(z - cz) <= depth / 2 + mz,
   );
 }
-export const KOREA_LANDMARK_DESTINATIONS = [namsan, palace, village].map(
-  ({ id, name, origin: [cx, cz], approach: [x, z], height }) => ({
-    id,
-    name,
-    x,
-    z,
-    anchor: [cx, height, cz] as const,
-  }),
-);
+export const KOREA_LANDMARK_DESTINATIONS = [
+  namsan,
+  palace,
+  village,
+  sejong,
+].map(({ id, name, origin: [cx, cz], approach: [x, z], height }) => ({
+  id,
+  name,
+  x,
+  z,
+  anchor: [cx, height, cz] as const,
+}));
 
 export const BUKCHON_HOMES = [
   [-3.2, -2.6, false],
@@ -74,6 +84,7 @@ const [bx, bz] = village.origin;
 export const KOREA_LANDMARK_SOLIDS = [
   [...namsan.origin, 2.1, 2.1],
   [...palace.origin, 6.2, 2.45],
+  [...sejong.origin, 2.05, 1.7],
   ...BUKCHON_HOMES.map(([x, z]) => [bx + x, bz + z, 2.3, 1.15] as const),
 ] as const;
 
