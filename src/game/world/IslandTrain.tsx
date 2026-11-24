@@ -123,7 +123,7 @@ function Wheels({ phase }: { phase: React.RefObject<number> }) {
   );
 }
 
-function Car({
+export function RailCar({
   engine = false,
   phase,
 }: {
@@ -199,15 +199,18 @@ function Car({
 
 export function IslandTrain({
   onRidingChange,
+  disabled = false,
 }: {
   onRidingChange?: (riding: boolean) => void;
+  disabled?: boolean;
 }) {
   const [riding, setRiding] = useState(false);
   const [near, setNear] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(
     () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
-  const hidden = useGame((s) => s.paused || s.panel !== "none" || s.build);
+  const hidden =
+    useGame((s) => s.paused || s.panel !== "none" || s.build) || disabled;
   const coaches = useRef<THREE.Group>(null);
   const phase = useRef(0);
   const turns = useRef(0);
@@ -300,7 +303,7 @@ export function IslandTrain({
               position={[pose.x, ISLAND_RAIL.height, pose.z]}
               rotation={[0, pose.heading, 0]}
             >
-              <Car engine={i === 0} phase={phase} />
+              <RailCar engine={i === 0} phase={phase} />
             </group>
           );
         })}
