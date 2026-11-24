@@ -3,6 +3,11 @@ import { runtime, useGame } from "./store";
 import { escapeGameMode } from "./gameMode";
 export const keys = new Set<string>();
 export const touch = { x: 0, z: 0 };
+
+/** Held modifier, never a toggle: keyup and the shared blur reset stop sprint. */
+export function movementSpeed(base = 4.6) {
+  return base * (keys.has("shift") ? 1.85 : 1);
+}
 export function useInput(interact: () => void) {
   useEffect(() => {
     const closeGame = (e: KeyboardEvent) => {

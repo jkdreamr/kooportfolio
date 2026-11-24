@@ -9,6 +9,17 @@ export const WORLD_NAMES: Record<TravelWorld, string> = {
   korea: "Korea",
 };
 
+export function directJourney(
+  from: TravelWorld,
+  to: TravelWorld,
+): TravelOption | null {
+  if (from === to) return null;
+  return {
+    destination: to,
+    mode: from === "korea" || to === "korea" ? "plane" : "train",
+  };
+}
+
 export function travelOptions(
   world: TravelWorld,
   stop: TravelStop,

@@ -8,7 +8,7 @@ import type { GroundFootprint } from "../core/scenery";
 import { NationalFlag } from "./NationalFlag";
 import { CampusDistrict } from "./CampusDistrict";
 import { campus } from "../core/campus";
-import { POND } from "../core/pond";
+import { POND, POND_SURFACE } from "../core/pond";
 import { WORLD_ELLIPSE } from "../../shared/world-bounds";
 import type { WorldId } from "../core/worlds";
 
@@ -55,7 +55,11 @@ function Blocks({
 const rimTrees: TreePlacement[] = Array.from({ length: 40 }, (_, i) => {
   const angle = Math.PI + (i / 39) * Math.PI;
   return {
-    p: [Math.cos(angle) * 78, 0, Math.sin(angle) * 83 + 12],
+    p: [
+      Math.cos(angle) * (WORLD_ELLIPSE.radiusX - 7),
+      0,
+      Math.sin(angle) * (WORLD_ELLIPSE.radiusZ - 7) + WORLD_ELLIPSE.centerZ,
+    ],
     size: 0.8 + (i % 3) * 0.15,
     variant: i % 3 === 0 ? 0 : 2,
   };
@@ -83,7 +87,7 @@ for (let i = 0; i < 125; i++) {
     masonry.push([x, 1.48, z, 0.72, 0.55, 0.8, "#b1b48f", -angle]);
 }
 const roads: Block[] = [
-  [0, 0.17, 12, 3, 0.1, 166, "#c9b381"],
+  [0, 0.17, 24, 3, 0.1, 142, "#c9b381"],
   [14, 0.17, 21, 28, 0.1, 3, "#c9b381"],
   [-38, 0.17, -29, 2.5, 0.1, 10, "#c9b381"],
   [-63, 0.17, 12, 28, 0.1, 2.5, "#c9b381"],
@@ -131,9 +135,21 @@ export function Landscape({ world = "stanford" }: { world?: WorldId }) {
         <KoreaRiverGround />
       ) : (
         <>
-          <Cylinder p={[0, -2.1, 12]} s={[86.8, 4.2, 91.8]} c="#655e3e" />
-          <Cylinder p={[0, -0.5, 12]} s={[87, 1, 92]} c="#a49564" />
-          <Cylinder p={[0, -0.01, 12]} s={[86.5, 0.3, 91.5]} c="#639343" />
+          <Cylinder
+            p={[0, -2.1, WORLD_ELLIPSE.centerZ]}
+            s={[86.8, 4.2, WORLD_ELLIPSE.radiusZ + 2.3]}
+            c="#655e3e"
+          />
+          <Cylinder
+            p={[0, -0.5, WORLD_ELLIPSE.centerZ]}
+            s={[87, 1, WORLD_ELLIPSE.radiusZ + 2.5]}
+            c="#a49564"
+          />
+          <Cylinder
+            p={[0, -0.01, WORLD_ELLIPSE.centerZ]}
+            s={[86.5, 0.3, WORLD_ELLIPSE.radiusZ + 2]}
+            c="#639343"
+          />
         </>
       )}
       <Scenery />
@@ -142,8 +158,16 @@ export function Landscape({ world = "stanford" }: { world?: WorldId }) {
           <CampusDistrict />
         </group>
       )}
-      <Cylinder p={[POND.x, 0.13, POND.z]} s={[6.4, 0.18, 4.4]} c="#736c50" />
-      <Cylinder p={[POND.x, 0.19, POND.z]} s={[6, 0.06, 4]} c="#459d96" />
+      <Cylinder
+        p={[POND.x, POND_SURFACE.bedY, POND.z]}
+        s={[6.4, POND_SURFACE.bedDepth, 4.4]}
+        c="#736c50"
+      />
+      <Cylinder
+        p={[POND.x, POND_SURFACE.waterY, POND.z]}
+        s={[POND.radiusX, POND_SURFACE.waterDepth, POND.radiusZ]}
+        c="#459d96"
+      />
       {Array.from({ length: 20 }, (_, i) => {
         const a = (i / 20) * Math.PI * 2;
         return (

@@ -1,0 +1,101 @@
+.island-map {
+  position: relative;
+  width: 100%;
+  height: min(370px, 58dvh);
+  min-height: 280px;
+  overflow: hidden;
+  border: 1px solid #c9d4cb;
+  border-radius: 12px;
+  background: #e5efea;
+}
+.island-map-routes {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.island-map-routes path {
+  fill: none;
+  stroke: #91aaa5;
+  stroke-width: 1.5;
+  stroke-dasharray: 4 6;
+}
+.island-map-stop {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 42%;
+  padding: 4px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: #243e40;
+  background: transparent;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.island-map-stop svg {
+  width: min(120px, 100%);
+  height: 95px;
+  transition: transform 0.18s ease;
+}
+.island-map-stop strong {
+  font-size: 16px;
+  line-height: 1.4;
+}
+.island-map-stop span {
+  font-size: 11px;
+  margin-top: 2px;
+}
+.island-map-stop--home {
+  left: 4%;
+  top: 6%;
+}
+.island-map-stop--korea {
+  right: 4%;
+  top: 6%;
+}
+.island-map-stop--stanford {
+  left: 29%;
+  bottom: 5%;
+}
+.island-map-stop:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.island-map-stop[aria-current] span {
+  border-radius: 10px;
+  padding: 2px 8px;
+  background: #335a4b;
+  color: #fffdf5;
+}
+.island-map-stop:not(:disabled):hover {
+  background: #fff8;
+  border-color: #b7c9bd;
+}
+.island-map-stop:not(:disabled):hover svg {
+  transform: translateY(-3px);
+}
+.island-map-stop:focus-visible {
+  outline: 2px solid #335a4b;
+  outline-offset: -2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .island-map-stop svg {
+    transition: none;
+  }
+}
+@media (max-width: 360px) {
+  .game-shell .world-toolbar > :is(button, a) {
+    min-width: 36px;
+  }
+}
+@media (max-height: 500px) {
+  .island-map {
+    height: 230px;
+    min-height: 230px;
+  }
+  .island-map-stop svg {
+    height: 65px;
+  }
+}
