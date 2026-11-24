@@ -306,8 +306,8 @@ export function Rowing() {
     <>
       <River length={length} seed={seed} state={() => state.current} />
       <CurrentFlow state={() => state.current} seed={seed} />
-      <RowingShell state={() => state.current} color="#efc259" player />
-      {["#dc7656", "#4a9485", "#7186bd"].map((color, i) => (
+      <RowingShell state={() => state.current} color="#8c1515" player />
+      {["#e6a742", "#4a9485", "#7186bd"].map((color, i) => (
         <RowingShell
           key={color}
           state={() => rivals.current[i]}
