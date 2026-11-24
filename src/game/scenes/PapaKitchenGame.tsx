@@ -45,6 +45,26 @@ function Ingredients({ ticket }: { ticket: Ticket }) {
     </ol>
   );
 }
+function KitchenTicket({
+  ticket,
+  rail = false,
+}: {
+  ticket: Ticket;
+  rail?: boolean;
+}) {
+  return (
+    <aside
+      className={`papa-ticket papa-ticket--${rail ? "rail" : "wide"}`}
+      aria-label={`${ticket.name}'s ticket`}
+    >
+      <header>
+        <b>{ticket.name}</b>
+        <span>{ticket.doneness}</span>
+      </header>
+      <Ingredients ticket={ticket} />
+    </aside>
+  );
+}
 function KitchenControls({
   game,
   dispatch,
@@ -178,18 +198,7 @@ function KitchenControls({
               ))}
             </nav>
           )}
-          {current && (
-            <aside
-              className="papa-ticket"
-              aria-label={`${current.ticket.name}'s ticket`}
-            >
-              <header>
-                <b>{current.ticket.name}</b>
-                <span>{current.ticket.doneness}</span>
-              </header>
-              <Ingredients ticket={current.ticket} />
-            </aside>
-          )}
+          {current && <KitchenTicket ticket={current.ticket} />}
           {game.station === "build" && current?.stage === "build" && (
             <div
               ref={dropZone}
@@ -223,6 +232,9 @@ function KitchenControls({
               ))}
             </nav>
             <div className={`papa-actions papa-actions--${game.station}`}>
+              {current && game.station !== "orders" && (
+                <KitchenTicket ticket={current.ticket} rail />
+              )}
               {game.station === "orders" && (
                 <div className="papa-queue">
                   {game.queue.map((ticket) => (

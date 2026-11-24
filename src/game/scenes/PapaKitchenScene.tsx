@@ -220,6 +220,19 @@ export function PapaKitchenScene({
     if (camera.current) {
       const c = camera.current,
         blend = 1 - Math.exp(-8 * Math.min(dt, 0.1));
+      const { width, height } = state.size;
+      if (height <= 500) {
+        const rail = Math.min(320, Math.max(220, width * 0.34), width - 36),
+          pan = (rail + 12) / 2;
+        const view = c.view;
+        if (
+          !view?.enabled ||
+          view.offsetX !== pan ||
+          view.fullWidth !== width ||
+          view.fullHeight !== height
+        )
+          c.setViewOffset(width, height, pan, 0, width, height);
+      } else if (c.view?.enabled) c.clearViewOffset();
       c.position.x = THREE.MathUtils.lerp(
         c.position.x,
         stationX + (portrait ? 0 : 1.8),

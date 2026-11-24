@@ -23,7 +23,7 @@
   color: #f3e9cd;
   font: 600 14px/1.2 var(--font-ui, system-ui);
   cursor: pointer;
-  touch-action: none;
+  touch-action: manipulation;
   pointer-events: auto;
 }
 .papa-game button:hover,
@@ -333,6 +333,7 @@
   gap: 6px;
 }
 .papa-toppings button {
+  touch-action: none;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -542,62 +543,130 @@
     bottom: 22px;
   }
 }
+.papa-ticket--rail {
+  display: none;
+}
 @media (max-height: 500px) {
+  .papa-game {
+    --papa-rail: clamp(220px, 34vw, 320px);
+  }
   .papa-top {
     top: 10px;
+    gap: 8px;
+  }
+  .papa-top > div {
+    padding: 7px 9px;
+    gap: 6px;
+  }
+  .papa-top b {
+    font-size: 12px;
+  }
+  .papa-top span {
+    font-size: 10px;
+  }
+  .papa-top time {
+    font-size: 16px;
   }
   .papa-open-tickets {
     top: 62px;
+    left: 18px;
+    right: calc(var(--papa-rail) + 28px);
     justify-content: flex-start;
-    right: 50%;
-  }
-  .papa-ticket {
-    top: 112px;
-    width: 145px;
-    padding: 10px;
-  }
-  .papa-ticket .papa-recipe {
     gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #78836b #1b383b;
+  }
+  .papa-open-tickets button {
+    flex: 0 0 auto;
+    touch-action: pan-x;
+  }
+  .papa-ticket--wide {
+    display: none;
   }
   .papa-dock {
-    display: contents;
+    top: 62px;
+    right: 16px;
+    bottom: 16px;
+    left: auto;
+    width: min(var(--papa-rail), calc(100% - 36px));
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 8px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #78836b #1b383b;
+    pointer-events: auto;
   }
   .papa-stations {
-    position: absolute;
-    left: 18px;
-    bottom: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    flex: 0 0 auto;
+    border-radius: 6px;
+    background: #1b383b;
   }
   .papa-stations button {
+    flex: 1;
     min-height: 48px;
-    min-width: 73px;
-    padding: 7px 10px;
+    min-width: 0;
+    padding: 7px 9px;
+    font-size: 12px;
   }
   .papa-stations small {
     display: none;
   }
   .papa-actions {
-    position: absolute;
-    right: 16px;
-    bottom: 16px;
-    width: 274px;
+    position: static;
+    flex: 0 0 auto;
+    width: auto;
     padding: 11px;
-    max-height: calc(100% - 80px);
-    overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: #78836b #1b383b;
-    overscroll-behavior: contain;
+    min-height: 0;
+    max-height: none;
+    overflow: visible;
   }
   .papa-actions--orders {
-    width: min(410px, calc(100% - 36px));
+    width: auto;
     padding: 0;
-    bottom: 80px;
-    max-height: calc(100% - 192px);
+  }
+  .papa-queue {
+    flex-direction: column;
   }
   .papa-order {
     min-width: 0;
+    max-width: none;
+    padding: 10px;
   }
-  .papa-game:has(.papa-actions--orders) .papa-ticket {
-    display: none;
+  .papa-order .papa-recipe,
+  .papa-ticket .papa-recipe {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 5px 8px;
+    min-height: 0;
+    margin: 8px 0;
+  }
+  .papa-order .papa-recipe li,
+  .papa-ticket .papa-recipe li {
+    font-size: 11px;
+    gap: 5px;
+  }
+  .papa-order progress {
+    margin: 8px 0;
+  }
+  .papa-ticket--rail {
+    display: block;
+    position: static;
+    width: auto;
+    padding: 0 0 10px;
+    margin: 0 0 10px;
+    border: 0;
+    border-bottom: 1px solid #63817088;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
   }
   .papa-toppings button {
     min-height: 43px;
@@ -606,39 +675,20 @@
     font-size: 9px;
   }
   .papa-result {
+    top: 62px;
+    bottom: 16px;
     left: auto;
     right: 16px;
-    bottom: 16px;
     transform: none;
-    width: 270px;
+    width: min(var(--papa-rail), calc(100% - 36px));
     padding: 17px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #78836b #1b383b;
   }
 }
-@media (max-height: 500px) and (max-width: 700px) {
-  .papa-order {
-    padding: 8px;
-  }
-  .papa-order header {
-    font-size: 12px;
-  }
-  .papa-order small {
-    font-size: 10px;
-  }
-  .papa-order .papa-recipe {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 4px;
-    min-height: 16px;
-    margin: 8px 0;
-  }
-  .papa-order .papa-recipe li {
-    font-size: 0;
-    gap: 0;
-  }
-  .papa-order progress {
-    margin: 8px 0;
-  }
-  .papa-order button {
-    padding: 8px;
+@media (max-height: 240px) {
+  .papa-stations {
+    position: static;
   }
 }
