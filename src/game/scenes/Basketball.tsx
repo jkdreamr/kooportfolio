@@ -720,8 +720,9 @@ function BasketballCourt({ playing }: { playing: boolean }) {
       marker.current.position.set(spot.x, 0.17, spot.z);
       marker.current.scale.setScalar(1 + Math.sin(elapsed.current * 3) * 0.035);
     }
-    const aspect = camera instanceof THREE.PerspectiveCamera ? camera.aspect : 1;
-    const portrait = aspect < 0.85;
+    const aspect =
+      camera instanceof THREE.PerspectiveCamera ? camera.aspect : 1;
+    const portrait = aspect < 1.2;
     // Keep both ends of the shot in view, rather than aiming at a fixed
     // center while the player walks out of a narrow portrait frustum.
     const focusX = (runtime.x + hoop.x) / 2;
