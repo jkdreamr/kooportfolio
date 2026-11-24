@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import { sculptedMaterial } from "./Surface";
 
 export type SceneryPart = {
   p: [number, number, number];
@@ -16,7 +17,7 @@ const geometries = {
   column: new THREE.CylinderGeometry(0.8, 1, 1, 10),
   rock: new THREE.IcosahedronGeometry(1, 1),
 };
-const material = new THREE.MeshStandardMaterial({ roughness: 0.88 });
+const material = sculptedMaterial({ roughness: 0.88 });
 
 function Batch({
   parts,
