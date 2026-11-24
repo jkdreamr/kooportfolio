@@ -32,7 +32,7 @@ import {
   GymShell,
 } from "./VillageBuildings";
 
-export function Walker({ interior = false, locked = false }: { interior?: boolean; locked?: boolean }) {
+export function Walker({ interior = false, locked = false, followCamera = true }: { interior?: boolean; locked?: boolean; followCamera?: boolean }) {
   const avatar = useRef<THREE.Group>(null),
     save = useGame((s) => s.save);
   const { camera, size } = useThree();
@@ -127,6 +127,7 @@ export function Walker({ interior = false, locked = false }: { interior?: boolea
       if (!near) near = nearbyNpcId(runtime.x, runtime.z);
     }
     state.setNear(near);
+    if (!followCamera) return;
     const mobile = size.width < 700 || size.height < 500;
     const closeInterior = interior && (mobile || size.height < 500);
     desired.current.set(
