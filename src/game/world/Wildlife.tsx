@@ -203,7 +203,7 @@ function Duck({ animal }: { animal: Animal }) {
       pose = animalPose(animal, t);
     group.current.position.set(
       pose.x,
-      0.08 + Math.sin(t * 2 + animal.offset) * 0.025,
+      0.16 + Math.sin(t * 2 + animal.offset) * 0.025,
       pose.z,
     );
     group.current.rotation.y = pose.heading;

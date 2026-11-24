@@ -95,10 +95,10 @@ export const ANIMALS: readonly Animal[] = [
   {
     kind: "duck",
     route: [
-      [1, 35],
-      [5, 34],
-      [8, 36],
-      [3, 38],
+      [-29, 42],
+      [-26, 40],
+      [-22, 42],
+      [-26, 44],
     ],
     speed: 0.55,
     rest: 0,
@@ -108,10 +108,10 @@ export const ANIMALS: readonly Animal[] = [
   {
     kind: "duck",
     route: [
-      [1, 35],
-      [5, 34],
-      [8, 36],
-      [3, 38],
+      [-29, 42],
+      [-26, 40],
+      [-22, 42],
+      [-26, 44],
     ],
     speed: 0.55,
     rest: 0,
@@ -121,10 +121,10 @@ export const ANIMALS: readonly Animal[] = [
   {
     kind: "duck",
     route: [
-      [1, 35],
-      [5, 34],
-      [8, 36],
-      [3, 38],
+      [-29, 42],
+      [-26, 40],
+      [-22, 42],
+      [-26, 44],
     ],
     speed: 0.55,
     rest: 0,
@@ -198,7 +198,7 @@ export function ambientMix(hour: number, x: number, z: number, scene: string) {
   const riverDistance =
     scene === "rowing"
       ? 0
-      : Math.max(0, Math.hypot((x + 9) * 0.35, z - 37) - 5);
+      : Math.max(0, Math.hypot(((x + 26) * 4) / 6, z - 42) - 4);
   return {
     birds: outside
       ? (1 - night) *
@@ -207,7 +207,7 @@ export function ambientMix(hour: number, x: number, z: number, scene: string) {
         (1 - weather.snow)
       : 0,
     crickets: outside ? night * 0.16 * (1 - weather.snow) : 0,
-    water: outside ? Math.max(0, 1 - riverDistance / 24) * 0.23 : 0,
+    water: outside ? Math.max(0, 1 - riverDistance / 14) * 0.23 : 0,
     rain: outside ? weather.rain * 0.3 : 0,
     wind: outside ? weather.wind * 0.12 : 0,
   };
