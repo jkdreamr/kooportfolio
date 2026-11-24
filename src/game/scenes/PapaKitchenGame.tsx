@@ -120,9 +120,10 @@ function KitchenControls({
           ? current.layers.at(-1)?.ingredient === "top"
             ? '[data-kitchen-action="serve"]'
             : `[data-ingredient="${nextIngredient ?? "top"}"]:not(:disabled)`
-          : ".papa-actions button:not(:disabled)";
+          : ".papa-actions button:not(:disabled):not(.papa-secondary)";
     const next =
       root.querySelector<HTMLButtonElement>(selector) ??
+      root.querySelector<HTMLButtonElement>(".papa-open-tickets button") ??
       root.querySelector<HTMLButtonElement>(
         '.papa-stations button[aria-pressed="true"]',
       ) ??
