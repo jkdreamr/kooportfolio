@@ -302,7 +302,9 @@ function DetailBatch({
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     mesh.computeBoundingSphere();
-    return () => mesh.dispose();
+    return () => {
+      mesh.dispose();
+    };
   }, [parts]);
   return (
     <instancedMesh
