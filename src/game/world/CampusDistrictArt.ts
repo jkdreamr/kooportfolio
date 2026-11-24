@@ -112,10 +112,27 @@ function hall(
     cross ? Math.PI / 2 : 0,
   );
   const n = Math.floor(w / 2);
-  for (let i = 0; i < n; i++) {
-    const wx = x - w / 2 + ((i + 0.5) * w) / n;
-    box(wx, 2.4, z + hz + 0.04, 0.8, 1.55, 0.12, "#48685c");
-    box(wx, 1.56, z + hz + 0.12, 1.1, 0.2, 0.32, sandstone[3]);
+  // The fixed world camera sees the north/west elevations after the Yπ mount.
+  // Finish every elevation, rather than treating the entry facade as a backdrop.
+  for (const side of [-1, 1]) {
+    box(x, 1.05, z + side * hz, w + 0.12, 0.15, 0.14, sandstone[2]);
+    box(x + side * hx, 1.05, z, 0.14, 0.15, d + 0.12, sandstone[2]);
+    for (let i = 0; i < n; i++) {
+      const wx = x - w / 2 + ((i + 0.5) * w) / n;
+      if (name === "church" && Math.abs(wx) < 1.5) continue;
+      box(wx, 2.4, z + side * (hz + 0.04), 0.8, 1.55, 0.12, "#48685c");
+      box(wx, 1.56, z + side * (hz + 0.12), 1.1, 0.2, 0.32, sandstone[3]);
+      box(wx, 2.4, z + side * (hz + 0.13), 0.08, 1.55, 0.08, sandstone[1]);
+      box(wx, 2.4, z + side * (hz + 0.13), 0.8, 0.08, 0.08, sandstone[1]);
+    }
+    const m = Math.max(1, Math.floor(d / 2.4));
+    for (let i = 0; i < m; i++) {
+      const wz = z - hz + ((i + 0.5) * d) / m;
+      box(x + side * (hx + 0.04), 2.4, wz, 0.12, 1.55, 0.8, "#48685c");
+      box(x + side * (hx + 0.12), 1.56, wz, 0.32, 0.2, 1.1, sandstone[3]);
+      box(x + side * (hx + 0.13), 2.4, wz, 0.08, 1.55, 0.08, sandstone[1]);
+      box(x + side * (hx + 0.13), 2.4, wz, 0.08, 0.08, 0.8, sandstone[1]);
+    }
   }
 }
 function column(x: number, z: number, height = 3) {
@@ -262,6 +279,28 @@ for (const side of [-1, 1])
       ["#b97848", "#c3a95e", "#668b78", "#d7b571"][i],
     );
 box(0, 0.35, -18.1, 6.5, 0.3, 0.8, "#d5bc89");
+// The rear apse has its own rose window and recessed sandstone arch.
+part("column", [0, 5.5, -27.36], [1.15, 0.1, 1.15], "#aa7946", [
+  Math.PI / 2,
+  0,
+  0,
+]);
+part("column", [0, 5.5, -27.44], [0.88, 0.12, 0.88], "#5b9184", [
+  Math.PI / 2,
+  0,
+  0,
+]);
+for (let i = 0; i < 8; i++) {
+  const a = (i * Math.PI) / 4;
+  part(
+    "round",
+    [Math.cos(a) * 0.57, 5.5 + Math.sin(a) * 0.57, -27.54],
+    [0.19, 0.19, 0.08],
+    i % 2 ? "#e6c16d" : "#aa5639",
+  );
+}
+box(0, 2, -27.35, 2.1, 2.9, 0.12, "#927b57");
+part("arch", [0, 2.9, -27.48], [1.12, 1.12, 1], "#e7cb94");
 
 // Hoover Tower is a separate, tall landmark with a setback octagonal carillon.
 footing(23, -16, 5, 5);
