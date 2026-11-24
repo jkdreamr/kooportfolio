@@ -510,19 +510,20 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
                 c={RECIPES[order.recipe].color}
               />
               <Box p={[0, -0.46, 0]} s={[1.2, 0.1, 0.08]} c="#6a4c30" />
-              <Box
-                p={[
-                  -0.6 + (order.patience / order.maxPatience) * 0.6,
-                  -0.46,
-                  0.06,
+              <group
+                position={[-0.6, -0.46, 0.06]}
+                scale={[
+                  Math.max(0.01, order.patience / order.maxPatience),
+                  1,
+                  1,
                 ]}
-                s={[
-                  Math.max(0.01, (order.patience / order.maxPatience) * 1.2),
-                  0.1,
-                  0.06,
-                ]}
-                c={order.patience > 12 ? "#6c9a50" : "#b75835"}
-              />
+              >
+                <Box
+                  p={[0.6, 0, 0]}
+                  s={[1.2, 0.1, 0.06]}
+                  c={order.patience > 12 ? "#6c9a50" : "#b75835"}
+                />
+              </group>
             </group>
           </group>
         ))}
