@@ -1,112 +1,404 @@
+/* The shared room HUD remains available while walking; shots belong to Play. */
+.scene-basketball .basket-score,
+.scene-basketball .shot-feedback,
+.scene-basketball .shot-panel,
+.scene-basketball .court-keyboard-hint,
+.scene-basketball .challenge-heading p {
+  display: none;
+}
 .basketball-controls {
   position: absolute;
-  top: 225px;
+  top: 190px;
   left: 36px;
-  width: 235px;
-  color: #3e554b;
+  width: 225px;
+  color: #f0e8d3;
   pointer-events: none;
   font:
     12px/1.4 system-ui,
     sans-serif;
 }
-.basketball-mode-select {
-  display: none;
-  pointer-events: auto;
-}
 .basketball-controls nav {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
-  max-width: 225px;
 }
-.basketball-controls button {
+.basketball-controls button,
+.basketball-mode-select,
+.court-session button {
   pointer-events: auto;
-  border: 1px solid #bbbda2;
-  border-radius: 5px;
-  padding: 8px 10px;
-  background: #f8f1dfed;
-  color: #526153;
+  border: 1px solid #627467;
+  border-radius: 6px;
+  padding: 9px 12px;
+  background: #253f35f5;
+  color: #f4ecd8;
   font: inherit;
   cursor: pointer;
-  min-height: 36px;
+  min-height: 40px;
+  box-shadow: 0 3px 0 #142b24;
 }
 .basketball-controls button[aria-pressed="true"] {
-  background: #45665d;
-  color: #fff0d1;
-  border-color: #45665d;
+  color: #f7d995;
+  border-color: #c7a269;
+  background: #3d5547;
 }
-.basketball-controls button:focus-visible {
-  outline: 3px solid #ad6b38;
+.basketball-controls button:focus-visible,
+.basketball-mode-select:focus-visible,
+.court-session :focus-visible {
+  outline: 3px solid #e4b962;
   outline-offset: 3px;
 }
-.basketball-switches {
+.basketball-mode-select {
+  display: none;
+  max-width: 100%;
+}
+.basketball-switches,
+.basketball-lobby-actions {
   display: flex;
-  gap: 5px;
-  margin-top: 8px;
+  gap: 6px;
+  margin-top: 10px;
+}
+.basketball-lobby-actions .basketball-play {
+  background: #ad6835;
+  border-color: #e2b87a;
+  min-width: 95px;
+  font-weight: 700;
 }
 .basketball-controls p {
-  margin: 18px 0 0;
-  font-size: 13px;
-  text-shadow: 0 1px #fff1d7;
+  margin: 14px 0 0;
+  text-shadow: 0 1px 3px #162b20;
 }
 .basketball-controls p span {
-  color: #997138;
-  margin-right: 8px;
+  color: #edd08f;
+  margin-right: 6px;
   font-size: 11px;
 }
 .basketball-controls p b {
   margin-left: 5px;
-  color: #997138;
+  color: #edd08f;
   font-weight: 500;
 }
 .basketball-controls small {
   font-size: 10px;
 }
-@media (min-width: 701px) and (min-height: 501px) {
-  .scene-basketball .challenge-heading p {
-    max-width: 280px;
-    line-height: 1.6;
-  }
-  .scene-basketball .basketball-controls {
-    top: 280px;
+.court-session {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: #f3ecd9;
+  font:
+    13px/1.4 system-ui,
+    sans-serif;
+  outline: none;
+}
+.court-session-header {
+  position: absolute;
+  inset: 0 0 auto;
+  min-height: 76px;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: linear-gradient(#172e27fa, #243c34ee);
+  border-bottom: 2px solid #997c4e;
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+.court-session-header > div:first-child {
+  display: grid;
+  gap: 2px;
+}
+.court-session-header > div:first-child > span {
+  color: #d5b67d;
+  font-size: 10px;
+  letter-spacing: 0.13em;
+}
+.court-session-header > div:first-child > strong {
+  font-size: 15px;
+  font-weight: 500;
+}
+.court-session-score {
+  display: flex;
+  gap: 28px;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+}
+.court-session-score > strong,
+.court-session-score > span {
+  font-size: 30px;
+  line-height: 1;
+  font-weight: 600;
+}
+.court-session-score small {
+  font-size: 9px;
+  font-weight: 500;
+  color: #d5b67d;
+  margin-left: 5px;
+}
+.court-session-actions {
+  display: flex;
+  gap: 7px;
+}
+.court-session .basketball-controls {
+  top: 104px;
+  left: 24px;
+  width: 205px;
+}
+.court-feedback {
+  position: absolute;
+  bottom: 196px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 17px;
+  font-weight: 600;
+  color: #263e30;
+  text-align: center;
+  text-shadow: 0 1px 2px #ffefc9;
+  width: min(80%, 460px);
+}
+.court-shot {
+  position: absolute;
+  right: 24px;
+  bottom: 48px;
+  width: 220px;
+  padding: 14px;
+  border: 1px solid #69806c;
+  border-radius: 9px;
+  background: #203b32f5;
+  box-shadow: 0 4px 0 #152b24;
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+.court-power {
+  height: 13px;
+  overflow: hidden;
+  border: 1px solid #70816c;
+  border-radius: 3px;
+  position: relative;
+  background: #132c25;
+}
+.court-power i {
+  display: block;
+  height: 100%;
+  background: #db9251;
+}
+.court-power b {
+  position: absolute;
+  left: 57.5%;
+  width: 9%;
+  top: 0;
+  bottom: 0;
+  background: #f6d27c99;
+  border-inline: 1px solid #ffe5a2;
+}
+.court-shot label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 9px 0;
+  font-size: 11px;
+}
+.court-shot input {
+  width: 100%;
+  min-width: 0;
+  accent-color: #dfb675;
+  height: 22px;
+}
+.court-session .court-shoot {
+  width: 100%;
+  min-height: 46px;
+  background: #ac6435;
+  border-color: #d5a567;
+  font-weight: 600;
+  touch-action: none;
+  user-select: none;
+}
+.court-session button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.court-pad {
+  position: absolute;
+  bottom: 45px;
+  left: 24px;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 1px solid #a2a97d;
+  background: #29483bc9;
+  box-shadow: inset 0 0 0 8px #284737;
+  touch-action: none;
+  pointer-events: auto;
+}
+.court-pad span {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #c3ac79;
+  border: 2px solid #e5d5a7;
+  box-shadow: 0 4px 0 #786745;
+  pointer-events: none;
+}
+.court-keys {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  color: #263f31;
+  font-size: 11px;
+  text-shadow: 0 1px #f6e7bf;
+}
+.court-finished {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(280px, calc(100% - 40px));
+  padding: 26px;
+  box-sizing: border-box;
+  text-align: center;
+  background: #203b32f5;
+  border: 1px solid #b49963;
+  border-radius: 10px;
+  box-shadow: 0 5px 0 #172c24;
+  pointer-events: auto;
+}
+.court-finished > span {
+  font-size: 11px;
+  letter-spacing: 0.13em;
+  color: #dbc28a;
+}
+.court-finished h2 {
+  font-size: 48px;
+  margin: 6px 0;
+  font-variant-numeric: tabular-nums;
+}
+.court-finished h2 small {
+  font-size: 13px;
+  color: #dbc28a;
+}
+.court-finished p {
+  font-size: 12px;
+  margin: 0 0 18px;
+}
+.court-finished button + button {
+  margin-left: 8px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .court-pad {
+    display: none;
   }
 }
-@media (min-width: 701px) and (max-height: 500px) {
+@media (hover: none), (pointer: coarse) {
+  .court-keys {
+    display: none;
+  }
+}
+@media (max-width: 700px) {
+  .basketball-controls {
+    left: 16px;
+    top: 165px;
+    width: 190px;
+  }
+  .court-session-header {
+    padding: 12px;
+    min-height: 72px;
+    gap: 6px;
+  }
+  .court-session-header > div:first-child > strong {
+    font-size: 12px;
+  }
+  .court-session-score {
+    gap: 10px;
+  }
+  .court-session-score > strong,
+  .court-session-score > span {
+    font-size: 23px;
+  }
+  .court-session-score small {
+    display: block;
+    margin: 3px 0 0;
+    font-size: 8px;
+  }
+  .court-session-actions {
+    gap: 4px;
+  }
+  .court-session-actions button {
+    padding: 8px;
+    font-size: 11px;
+  }
+  .court-session .basketball-controls {
+    top: 90px;
+    left: 14px;
+    width: 180px;
+    font-size: 11px;
+  }
+  .court-session .basketball-controls nav {
+    display: none;
+  }
+  .court-session .basketball-mode-select {
+    display: block;
+  }
+  .court-shot {
+    right: 14px;
+    bottom: 25px;
+    width: 174px;
+    padding: 10px;
+  }
+  .court-pad {
+    bottom: 25px;
+    left: 14px;
+    width: 86px;
+    height: 86px;
+  }
+  .court-feedback {
+    bottom: 182px;
+    font-size: 14px;
+  }
+  .court-keys {
+    display: none;
+  }
+}
+@media (max-height: 500px) {
   .basketball-controls nav {
     display: none;
   }
   .basketball-mode-select {
     display: block;
-    min-height: 44px;
-    border: 1px solid #bbbda2;
-    border-radius: 5px;
-    background: #f8f1dfed;
-    padding: 7px;
-    color: #304b3c;
-    font: 12px system-ui, sans-serif;
   }
-}
-.game-shell:has(.basketball-controls[data-mode="practice"])
-  .basket-score
-  > div:last-child,
-.game-shell:has(.basketball-controls[data-mode="practice"])
-  .basket-score
-  > span {
-  display: none;
-}
-@media (max-width: 700px) {
-  .basketball-controls {
-    top: 160px;
-    left: 16px;
+  .court-session-header {
+    min-height: 60px;
+    padding-block: 7px;
+  }
+  .court-session .basketball-controls {
+    top: 76px;
+    width: 180px;
+  }
+  .court-session .basketball-controls p,
+  .court-session .basketball-controls small {
+    display: none;
+  }
+  .court-shot {
+    bottom: 14px;
+    right: 14px;
     width: 175px;
-    font-size: 10px;
+    padding: 9px;
   }
-  .basketball-controls button {
-    padding: 7px 8px;
-    min-height: 36px;
+  .court-pad {
+    bottom: 14px;
+    left: 14px;
+    width: 78px;
+    height: 78px;
   }
-  .basketball-controls p {
-    font-size: 11px;
-    margin-top: 10px;
+  .court-feedback {
+    bottom: 24px;
+    width: calc(100% - 400px);
+    font-size: 13px;
+  }
+  .court-keys {
+    display: none;
   }
 }

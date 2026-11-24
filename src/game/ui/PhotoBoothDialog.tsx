@@ -31,21 +31,12 @@ function closePhotoBooth() {
   clearPhoto();
   useGame.setState({ panel: "none" });
 }
-function downloadPostcard(card: { url: string; filename: string }) {
-  const link = document.createElement("a");
-  link.href = card.url;
-  link.download = card.filename;
-  document.body.append(link);
-  link.click();
-  link.remove();
-}
 
 function BoothSession() {
   const dialog = useRef<HTMLDialogElement>(null);
   const photo = usePhotoBooth();
   const [countdown, setCountdown] = useState(0);
   const countdownEnds = useRef(0);
-  const saveRequested = useRef(false);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     const modal = dialog.current;
@@ -61,6 +52,7 @@ function BoothSession() {
   }, []);
   useEffect(() => {
     if (photo.stage !== "countdown") return;
+    let captureFrame = 0;
     // A slow render must not turn three chained timers into a nine-second wait.
     const timer = window.setInterval(() => {
       const remaining = Math.max(
@@ -70,19 +62,18 @@ function BoothSession() {
       setCountdown(remaining);
       if (remaining === 0) {
         window.clearInterval(timer);
-        requestPhoto(true);
+        // Paint the capture state before synchronous WebGL readback starts.
+        captureFrame = window.requestAnimationFrame(() => {
+          captureFrame = window.requestAnimationFrame(() => requestPhoto(true));
+        });
       }
     }, 100);
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearInterval(timer);
+      window.cancelAnimationFrame(captureFrame);
+    };
   }, [photo.stage]);
-  useEffect(() => {
-    if (saveRequested.current && photo.card?.resolution === "full") {
-      saveRequested.current = false;
-      downloadPostcard(photo.card);
-    }
-  }, [photo.card]);
-  const saving = photo.request?.resolution === "full";
-  const busy = photo.stage === "countdown" || saving;
+  const busy = photo.stage === "countdown";
   const ready = photo.stage === "ready";
   function choose(pose: PhotoPose, frame: PostcardFrame) {
     usePhotoBooth.setState({ pose, frame, stage: "posing" });
@@ -116,7 +107,10 @@ function BoothSession() {
             ×
           </button>
         </header>
-        <div className="photo-booth-preview" aria-busy={Boolean(photo.request)}>
+        <div
+          className="photo-booth-preview"
+          aria-busy={busy || Boolean(photo.request)}
+        >
           {photo.card ? (
             <img
               src={photo.card.url}
@@ -133,7 +127,7 @@ function BoothSession() {
               role="status"
               aria-live="polite"
             >
-              {saving ? "Saving…" : countdown || "…"}
+              {countdown || "Taking…"}
             </strong>
           )}
         </div>
@@ -189,7 +183,6 @@ function BoothSession() {
               <>
                 <button
                   type="button"
-                  disabled={saving}
                   onClick={() => {
                     usePhotoBooth.setState({ stage: "posing" });
                     requestPhoto();
@@ -197,22 +190,13 @@ function BoothSession() {
                 >
                   Again
                 </button>
-                <button
-                  type="button"
+                <a
                   className="photo-booth-primary"
-                  disabled={saving}
-                  onClick={() => {
-                    if (!photo.card) return;
-                    if (photo.card.resolution === "full")
-                      downloadPostcard(photo.card);
-                    else {
-                      saveRequested.current = true;
-                      requestPhoto(true, "full");
-                    }
-                  }}
+                  href={photo.card.url}
+                  download={photo.card.filename}
                 >
-                  {saving ? "Saving…" : "Save postcard"}
-                </button>
+                  Save postcard
+                </a>
               </>
             ) : (
               <button
