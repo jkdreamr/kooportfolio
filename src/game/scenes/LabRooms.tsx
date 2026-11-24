@@ -355,6 +355,8 @@ function BeatVisuals({
   );
 }
 
+type BeatLaunch = "ready" | "playing";
+
 export function BeatLabInterior() {
   const active = useGameMode((s) => s.active?.id === "music");
   const game = useRef(newBeatGame()),
@@ -364,10 +366,11 @@ export function BeatLabInterior() {
     [near, setNear] = useState(false);
   const [lit, setLit] = useState<readonly boolean[]>([]);
   const flashTimers = useRef<(number | undefined)[]>([]);
-  const returnFocus = useRef(false);
+  const launcher = useRef<BeatLaunch | null>(null);
+  const returnFocus = useRef<BeatLaunch | null>(null);
   const focusLauncher = useCallback((button: HTMLButtonElement | null) => {
-    if (button && returnFocus.current) {
-      returnFocus.current = false;
+    if (button && button.dataset.beatLauncher === returnFocus.current) {
+      returnFocus.current = null;
       button.focus({ preventScroll: true });
     }
   }, []);
@@ -389,7 +392,7 @@ export function BeatLabInterior() {
     "music",
     useCallback(() => {
       if (useGameMode.getState().active?.id === "music")
-        returnFocus.current = true;
+        returnFocus.current = launcher.current;
       cancelRound();
     }, [cancelRound]),
   );
@@ -461,9 +464,12 @@ export function BeatLabInterior() {
       setView(g);
     }
   });
-  const start = (phase: "ready" | "playing") => {
+  const start = (phase: BeatLaunch) => {
     if (!gameIsActive()) return;
-    if (!active && (!near || !startGameMode("music"))) return;
+    if (!active) {
+      if (!near || !startGameMode("music")) return;
+      launcher.current = phase;
+    }
     cancelRound();
     if (phase === "playing") {
       game.current = { ...game.current, phase };
@@ -562,12 +568,19 @@ export function BeatLabInterior() {
                 <footer className="beat-launch">
                   <button
                     className="lab-primary"
+                    data-beat-launcher="playing"
                     ref={focusLauncher}
                     onClick={() => start("playing")}
                   >
                     Play
                   </button>
-                  <button onClick={() => start("ready")}>Freestyle</button>
+                  <button
+                    data-beat-launcher="ready"
+                    ref={focusLauncher}
+                    onClick={() => start("ready")}
+                  >
+                    Freestyle
+                  </button>
                 </footer>
               </>
             ) : (
