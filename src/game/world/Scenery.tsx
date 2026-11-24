@@ -8,6 +8,7 @@ import {
   type GroundFootprint,
 } from "../core/scenery";
 import { isKoreaGardenWalk, isKoreaLandmarkArea } from "../core/koreaLandmarks";
+import { isOnKoreaLand } from "../core/koreaDistrict";
 import type { WorldId } from "../core/worlds";
 import { NaturalTrees } from "./TreeArt";
 import { sculptedMaterial } from "./Surface";
@@ -100,7 +101,9 @@ const stanfordRocks = rocks.filter(
     !isStanfordTownSpace(p[0], p[2], 3) && onStanfordLand(p[0], p[2], 2),
 );
 const outsideLandmarks = ({ p: [x, , z] }: Part) =>
-  !isKoreaLandmarkArea(x, z, 0.6) && !isKoreaGardenWalk(x, z, 0.6);
+  isOnKoreaLand(x, z, 2.5) &&
+  !isKoreaLandmarkArea(x, z, 0.6) &&
+  !isKoreaGardenWalk(x, z, 0.6);
 const koreaRocks = rocks.filter(outsideLandmarks);
 
 export function Scenery({ world }: { world: WorldId }) {

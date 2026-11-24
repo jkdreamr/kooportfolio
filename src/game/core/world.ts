@@ -5,6 +5,7 @@ import {
 } from "../../shared/stanford-ground";
 import { ISLAND_RAIL } from "./islandRail";
 import { forest, koreaForest } from "./scenery";
+import { isOnKoreaLand } from "./koreaDistrict";
 import {
   KOREA_LANDMARK_DESTINATIONS,
   KOREA_LANDMARK_SOLIDS,
@@ -284,10 +285,11 @@ const sharedObstacles: ReadonlyArray<readonly number[]> = [
   [0, -6.6, 2.1, 0.4],
   [0, 0, 1.5, 1.5],
   [-19, -38, 6, 6],
-  [58, 52, 9, 7],
 ];
 const obstaclesFor = (world?: WorldId): ReadonlyArray<readonly number[]> => [
   ...sharedObstacles,
+  // Korea's south-bank walk runs behind the terminal, outside its roof.
+  world === "korea" ? [58, 52, 4.9, 3.9] : [58, 52, 9, 7],
   ...(world === "korea" ? koreaForest : forest)
     .filter(({ x, z }) => world !== "stanford" || isStanfordTreeSite(x, z))
     .map((tree) => [tree.x, tree.z, 0.4, 0.4]),
@@ -321,9 +323,11 @@ export function canWalk(x: number, z: number, world?: WorldId) {
     x > WORLD_BOUNDS.maxX ||
     z < WORLD_BOUNDS.minZ ||
     z > WORLD_BOUNDS.maxZ ||
-    (x / WORLD_ELLIPSE.radiusX) ** 2 +
-      ((z - WORLD_ELLIPSE.centerZ) / WORLD_ELLIPSE.radiusZ) ** 2 >
-      1
+    (world === "korea"
+      ? !isOnKoreaLand(x, z, 0.35)
+      : (x / WORLD_ELLIPSE.radiusX) ** 2 +
+          ((z - WORLD_ELLIPSE.centerZ) / WORLD_ELLIPSE.radiusZ) ** 2 >
+        1)
   )
     return false;
   return !regionalObstacles[world ?? "all"].some(

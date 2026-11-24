@@ -15,10 +15,6 @@ import { StanfordGround } from "./StanfordGround";
 import type { WorldId } from "../core/worlds";
 import { STANFORD_WALKS } from "../core/stanfordLayout";
 import { doorsInWorld } from "../core/world";
-import {
-  isKoreaLandmarkArea,
-  KOREA_LANDMARK_CANOPY_CLEARANCE,
-} from "../core/koreaLandmarks";
 
 type Block = [number, number, number, number, number, number, string, number?];
 function Blocks({
@@ -74,12 +70,6 @@ const rimTrees: TreePlacement[] = Array.from({ length: 40 }, (_, i) => {
 });
 const rimGroves = Array.from({ length: 8 }, (_, i) =>
   rimTrees.slice(i * 5, i * 5 + 5),
-);
-const koreaRimGroves = rimGroves.map((grove) =>
-  grove.filter(
-    ({ p: [x, , z] }) =>
-      !isKoreaLandmarkArea(x, z, KOREA_LANDMARK_CANOPY_CLEARANCE),
-  ),
 );
 const stanfordRimGroves = rimGroves
   .map((grove) => grove.filter(({ p: [x, , z] }) => onStanfordLand(x, z, 6)))
@@ -178,7 +168,7 @@ export function Landscape({ world = "stanford" }: { world?: WorldId }) {
           />
         );
       })}
-      {world !== "stanford" && <Blocks items={masonry} shadow />}
+      {world === "home" && <Blocks items={masonry} shadow />}
       {/* Home and Korea own their paths. Stacking Stanford's grid beneath
           them produced coplanar intersections and paths through the river. */}
       {world === "stanford" && (
@@ -187,7 +177,7 @@ export function Landscape({ world = "stanford" }: { world?: WorldId }) {
           <GroundGrass avoid={grassAvoid} stanford />
         </>
       )}
-      {world !== "stanford" && (
+      {world === "home" && (
         <group>
           <Cylinder p={[-9, -1.1, 98]} s={[55, 1.8, 13.5]} c="#387b78" />
           <Cylinder p={[-9, -0.12, 98]} s={[54.2, 0.25, 13.2]} c="#459d96" />
@@ -225,14 +215,10 @@ export function Landscape({ world = "stanford" }: { world?: WorldId }) {
           </group>
         </group>
       )}
-      {(world === "stanford"
-        ? stanfordRimGroves
-        : world === "korea"
-          ? koreaRimGroves
-          : rimGroves
-      ).map((trees, i) => (
-        <NaturalTrees key={i} trees={trees} />
-      ))}
+      {world !== "korea" &&
+        (world === "stanford" ? stanfordRimGroves : rimGroves).map(
+          (trees, i) => <NaturalTrees key={i} trees={trees} />,
+        )}
       {world === "home" && <Windmill />}
       <Bench p={[-2.7, 0.2, 3.4]} />
       <Bench p={[2.8, 0.2, -2.9]} rotation={Math.PI} />
