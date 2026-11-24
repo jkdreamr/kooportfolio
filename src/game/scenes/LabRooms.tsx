@@ -226,6 +226,12 @@ function BeatVisuals({
           <group
             position={[x, 0.4, -2]}
             onPointerDown={(e) => {
+              if (
+                !gameIsActive() ||
+                Math.hypot(runtime.x, runtime.z + 2) > 8 ||
+                game.current.phase !== "playing"
+              )
+                return;
               e.stopPropagation();
               onHit(lane);
             }}
@@ -539,8 +545,15 @@ export function MathLabInterior() {
               (Math.floor(tile / 3) - 1) * 2.5 - 2,
             ]}
             onPointerDown={(e) => {
+              if (
+                !started ||
+                !gameIsActive() ||
+                Math.hypot(runtime.x, runtime.z + 2) > 8 ||
+                solved
+              )
+                return;
               e.stopPropagation();
-              if (started) toggle(tile);
+              toggle(tile);
             }}
           >
             <Box p={[0, 0.06, 0]} s={[2.2, 0.15, 2.2]} c="#152e29" />
