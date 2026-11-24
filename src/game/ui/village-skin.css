@@ -677,8 +677,6 @@
     padding: 0 8px;
   }
 }
-||||||| dd386a1
-
 
 /* A board is its own touch surface; a second movement control only obscures it. */
 .world-name {
