@@ -3,6 +3,7 @@ import type { WorldId } from "./worlds";
 import { extraLocals, routines } from "./npcRoutines";
 import { islandLocals } from "./npcPopulation";
 import { STANFORD_NPC_WALKS } from "./stanfordLayout";
+import { HOME_NPC_WALKS } from "./homeLayout";
 
 type Point = [number, number];
 export const TALK_DISTANCE = 2.7;
@@ -340,6 +341,19 @@ export const villagers: Villager[] = [
   ...extraLocals,
   ...islandLocals,
 ].map((npc) => {
+  const homeWalk =
+    npc.id === "home-neighbor"
+      ? undefined
+      : (HOME_NPC_WALKS[npc.id] ?? HOME_NPC_WALKS[npc.place]);
+  if (homeWalk) {
+    const count = stanfordRouteCounts.get(npc.place) ?? 0;
+    stanfordRouteCounts.set(npc.place, count + 1);
+    const offset = count % homeWalk.length;
+    return {
+      ...npc,
+      route: [...homeWalk.slice(offset), ...homeWalk.slice(0, offset)],
+    };
+  }
   const routeId = STANFORD_NPC_WALKS[npc.id] ? npc.id : npc.place;
   const walk = STANFORD_NPC_WALKS[routeId];
   if (!walk) return npc;

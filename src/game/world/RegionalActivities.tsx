@@ -362,7 +362,7 @@ export function RegionalActivities({ world }: { world: WorldId }) {
             <Basket count={Math.min(3, play.produceCrates)} />
           </group>
           <group
-            position={[5.2, 0, -5.4]}
+            position={[17.2, 0, -5.4]}
             rotation={[0, -0.5, 0]}
             onPointerDown={(e) => selectActivity("postbox", world, e)}
           >
