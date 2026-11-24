@@ -39,6 +39,11 @@ export const useNpcs = create<{
   topic: string | null;
   pending: string | null;
 }>(() => ({ talking: null, line: 0, topic: null, pending: null }));
+let approach: {
+  path: typeof runtime.path;
+  target: typeof runtime.target;
+  stalledFor: number;
+} | null = null;
 
 export function nearbyNpcId(x: number, z: number) {
   const { world } = useGame.getState();
@@ -51,6 +56,7 @@ export function npcName() {
   return (actor && entriesById.get(actor.id)?.npc.name) ?? "Villager";
 }
 export function closeConversation() {
+  approach = null;
   useNpcs.setState({ talking: null, topic: null, pending: null });
   if (useGame.getState().panel === "npc") useGame.setState({ panel: "none" });
 }
@@ -71,9 +77,11 @@ export function talkToNpc(id: string) {
     if (!path.length) return;
     runtime.path = path;
     runtime.target = runtime.path.shift() ?? null;
+    approach = { path, target: runtime.target, stalledFor: 0 };
     useNpcs.setState({ pending: id });
     return;
   }
+  approach = null;
   runtime.target = null;
   runtime.path = [];
   runtime.moving = false;
@@ -82,6 +90,28 @@ export function talkToNpc(id: string) {
   actor.heading = Math.atan2(runtime.x - actor.x, runtime.z - actor.z);
   useNpcs.setState({ talking: id, line: 0, topic: null, pending: null });
   useGame.setState({ panel: "npc" });
+}
+
+export function stepNpcApproach(delta: number, interrupted: boolean) {
+  const { pending } = useNpcs.getState();
+  if (!pending) return;
+  const { world } = useGame.getState();
+  const actor = activeNpcActors(world).find((npc) => npc.id === pending);
+  if (!interrupted && actor && approach?.path === runtime.path) {
+    if (canTalkToNpc(actor, runtime.x, runtime.z, world)) {
+      talkToNpc(actor.id);
+      return;
+    }
+    if (runtime.target) {
+      if (approach.target !== runtime.target) {
+        approach.target = runtime.target;
+        approach.stalledFor = 0;
+      } else approach.stalledFor += Math.min(delta, 0.04);
+      if (approach.stalledFor <= 25) return;
+    }
+  }
+  approach = null;
+  useNpcs.setState({ pending: null });
 }
 export function chooseNpcTopic(id: string) {
   const { talking, line } = useNpcs.getState();

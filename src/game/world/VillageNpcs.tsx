@@ -3,11 +3,12 @@ import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
 import { movement } from "../core/input";
 import { runtime, useGame } from "../core/store";
-import { canTalkToNpc, nearestNpc, stepNpc } from "../core/npcs";
+import { nearestNpc, stepNpc } from "../core/npcs";
 import {
   closeConversation,
   activeNpcActors,
   activeNpcCrowd,
+  stepNpcApproach,
   talkToNpc,
   useNpcs,
   type NpcEntry,
@@ -239,7 +240,6 @@ function TalkRings({ world }: { world: WorldId }) {
 
 export function NpcCrowd() {
   const world = useGame((game) => game.world);
-  const pendingTime = useRef(0);
   useEffect(() => () => closeConversation(), []);
   useFrame((_, delta) => {
     const game = useGame.getState(),
@@ -259,25 +259,10 @@ export function NpcCrowd() {
         game.world,
       );
     }
-    if (!state.pending) {
-      pendingTime.current = 0;
-      return;
+    if (state.pending) {
+      const [dx, dz] = movement();
+      stepNpcApproach(delta, frozen || Math.hypot(dx, dz) > 0.1);
     }
-    pendingTime.current += Math.min(delta, 0.04);
-    const [dx, dz] = movement();
-    const actor = activeNpcActors(game.world).find(
-      (npc) => npc.id === state.pending,
-    );
-    if (
-      !actor ||
-      frozen ||
-      Math.hypot(dx, dz) > 0.1 ||
-      pendingTime.current > 25
-    ) {
-      useNpcs.setState({ pending: null });
-    } else if (canTalkToNpc(actor, runtime.x, runtime.z, game.world)) {
-      talkToNpc(actor.id);
-    } else if (!runtime.target) useNpcs.setState({ pending: null });
   });
   return (
     <group key={world} name="village-npcs">
