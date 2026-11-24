@@ -85,9 +85,9 @@ export function endGameMode() {
 }
 
 // Escape dismisses the pause/settings layer first, not the game underneath it.
-export function escapeGameMode(): boolean {
+export function escapeGameMode(repeat = false): boolean {
   const state = useGame.getState();
-  if (!useGameMode.getState().active || state.paused || state.panel !== "none")
+  if (repeat || !useGameMode.getState().active || state.paused || state.panel !== "none")
     return false;
   if (typeof window !== "undefined")
     window.dispatchEvent(new Event("interior-game-close"));
