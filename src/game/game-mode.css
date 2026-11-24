@@ -1,0 +1,9 @@
+/* Gameplay belongs to each game's stage, not to the village navigation. Keep
+   pause/result dialogs available, including when a tab returns while paused. */
+.game-ui[data-game-mode] > :not(.modal-scrim):not(.game-toast) {
+  display: none;
+}
+.game-shell[data-game-mode] .room-story,
+.game-shell[data-game-mode] .joystick {
+  display: none;
+}

@@ -25,6 +25,7 @@ import { useTimeOfDay } from "./core/timeOfDay";
 import { WORLDS } from "./core/worlds";
 import { runtime, useGame, type Scene } from "./core/store";
 import { useInput } from "./core/input";
+import { endGameMode, useGameMode } from "./core/gameMode";
 import { doors, isInterior } from "./core/world";
 import { useGym } from "./scenes/CognitionGym";
 import { interactWithNpc } from "./core/npcState";
@@ -41,6 +42,7 @@ import {
   HOOVER_STASH,
 } from "./core/hoover";
 import "./game.css";
+import "./game-mode.css";
 
 class WorldBoundary extends Component<
   { children: ReactNode },
@@ -220,6 +222,13 @@ function World() {
   );
 }
 export default function Game() {
+  useEffect(
+    () =>
+      useGame.subscribe((state, previous) => {
+        if (state.scene !== previous.scene) endGameMode();
+      }),
+    [],
+  );
   const [lost, setLost] = useState(false),
     [supported] = useState(() => {
       try {
@@ -233,11 +242,13 @@ export default function Game() {
     traveling = useGame((s) => s.traveling),
     paused = useGame((s) => s.paused),
     panel = useGame((s) => s.panel);
+  const gameMode = useGameMode((s) => s.active);
   const interact = useCallback(() => {
     const g = useGame.getState();
     if (interactWithNpc()) return;
     if (
       g.paused ||
+      useGameMode.getState().active ||
       g.build ||
       g.overlayLocked ||
       g.traveling ||
@@ -298,7 +309,7 @@ export default function Game() {
   }, []);
   if (!supported || lost) return <WorldFallback />;
   return (
-    <div className="game-shell">
+    <div className="game-shell" data-game-mode={gameMode?.id}>
       <WorldBoundary>
         <Canvas
           shadows={quality === "high" ? "soft" : false}
@@ -331,7 +342,7 @@ export default function Game() {
         </Canvas>
       </WorldBoundary>
       <Hud interact={interact} />
-      <TimeOfDayControls />
+      {!gameMode && <TimeOfDayControls />}
       <NpcDialog />
       <PhotoBoothDialog />
       {panel === "telescope" && !paused && (
