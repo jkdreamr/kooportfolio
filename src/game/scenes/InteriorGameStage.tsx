@@ -23,8 +23,8 @@ export function InteriorGameStage({
   const eye: [number, number, number] =
     kind === "blackjack"
       ? portrait
-        ? [0, 13, 10]
-        : [0, 7, 5.8]
+        ? [0, 10.5, 6.2]
+        : [0, 6.4, 3.9]
       : kind === "pong"
         ? portrait
           ? [0, 8.8, 8.5]
@@ -36,7 +36,9 @@ export function InteriorGameStage({
     kind === "pong"
       ? [0, 1.1, -0.8]
       : kind === "blackjack"
-        ? [0, 0.5, 0.5]
+        ? portrait
+          ? [0, 1.2, 1.4]
+          : [0, 1.2, 0.75]
         : [0, 0.7, 0.6];
   return (
     <>
