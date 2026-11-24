@@ -1,6 +1,7 @@
 export { WORLD_IDS, WORLDS, isWorld, validJourney } from "../../shared/worlds";
 export type { WorldId, TravelMode } from "../../shared/worlds";
 import type { WorldId } from "../../shared/worlds";
+import { KOREA_LANDMARK_DESTINATIONS } from "./koreaLandmarks";
 
 const places: Record<WorldId, readonly string[]> = {
   stanford: [
@@ -26,7 +27,13 @@ const places: Record<WorldId, readonly string[]> = {
     "kitchen",
     "station",
   ],
-  korea: ["cognition", "photo", "theater", "bridge", "namsan"],
+  korea: [
+    "cognition",
+    "photo",
+    "theater",
+    "bridge",
+    ...KOREA_LANDMARK_DESTINATIONS.map(({ id }) => id),
+  ],
 };
 export function belongsToWorld(place: string, world: WorldId) {
   return (
