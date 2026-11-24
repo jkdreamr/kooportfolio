@@ -9,7 +9,7 @@ import {
   writeGuestSave,
 } from "../../shared/save";
 import { canWalk, findPath, isInterior, type PlaceId } from "./world";
-import { ROOM } from "./room";
+import { roomFor } from "./room";
 import {
   belongsToWorld,
   validJourney,
@@ -126,7 +126,7 @@ export const useGame = create<State>((set, get) => ({
       [runtime.x, runtime.z] = get().save.position;
     } else if (isInterior(scene)) {
       runtime.x = 0;
-      runtime.z = ROOM.spawnZ;
+      runtime.z = roomFor(scene).spawnZ;
     } else if (scene === "basketball") {
       runtime.x = 0;
       runtime.z = 5;
