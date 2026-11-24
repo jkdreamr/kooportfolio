@@ -58,9 +58,12 @@ export const runtime = {
 };
 export function walkTo(x: number, z: number) {
   const state = useGame.getState();
+  // The open skate park has its own walking controller and bounds, not a hall.
   runtime.path = state.scene === "hub"
     ? findPath([runtime.x, runtime.z], [x, z], state.world)
-    : findInteriorPath(state.scene, [runtime.x, runtime.z], [x, z]);
+    : state.scene === "skate"
+      ? [[x, z]]
+      : findInteriorPath(state.scene, [runtime.x, runtime.z], [x, z]);
   runtime.target = runtime.path.shift() ?? null;
 }
 type State = {
