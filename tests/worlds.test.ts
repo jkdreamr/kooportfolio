@@ -119,13 +119,16 @@ describe("separate worlds", () => {
   it("plants on both sides of the Korea garden walks without blocking them", () => {
     const plots = villageGardenPlots("korea");
     for (const [x, z, width, depth] of KOREA_GARDEN_WALKS) {
-      const [dx, dz] = width > depth ? [width / 2, 0] : [0, depth / 2];
+      const horizontal = width > depth;
+      const [dx, dz] = horizontal ? [width / 2, 0] : [0, depth / 2];
       for (let i = -10; i <= 10; i++) {
-        const px = x + (dx * i) / 10;
-        const pz = z + (dz * i) / 10;
-        expect(canWalk(px, pz, "korea"), `garden walk at ${px}, ${pz}`).toBe(
-          true,
-        );
+        for (const across of [-0.5, 0, 0.5]) {
+          const px = x + (dx * i) / 10 + (horizontal ? 0 : across);
+          const pz = z + (dz * i) / 10 + (horizontal ? across : 0);
+          expect(canWalk(px, pz, "korea"), `garden walk at ${px}, ${pz}`).toBe(
+            true,
+          );
+        }
       }
     }
     for (const sx of [-1, 1]) {
@@ -143,6 +146,20 @@ describe("separate worlds", () => {
         ).toBeGreaterThan(4);
       }
     }
+  });
+  it("plants the west shore and connects its path to the picnic deck", () => {
+    const plots = villageGardenPlots("korea");
+    expect(
+      plots.filter(
+        ({ x, z, orchard }) => orchard && x < -58 && z >= 36 && z < 49,
+      ).length,
+    ).toBeGreaterThan(8);
+    expect(
+      plots.filter(
+        ({ x, z, orchard }) => !orchard && x > -54 && x < -42 && z > 16 && z < 32,
+      ).length,
+    ).toBeGreaterThan(4);
+    expect(findPath([-69, 12], [-44, 43], "korea").length).toBeGreaterThan(0);
   });
   it("requires a plane for Korea and car/train for domestic travel", () => {
     expect(validJourney("home", "stanford", "train")).toBe(true);

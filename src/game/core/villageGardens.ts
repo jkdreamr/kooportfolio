@@ -86,21 +86,32 @@ for (const [cx, cz, cols, rows, orchard, worlds] of districts) {
     }
 }
 
-// Groves and allotments flank a continuous walk, with aisles between plots.
-const centralKoreaGardens = [
+// Groves and allotments flank the landmark walks and the path to the picnic deck.
+const koreaGardenDistricts = [
   [-35.5, -24.25, 4, 3, true],
   [-41.5, -7.5, 3, 2, false],
   [-29.4, 3, 2, 2, false],
   [-12.5, -22.75, 4, 2, false],
   [-15.1, -1, 2, 4, true],
   [-8.8, -1, 1, 4, false],
+  [-75, 26, 1, 5, true],
+  [-65.2, 43, 4, 3, true],
+  [-54.6, 38.8, 2, 1, false],
+  [-48.5, 24, 3, 3, false],
+  [-31.6, 25, 5, 3, true],
+  [-36.1, 36.8, 2, 1, false],
 ] as const;
-for (const [cx, cz, cols, rows, orchard] of centralKoreaGardens) {
+for (const [cx, cz, cols, rows, orchard] of koreaGardenDistricts) {
   for (let col = 0; col < cols; col++)
     for (let row = 0; row < rows; row++) {
       const x = cx + (col - (cols - 1) / 2) * 4.2;
       const z = cz + (row - (rows - 1) / 2) * 5;
-      if (!nearPlot(x, z, "korea"))
+      if (
+        (x / (WORLD_ELLIPSE.radiusX - 3)) ** 2 +
+          ((z - WORLD_ELLIPSE.centerZ) / (WORLD_ELLIPSE.radiusZ - 3)) ** 2 <
+          1 &&
+        !nearPlot(x, z, "korea")
+      )
         plots.push({ x, z, orchard, worlds: korea });
     }
 }

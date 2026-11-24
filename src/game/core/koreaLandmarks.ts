@@ -25,6 +25,9 @@ export const KOREA_GARDEN_WALKS = [
   [-24.4, -14.4, 45, 2.4],
   [-26.7, -24.05, 2.6, 16.9],
   [-23.5, -1.425, 2.6, 23.55],
+  [-69, 23.25, 2.4, 22.5],
+  [-42, 33.5, 54, 2.4],
+  [-44, 38.25, 2.4, 9.5],
 ] as const;
 
 export function isKoreaGardenWalk(x: number, z: number, mx = 0, mz = mx) {
