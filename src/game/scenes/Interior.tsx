@@ -23,6 +23,7 @@ import type { PlaceId } from "../core/world";
 import { useState } from "react";
 import { BadmintonCourt } from "./BadmintonCourt";
 import { GoInterior } from "./GoInterior";
+import { StudyAnagrams } from "./StudyAnagrams";
 import { WritingInterior } from "./WritingInterior";
 import { StadiumInterior } from "./Stadium";
 import { MovieTheaterInterior, useTheater } from "./MovieTheater";
@@ -163,6 +164,7 @@ export function Interior() {
           ))}
           <Flowers p={[-4.3, 1.2, -4]} />
           <Bench p={[-2.5, 0, -2.7]} />
+          <StudyAnagrams />
         </>
       ) : scene === "boathouse" ? (
         <>

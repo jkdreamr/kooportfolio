@@ -8,6 +8,7 @@ export type GameModeId =
   | "pong"
   | "kitchen"
   | "go"
+  | "anagrams"
   | "stadium"
   | "skate"
   | "basketball"
@@ -31,6 +32,7 @@ const rooms: Record<GameModeId, Scene> = {
   pong: "kappa",
   kitchen: "kitchen",
   go: "go",
+  anagrams: "office",
   stadium: "stadium",
   skate: "skate",
   basketball: "basketball",

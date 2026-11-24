@@ -37,6 +37,16 @@ describe("optional immersive games", () => {
     useGame.setState({ paused: true });
     expect(startGameMode("pong")).toBe(false);
   });
+  it("only starts desk anagrams in the Study and returns to the saved walking pose", () => {
+    expect(startGameMode("anagrams")).toBe(false);
+    useGame.setState({ scene: "office" });
+    expect(useGameMode.getState().active).toBeNull();
+    expect(startGameMode("anagrams")).toBe(true);
+    expect(useGameMode.getState().active?.id).toBe("anagrams");
+    runtime.x = 9;
+    expect(escapeGameMode()).toBe(true);
+    expect([runtime.x, runtime.z, runtime.heading]).toEqual([4, 7, 0.8]);
+  });
   it("clears held inputs and restores the original position after a rematch", () => {
     keys.add("w");
     touch.z = 1;
