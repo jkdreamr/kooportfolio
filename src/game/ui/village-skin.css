@@ -58,7 +58,9 @@
   border-bottom: 3px solid #142b36;
   border-radius: 14px;
   background: #21353ff5;
-  box-shadow: inset 0 1px #a4b0ac50, 0 7px 18px #152b3b30;
+  box-shadow:
+    inset 0 1px #a4b0ac50,
+    0 7px 18px #152b3b30;
 }
 .game-shell .world-toolbar > :is(button, a) {
   background: transparent;
@@ -78,7 +80,9 @@
   background: linear-gradient(#3c525c, #253b46);
   border: 1px solid #7f8b87;
   border-bottom: 3px solid #182d37;
-  box-shadow: inset 0 1px #d7dec024, 0 4px 8px #18363f28;
+  box-shadow:
+    inset 0 1px #d7dec024,
+    0 4px 8px #18363f28;
 }
 .game-shell .world-label {
   border-radius: 7px;
@@ -108,20 +112,34 @@
   font-family: "Trebuchet MS", Arial, sans-serif;
   font-weight: 700;
   letter-spacing: -0.8px;
-  text-shadow: 0 2px 0 #1b3444, 0 3px 9px #1b344455;
+  text-shadow:
+    0 2px 0 #1b3444,
+    0 3px 9px #1b344455;
 }
 .game-shell :is(.interior-heading, .challenge-heading, .build-heading) p,
 .game-shell .back-link {
   color: #fff;
-  text-shadow: 0 1px 3px #173b4d, 0 1px 6px #173b4d;
+  text-shadow:
+    0 1px 3px #173b4d,
+    0 1px 6px #173b4d;
   letter-spacing: 0;
 }
-.game-shell :is(.race-instruments, .race-control-panel, .basket-score, .shot-panel, .build-panel, .race-select) {
+.game-shell
+  :is(
+    .race-instruments,
+    .race-control-panel,
+    .basket-score,
+    .shot-panel,
+    .build-panel,
+    .race-select
+  ) {
   color: var(--hud-ink);
   background: linear-gradient(#354c56, #263b45);
   border: 1px solid #6a7b7f;
   border-bottom: 3px solid #172d37;
-  box-shadow: inset 0 1px #bbc7b82e, 0 5px 14px #15313c24;
+  box-shadow:
+    inset 0 1px #bbc7b82e,
+    0 5px 14px #15313c24;
   backdrop-filter: none;
 }
 .game-shell :is(.race-instruments, .basket-score) strong {
@@ -131,7 +149,13 @@
   font-variant-numeric: tabular-nums;
   text-shadow: 0 2px #162d37;
 }
-.game-shell :is(.stamina-label, .race-instruments small, .basket-score small, .aim-label) {
+.game-shell
+  :is(
+    .stamina-label,
+    .race-instruments small,
+    .basket-score small,
+    .aim-label
+  ) {
   color: var(--hud-muted);
   letter-spacing: 0.25px;
   text-transform: none;
@@ -139,10 +163,21 @@
 .game-shell :is(.race-instruments > div + div, .basket-score > span) {
   border-color: #63747a;
 }
-.game-shell :is(.race-control-panel p, .shot-panel p, .build-option p, .race-select span) {
+.game-shell
+  :is(
+    .race-control-panel p,
+    .shot-panel p,
+    .build-option p,
+    .race-select span
+  ) {
   color: var(--hud-muted);
 }
-.game-shell :is(.race-control-panel .stamina-label b, .race-instruments em, .basket-score em) {
+.game-shell
+  :is(
+    .race-control-panel .stamina-label b,
+    .race-instruments em,
+    .basket-score em
+  ) {
   color: var(--hud-ink);
 }
 .game-shell :is(.energy-track, .power-track) {
@@ -190,9 +225,12 @@
 }
 .game-shell .countdown {
   color: #fff5ce;
-  text-shadow: 0 3px 0 #2e4650, 0 5px 16px #172f43;
+  text-shadow:
+    0 3px 0 #2e4650,
+    0 5px 16px #172f43;
 }
-.game-shell :is(.aim-label button, .basketball-controls button, .basketball-mode-select) {
+.game-shell
+  :is(.aim-label button, .basketball-controls button, .basketball-mode-select) {
   color: var(--hud-ink);
   background: #304a56;
   border: 1px solid #788b90;
@@ -217,13 +255,17 @@
   border: 1px solid #a1b978;
   border-bottom: 3px solid #2a472b;
   border-radius: 8px;
-  box-shadow: inset 0 1px #c8dc9a66, 0 2px 3px #122e3933;
+  box-shadow:
+    inset 0 1px #c8dc9a66,
+    0 2px 3px #122e3933;
   font-family: inherit;
   font-weight: 700;
 }
 .game-shell .shot-feedback {
   color: #fff6ce;
-  text-shadow: 0 2px 0 #284353, 0 2px 8px #284353;
+  text-shadow:
+    0 2px 0 #284353,
+    0 2px 8px #284353;
 }
 .game-shell .modal-scrim {
   background: #10293980;
@@ -235,7 +277,9 @@
   border-top-color: #d1bd87;
   border-bottom: 5px solid #172d38;
   border-radius: 15px;
-  box-shadow: inset 0 1px #e7ddb333, 0 20px 60px #0c233b66;
+  box-shadow:
+    inset 0 1px #e7ddb333,
+    0 20px 60px #0c233b66;
   color: var(--hud-ink);
 }
 .game-shell .game-modal h2 {
@@ -245,10 +289,18 @@
   letter-spacing: -0.5px;
   text-shadow: 0 2px #182e39;
 }
-.game-shell :is(.game-modal > p, .local-note, .memory-card p, .help-grid p, .game-modal .result-detail) {
+.game-shell
+  :is(
+    .game-modal > p,
+    .local-note,
+    .memory-card p,
+    .help-grid p,
+    .game-modal .result-detail
+  ) {
   color: var(--hud-muted);
 }
-.game-shell :is(.close-button, .quiet-button, .setting-row, .race-select > button) {
+.game-shell
+  :is(.close-button, .quiet-button, .setting-row, .race-select > button) {
   color: var(--hud-ink);
   background: #233943;
   border-color: #596e75;
@@ -275,6 +327,58 @@
   background: #203740;
   border-color: #6d7666;
 }
+.game-shell .reward-line > span {
+  color: var(--hud-muted);
+}
+.game-shell .court-keyboard-hint {
+  position: absolute;
+  left: 36px;
+  bottom: 60px;
+  margin: 0;
+  max-width: 330px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: white;
+  text-shadow:
+    0 1px 3px #173b4d,
+    0 1px 6px #173b4d;
+  pointer-events: none;
+}
+.game-shell :is(.room-story, .interior-game) {
+  color: var(--hud-ink);
+  background: #2b414b;
+  border: 1px solid var(--hud-rim);
+  border-bottom: 3px solid #162e39;
+  border-radius: 10px;
+  box-shadow:
+    inset 0 1px #e7ddb333,
+    0 5px 16px #102b3d33;
+}
+.game-shell .room-story::after {
+  background: #2b414b;
+  border-color: var(--hud-rim);
+}
+.game-shell .room-story h2 {
+  font-family: "Trebuchet MS", Arial, sans-serif;
+}
+.game-shell .room-story a {
+  color: #f2d18b;
+}
+.game-shell .story-read {
+  color: #fff8e1;
+  background: linear-gradient(#638447, #486832);
+  border: 1px solid #a1b978;
+  border-bottom: 3px solid #2a472b;
+  border-radius: 6px;
+}
+.game-shell .story-close {
+  color: #d8e3df;
+  min-width: 44px;
+  min-height: 44px;
+}
+.game-shell .interior-game button {
+  border-radius: 6px;
+}
 .game-shell .result-score {
   color: #fff3c9;
   font-family: "Trebuchet MS", Arial, sans-serif;
@@ -288,11 +392,15 @@
 .game-shell .joystick > span {
   background: radial-gradient(at 40% 25%, #91a5a5, #4a626c);
   border: 1px solid #d8e1d799;
-  box-shadow: 0 3px 0 #243c49, 0 5px 7px #112f3b55;
+  box-shadow:
+    0 3px 0 #243c49,
+    0 5px 7px #112f3b55;
 }
 .game-shell .game-footer {
   color: #fff;
-  text-shadow: 0 1px 3px #18394e, 0 1px 6px #18394e;
+  text-shadow:
+    0 1px 3px #18394e,
+    0 1px 6px #18394e;
   letter-spacing: 0;
 }
 .game-shell .game-footer button {
@@ -313,17 +421,34 @@
   outline-offset: 3px;
 }
 @media (hover: hover) {
-  .game-shell :is(.icon-button, .world-label, .places-list button, .quiet-button, .race-select > button):hover,
+  .game-shell
+    :is(
+      .icon-button,
+      .world-label,
+      .places-list button,
+      .quiet-button,
+      .race-select > button
+    ):hover,
   .game-shell .world-toolbar > :is(button, a):hover {
     background: #4b626a;
     color: #fff5d6;
   }
-  .game-shell :is(.primary-button, .shoot-button, .upgrade-button):hover:not(:disabled) {
+  .game-shell
+    :is(.primary-button, .shoot-button, .upgrade-button):hover:not(:disabled) {
     background: #688747;
   }
 }
 @media (max-width: 700px) {
   .game-shell .world-toolbar {
     padding: 4px;
+  }
+}
+@media (min-width: 701px) and (max-height: 500px) {
+  .game-shell .court-keyboard-hint {
+    left: 145px;
+    bottom: 42px;
+    max-width: 230px;
+    font-size: 10px;
+    line-height: 1.4;
   }
 }

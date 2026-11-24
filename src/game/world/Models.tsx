@@ -5,6 +5,7 @@ import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeom
 import { runtime, useGame } from "../core/store";
 import { GableRoof, StoneFooting } from "./ArchitectureDetail";
 import { sculptedMaterial } from "./Surface";
+import { NationalFlag } from "./NationalFlag";
 
 const rounded = new Map<string, RoundedBoxGeometry>();
 function roundedGeometry(size: [number, number, number]) {
@@ -26,8 +27,7 @@ const cyl = new THREE.CylinderGeometry(1, 1, 1, 12);
 const cone = new THREE.ConeGeometry(1, 1, 8);
 const mats = new Map<string, THREE.MeshStandardMaterial>();
 function material(color: string) {
-  if (!mats.has(color))
-    mats.set(color, sculptedMaterial({ color }));
+  if (!mats.has(color)) mats.set(color, sculptedMaterial({ color }));
   return mats.get(color)!;
 }
 type Props = {
@@ -364,7 +364,7 @@ export function House({
   const roof = study ? "#466c65" : "#bd512f";
   return (
     <group position={p}>
-      {/* Chunky masonry, timber corner braces and original village banners. */}
+      {/* Chunky masonry and timber corner braces. */}
       {[-2.8, 2.8].flatMap((x) =>
         [-1.9, 1.9].map((z) => (
           <group key={`${x}:${z}`}>
@@ -383,16 +383,7 @@ export function House({
         />
       ))}
       <Box p={[0, 3.44, 2.2]} s={[6.3, 0.32, 0.32]} c="#775438" />
-      <group position={[2.5, 4.5, 0.5]}>
-        <Cylinder p={[0, 1.15, 0]} s={[0.075, 2.8, 0.075]} c="#755335" />
-        <Ball p={[0, 2.6, 0]} s={[0.14, 0.14, 0.14]} c="#e4b94e" />
-        <Box
-          p={[0.48, 2.03, 0]}
-          s={[1.05, 0.8, 0.07]}
-          c={study ? "#396e71" : "#bb563e"}
-        />
-        <Box p={[0.48, 2.04, 0.05]} s={[0.16, 0.55, 0.035]} c="#f4cc70" />
-      </group>
+      <NationalFlag nation={study ? "kr" : "us"} p={[2.5, 4.5, 0.5]} />
       {study && (
         <group position={[-1.4, 5.1, -0.65]}>
           <Box p={[0, 0.65, 0]} s={[1.8, 2, 1.8]} c="#c5b79b" />
