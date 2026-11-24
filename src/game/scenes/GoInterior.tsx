@@ -158,7 +158,7 @@ export function GoInterior() {
   const place = (point: number) => {
     if (!started || hidden || confirmNew) return;
     if (game.phase === "scoring") { setMatch((old) => ({ ...old, game: toggleGoDead(old.game, point) })); return; }
-    if (thinking || game.phase !== "playing" || confirmNew) return;
+    if (thinking || game.phase !== "playing") return;
     const move = playGo(game, point);
     if (!move.ok) { setMessage(move.reason); return; }
     commit(move.game);
@@ -286,10 +286,8 @@ export function GoInterior() {
                         {col === 0 && <span className="go-axis go-axis-row" aria-hidden="true">{GO_SIZE - row}</span>}
                         {[20, 24, 40, 56, 60].includes(point) && <i className="go-star" />}
                         {!!stone && <span className={`go-stone go-stone-${stone}${dead ? " go-dead" : ""}${game.last === point ? " go-last" : ""}`} />}
-                        {aim === point && !confirmNew && <>
-                          {preview?.ok && <span className={`go-stone go-stone-${game.turn} go-preview`} aria-hidden="true" />}
-                          <span className="go-cursor" aria-hidden="true" />
-                        </>}
+                        {aim === point && preview?.ok && <span className={`go-stone go-stone-${game.turn} go-preview`} aria-hidden="true" />}
+                        {!confirmNew && <span className="go-cursor" aria-hidden="true" />}
                         {!!territory && <i className={`go-territory go-territory-${territory}`} />}
                       </button>;
                     })}

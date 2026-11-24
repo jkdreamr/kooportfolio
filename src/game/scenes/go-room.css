@@ -129,7 +129,8 @@
 .go-stone-1 { background: radial-gradient(circle at 34% 27%, #586059, #19221e 68%); border: 1px solid #1b2420; }
 .go-stone-2 { background: radial-gradient(circle at 34% 27%, #fff9e8, #d2cebe 80%); border: 1px solid #b4ad99; }
 .go-preview { opacity: .45; pointer-events: none; }
-.go-cursor { position: absolute; inset: 6%; border: 2px solid #263b45; border-radius: 50%; box-shadow: 0 0 0 1px #fff9; z-index: 1; pointer-events: none; }
+.go-cursor { display: none; position: absolute; inset: 6%; border: 2px solid #263b45; border-radius: 50%; box-shadow: 0 0 0 1px #fff9; z-index: 1; pointer-events: none; }
+.go-point:focus-visible .go-cursor { display: block; }
 .go-board .go-point[aria-disabled="true"] { cursor: default; }
 .go-last::after { content: ""; width: 22%; height: 22%; background: #c96530; position: absolute; left: 39%; top: 39%; border-radius: 50%; box-shadow: 0 0 0 1px #ffc97a; }
 .go-dead { opacity: .35; }
