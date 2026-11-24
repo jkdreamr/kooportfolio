@@ -1,5 +1,6 @@
 import { WORLD_ELLIPSE } from "../../shared/world-bounds";
 import type { WorldId } from "./worlds";
+import { POND } from "./pond";
 
 type Plot = {
   x: number;
@@ -32,9 +33,17 @@ const districts: readonly (readonly [
   [22, 81, 9, 3, false, all],
   [47, 65, 4, 3, true, ["home", "korea"]],
   [-57, -6, 6, 2, false, all],
+  // The Home coast has no skate arena: use that whole district, not a bare
+  // lawn reserved for a building which only exists at Stanford.
+  [-48, 40, 8, 3, true, ["home"]],
+  [-44, 60, 9, 4, false, ["home"]],
+  [-21, 61, 4, 4, true, all],
+  [-50, 2, 6, 2, false, all],
+  [-28, -7, 4, 2, false, all],
+  [30, -36, 4, 2, false, domestic],
 ];
 
-function reserved(x: number, z: number) {
+function reserved(x: number, z: number, world: WorldId) {
   return (
     Math.abs(x) < 4 ||
     Math.abs(z + 9) < 3 ||
@@ -45,7 +54,12 @@ function reserved(x: number, z: number) {
     (Math.abs(x + 19) < 9 && Math.abs(z + 38) < 9) ||
     (Math.abs(x + 28) < 5 && Math.abs(z + 48) < 5) ||
     (Math.abs(x - 58) < 12 && Math.abs(z - 57) < 15) ||
-    (Math.abs(x + 50) < 19 && Math.abs(z - 50) < 16)
+    (Math.abs(x - POND.x) < POND.radiusX + 2 &&
+      Math.abs(z - POND.z) < POND.radiusZ + 2) ||
+    (world === "stanford" && Math.abs(x + 50) < 19 && Math.abs(z - 50) < 16) ||
+    (world === "korea" &&
+      ((Math.abs(x + 48) < 10 && Math.abs(z + 24) < 8) ||
+        (Math.abs(x + 59) < 10 && Math.abs(z + 5) < 6)))
   );
 }
 
@@ -55,13 +69,22 @@ for (const [cx, cz, cols, rows, orchard, worlds] of districts) {
       const x = cx + (col - (cols - 1) / 2) * 4.2;
       const z = cz + (row - (rows - 1) / 2) * 5;
       if (
-        reserved(x, z) ||
         (x / (WORLD_ELLIPSE.radiusX - 5)) ** 2 +
           ((z - WORLD_ELLIPSE.centerZ) / (WORLD_ELLIPSE.radiusZ - 5)) ** 2 >
-          0.93
+        0.93
       )
         continue;
-      plots.push({ x, z, orchard, worlds });
+      const visibleWorlds = worlds.filter(
+        (world) =>
+          !reserved(x, z, world) &&
+          !plots.some(
+            (plot) =>
+              plot.worlds.includes(world) &&
+              Math.hypot(plot.x - x, plot.z - z) < 2.8,
+          ),
+      );
+      if (visibleWorlds.length)
+        plots.push({ x, z, orchard, worlds: visibleWorlds });
     }
 }
 
