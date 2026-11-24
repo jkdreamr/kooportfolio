@@ -5,19 +5,34 @@ import {
   createNpcActors,
   nearestNpc,
   villagers,
+  type NpcActor,
+  type Villager,
 } from "./npcs";
 import { runtime, useGame } from "./store";
 import { doors } from "./world";
-import { belongsToWorld } from "./worlds";
+import { belongsToWorld, WORLD_IDS, type WorldId } from "./worlds";
 import { topicsFor } from "./npcTopics";
 
 export const npcActors = createNpcActors();
-export const npcInWorld = (id: string) => {
-  const npc = villagers.find((person) => person.id === id);
-  return !!npc && belongsToWorld(npc.place, useGame.getState().world);
-};
-export const activeNpcActors = () =>
-  npcActors.filter((actor) => npcInWorld(actor.id));
+export type NpcEntry = { npc: Villager; actor: NpcActor };
+const entries: NpcEntry[] = villagers.map((npc, i) => ({
+  npc,
+  actor: npcActors[i],
+}));
+const entriesById = new Map(entries.map((entry) => [entry.npc.id, entry]));
+const crowds = new Map(
+  WORLD_IDS.map((world) => {
+    const entriesHere = entries.filter(({ npc }) =>
+      belongsToWorld(npc.place, world),
+    );
+    return [
+      world,
+      { entries: entriesHere, actors: entriesHere.map(({ actor }) => actor) },
+    ];
+  }),
+);
+export const activeNpcCrowd = (world: WorldId) => crowds.get(world)!.entries;
+export const activeNpcActors = (world: WorldId) => crowds.get(world)!.actors;
 export const useNpcs = create<{
   talking: string | null;
   line: number;
@@ -26,17 +41,14 @@ export const useNpcs = create<{
 }>(() => ({ talking: null, line: 0, topic: null, pending: null }));
 
 export function nearbyNpcId(x: number, z: number) {
-  const npc = nearestNpc(activeNpcActors(), x, z, useGame.getState().world);
+  const { world } = useGame.getState();
+  const npc = nearestNpc(activeNpcActors(world), x, z, world);
   return npc ? "npc" : "";
 }
 export function npcName() {
-  const actor = nearestNpc(
-    activeNpcActors(),
-    runtime.x,
-    runtime.z,
-    useGame.getState().world,
-  );
-  return villagers.find((npc) => npc.id === actor?.id)?.name ?? "Villager";
+  const { world } = useGame.getState();
+  const actor = nearestNpc(activeNpcActors(world), runtime.x, runtime.z, world);
+  return (actor && entriesById.get(actor.id)?.npc.name) ?? "Villager";
 }
 export function closeConversation() {
   useNpcs.setState({ talking: null, topic: null, pending: null });
@@ -51,8 +63,9 @@ export function talkToNpc(id: string) {
     game.panel !== "none"
   )
     return;
-  const actor = npcActors.find((npc) => npc.id === id);
-  if (!actor || !npcInWorld(id)) return;
+  const entry = entriesById.get(id);
+  if (!entry || !belongsToWorld(entry.npc.place, game.world)) return;
+  const { actor } = entry;
   if (!canTalkToNpc(actor, runtime.x, runtime.z, game.world)) {
     const path = approachNpc(actor, [runtime.x, runtime.z], game.world);
     if (!path.length) return;
@@ -72,7 +85,7 @@ export function talkToNpc(id: string) {
 }
 export function chooseNpcTopic(id: string) {
   const { talking, line } = useNpcs.getState();
-  const npc = villagers.find((npc) => npc.id === talking);
+  const npc = talking ? entriesById.get(talking)?.npc : undefined;
   if (
     npc &&
     line === npc.lines.length - 1 &&
@@ -83,7 +96,7 @@ export function chooseNpcTopic(id: string) {
 
 export function advanceConversation() {
   const state = useNpcs.getState(),
-    npc = villagers.find((npc) => npc.id === state.talking);
+    npc = state.talking ? entriesById.get(state.talking)?.npc : undefined;
   if (npc && state.line < npc.lines.length - 1)
     useNpcs.setState({ line: state.line + 1 });
   else if (state.topic)
@@ -106,7 +119,12 @@ export function interactWithNpc() {
     doors.some((door) => door.id === game.near)
   )
     return false;
-  const actor = nearestNpc(activeNpcActors(), runtime.x, runtime.z, game.world);
+  const actor = nearestNpc(
+    activeNpcActors(game.world),
+    runtime.x,
+    runtime.z,
+    game.world,
+  );
   if (!actor) return false;
   talkToNpc(actor.id);
   return true;

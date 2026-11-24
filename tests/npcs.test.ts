@@ -8,8 +8,10 @@ import {
   TALK_DISTANCE,
   villagers,
 } from "../src/game/core/npcs";
+import { islandLocals } from "../src/game/core/npcPopulation";
 import { canWalk, doors, findPath } from "../src/game/core/world";
 import {
+  activeNpcActors,
   advanceConversation,
   chooseNpcTopic,
   closeConversation,
@@ -27,6 +29,29 @@ const worldFor = (place: string) =>
   WORLD_IDS.find((world) => belongsToWorld(place, world))!;
 
 describe("wandering village crowd", () => {
+  it("has a distinct crowd and mostly illustrated conversations on each island", () => {
+    const visited = new Set<string>();
+    const additions = new Set(islandLocals.map(({ id }) => id));
+    for (const world of WORLD_IDS) {
+      const actors = activeNpcActors(world);
+      expect(
+        actors.filter(({ id }) => additions.has(id)).length,
+        world,
+      ).toBeGreaterThanOrEqual(6);
+      expect(
+        actors.filter(({ id }) => {
+          const topics = topicsFor(id);
+          return topics.length >= 2 && topics.some(({ picture }) => picture);
+        }).length,
+        world,
+      ).toBeGreaterThan(actors.length / 2);
+      for (const { id } of actors) {
+        expect(visited.has(id), id).toBe(false);
+        visited.add(id);
+      }
+    }
+    expect(visited.size).toBe(villagers.length);
+  });
   it.each(villagers)(
     "gives $id a reachable loop without cutting through world obstacles",
     (npc) => {
@@ -204,6 +229,13 @@ describe("NPC interaction boundaries", () => {
     talkToNpc(local.id);
     expect(useNpcs.getState().topic).toBeNull();
     expect(useNpcs.getState().line).toBe(0);
+  });
+  it("does not approach a local from another island", () => {
+    talkToNpc("postie");
+    expect(useNpcs.getState().talking).toBeNull();
+    expect(useNpcs.getState().pending).toBeNull();
+    expect(runtime.target).toBeNull();
+    expect(useGame.getState().panel).toBe("none");
   });
   it("walks to a distant local and cancels conversation cleanly", () => {
     runtime.x = 0;

@@ -3,15 +3,16 @@ import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
 import { movement } from "../core/input";
 import { runtime, useGame } from "../core/store";
-import { canTalkToNpc, nearestNpc, stepNpc, villagers } from "../core/npcs";
+import { canTalkToNpc, nearestNpc, stepNpc } from "../core/npcs";
 import {
   closeConversation,
-  npcActors,
-  npcInWorld,
   activeNpcActors,
+  activeNpcCrowd,
   talkToNpc,
   useNpcs,
+  type NpcEntry,
 } from "../core/npcState";
+import type { WorldId } from "../core/worlds";
 
 type Part = {
   p: [number, number, number];
@@ -92,19 +93,14 @@ const parts: Part[] = [
 ];
 const limbAxis = new THREE.Vector3(1, 0, 0);
 
-function selectNpc(event: ThreeEvent<PointerEvent>) {
-  event.stopPropagation();
-  if (event.instanceId !== undefined) talkToNpc(npcActors[event.instanceId].id);
-}
-
 /** One draw call per body part for the entire crowd, not per person. */
-function CrowdPart({ part }: { part: Part }) {
+function CrowdPart({ part, crowd }: { part: Part; crowd: NpcEntry[] }) {
   const mesh = useRef<THREE.InstancedMesh>(null);
   const transform = useMemo(() => new THREE.Object3D(), []);
   const local = useMemo(() => new THREE.Vector3(), []);
   useEffect(() => {
     if (!mesh.current) return;
-    villagers.forEach((npc, index) => {
+    crowd.forEach(({ npc }, index) => {
       mesh.current!.setColorAt(
         index,
         new THREE.Color(
@@ -119,11 +115,11 @@ function CrowdPart({ part }: { part: Part }) {
     if (mesh.current.instanceColor)
       mesh.current.instanceColor.needsUpdate = true;
     mesh.current.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  }, [part]);
+  }, [part, crowd]);
   useFrame(() => {
     if (!mesh.current) return;
     const game = useGame.getState();
-    npcActors.forEach((actor, i) => {
+    crowd.forEach(({ actor, npc }, i) => {
       const active =
         actor.moving && !game.paused && game.panel === "none" && !game.build;
       const swing = active ? Math.sin(actor.stride) : 0;
@@ -166,7 +162,7 @@ function CrowdPart({ part }: { part: Part }) {
       transform.scale
         .set(...part.s)
         .multiplyScalar(
-          !npcInWorld(actor.id) || (part.hat && !villagers[i].hat)
+          part.hat && !npc.hat
             ? 0
             : part.limb === "shin"
               ? 0.67 * seated
@@ -179,10 +175,15 @@ function CrowdPart({ part }: { part: Part }) {
     // Raycasting must use today's crowd bounds, not its initial arrangement.
     mesh.current.boundingSphere = null;
   });
+  const selectNpc = (event: ThreeEvent<PointerEvent>) => {
+    event.stopPropagation();
+    if (event.instanceId !== undefined)
+      talkToNpc(crowd[event.instanceId].actor.id);
+  };
   return (
     <instancedMesh
       ref={mesh}
-      args={[undefined, undefined, villagers.length]}
+      args={[undefined, undefined, crowd.length]}
       frustumCulled={false}
       castShadow
       receiveShadow
@@ -194,19 +195,19 @@ function CrowdPart({ part }: { part: Part }) {
   );
 }
 
-function TalkRings() {
+function TalkRings({ world }: { world: WorldId }) {
   const mesh = useRef<THREE.InstancedMesh>(null);
   const transform = useMemo(() => new THREE.Object3D(), []);
+  const actors = activeNpcActors(world);
   useFrame(() => {
     const game = useGame.getState(),
       selected = useNpcs.getState().pending;
     const nearest =
       game.near === "npc"
-        ? nearestNpc(activeNpcActors(), runtime.x, runtime.z, game.world)?.id
+        ? nearestNpc(actors, runtime.x, runtime.z, world)?.id
         : null;
-    npcActors.forEach((actor, i) => {
+    actors.forEach((actor, i) => {
       const show =
-        npcInWorld(actor.id) &&
         game.panel === "none" &&
         !game.paused &&
         !game.build &&
@@ -222,7 +223,7 @@ function TalkRings() {
   return (
     <instancedMesh
       ref={mesh}
-      args={[undefined, undefined, villagers.length]}
+      args={[undefined, undefined, actors.length]}
       frustumCulled={false}
     >
       <ringGeometry args={[0.43, 0.5, 24]} />
@@ -237,6 +238,7 @@ function TalkRings() {
 }
 
 export function NpcCrowd() {
+  const world = useGame((game) => game.world);
   const pendingTime = useRef(0);
   useEffect(() => () => closeConversation(), []);
   useFrame((_, delta) => {
@@ -245,12 +247,11 @@ export function NpcCrowd() {
     if (state.talking && game.panel !== "npc") closeConversation();
     const frozen =
       game.paused || game.build || !runtime.active || game.panel !== "none";
-    for (let i = 0; i < npcActors.length; i++) {
-      const actor = npcActors[i];
-      if (!npcInWorld(actor.id)) continue;
+    const crowd = activeNpcCrowd(game.world);
+    for (const { actor, npc } of crowd) {
       stepNpc(
         actor,
-        villagers[i],
+        npc,
         delta,
         [runtime.x, runtime.z],
         frozen,
@@ -264,19 +265,26 @@ export function NpcCrowd() {
     }
     pendingTime.current += Math.min(delta, 0.04);
     const [dx, dz] = movement();
-    const actor = npcActors.find((npc) => npc.id === state.pending)!;
-    if (frozen || Math.hypot(dx, dz) > 0.1 || pendingTime.current > 25) {
+    const actor = activeNpcActors(game.world).find(
+      (npc) => npc.id === state.pending,
+    );
+    if (
+      !actor ||
+      frozen ||
+      Math.hypot(dx, dz) > 0.1 ||
+      pendingTime.current > 25
+    ) {
       useNpcs.setState({ pending: null });
     } else if (canTalkToNpc(actor, runtime.x, runtime.z, game.world)) {
       talkToNpc(actor.id);
     } else if (!runtime.target) useNpcs.setState({ pending: null });
   });
   return (
-    <group name="village-npcs">
+    <group key={world} name="village-npcs">
       {parts.map((part, index) => (
-        <CrowdPart key={index} part={part} />
+        <CrowdPart key={index} part={part} crowd={activeNpcCrowd(world)} />
       ))}
-      <TalkRings />
+      <TalkRings world={world} />
     </group>
   );
 }
