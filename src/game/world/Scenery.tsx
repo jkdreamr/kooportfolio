@@ -1,6 +1,6 @@
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { forest } from "../core/scenery";
+import { forest, grassSites, type GroundFootprint } from "../core/scenery";
 import { NaturalTrees } from "./TreeArt";
 import { sculptedMaterial } from "./Surface";
 
@@ -46,8 +46,7 @@ function Instances({
     />
   );
 }
-const rocks: Part[] = [],
-  grass: Part[] = [];
+const rocks: Part[] = [];
 const trees = forest.map(({ x, z, height }, i) => ({
   p: [x, 0, z] as const,
   size: (height + 1.8) / 4.8,
@@ -61,32 +60,23 @@ forest.forEach(({ x, z }, i) => {
       c: i % 2 ? "#8c9380" : "#aaa78c",
     });
 });
-for (let i = 0; i < 650; i++) {
-  const a = i * 2.399963,
-    r = Math.sqrt((i + 1) / 650),
-    x = Math.cos(a) * 46 * r,
-    z = Math.sin(a) * 39 * r;
-  if (
-    Math.abs(x) < 2.5 ||
-    Math.abs(z - 10) < 2.5 ||
-    Math.abs(z + 9) < 2.5 ||
-    Math.abs(z - 29) < 2.5 ||
-    Math.abs(Math.abs(x) - 34) < 2
-  )
-    continue;
-  for (let j = 0; j < 3; j++)
-    grass.push({
-      p: [x + j * 0.16, 0.32, z + (j % 2) * 0.15],
-      s: [0.12, 0.35 + (i % 4) * 0.1, 0.12],
-      c: i % 3 ? "#638143" : "#8b9c59",
-    });
+export function GroundGrass({ avoid }: { avoid: readonly GroundFootprint[] }) {
+  const parts = useMemo(
+    () =>
+      grassSites(avoid).map<Part>(({ x, z, variant }) => ({
+        p: [x, 0.32, z],
+        s: [0.12, 0.35 + (variant % 4) * 0.1, 0.12],
+        c: variant % 3 ? "#638143" : "#8b9c59",
+      })),
+    [avoid],
+  );
+  return <Instances parts={parts} geometry={reed} />;
 }
 export function Scenery() {
   return (
     <>
       <NaturalTrees trees={trees} />
       <Instances parts={rocks} geometry={crown} />
-      <Instances parts={grass} geometry={reed} />
     </>
   );
 }

@@ -9,8 +9,27 @@ import { canWalk, destinationsInWorld, findPath } from "../src/game/core/world";
 import { freshSave, parseSave } from "../src/shared/save";
 import { runtime, useGame } from "../src/game/core/store";
 import { activitySpots } from "../src/game/core/regionalActivities";
+import { grassSites } from "../src/game/core/scenery";
+import { HOME_PATH_FOOTPRINTS } from "../src/game/world/HomeWorldEnvironment";
+import { KOREA_RIVER_FOOTPRINT } from "../src/game/world/KoreaRiverGround";
 
 describe("separate worlds", () => {
+  it.each([
+    ["Home paths and sidewalks", HOME_PATH_FOOTPRINTS],
+    ["the Han River", [KOREA_RIVER_FOOTPRINT]],
+  ] as const)("keeps grass out of %s", (_name, footprints) => {
+    const sites = grassSites([]);
+    const protectedSite = ({ x, z }: (typeof sites)[number]) =>
+      footprints.some(
+        ([cx, cz, width, depth]) =>
+          Math.abs(x - cx) <= width / 2 + 0.12 &&
+          Math.abs(z - cz) <= depth / 2 + 0.12,
+      );
+    expect(sites.some(protectedSite)).toBe(true);
+    expect(grassSites(footprints)).toEqual(
+      sites.filter((site) => !protectedSite(site)),
+    );
+  });
   it.each(activitySpots)("keeps $id reachable in $world", ({ world, p }) => {
     expect(canWalk(...p, world)).toBe(true);
     const route = findPath([0, 5], [...p], world);
@@ -82,7 +101,8 @@ describe("separate worlds", () => {
     runtime.target = [1, 1];
     useGame.getState().travel("stanford", "train");
     expect(useGame.getState().world).toBe("stanford");
-    expect([runtime.x, runtime.z]).toEqual([-73, 12]);
+    expect([runtime.x, runtime.z]).toEqual([-73, 22]);
+    expect(canWalk(runtime.x, runtime.z, "stanford")).toBe(true);
     expect(runtime.path).toEqual([]);
     expect(runtime.target).toBe(null);
     useGame.getState().travel("korea", "plane");

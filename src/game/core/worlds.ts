@@ -26,7 +26,7 @@ const places: Record<WorldId, readonly string[]> = {
     "kitchen",
     "station",
   ],
-  korea: ["cognition", "photo", "theater", "bridge"],
+  korea: ["cognition", "photo", "theater", "bridge", "namsan"],
 };
 export function belongsToWorld(place: string, world: WorldId) {
   return (

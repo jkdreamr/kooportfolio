@@ -1,13 +1,12 @@
 import { WORLD_BOUNDS, WORLD_ELLIPSE } from "../../shared/world-bounds";
+import { ISLAND_RAIL } from "./islandRail";
 import { forest } from "./scenery";
 import { campusObstacles } from "./campus";
 import { POND } from "./pond";
 import { PHOTO_BOOTH_ENTRY, PHOTO_BOOTH_OBSTACLES, PHOTO_BOOTH_ORIGIN } from "./photoBoothLayout";
 import { belongsToWorld, type WorldId } from "./worlds";
-import {
-  HOME_YARD_OBSTACLES,
-  HOME_SCENERY_TREES,
-} from "../world/HomeNeighborhood";
+import { HOME_COMMUNITY_OBSTACLES } from "../world/CommunityScenery";
+import { villageGardenSolids } from "./villageGardens";
 import {
   KOREA_WATER_OBSTACLES,
   KOREA_BRIDGE_RAILS,
@@ -164,6 +163,13 @@ export const doors = villageDoors.map((door) => {
 });
 export const landmarks = [
   {
+    id: "namsan",
+    name: "N Seoul Tower",
+    x: -28,
+    z: -44.5,
+    anchor: [-28, 27, -48] as const,
+  },
+  {
     id: "airport",
     name: "Airport",
     x: 58,
@@ -209,8 +215,8 @@ export const landmarks = [
     id: "station",
     name: "Train station",
     x: -76,
-    z: 12,
-    anchor: [-76, 4, 12] as const,
+    z: ISLAND_RAIL.station[1],
+    anchor: [-76, 4, ISLAND_RAIL.station[1]] as const,
   },
 ] as const;
 export const destinations = [...doors, ...landmarks];
@@ -235,6 +241,7 @@ const sharedObstacles: ReadonlyArray<readonly number[]> = [
 ];
 const obstaclesFor = (world?: WorldId): ReadonlyArray<readonly number[]> => [
   ...sharedObstacles,
+  ...(world ? villageGardenSolids(world) : []),
   ...(world ? doorsInWorld(world) : doors).map((door) => door.footprint),
   ...(world === undefined || world === "stanford" ? campusObstacles : []),
   ...(world === undefined || world === "korea" ? PHOTO_BOOTH_OBSTACLES : []),
@@ -243,15 +250,11 @@ const obstaclesFor = (world?: WorldId): ReadonlyArray<readonly number[]> => [
         ...KOREA_WATER_OBSTACLES,
         ...KOREA_BRIDGE_RAILS,
         ...KOREA_PARK_OBSTACLES,
+        [-28, -48, 2.5, 2.5],
         ...KOREA_PARK_TREES.map(({ p }) => [p[0], p[2], 0.4, 0.4]),
       ]
     : []),
-  ...(world === "home"
-    ? [
-        ...HOME_YARD_OBSTACLES,
-        ...HOME_SCENERY_TREES.map(({ p }) => [p[0], p[2], 0.4, 0.4]),
-      ]
-    : []),
+  ...(world === "home" ? [...HOME_COMMUNITY_OBSTACLES] : []),
 ];
 const regionalObstacles = {
   home: obstaclesFor("home"),

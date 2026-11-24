@@ -1,11 +1,20 @@
 import * as THREE from "three";
 import { WORLD_ELLIPSE } from "../../shared/world-bounds";
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
+import type { GroundFootprint } from "../core/scenery";
+
+const river = { left: -12, right: 62, near: 22, far: 44 };
+export const KOREA_RIVER_FOOTPRINT: GroundFootprint = [
+  (river.left + river.right) / 2,
+  (river.near + river.far) / 2,
+  river.right - river.left,
+  river.far - river.near,
+];
 
 const land = new THREE.Shape();
 land.absellipse(
   0,
-  12,
+  WORLD_ELLIPSE.centerZ,
   WORLD_ELLIPSE.radiusX,
   WORLD_ELLIPSE.radiusZ,
   0,
@@ -14,10 +23,10 @@ land.absellipse(
   0,
 );
 const hole = new THREE.Path();
-hole.moveTo(-12, 22);
-hole.lineTo(-12, 44);
-hole.lineTo(62, 44);
-hole.lineTo(62, 22);
+hole.moveTo(river.left, river.near);
+hole.lineTo(river.left, river.far);
+hole.lineTo(river.right, river.far);
+hole.lineTo(river.right, river.near);
 hole.closePath();
 land.holes.push(hole);
 const terrain = new THREE.ExtrudeGeometry(land, {

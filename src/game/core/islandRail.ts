@@ -1,10 +1,12 @@
+import { WORLD_ELLIPSE } from "../../shared/world-bounds";
+
 export const ISLAND_RAIL = {
   radiusX: 86.5,
-  radiusZ: 92,
-  centerZ: 12,
+  radiusZ: WORLD_ELLIPSE.radiusZ + 2.5,
+  centerZ: WORLD_ELLIPSE.centerZ,
   height: 1,
   lapSeconds: 130,
-  station: [-76, 12] as const,
+  station: [-76, WORLD_ELLIPSE.centerZ] as const,
 };
 
 /** Distance-like phase, in turns. Locomotive and coaches share this route. */

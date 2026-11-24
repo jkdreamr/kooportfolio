@@ -8,25 +8,51 @@ import {
   TALK_DISTANCE,
   villagers,
 } from "../src/game/core/npcs";
-import { canWalk, doors, findPath } from "../src/game/core/world";
+import { islandLocals } from "../src/game/core/npcPopulation";
+import { canWalk, doors, findPath, moveWorld } from "../src/game/core/world";
 import {
+  activeNpcActors,
   advanceConversation,
   chooseNpcTopic,
   closeConversation,
   interactWithNpc,
   npcActors,
   nearbyNpcId,
+  stepNpcApproach,
   talkToNpc,
   useNpcs,
 } from "../src/game/core/npcState";
 import { topicsFor } from "../src/game/core/npcTopics";
-import { runtime, useGame } from "../src/game/core/store";
+import { runtime, useGame, walkTo } from "../src/game/core/store";
 import { belongsToWorld, WORLD_IDS } from "../src/game/core/worlds";
 
 const worldFor = (place: string) =>
   WORLD_IDS.find((world) => belongsToWorld(place, world))!;
 
 describe("wandering village crowd", () => {
+  it("has a distinct crowd and mostly illustrated conversations on each island", () => {
+    const visited = new Set<string>();
+    const additions = new Set(islandLocals.map(({ id }) => id));
+    for (const world of WORLD_IDS) {
+      const actors = activeNpcActors(world);
+      expect(
+        actors.filter(({ id }) => additions.has(id)).length,
+        world,
+      ).toBeGreaterThanOrEqual(6);
+      expect(
+        actors.filter(({ id }) => {
+          const topics = topicsFor(id);
+          return topics.length >= 2 && topics.some(({ picture }) => picture);
+        }).length,
+        world,
+      ).toBeGreaterThan(actors.length / 2);
+      for (const { id } of actors) {
+        expect(visited.has(id), id).toBe(false);
+        visited.add(id);
+      }
+    }
+    expect(visited.size).toBe(villagers.length);
+  });
   it.each(villagers)(
     "gives $id a reachable loop without cutting through world obstacles",
     (npc) => {
@@ -205,6 +231,13 @@ describe("NPC interaction boundaries", () => {
     expect(useNpcs.getState().topic).toBeNull();
     expect(useNpcs.getState().line).toBe(0);
   });
+  it("does not approach a local from another island", () => {
+    talkToNpc("postie");
+    expect(useNpcs.getState().talking).toBeNull();
+    expect(useNpcs.getState().pending).toBeNull();
+    expect(runtime.target).toBeNull();
+    expect(useGame.getState().panel).toBe("none");
+  });
   it("walks to a distant local and cancels conversation cleanly", () => {
     runtime.x = 0;
     runtime.z = 5;
@@ -215,5 +248,56 @@ describe("NPC interaction boundaries", () => {
     expect(useGame.getState().panel).toBe("none");
     closeConversation();
     expect(useNpcs.getState().pending).toBeNull();
+  });
+
+  it("opens Bridge lookout after an uninterrupted detour from the Korea promenade", () => {
+    useGame.setState({ world: "korea" });
+    const id = "bridge-lookout";
+    runtime.x = 25;
+    runtime.z = 19;
+    talkToNpc(id);
+    expect(useNpcs.getState().pending).toBe(id);
+
+    const delta = 0.04;
+    let frames = 0;
+    for (; frames < 1000 && runtime.target; frames++) {
+      stepNpcApproach(delta, false);
+      if (frames === 650) {
+        expect(useNpcs.getState().pending).toBe(id);
+        expect(useGame.getState().panel).toBe("none");
+      }
+      if (!runtime.target) break;
+      const [x, z] = runtime.target;
+      const distance = Math.hypot(x - runtime.x, z - runtime.z);
+      if (distance < 0.0001) {
+        [runtime.x, runtime.z] = runtime.target;
+        runtime.target = runtime.path.shift() ?? null;
+      } else {
+        const step = Math.min(4.6 * delta, distance) / distance;
+        [runtime.x, runtime.z] = moveWorld(
+          runtime.x,
+          runtime.z,
+          (x - runtime.x) * step,
+          (z - runtime.z) * step,
+          "korea",
+        );
+      }
+    }
+    expect(frames * delta).toBeGreaterThan(26);
+    expect(useNpcs.getState()).toMatchObject({ pending: null, talking: id });
+    expect(useGame.getState().panel).toBe("npc");
+  });
+
+  it("cancels a pending conversation when a new walk replaces its route", () => {
+    runtime.x = 0;
+    runtime.z = 5;
+    const id = npcActors[2].id;
+    talkToNpc(id);
+    expect(useNpcs.getState().pending).toBe(id);
+    walkTo(0, 8);
+    expect(runtime.target).not.toBeNull();
+    stepNpcApproach(0.04, false);
+    expect(useNpcs.getState()).toMatchObject({ pending: null, talking: null });
+    expect(runtime.target).not.toBeNull();
   });
 });

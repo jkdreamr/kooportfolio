@@ -7,6 +7,7 @@ import {
   MIN_WORLD_ZOOM,
   useWorldView,
   zoomWorld,
+  fitIsland,
 } from "../core/worldView";
 import "./world-zoom.css";
 
@@ -94,6 +95,27 @@ export function WorldZoomControls() {
   if (!visible) return null;
   return (
     <div className="world-zoom" role="group" aria-label="World zoom">
+      <button
+        aria-label="Whole island"
+        title="Whole island"
+        onClick={(event) => {
+          fitIsland();
+          event.currentTarget.blur();
+        }}
+      >
+        <svg
+          width="19"
+          height="19"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          aria-hidden="true"
+        >
+          <path d="M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6" />
+          <path d="m7 12 5-4 5 4-5 4z" />
+        </svg>
+      </button>
       <button
         aria-label="Zoom out"
         title="Zoom out (scroll or pinch)"

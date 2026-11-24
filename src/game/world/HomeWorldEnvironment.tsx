@@ -1,6 +1,8 @@
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
-import { HomeNeighborhood } from "./HomeNeighborhood";
+import { HomeCommunity } from "./CommunityScenery";
 import { RegionalTerrain } from "./RegionalTerrain";
+import { GroundGrass } from "./Scenery";
+import type { GroundFootprint } from "../core/scenery";
 
 const paths: SceneryPart[] = [];
 function path(x: number, z: number, width: number, depth: number) {
@@ -65,6 +67,12 @@ for (let i = 0; i < 16; i++) {
     c: i % 3 ? "#88745b" : "#9b8467",
   });
 }
+export const HOME_PATH_FOOTPRINTS = paths.map<GroundFootprint>(({ p, s }) => [
+  p[0],
+  p[2],
+  s[0],
+  s[2],
+]);
 
 // Low garden beds remain below the movement plane. Planting is kept behind
 // existing walls/room footprints; the world retains all solid-object ownership.
@@ -102,8 +110,9 @@ export function HomeWorldEnvironment() {
     <group name="home-environment">
       <WorldSceneryParts parts={gardens} />
       <WorldSceneryParts parts={paths} />
+      <GroundGrass avoid={HOME_PATH_FOOTPRINTS} />
       <RegionalTerrain region="bay" />
-      <HomeNeighborhood />
+      <HomeCommunity />
     </group>
   );
 }

@@ -18,6 +18,7 @@ import {
   type WorldId,
 } from "./worlds";
 import { keys, touch } from "./input";
+import { ISLAND_RAIL } from "./islandRail";
 export type Scene = "hub" | "rowing" | "secret" | PlaceId;
 let storageIssue = "";
 let savedRaw: string | null = null;
@@ -59,11 +60,12 @@ export const runtime = {
 export function walkTo(x: number, z: number) {
   const state = useGame.getState();
   // The open skate park has its own walking controller and bounds, not a hall.
-  runtime.path = state.scene === "hub"
-    ? findPath([runtime.x, runtime.z], [x, z], state.world)
-    : state.scene === "skate"
-      ? [[x, z]]
-      : findInteriorPath(state.scene, [runtime.x, runtime.z], [x, z]);
+  runtime.path =
+    state.scene === "hub"
+      ? findPath([runtime.x, runtime.z], [x, z], state.world)
+      : state.scene === "skate"
+        ? [[x, z]]
+        : findInteriorPath(state.scene, [runtime.x, runtime.z], [x, z]);
   runtime.target = runtime.path.shift() ?? null;
 }
 type State = {
@@ -73,6 +75,7 @@ type State = {
   paused: boolean;
   overlayLocked: boolean;
   traveling: boolean;
+  travelRequest: WorldId | null;
   build: boolean;
   panel:
     | "none"
@@ -82,6 +85,7 @@ type State = {
     | "settings"
     | "profile"
     | "places"
+    | "travel"
     | "leaderboard"
     | "npc"
     | "telescope"
@@ -113,6 +117,7 @@ export const useGame = create<State>((set, get) => ({
   paused: false,
   overlayLocked: false,
   traveling: false,
+  travelRequest: null,
   build: false,
   panel: "none",
   near: "",
@@ -155,7 +160,8 @@ export const useGame = create<State>((set, get) => ({
     if (!validJourney(get().world, world, mode) || get().scene !== "hub")
       return;
     get().persist();
-    const position: [number, number] = mode === "plane" ? [58, 61] : [-73, 12];
+    const position: [number, number] =
+      mode === "plane" ? [58, 61] : [-73, ISLAND_RAIL.station[1]];
     [runtime.x, runtime.z] = position;
     runtime.path = [];
     runtime.target = null;
