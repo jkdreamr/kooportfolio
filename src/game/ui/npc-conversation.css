@@ -11,7 +11,9 @@
   left: 50%;
   transform: translateX(-50%);
   width: min(380px, calc(100% - 32px));
-  max-height: calc(100% - var(--npc-dock-clearance) - 80px);
+  max-height: calc(
+    100% - var(--npc-dock-clearance) - max(16px, env(safe-area-inset-top))
+  );
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 19px 20px 15px;
