@@ -21,7 +21,7 @@ export const PARCEL_DOORS = [
 export const BOOK_SPOTS = [
   [17, 29],
   [3, 32],
-  [32, 44],
+  [44, 42],
 ] as const;
 export const FISHING_SPOTS = [
   [0, 21],
@@ -145,7 +145,7 @@ export function regionalActionLabel(
   if (id.startsWith("parcel-")) return "Deliver parcel";
   if (id.startsWith("book-")) {
     const wait = s.booksReadyAt[index(id)] - now;
-    return wait > 0 ? "Returned" : "Pick up book";
+    return wait > 0 ? "Empty" : "Pick up book";
   }
   if (id === "bookdrop")
     return s.books
