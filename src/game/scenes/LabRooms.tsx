@@ -23,14 +23,15 @@ import {
   BEAT_PAD_KEYS,
   beatCue,
   beatPadLane,
+  beatRewardCoins,
   beatRoundEnd,
   flipLights,
-  hitBeat,
   HIT_WINDOW,
   LIGHTS_TARGET,
   lightsHint,
   newBeatGame,
   newLightsBoard,
+  queueBeatPad,
   type BeatGame,
 } from "../core/labGames";
 import { newRunId } from "../../shared/run-id";
@@ -465,10 +466,7 @@ export function BeatLabInterior() {
       if (!gameIsActive() || useGameMode.getState().active?.id !== "music")
         return;
       const g = syncBeat();
-      if (g.phase === "playing") {
-        game.current = hitBeat(g, lane);
-        setView(game.current);
-      }
+      game.current = queueBeatPad(g, lane);
       labTone(lane);
       const setPadLit = (value: boolean) =>
         setLit((previous) => {
@@ -519,11 +517,8 @@ export function BeatLabInterior() {
     if (g.phase === "done" && !rewarded.current) {
       stopBeatTrack();
       rewarded.current = true;
-      const hits = g.notes.filter((n) => n.hit).length;
-      if (hits >= 20)
-        useGame
-          .getState()
-          .award(`music-${newRunId()}`, g.points >= 2600 ? 20 : 12, 10);
+      const coins = beatRewardCoins(g);
+      if (coins) useGame.getState().award(`music-${newRunId()}`, coins, 10);
     }
     refresh.current += dt;
     if (refresh.current > 0.04) {
@@ -546,6 +541,7 @@ export function BeatLabInterior() {
     }
   };
   const hits = view.notes.filter((note) => note.hit).length;
+  const coins = beatRewardCoins(view);
   return (
     <>
       {active && <LabCamera id="music" />}
@@ -574,7 +570,7 @@ export function BeatLabInterior() {
                 {view.phase !== "ready" && (
                   <p className="lab-feedback" role="status">
                     {view.phase === "done"
-                      ? `${hits}/32 hits · best ${view.best}×${hits >= 20 ? ` · +${view.points >= 2600 ? 20 : 12} coins` : " · 20 hits earns coins"}`
+                      ? `${hits}/${view.notes.length} hits · best ${view.best}× · ${coins ? `+${coins} coins` : "No coins"}`
                       : view.feedback && view.time - view.feedbackAt < 0.75
                         ? view.feedback
                         : view.time < BEAT_COUNT_IN
