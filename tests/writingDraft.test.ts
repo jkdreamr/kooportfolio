@@ -31,9 +31,11 @@ describe("writing draft session", () => {
       throw new DOMException("Denied", "SecurityError");
     });
     expect(session.read()).toEqual({ author: "", title: "", body: "" });
+    expect(session.isStored()).toBe(false);
     expect(session.write(draft)).toBe(false);
     // A new modal's initializer must read memory, not the unavailable storage.
     expect(session.read()).toEqual(draft);
+    expect(session.isStored()).toBe(false);
     const snapshot = session.read();
     snapshot.body = "A stale/unmounted reader";
     expect(session.read()).toEqual(draft);
@@ -49,10 +51,13 @@ describe("writing draft session", () => {
       },
     }));
     expect(session.read().body).toBe("Old saved text");
+    expect(session.isStored()).toBe(true);
     expect(session.write(draft)).toBe(false);
     expect(session.read()).toEqual(draft);
+    expect(session.isStored()).toBe(false);
     full = false;
     expect(session.write(draft)).toBe(true);
+    expect(session.isStored()).toBe(true);
     expect(JSON.parse(persisted)).toEqual(draft);
     expect(session.write({ ...draft, title: "", body: "" })).toBe(true);
     expect(session.read()).toEqual({ ...draft, title: "", body: "" });
