@@ -11,7 +11,7 @@ export type TreePlacement = {
 };
 type Part = { p: V3; s: V3; r: V3; c: string };
 
-// Closed ridged leaves, not leaf cards or solid ball crowns.
+// Closed canopy mass and small ridged leaf edges share one baked geometry.
 function foliageBuilder() {
   const positions: number[] = [],
     colors: number[] = [];
@@ -62,6 +62,48 @@ function foliageBuilder() {
       }),
     );
   };
+  const volume = (center: V3, scale: V3, phase: number) => {
+    const levels = [-0.52, -0.2, 0.19, 0.48];
+    const radii = [0.3, 0.92, 0.86, 0.34];
+    const rings = levels.map((height, ring) =>
+      Array.from({ length: 7 }, (_, i): V3 => {
+        const angle = phase + (i / 7) * Math.PI * 2 + ring * 0.12;
+        const radius = radii[ring] * (1 + Math.sin(i * 4.3 + phase) * 0.12);
+        return [
+          center[0] + Math.cos(angle) * radius * scale[0],
+          center[1] +
+            (height + Math.sin(i * 2.3 + ring + phase) * 0.06) * scale[1],
+          center[2] + Math.sin(angle) * radius * scale[2],
+        ];
+      }),
+    );
+    const triangle = (a: V3, b: V3, c: V3) => {
+      for (const point of [a, b, c]) {
+        positions.push(...point);
+        const light = 0.82 + ((point[1] - center[1]) / scale[1] + 0.65) * 0.14;
+        colors.push(light * 0.97, light, light * 0.9);
+      }
+    };
+    const bottom: V3 = [
+      center[0] + scale[0] * 0.04,
+      center[1] - scale[1] * 0.65,
+      center[2],
+    ];
+    const top: V3 = [
+      center[0] - scale[0] * 0.08,
+      center[1] + scale[1] * 0.64,
+      center[2] + scale[2] * 0.05,
+    ];
+    for (let i = 0; i < 7; i++) {
+      const next = (i + 1) % 7;
+      triangle(bottom, rings[0][i], rings[0][next]);
+      triangle(top, rings[3][next], rings[3][i]);
+      for (let ring = 0; ring < 3; ring++) {
+        triangle(rings[ring][i], rings[ring + 1][i], rings[ring][next]);
+        triangle(rings[ring][next], rings[ring + 1][i], rings[ring + 1][next]);
+      }
+    }
+  };
   const geometry = () => {
     const out = new THREE.BufferGeometry();
     out.setAttribute(
@@ -72,18 +114,26 @@ function foliageBuilder() {
     out.computeVertexNormals();
     return out;
   };
-  return { leaf, geometry };
+  return { leaf, volume, geometry };
 }
 function leafGeometry(flat: boolean) {
   const builder = foliageBuilder();
-  const count = flat ? 24 : 32;
+  if (flat) {
+    builder.volume([-0.25, -0.04, 0], [0.7, 0.58, 0.65], 0.4);
+    builder.volume([0.32, 0.04, 0.05], [0.62, 0.62, 0.56], 1.7);
+  } else {
+    builder.volume([-0.34, -0.05, -0.15], [0.66, 0.8, 0.65], 0.3);
+    builder.volume([0.3, 0.08, -0.08], [0.68, 0.84, 0.66], 1.8);
+    builder.volume([0.02, 0.13, 0.35], [0.66, 0.83, 0.67], 3.1);
+  }
+  const count = 10;
   for (let i = 0; i < count; i++) {
     const angle = i * 2.39996,
-      radius = 0.12 + Math.sqrt((i + 0.5) / count) * 0.5;
+      radius = 0.47 + Math.sqrt((i + 0.5) / count) * 0.42;
     const x = Math.cos(angle) * radius,
       z = Math.sin(angle) * radius;
-    const y = flat ? ((i % 5) - 2) * 0.14 : Math.sin(i * 2.7) * 0.5;
-    const length = 0.55 + Math.sin(i * 3.7) * 0.12;
+    const y = flat ? Math.sin(i * 2.7) * 0.15 : Math.sin(i * 2.7) * 0.28;
+    const length = (flat ? 0.4 : 0.3) + Math.sin(i * 3.7) * 0.06;
     builder.leaf(
       [
         x - Math.cos(angle) * length * 0.45,
@@ -92,11 +142,11 @@ function leafGeometry(flat: boolean) {
       ],
       [
         x + Math.cos(angle) * length * 0.55,
-        y + (flat ? 0.14 : 0.24),
+        y + (flat ? 0.1 : 0.16),
         z + Math.sin(angle) * length * 0.55,
       ],
-      flat ? 0.12 : 0.23,
-      0.065,
+      flat ? 0.1 : 0.14,
+      flat ? 0.04 : 0.055,
       0.88 + (i % 4) * 0.045,
     );
   }
@@ -321,22 +371,22 @@ function makeTree(
           joint[2] + Math.sin(a) * 0.55,
         ];
         branch(joint, tip, 0.048);
-        const radius = 0.64 + rand() * 0.22;
+        const radius = 0.95 + rand() * 0.2;
         leaf(
           [tip[0], tip[1] + 0.2, tip[2]],
-          [radius, 0.62 + rand() * 0.18, radius * 0.86],
+          [radius, 0.9 + rand() * 0.25, radius * 0.9],
           a,
         );
       }
     }
     leaf(
       [leanX * 1.8 - 0.35, height - 0.6, leanZ * 1.8],
-      [0.78, 0.7, 0.7],
+      [0.95, 0.9, 0.9],
       rotation,
     );
     leaf(
       [leanX * 1.8 + 0.4, height - 0.55, leanZ * 1.8 + 0.25],
-      [0.66, 0.76, 0.74],
+      [0.9, 0.95, 0.92],
       rotation + 1,
     );
   }
