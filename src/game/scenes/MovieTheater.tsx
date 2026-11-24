@@ -134,6 +134,7 @@ function TheaterViewer({
     return () => setFrameloop(useGame.getState().paused ? "demand" : "always");
   }, [setFrameloop, hidden]);
   useEffect(() => {
+    if (hidden) return;
     const keydown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
@@ -166,7 +167,8 @@ function TheaterViewer({
     return () => {
       window.removeEventListener("keydown", keydown, true);
     };
-  }, [onClose]);
+  }, [hidden, onClose]);
+  if (hidden) return null;
   return (
     <Html
       fullscreen
