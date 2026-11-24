@@ -23,6 +23,7 @@ import { useState } from "react";
 import { BadmintonCourt } from "./BadmintonCourt";
 import { GoInterior } from "./GoInterior";
 import { WritingInterior } from "./WritingInterior";
+import { StadiumInterior } from "./Stadium";
 
 const rewardInterior = (game: "dice" | "cooking", coins: number) =>
   useGame
@@ -34,6 +35,7 @@ export function Interior() {
   const scene = useGame((s) => s.scene),
     office = scene === "office";
   const name = doors.find((door) => door.id === scene)?.name ?? "";
+  if (scene === "stadium") return <StadiumInterior />;
   return (
     <group>
       <Box

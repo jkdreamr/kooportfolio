@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { Box, Cylinder, Ball, Flowers, Sign, Window } from "./Models";
 import { RoofShingles, StoneFooting } from "./ArchitectureDetail";
+import { NationalFlag } from "./NationalFlag";
 
 const roofGeometry = new THREE.BufferGeometry();
 const a = [-0.5, 0, -0.5],
@@ -92,6 +93,7 @@ function Door({ z = 2.7, color = "#5f462f" }: { z?: number; color?: string }) {
 export function KappaShell() {
   return (
     <group>
+      <NationalFlag nation="us" p={[2.6, 5.5, -0.6]} height={2.6} />
       <StoneFooting width={6.9} depth={4.8} />
       <Box p={[0, 0.3, 0]} s={[7.5, 0.6, 5.5]} c="#8c6650" />
       <Box p={[0, 2.8, 0]} s={[6.7, 5, 4.6]} c="#f0dbb4" />
@@ -135,6 +137,7 @@ export function KappaShell() {
 export function CognitionShell() {
   return (
     <group>
+      <NationalFlag nation="kr" p={[0.8, 5.7, -1.6]} height={2.6} />
       <StoneFooting width={6.8} depth={5.2} />
       <Box p={[0, 0.25, 0]} s={[7.1, 0.5, 5.5]} c="#8a8f88" />
       <Box p={[-0.85, 2.8, -0.25]} s={[4.6, 5, 4.6]} c="#3c554d" />
