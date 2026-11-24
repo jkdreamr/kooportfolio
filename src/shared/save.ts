@@ -58,7 +58,8 @@ export function parseSave(raw: string | null): Save {
     !Array.isArray(s.position) ||
     s.position.length !== 2 ||
     !finiteRange(s.position[0], WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX) ||
-    !finiteRange(s.position[1], WORLD_BOUNDS.minZ, WORLD_BOUNDS.maxZ) ||
+    // Accept the old northern apron long enough to migrate its position below.
+    !finiteRange(s.position[1], -76, WORLD_BOUNDS.maxZ) ||
     ![1, 2, 3].includes(s.upgrades?.boathouse) ||
     ![1, 2, 3].includes(s.upgrades?.garden) ||
     typeof s.color !== "string" ||
@@ -72,6 +73,7 @@ export function parseSave(raw: string | null): Save {
     !finiteRange(s.bestBasket, 0, 1e6)
   )
     throw new Error("Unrecognized save");
+  if (s.position[1] < WORLD_BOUNDS.minZ) s.position = [0, 5];
   return s;
 }
 export function reward(s: Save, id: string, coins: number, xp: number): Save {

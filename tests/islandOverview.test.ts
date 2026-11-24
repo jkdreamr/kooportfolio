@@ -16,6 +16,7 @@ import { WORLD_ELLIPSE } from "../src/shared/world-bounds";
 import { POND_SURFACE } from "../src/game/core/pond";
 import { villageGardenPlots } from "../src/game/core/villageGardens";
 import { WORLD_IDS } from "../src/game/core/worlds";
+import { freshSave, parseSave } from "../src/shared/save";
 
 afterEach(fitIsland);
 
@@ -82,6 +83,22 @@ describe("whole-island camera", () => {
 });
 
 describe("stable, planted island", () => {
+  it("moves legacy apron saves to the plaza without losing earned progress", () => {
+    const legacy = {
+      ...freshSave(),
+      coins: 75,
+      xp: 21,
+      memories: ["hoover-key"],
+      position: [0, -70],
+    };
+    expect(parseSave(JSON.stringify(legacy))).toEqual({
+      ...legacy,
+      position: [0, 5],
+    });
+    expect(() =>
+      parseSave(JSON.stringify({ ...legacy, position: [0, -1000] })),
+    ).toThrow();
+  });
   it("keeps water above the entire pond bed rather than coplanar with it", () => {
     const bedTop = POND_SURFACE.bedY + POND_SURFACE.bedDepth / 2;
     const waterBottom = POND_SURFACE.waterY - POND_SURFACE.waterDepth / 2;
