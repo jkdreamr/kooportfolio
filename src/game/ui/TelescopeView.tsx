@@ -85,7 +85,14 @@ export function TelescopeView({
       aria-modal="true"
       aria-labelledby={`${id}-title`}
       aria-describedby={`${id}-controls`}
-      onPointerDown={(event) => event.stopPropagation()}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+        if (
+          event.target instanceof Element &&
+          !event.target.closest("button,a[href]")
+        )
+          event.preventDefault();
+      }}
       onKeyDown={(event) => {
         event.stopPropagation();
         if (event.key === "Escape") {
