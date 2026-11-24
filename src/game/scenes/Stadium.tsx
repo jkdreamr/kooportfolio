@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { Ball, Box, Cylinder } from "../world/Models";
@@ -9,13 +9,23 @@ import {
   goalClearanceTime,
   judgeKick,
   kickPosition,
-  kickPower,
   type Kick,
+  type KickResult,
 } from "../core/fieldGoal";
+import {
+  loadStadiumBest,
+  saveStadiumBest,
+  scoreStadiumKick,
+  stadiumAimTarget,
+  stadiumKick,
+  stadiumPowerTarget,
+  stadiumTiming,
+  STADIUM_KICKS,
+} from "../core/stadiumChallenge";
 import { GameControls, gameIsActive } from "./InteriorProps";
 import { StadiumArchitecture } from "./StadiumArchitecture";
 import { StadiumView } from "./StadiumView";
-import { StadiumGameHud } from "./StadiumGameHud";
+import { StadiumGameHud, type StadiumPhase } from "./StadiumGameHud";
 import { startGameMode, endGameMode, useGameMode } from "../core/gameMode";
 import "./stadium.css";
 
@@ -87,66 +97,87 @@ function FootballPlayer({
   );
 }
 
-type Flight = { kick: Kick; time: number; judged: boolean };
+type Flight = { kick: Kick; time: number };
+const EMPTY_SCORE = { points: 0, streak: 0 };
+const WALKING_SPOT = { x: 0, z: FIELD_GOAL.startZ, wind: 0 };
 
 /** Complete room-sized outdoor stadium. Mount instead of the generic room shell. */
 export function StadiumInterior() {
   const nearExit = useGame((state) => state.near === "exit");
   const playing = useGameMode((state) => state.active?.id === "stadium");
-  const [aim, setAim] = useState(0);
   const [attempt, setAttempt] = useState(0);
-  const [score, setScore] = useState(0);
-  const [flying, setFlying] = useState(false);
-  const [message, setMessage] = useState("Five kicks. Split the uprights.");
+  const [score, setScore] = useState(EMPTY_SCORE);
+  const [best, setBest] = useState(loadStadiumBest);
+  const [phase, setPhase] = useState<StadiumPhase>("power");
+  const [result, setResult] = useState<KickResult | null>(null);
+  const [lockedPower, setLockedPower] = useState(0);
   const ball = useRef<THREE.Group>(null);
   const controls = useRef<THREE.Group>(null);
   const aimMarker = useRef<THREE.Group>(null);
-  const meter = useRef<HTMLMeterElement>(null);
+  const cursor = useRef<HTMLSpanElement>(null);
+  const returnFocus = useRef(false);
   const flight = useRef<Flight | null>(null);
   const clock = useRef(0);
-  const power = useRef(kickPower(0));
-  const finished = attempt === FIELD_GOAL.attempts && !flying;
+  const timing = useRef(0);
+  const flying = phase === "flight";
+  const finished = phase === "result" && attempt === STADIUM_KICKS.length - 1;
+  const spot = playing ? STADIUM_KICKS[attempt] : WALKING_SPOT;
+  const powerTarget = useMemo(() => stadiumPowerTarget(spot), [spot]);
+  const aimWindow = useMemo(
+    () =>
+      [
+        stadiumAimTarget(spot, lockedPower, -2.1),
+        stadiumAimTarget(spot, lockedPower, 2.1),
+      ] as const,
+    [spot, lockedPower],
+  );
 
-  function kick() {
-    if (
-      !playing ||
-      !gameIsActive() ||
-      !runtime.active ||
-      flight.current ||
-      attempt >= FIELD_GOAL.attempts
-    )
-      return;
-    flight.current = {
-      kick: { angle: (aim * Math.PI) / 180, power: power.current },
-      time: 0,
-      judged: false,
-    };
-    setAttempt((n) => n + 1);
-    setFlying(true);
-    setMessage("…");
+  function resetTiming() {
+    clock.current = 0;
+    timing.current = 0;
+    if (cursor.current) cursor.current.style.left = "0%";
   }
 
   function reset() {
-    if (!gameIsActive() || flight.current) return;
     setAttempt(0);
-    setScore(0);
-    setAim(0);
-    setMessage("Five kicks. Split the uprights.");
-    clock.current = 0;
+    setScore(EMPTY_SCORE);
+    setPhase("power");
+    setResult(null);
+    resetTiming();
+  }
+
+  function act() {
+    if (!playing || !gameIsActive() || !runtime.active || flight.current)
+      return;
+    if (phase === "power") {
+      setLockedPower(timing.current);
+      resetTiming();
+      setPhase("aim");
+    } else if (phase === "aim") {
+      flight.current = {
+        kick: stadiumKick(spot, lockedPower, timing.current),
+        time: 0,
+      };
+      setPhase("flight");
+    } else if (phase === "result") {
+      if (finished) reset();
+      else {
+        setAttempt(attempt + 1);
+        resetTiming();
+        setPhase("power");
+      }
+    }
   }
 
   function play() {
     if (startGameMode("stadium")) reset();
   }
 
-  const cancelFlight = useCallback(() => {
+  function cancelFlight() {
+    if (!playing) return;
     flight.current = null;
-    setFlying(false);
-    if (ball.current) {
-      ball.current.position.set(0, 0.48, FIELD_GOAL.startZ);
-      ball.current.rotation.set(0, 0, 0);
-    }
-  }, []);
+    returnFocus.current = true;
+  }
 
   function close() {
     cancelFlight();
@@ -154,13 +185,7 @@ export function StadiumInterior() {
   }
 
   useEffect(() => {
-    window.addEventListener("interior-game-close", cancelFlight);
-    return () => window.removeEventListener("interior-game-close", cancelFlight);
-  }, [cancelFlight]);
-
-  useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      if (!playing || useGame.getState().near === "exit") return;
       const target = event.target;
       if (
         target instanceof HTMLElement &&
@@ -168,26 +193,33 @@ export function StadiumInterior() {
       )
         return;
       if (
+        playing &&
         event.code === "Space" &&
         !event.repeat &&
         gameIsActive() &&
         runtime.active
       ) {
         event.preventDefault();
-        if (finished) reset();
-        else kick();
+        act();
       }
     }
+    window.addEventListener("interior-game-close", cancelFlight);
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("interior-game-close", cancelFlight);
+      window.removeEventListener("keydown", onKey);
+    };
   });
 
   useFrame((_, delta) => {
     if (aimMarker.current)
-      aimMarker.current.visible =
-        playing && !flight.current && attempt < FIELD_GOAL.attempts;
+      aimMarker.current.visible = playing && phase === "aim";
+    if (!playing && ball.current) {
+      ball.current.position.set(0, 0.48, FIELD_GOAL.startZ);
+      ball.current.rotation.set(0, 0, 0);
+    }
     if (!playing || !gameIsActive() || !runtime.active) return;
-    const dt = Math.min(delta, 0.04);
+    const dt = Math.min(delta, 0.08);
     const current = flight.current;
     if (current) {
       current.time += dt;
@@ -196,24 +228,34 @@ export function StadiumInterior() {
         ball.current.position.set(x, Math.max(0.32, y), z);
         ball.current.rotation.x -= dt * 13;
       }
-      if (!current.judged && current.time >= goalClearanceTime(current.kick)) {
-        current.judged = true;
-        const result = judgeKick(current.kick);
-        if (result === "Good") setScore((n) => n + 1);
-        setMessage(result);
-      }
       if (y < 0.28 || z < FIELD_GOAL.goalZ - 1.5) {
-        // A low kick can land before reaching the goal plane.
-        if (!current.judged) setMessage("Short");
+        const outcome =
+          current.time < goalClearanceTime(current.kick)
+            ? "Short"
+            : judgeKick(current.kick);
+        const next = scoreStadiumKick(score, outcome);
+        setScore(next);
+        if (next.points > best) {
+          setBest(next.points);
+          saveStadiumBest(next.points);
+        }
+        setResult(outcome);
+        setPhase("result");
         flight.current = null;
-        setFlying(false);
       }
-    } else {
-      if (attempt < FIELD_GOAL.attempts) clock.current += dt;
-      power.current = kickPower(clock.current);
-      if (meter.current) meter.current.value = power.current;
+    } else if (phase === "power" || phase === "aim") {
+      clock.current += dt;
+      timing.current = stadiumTiming(clock.current, attempt, phase === "aim");
+      if (cursor.current)
+        cursor.current.style.left = `${timing.current * 100}%`;
+      if (aimMarker.current)
+        aimMarker.current.rotation.y = -stadiumKick(
+          spot,
+          lockedPower,
+          timing.current,
+        ).angle;
       if (ball.current) {
-        ball.current.position.set(0, 0.48, FIELD_GOAL.startZ);
+        ball.current.position.set(spot.x, 0.48, spot.z);
         ball.current.rotation.set(0, 0, 0);
       }
     }
@@ -221,12 +263,11 @@ export function StadiumInterior() {
 
   return (
     <group>
-      <StadiumArchitecture score={score} attempt={attempt} />
-      <group
-        ref={aimMarker}
-        position={[0, 0.2, FIELD_GOAL.startZ]}
-        rotation={[0, (-aim * Math.PI) / 180, 0]}
-      >
+      <StadiumArchitecture
+        score={score.points}
+        attempt={playing ? attempt + 1 : 0}
+      />
+      <group ref={aimMarker} position={[spot.x, 0.2, spot.z]} visible={false}>
         {[0, 1, 2, 3, 4].map((i) => (
           <Cylinder
             key={i}
@@ -237,11 +278,8 @@ export function StadiumInterior() {
         ))}
       </group>
       <Football ballRef={ball} />
-      <FootballPlayer
-        p={[-0.6, 0.17, FIELD_GOAL.startZ + 0.7]}
-        kicking={flying}
-      />
-      <Box p={[0, 0.22, FIELD_GOAL.startZ]} s={[0.25, 0.1, 0.25]} c="#d29433" />
+      <FootballPlayer p={[spot.x - 0.6, 0.17, spot.z + 0.7]} kicking={flying} />
+      <Box p={[spot.x, 0.22, spot.z]} s={[0.25, 0.1, 0.25]} c="#d29433" />
       {[-1, 1].map((side) => (
         <group key={side}>
           <Box p={[side * 10.35, 0.5, 2.3]} s={[0.45, 0.2, 5]} c="#b4a17c" />
@@ -253,7 +291,17 @@ export function StadiumInterior() {
       <group ref={controls}>
         {!nearExit && !playing && (
           <GameControls name="49ers field goals" position={[0, 0, 0]}>
-            <button className="stadium-play" type="button" onClick={play}>
+            <button
+              ref={(button) => {
+                if (button && returnFocus.current) {
+                  button.focus({ preventScroll: true });
+                  returnFocus.current = false;
+                }
+              }}
+              className="stadium-play"
+              type="button"
+              onClick={play}
+            >
               Play
             </button>
           </GameControls>
@@ -261,15 +309,18 @@ export function StadiumInterior() {
       </group>
       {playing && (
         <StadiumGameHud
-          aim={aim}
-          onAim={setAim}
           score={score}
+          best={best}
           attempt={attempt}
-          flying={flying}
+          wind={spot.wind}
+          phase={phase}
           finished={finished}
-          message={message}
-          meter={meter}
-          onKick={finished ? reset : kick}
+          result={result}
+          lockedPower={lockedPower}
+          powerTarget={powerTarget}
+          aimWindow={aimWindow}
+          cursor={cursor}
+          onAction={act}
           onClose={close}
         />
       )}

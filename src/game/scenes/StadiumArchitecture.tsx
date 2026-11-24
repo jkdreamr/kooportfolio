@@ -312,7 +312,7 @@ export function StadiumArchitecture({
         ink="#f7e4b3"
       />
       <Sign
-        text={`${score * 3}   •   ${attempt} / 5`}
+        text={`${score}   •   ${attempt} / ${FIELD_GOAL.attempts}`}
         p={[0, 3.9, -28.45]}
         size={[6.2, 0.82]}
         color="#243d32"

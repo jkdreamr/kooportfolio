@@ -11,7 +11,11 @@ export const FIELD_GOAL = {
   attempts: 5,
 } as const;
 
-export type Kick = { angle: number; power: number };
+export type Kick = {
+  angle: number;
+  power: number;
+  spot?: { x: number; z: number; wind: number };
+};
 export type KickResult = "Good" | "Wide left" | "Wide right" | "Short";
 
 function kickSpeed(power: number): number {
@@ -26,25 +30,28 @@ export function kickPosition(
   const horizontal = Math.cos(FIELD_GOAL.loft) * speed;
   const t = Math.max(0, time);
   return [
-    Math.sin(kick.angle) * horizontal * t,
+    (kick.spot?.x ?? 0) +
+      Math.sin(kick.angle) * horizontal * t +
+      0.5 * (kick.spot?.wind ?? 0) * t * t,
     0.48 +
       Math.sin(FIELD_GOAL.loft) * speed * t -
       0.5 * FIELD_GOAL.gravity * t * t,
-    FIELD_GOAL.startZ - Math.cos(kick.angle) * horizontal * t,
+    (kick.spot?.z ?? FIELD_GOAL.startZ) - Math.cos(kick.angle) * horizontal * t,
   ];
 }
 
 export function goalCrossingTime(kick: Kick): number {
   const speed = kickSpeed(kick.power);
   return (
-    (FIELD_GOAL.startZ - FIELD_GOAL.goalZ) /
+    ((kick.spot?.z ?? FIELD_GOAL.startZ) - FIELD_GOAL.goalZ) /
     (Math.cos(kick.angle) * Math.cos(FIELD_GOAL.loft) * speed)
   );
 }
 
 export function goalClearanceTime(kick: Kick): number {
   const crossing = goalCrossingTime(kick);
-  const forwardSpeed = (FIELD_GOAL.startZ - FIELD_GOAL.goalZ) / crossing;
+  const forwardSpeed =
+    ((kick.spot?.z ?? FIELD_GOAL.startZ) - FIELD_GOAL.goalZ) / crossing;
   return (
     crossing + (FIELD_GOAL.ballRadius + FIELD_GOAL.postRadius) / forwardSpeed
   );
