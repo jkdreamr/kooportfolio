@@ -766,7 +766,10 @@
   .game-shell .interior-intro ~ .context-action {
     left: auto;
     right: max(16px, env(safe-area-inset-right));
-    bottom: max(96px, calc(env(safe-area-inset-bottom) + 88px));
+    bottom: var(
+      --interior-action-bottom,
+      max(96px, calc(env(safe-area-inset-bottom) + 88px))
+    );
     transform: none;
     min-width: 0;
     width: min(230px, calc(100vw - 160px));
@@ -777,12 +780,22 @@
   }
 }
 @media (max-width: 700px) and (orientation: portrait) {
+  .game-shell .game-ui {
+    --interior-action-bottom: 315px;
+  }
+  .game-shell .interior-intro ~ .context-action {
+    bottom: var(--interior-action-bottom);
+  }
   .game-shell .interior-intro:has(.room-story:not([hidden])) {
     position: absolute;
     top: max(90px, calc(env(safe-area-inset-top) + 74px));
     inset-inline: 0;
     display: grid;
     gap: 10px;
+  }
+  .game-shell .interior-intro:has(.room-story:not([hidden])):has(~ .context-action.visible) {
+    bottom: calc(var(--interior-action-bottom) + 80px);
+    grid-template-rows: auto minmax(0, 1fr);
   }
   .game-shell .interior-intro:has(.room-story:not([hidden])) .interior-heading {
     position: static;
@@ -796,6 +809,16 @@
     inset: auto;
     transform: none;
     justify-self: center;
+  }
+  .game-shell .interior-intro:has(~ .context-action.visible) .room-story {
+    align-self: start;
+    max-height: 100%;
+    overflow: auto;
+  }
+}
+@media (max-width: 700px) and (max-height: 650px) and (orientation: portrait) {
+  .game-shell .game-ui {
+    --interior-action-bottom: max(96px, calc(env(safe-area-inset-bottom) + 88px));
   }
 }
 @media (max-height: 650px) and (orientation: landscape) {
