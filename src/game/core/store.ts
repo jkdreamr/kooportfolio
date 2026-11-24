@@ -63,6 +63,7 @@ type State = {
     | "settings"
     | "profile"
     | "places"
+    | "npc"
     | "desk";
   near: string;
   notice: string;

@@ -246,6 +246,17 @@
 .game-shell :is(.cadence-switch small, .last-split) {
   color: #e0e9df;
 }
+.game-shell
+  .scene-rowing
+  :is(.stamina-label, .race-instruments small, .cadence-switch small) {
+  font-size: 11px;
+  letter-spacing: 0;
+  opacity: 1;
+}
+.game-shell .scene-rowing .race-progress {
+  font-size: 10px;
+  letter-spacing: 0;
+}
 .game-shell .last-split {
   text-shadow: 0 1px 4px #193847;
 }
@@ -521,6 +532,18 @@
 @media (max-width: 700px) {
   .game-shell .world-toolbar {
     padding: 4px;
+  }
+}
+@media (min-width: 701px) and (min-height: 600px) {
+  /* Keep the crews and sweep oars clear in the lower half of the race view. */
+  .game-shell .scene-rowing .race-control-panel {
+    top: 252px;
+    bottom: auto;
+    left: 38px;
+    padding: 16px;
+  }
+  .game-shell .scene-rowing :is(.stamina-label, .race-instruments small) {
+    font-size: 12px;
   }
 }
 @media (min-width: 701px) and (max-height: 500px) {
