@@ -1,4 +1,5 @@
 export const BEAT_INTERVAL = 0.6;
+export const BEAT_COUNT_IN = 4 * BEAT_INTERVAL;
 export const HIT_WINDOW = 0.21;
 export const BEAT_PAD_KEYS = ["F", "G", "H", "J"] as const;
 
@@ -17,7 +18,8 @@ export function beatPadLane({
   return letter >= 0 ? letter : /^[1-4]$/.test(key) ? Number(key) - 1 : -1;
 }
 
-const phrase = [0, 2, 1, 2, 0, 3, 1, 2, 0, 1, 3, 2, 0, 2, 3, 1];
+const phrase = [0, 0, 2, 2, 0, 2, 1, 2, 0, 1, 3, 2, 0, 2, 3, 1];
+const variation = [0, 1, 2, 2.5, 4, 5, 6, 6.5, 8, 9, 10, 10.5, 12, 13, 14, 15];
 export type BeatNote = {
   lane: number;
   at: number;
@@ -32,6 +34,7 @@ export type BeatGame = {
   combo: number;
   best: number;
   feedback: string;
+  feedbackAt: number;
 };
 export function newBeatGame(): BeatGame {
   return {
@@ -41,16 +44,39 @@ export function newBeatGame(): BeatGame {
     combo: 0,
     best: 0,
     feedback: "",
+    feedbackAt: 0,
     notes: [...phrase, ...phrase.map((lane) => (lane + 1) % 4)].map(
       (lane, i) => ({
         lane,
-        at: 2.4 + i * BEAT_INTERVAL,
+        at:
+          BEAT_COUNT_IN +
+          (i < phrase.length
+            ? i
+            : phrase.length + variation[i - phrase.length]) *
+            BEAT_INTERVAL,
         hit: false,
         missed: false,
       }),
     ),
   };
 }
+export function beatRoundEnd(game: BeatGame): number {
+  return game.notes[game.notes.length - 1].at + BEAT_INTERVAL;
+}
+
+export function beatCue(game: BeatGame, lane: number): boolean {
+  return (
+    game.phase === "playing" &&
+    game.notes.some(
+      (note) =>
+        note.lane === lane &&
+        !note.hit &&
+        !note.missed &&
+        Math.abs(note.at - game.time) <= HIT_WINDOW,
+    )
+  );
+}
+
 export function advanceBeat(game: BeatGame, dt: number): BeatGame {
   if (game.phase !== "playing" || !Number.isFinite(dt) || dt <= 0) return game;
   const time = game.time + dt;
@@ -66,9 +92,10 @@ export function advanceBeat(game: BeatGame, dt: number): BeatGame {
     ...game,
     time,
     notes,
-    phase: time > notes[notes.length - 1].at + 0.6 ? "done" : "playing",
+    phase: time >= beatRoundEnd(game) ? "done" : "playing",
     combo: missed ? 0 : game.combo,
     feedback: missed ? "Miss" : game.feedback,
+    feedbackAt: missed ? time : game.feedbackAt,
   };
 }
 export function hitBeat(game: BeatGame, lane: number): BeatGame {
@@ -76,7 +103,8 @@ export function hitBeat(game: BeatGame, lane: number): BeatGame {
     game.phase !== "playing" ||
     !Number.isInteger(lane) ||
     lane < 0 ||
-    lane > 3
+    lane > 3 ||
+    game.time < BEAT_COUNT_IN - HIT_WINDOW
   )
     return game;
   const candidates = game.notes.filter(
@@ -92,6 +120,7 @@ export function hitBeat(game: BeatGame, lane: number): BeatGame {
       combo: 0,
       points: Math.max(0, game.points - 35),
       feedback: "Off beat",
+      feedbackAt: game.time,
     };
   const combo = game.combo + 1;
   return {
@@ -100,6 +129,7 @@ export function hitBeat(game: BeatGame, lane: number): BeatGame {
     best: Math.max(game.best, combo),
     points: game.points + (error <= 0.08 ? 100 : 60),
     feedback: error <= 0.08 ? "Perfect" : "Good",
+    feedbackAt: game.time,
     notes: game.notes.map((n) => (n === note ? { ...n, hit: true } : n)),
   };
 }

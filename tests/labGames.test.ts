@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   advanceBeat,
+  beatCue,
   beatPadLane,
+  beatRoundEnd,
+  BEAT_COUNT_IN,
+  BEAT_INTERVAL,
   newBeatGame,
   hitBeat,
   HIT_WINDOW,
@@ -59,6 +63,30 @@ describe("Beat Lab", () => {
     expect(idle.phase).toBe("done");
     expect(idle.notes.every((n) => n.missed)).toBe(true);
     expect(advanceBeat(idle, 1)).toBe(idle);
+  });
+  it("lets players try pads in the count-in, then cues only scoring windows", () => {
+    const start = { ...newBeatGame(), phase: "playing" as const };
+    const countIn = advanceBeat(start, BEAT_COUNT_IN - HIT_WINDOW - 0.01);
+    expect(hitBeat(countIn, 0)).toBe(countIn);
+    expect(beatCue(countIn, 0)).toBe(false);
+    const first = advanceBeat(countIn, 0.02);
+    expect(beatCue(first, 0)).toBe(true);
+    expect(beatCue(first, 1)).toBe(false);
+    expect(beatCue(hitBeat(first, 0), 0)).toBe(false);
+    expect(beatCue(advanceBeat(first, 0.5), 0)).toBe(false);
+  });
+  it("introduces the rhythm before faster pairs without extending the round", () => {
+    const game = newBeatGame();
+    const gaps = game.notes
+      .slice(1)
+      .map((note, i) => note.at - game.notes[i].at);
+    expect(
+      gaps.slice(0, 15).every((gap) => Math.abs(gap - BEAT_INTERVAL) < 0.001),
+    ).toBe(true);
+    expect(
+      gaps.slice(15).some((gap) => Math.abs(gap - BEAT_INTERVAL / 2) < 0.001),
+    ).toBe(true);
+    expect(beatRoundEnd(game)).toBeCloseTo(BEAT_COUNT_IN + 32 * BEAT_INTERVAL);
   });
 });
 

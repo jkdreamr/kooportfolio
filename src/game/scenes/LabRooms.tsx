@@ -18,11 +18,15 @@ import { roomFor } from "../core/room";
 import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import {
   advanceBeat,
+  BEAT_COUNT_IN,
   BEAT_INTERVAL,
   BEAT_PAD_KEYS,
+  beatCue,
   beatPadLane,
+  beatRoundEnd,
   flipLights,
   hitBeat,
+  HIT_WINDOW,
   LIGHTS_TARGET,
   lightsHint,
   newBeatGame,
@@ -30,11 +34,12 @@ import {
   type BeatGame,
 } from "../core/labGames";
 import { newRunId } from "../../shared/run-id";
-import { labTone } from "./labAudio";
+import { labBeatClick, labTone } from "./labAudio";
 import "./lab-rooms.css";
 
 const colors = ["#7699bb", "#75a59a", "#bf8791", "#aa9cc0"];
-const laneX = [-3.3, -1.1, 1.1, 3.3];
+const LANE_SPACING = 2.2;
+const laneX = BEAT_PAD_KEYS.map((_, lane) => (lane - 1.5) * LANE_SPACING);
 const PAD_FLASH_MS = 220;
 
 function labZoom(id: "music" | "math", width: number, height: number) {
@@ -293,9 +298,11 @@ function BeatVisuals({
         g.phase === "playing" &&
         !note.hit &&
         !note.missed &&
-        until > -0.21 &&
+        until > -HIT_WINDOW &&
         until < 2.7;
       child.position.z = -2 - until * 3;
+      const cap = child.children[1];
+      if (cap) cap.scale.setScalar(Math.abs(until) <= HIT_WINDOW ? 1.2 : 1);
     });
     if (pulse.current) {
       const scale =
@@ -359,9 +366,13 @@ type BeatLaunch = "ready" | "playing";
 
 export function BeatLabInterior() {
   const active = useGameMode((s) => s.active?.id === "music");
+  const size = useThree((s) => s.size);
+  const dockWidth =
+    4 * LANE_SPACING * labZoom("music", size.width, size.height) + 18;
   const game = useRef(newBeatGame()),
     rewarded = useRef(false),
-    lastPulse = useRef(-1);
+    lastPulse = useRef(-1),
+    lastTick = useRef<number | null>(null);
   const [view, setView] = useState(game.current),
     [near, setNear] = useState(false);
   const [lit, setLit] = useState<readonly boolean[]>([]);
@@ -384,6 +395,7 @@ export function BeatLabInterior() {
     game.current = newBeatGame();
     rewarded.current = false;
     lastPulse.current = -1;
+    lastTick.current = null;
     setView(game.current);
     clearFlashTimers();
     setLit([]);
@@ -396,27 +408,47 @@ export function BeatLabInterior() {
       cancelRound();
     }, [cancelRound]),
   );
-  const play = useCallback((lane: number) => {
-    if (!gameIsActive() || useGameMode.getState().active?.id !== "music")
-      return;
-    labTone(lane);
-    if (game.current.phase === "playing") {
-      game.current = hitBeat(game.current, lane);
-      setView(game.current);
-    }
-    const setPadLit = (value: boolean) =>
-      setLit((previous) => {
-        const next = [...previous];
-        next[lane] = value;
-        return next;
-      });
-    setPadLit(true);
-    window.clearTimeout(flashTimers.current[lane]);
-    flashTimers.current[lane] = window.setTimeout(
-      () => setPadLit(false),
-      PAD_FLASH_MS,
-    );
+  const syncBeat = useCallback(() => {
+    if (game.current.phase !== "playing") return game.current;
+    const now = performance.now();
+    const previous = lastTick.current;
+    lastTick.current = now;
+    if (previous !== null)
+      game.current = advanceBeat(game.current, (now - previous) / 1000);
+    return game.current;
   }, []);
+  useEffect(
+    () =>
+      useGame.subscribe(() => {
+        if (!gameIsActive()) lastTick.current = null;
+      }),
+    [],
+  );
+  const play = useCallback(
+    (lane: number) => {
+      if (!gameIsActive() || useGameMode.getState().active?.id !== "music")
+        return;
+      const g = syncBeat();
+      if (g.phase === "playing") {
+        game.current = hitBeat(g, lane);
+        setView(game.current);
+      }
+      labTone(lane);
+      const setPadLit = (value: boolean) =>
+        setLit((previous) => {
+          const next = [...previous];
+          next[lane] = value;
+          return next;
+        });
+      setPadLit(true);
+      window.clearTimeout(flashTimers.current[lane]);
+      flashTimers.current[lane] = window.setTimeout(
+        () => setPadLit(false),
+        PAD_FLASH_MS,
+      );
+    },
+    [syncBeat],
+  );
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (!gameIsActive() || useGameMode.getState().active?.id !== "music")
@@ -437,18 +469,20 @@ export function BeatLabInterior() {
     return () => document.removeEventListener("keydown", key);
   }, [play]);
   useFrame((_, dt) => {
-    if (!gameIsActive() || !runtime.active) return;
+    if (!gameIsActive() || !runtime.active) {
+      lastTick.current = null;
+      return;
+    }
     if (useGameMode.getState().active?.id !== "music") {
       const nearby = Math.hypot(runtime.x, runtime.z + 2) <= 8;
       if (nearby !== near) setNear(nearby);
       return;
     }
-    game.current = advanceBeat(game.current, Math.min(dt, 0.05));
-    const g = game.current;
-    const pulse = Math.floor(g.time / BEAT_INTERVAL);
+    const g = syncBeat();
+    const pulse = Math.floor((g.time + 0.0001) / BEAT_INTERVAL);
     if (g.phase === "playing" && pulse !== lastPulse.current) {
       lastPulse.current = pulse;
-      labTone(0, true);
+      labBeatClick();
     }
     if (g.phase === "done" && !rewarded.current) {
       rewarded.current = true;
@@ -459,11 +493,11 @@ export function BeatLabInterior() {
           .award(`music-${newRunId()}`, g.points >= 2600 ? 20 : 12, 10);
     }
     refresh.current += dt;
-    if (refresh.current > 0.08) {
+    if (refresh.current > 0.04) {
       refresh.current = 0;
       setView(g);
     }
-  });
+  }, -1);
   const start = (phase: BeatLaunch) => {
     if (!gameIsActive()) return;
     if (!active) {
@@ -474,9 +508,10 @@ export function BeatLabInterior() {
     if (phase === "playing") {
       game.current = { ...game.current, phase };
       lastPulse.current = 0;
+      lastTick.current = performance.now();
       setView(game.current);
+      labBeatClick();
     }
-    labTone(0, true);
   };
   const hits = view.notes.filter((note) => note.hit).length;
   return (
@@ -499,15 +534,20 @@ export function BeatLabInterior() {
               </div>
               <LabGameActions onClose={close} />
             </header>
-            <div className="lab-game-bottom">
+            <div
+              className="lab-game-bottom"
+              style={{ "--beat-dock-width": `${dockWidth}px` } as CSSProperties}
+            >
               <div className="beat-toolbar">
                 {view.phase !== "ready" && (
                   <p className="lab-feedback" role="status">
                     {view.phase === "done"
                       ? `${hits}/32 hits · best ${view.best}×${hits >= 20 ? ` · +${view.points >= 2600 ? 20 : 12} coins` : " · 20 hits earns coins"}`
-                      : view.time < 2.4
-                        ? `Ready · ${Math.ceil((2.4 - view.time) / BEAT_INTERVAL)}`
-                        : view.feedback || "Hit the pads on beat"}
+                      : view.feedback && view.time - view.feedbackAt < 0.75
+                        ? view.feedback
+                        : view.time < BEAT_COUNT_IN
+                          ? `Ready · ${Math.ceil((BEAT_COUNT_IN - view.time) / BEAT_INTERVAL)}`
+                          : "Match the notes"}
                   </p>
                 )}
                 <button
@@ -529,6 +569,7 @@ export function BeatLabInterior() {
                     key={key}
                     style={{ "--pad-color": colors[lane] } as CSSProperties}
                     data-lit={lit[lane] || undefined}
+                    data-cued={beatCue(view, lane) || undefined}
                     onPointerDown={(e) => {
                       if (e.button !== 0) return;
                       e.preventDefault();
@@ -545,15 +586,13 @@ export function BeatLabInterior() {
                   </button>
                 ))}
               </div>
-              {view.phase === "playing" && (
-                <div className="beat-track" aria-hidden="true">
-                  <i
-                    style={{
-                      width: `${Math.min(100, (view.time / 21.6) * 100)}%`,
-                    }}
-                  />
-                </div>
-              )}
+              <div className="beat-track" aria-hidden="true">
+                <i
+                  style={{
+                    width: `${Math.min(100, (view.time / beatRoundEnd(view)) * 100)}%`,
+                  }}
+                />
+              </div>
             </div>
           </>
         ) : (
