@@ -124,7 +124,7 @@ export function CampusDistrict() {
         color="#8c332b"
         ink="#f0dba7"
       />
-      <CampusSign text="MAIN QUAD" p={[0, 0.65, 4.5]} size={[3.8, 0.6]} />
+      <CampusSign text="MAIN QUAD" p={[-7, 3.25, 5.65]} size={[3.8, 0.6]} />
       <CampusSign text="MAIN QUAD" p={[9.6, 3.3, -25.4]} size={[3.8, 0.6]} />
       <CampusSign
         text="HOOVER TOWER"
