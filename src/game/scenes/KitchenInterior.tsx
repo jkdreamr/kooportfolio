@@ -540,7 +540,7 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
           <Bottle p={[0, 1.4, 0]} color="#608255" />
         </group>
       ))}
-      <GameControls name="Cooking game" position={[0, 0.4, 6]}>
+      <GameControls name="Cooking game" position={[0, 0.4, 6]} mobileSheet>
         {shift.status === "closed" ? (
           <>
             <button onClick={start}>Open kitchen</button>
@@ -566,6 +566,14 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
               <b>{Math.ceil(shift.remaining)}s</b>
               <span>{shift.served} served</span>
               <b>{shift.tips} tips</b>
+              <button
+                className="kitchen-close"
+                aria-label="Close kitchen"
+                title="Close kitchen"
+                onClick={() => shiftDispatch({ type: "end" })}
+              >
+                ×
+              </button>
             </div>
             <div className="kitchen-orders" aria-label="Customer orders">
               {shift.orders.map((order) => (
@@ -589,7 +597,19 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
                 </button>
               ))}
             </div>
-            {active && <h2>{RECIPES[active.recipe].name}</h2>}
+            {active && (
+              <div className="kitchen-active">
+                <h2>
+                  {active.name} · {RECIPES[active.recipe].name}
+                </h2>
+                <meter
+                  aria-label={`${active.name} patience`}
+                  min={0}
+                  max={active.maxPatience}
+                  value={active.patience}
+                />
+              </div>
+            )}
             {shift.active === null && <p role="status">{shift.feedback}</p>}
             {game.stage === "gather" && (
               <>
@@ -644,12 +664,6 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
                 </p>
               </>
             )}
-            <button
-              className="kitchen-end"
-              onClick={() => shiftDispatch({ type: "end" })}
-            >
-              Close kitchen
-            </button>
           </>
         )}
       </GameControls>

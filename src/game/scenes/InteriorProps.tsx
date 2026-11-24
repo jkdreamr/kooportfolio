@@ -17,10 +17,12 @@ export function GameControls({
   children,
   name,
   position = [0, 0.6, 3.5],
+  mobileSheet = false,
 }: {
   children: ReactNode;
   name: string;
   position?: [number, number, number];
+  mobileSheet?: boolean;
 }) {
   const gl = useThree((s) => s.gl);
   // Drei otherwise changes targets when R3F connects its event source on the
@@ -31,7 +33,9 @@ export function GameControls({
   );
   const projected = useMemo(() => new THREE.Vector3(), []);
   const panel = useRef<HTMLElement>(null);
-  const hidden = useGame((s) => s.paused || s.panel !== "none" || s.build);
+  const hidden = useGame(
+    (s) => s.paused || s.panel !== "none" || s.build || s.near === "exit",
+  );
   return hidden ? null : (
     <Html
       portal={portal}
@@ -44,6 +48,8 @@ export function GameControls({
           (panel.current?.offsetWidth ?? Math.min(320, size.width - 36)) / 2;
         const x = ((projected.x + 1) * size.width) / 2;
         const halfHeight = (panel.current?.offsetHeight ?? 160) / 2;
+        if (mobileSheet && size.width <= 700 && size.height >= 600)
+          return [size.width / 2, size.height - 235 - halfHeight];
         // Wide screens have room for a side card; keep the customers/table clear.
         if (size.width >= 900)
           return [
@@ -67,7 +73,7 @@ export function GameControls({
     >
       <section
         ref={panel}
-        className="interior-game"
+        className={`interior-game${mobileSheet ? " interior-game--sheet" : ""}`}
         aria-label={name}
         onPointerDown={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}

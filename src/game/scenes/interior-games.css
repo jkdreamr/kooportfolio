@@ -112,6 +112,7 @@
 }
 .kitchen-shift {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   font-size: 12px;
   margin-bottom: 10px;
@@ -149,14 +150,56 @@
   height: 10px;
   margin: 5px auto 0;
 }
-.interior-game .kitchen-end {
-  padding: 5px 10px;
+.interior-game .kitchen-close {
+  padding: 0;
+  width: 44px;
   min-height: 44px;
   background: transparent;
   border: 0;
   color: #c4bd98;
-  font-size: 11px;
-  margin-top: 6px;
+  font-size: 24px;
+}
+.kitchen-active > meter {
+  display: none;
+}
+@media (max-width: 700px) and (min-height: 600px) {
+  .interior-game--sheet {
+    width: calc(100vw - 24px);
+    max-height: 180px;
+    padding: 6px 10px;
+    border-radius: 5px;
+    transform: translateY(calc(-1 * env(safe-area-inset-bottom)));
+  }
+  .interior-game--sheet .kitchen-shift {
+    margin-bottom: 2px;
+    font-size: 11px;
+  }
+  .interior-game--sheet .kitchen-orders {
+    margin-bottom: 0;
+  }
+  .interior-game--sheet .kitchen-orders button {
+    padding: 4px;
+  }
+  .interior-game--sheet .kitchen-orders:has(.active) {
+    display: none;
+  }
+  .interior-game--sheet h2 {
+    font-size: 12px;
+    margin: 0 0 3px;
+  }
+  .interior-game--sheet p {
+    display: none;
+  }
+  .interior-game--sheet .kitchen-active > meter {
+    display: block;
+    width: 100%;
+    height: 6px;
+    margin-bottom: 5px;
+  }
+  .interior-game--sheet .interior-heat {
+    margin: 5px 0 8px;
+    height: 12px;
+  }
 }
 @media (max-width: 600px) {
   .interior-game {
