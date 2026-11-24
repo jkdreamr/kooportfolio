@@ -3,6 +3,7 @@ import { OrthographicCamera, Vector3 } from "three";
 import { WORLD_ELLIPSE } from "../src/shared/world-bounds";
 import { HOME_ISLAND, islandForWorld } from "../src/game/core/homeIsland";
 import {
+  islandCenter,
   islandZoom,
   ISLAND_CAMERA_OFFSET,
 } from "../src/game/core/islandCamera";
@@ -122,6 +123,11 @@ describe("Home’s actual compact island", () => {
     [390, 844],
     [844, 390],
   ])("fits the actual compact shore and rail at %s × %s", (width, height) => {
+    const [centerX, centerZ] = islandCenter("home");
+    expect([centerX, centerZ]).toEqual([
+      HOME_ISLAND.centerX,
+      HOME_ISLAND.centerZ,
+    ]);
     const camera = new OrthographicCamera(
       -width / 2,
       width / 2,
@@ -131,11 +137,11 @@ describe("Home’s actual compact island", () => {
       350,
     );
     camera.position.set(
-      HOME_ISLAND.centerX + ISLAND_CAMERA_OFFSET[0],
+      centerX + ISLAND_CAMERA_OFFSET[0],
       ISLAND_CAMERA_OFFSET[1],
-      HOME_ISLAND.centerZ + ISLAND_CAMERA_OFFSET[2],
+      centerZ + ISLAND_CAMERA_OFFSET[2],
     );
-    camera.lookAt(HOME_ISLAND.centerX, 0.7, HOME_ISLAND.centerZ);
+    camera.lookAt(centerX, 0.7, centerZ);
     camera.zoom = islandZoom(width, height, "home");
     camera.updateProjectionMatrix();
     camera.updateMatrixWorld();
