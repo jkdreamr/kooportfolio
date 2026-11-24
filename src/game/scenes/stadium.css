@@ -126,6 +126,12 @@
   outline-offset: 3px;
 }
 /* A single physical exit stays opposite the walking stick. */
+.game-shell
+  .scene-stadium:has(.context-action.visible)
+  .interior-heading
+  .back-link {
+  visibility: hidden;
+}
 .game-shell .scene-stadium .context-action {
   left: auto;
   right: 24px;
