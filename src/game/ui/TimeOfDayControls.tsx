@@ -44,7 +44,11 @@ export function TimeOfDayControls() {
         aria-label="Time of day"
         title="Time of day"
         value={mode}
-        onChange={(event) => setMode(event.target.value as TimeMode)}
+        onChange={(event) => {
+          setMode(event.target.value as TimeMode);
+          // Return keys to walking/interacting after a time selection.
+          event.currentTarget.blur();
+        }}
       >
         <option value="auto">Auto</option>
         {Object.entries(TIME_PRESETS).map(([value, preset]) => (
