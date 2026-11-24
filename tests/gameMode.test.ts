@@ -9,7 +9,7 @@ import { keys, touch } from "../src/game/core/input";
 import { runtime, useGame, walkTo } from "../src/game/core/store";
 import { SKATE_EXIT } from "../src/game/core/skate";
 import { PHOTO_BOOTH_ENTRY, PHOTO_BOOTH_ORIGIN } from "../src/game/core/photoBoothLayout";
-import { canWalk, moveWorld } from "../src/game/core/world";
+import { canWalk, destinationsInWorld, moveWorld } from "../src/game/core/world";
 
 beforeEach(() => {
   useGameMode.setState({ active: null });
@@ -48,6 +48,17 @@ describe("optional immersive games", () => {
     expect(canWalk(x + 1.5, z, "korea")).toBe(false);
     expect(canWalk(x + 1.04, z + 1.3, "korea")).toBe(false);
     expect(canWalk(x, z - 1.3, "korea")).toBe(false);
+  });
+
+  it("walks from the south to a spot where the Places photo booth can open", () => {
+    useGame.setState({ scene: "hub", world: "korea" });
+    [runtime.x, runtime.z] = [PHOTO_BOOTH_ENTRY[0], 2];
+    const booth = destinationsInWorld("korea").find(({ id }) => id === "photo")!;
+    walkTo(booth.x, booth.z);
+    const arrival = runtime.path.at(-1) ?? runtime.target;
+    expect(arrival).not.toBeNull();
+    [runtime.x, runtime.z] = arrival!;
+    expect(startGameMode("photo-booth"), `Places stopped at ${arrival}`).toBe(true);
   });
   it.each([0, 23, 25])("routes the skate walker from z=%s to its own physical gate", (z) => {
     useGame.setState({ scene: "skate" });

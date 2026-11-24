@@ -11,5 +11,5 @@ export const PHOTO_BOOTH_OBSTACLES = [
 ] as const;
 
 export function isNearPhotoBooth(px: number, pz: number) {
-  return Math.abs(px - x) < 0.85 && pz > z - 0.9 && pz < z + 2.55;
+  return Math.abs(px - x) < 0.85 && pz > z - 0.9 && pz < PHOTO_BOOTH_ENTRY[1] + 0.9;
 }
