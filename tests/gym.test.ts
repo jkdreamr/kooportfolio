@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useGym } from "../src/game/scenes/CognitionGym";
+import { gymRepMotion, useGym } from "../src/game/scenes/CognitionGym";
 import { useGameMode } from "../src/game/core/gameMode";
 import { runtime, useGame } from "../src/game/core/store";
 import { freshSave } from "../src/shared/save";
@@ -66,6 +66,21 @@ describe("optional gym sessions", () => {
     expect(useGym.getState().earned).toBe(0);
     expect(useGame.getState().save.coins).toBe(15);
     expect(useGameMode.getState().active?.position).toEqual([1, 1]);
+  });
+
+  it("keeps the recovery cue aligned with the first accepted follow-up lift", () => {
+    useGym.getState().startSession();
+    expect(gymRepMotion(useGym.getState().liftedAt).phase).toBe("ready");
+    useGym.getState().lift();
+    expect(gymRepMotion(useGym.getState().liftedAt).phase).toBe("pressing");
+    clock += 899;
+    expect(gymRepMotion(useGym.getState().liftedAt).phase).toBe("lowering");
+    useGym.getState().lift();
+    expect(useGym.getState().reps).toBe(1);
+    clock += 1;
+    expect(gymRepMotion(useGym.getState().liftedAt).phase).toBe("ready");
+    useGym.getState().lift();
+    expect(useGym.getState().reps).toBe(2);
   });
 
   it("ignores lifts while paused or in another room", () => {

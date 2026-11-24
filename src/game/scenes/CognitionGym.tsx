@@ -15,6 +15,20 @@ import {
 import { gameIsActive } from "./InteriorProps";
 import "./gym-room.css";
 
+const GYM_REP_MS = 900;
+type LiftPhase = "ready" | "pressing" | "lowering";
+
+export function gymRepMotion(liftedAt: number, now = performance.now()) {
+  const progress = Math.max(0, Math.min(1, (now - liftedAt) / GYM_REP_MS));
+  const phase: LiftPhase =
+    progress === 1 ? "ready" : progress < 0.5 ? "pressing" : "lowering";
+  return {
+    progress,
+    phase,
+    height: 1.65 + (progress < 1 ? Math.sin(progress * Math.PI) * 0.9 : 0),
+  };
+}
+
 export const useGym = create<{
   reps: number;
   liftedAt: number;
@@ -50,7 +64,7 @@ export const useGym = create<{
     )
       return;
     const now = performance.now();
-    if (now - get().liftedAt < 900) return;
+    if (now - get().liftedAt < GYM_REP_MS) return;
     const reps = get().reps + 1;
     set({ reps, liftedAt: now });
     if (reps === 8) {
@@ -88,7 +102,13 @@ function GymControls() {
     earned = useGym((s) => s.earned);
   const hidden = useGame((s) => s.paused || s.panel !== "none" || s.build);
   const [near, setNear] = useState(false),
-    [ready, setReady] = useState(true);
+    [phase, setPhase] = useState<LiftPhase>("ready"),
+    [touch, setTouch] = useState(
+      () => window.matchMedia("(pointer: coarse)").matches,
+    );
+  const recovery = useRef<HTMLSpanElement>(null);
+  const ready = phase === "ready";
+  const complete = reps === 8 && ready;
   const gl = useThree((s) => s.gl);
   const portal = useMemo(
     () => ({ current: gl.domElement.parentElement! }),
@@ -109,6 +129,13 @@ function GymControls() {
     };
   }, []);
   useEffect(() => {
+    // Keep the first frame of an accepted rep in sync with the button too.
+    return useGym.subscribe((state, previous) => {
+      if (state.liftedAt !== previous.liftedAt)
+        setPhase(Number.isFinite(state.liftedAt) ? "pressing" : "ready");
+    });
+  }, []);
+  useEffect(() => {
     // The room's E shortcut opens Play; that same event must not lift too.
     if (!active) return;
     const key = (e: KeyboardEvent) => {
@@ -121,6 +148,7 @@ function GymControls() {
         return;
       if (e.key === " " || e.key.toLowerCase() === "e") {
         e.preventDefault();
+        setTouch(false);
         useGym.getState().lift();
       }
     };
@@ -133,8 +161,10 @@ function GymControls() {
       const nearby = Math.hypot(runtime.x, runtime.z + 2) <= 6;
       if (nearby !== near) setNear(nearby);
     }
-    const recovered = performance.now() - useGym.getState().liftedAt >= 900;
-    if (recovered !== ready) setReady(recovered);
+    const motion = gymRepMotion(useGym.getState().liftedAt);
+    if (motion.phase !== phase) setPhase(motion.phase);
+    if (recovery.current)
+      recovery.current.style.transform = `scaleX(${motion.progress})`;
   });
   if (hidden) return null;
   return (
@@ -151,7 +181,11 @@ function GymControls() {
         aria-label="Gym controls"
         tabIndex={-1}
         ref={focusGame}
-        onPointerDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          setTouch(e.pointerType === "touch" || e.pointerType === "pen");
+        }}
+        onKeyDownCapture={() => setTouch(false)}
         onKeyDown={(e) => {
           if (e.key === " " && (e.target as HTMLElement).closest("button"))
             e.stopPropagation();
@@ -185,20 +219,29 @@ function GymControls() {
                 ))}
               </div>
               <p role="status">
-                {reps === 8
+                {complete
                   ? `Set complete${earned ? ` · +${earned} coins` : " · Daily reward claimed"}`
-                  : `${reps}/8 · ${ready ? "Space or E to lift" : "Lowering…"}`}
+                  : `${reps}/8 · ${ready ? "Ready" : phase === "pressing" ? "Pressing…" : "Lowering…"}`}
               </p>
               <button
                 className="gym-primary"
-                disabled={reps < 8 && !ready}
-                onClick={() =>
-                  reps === 8
-                    ? useGym.getState().startSession()
-                    : useGym.getState().lift()
-                }
+                aria-disabled={!ready}
+                data-ready={ready}
+                onClick={() => {
+                  if (!ready) return;
+                  if (complete) useGym.getState().startSession();
+                  else useGym.getState().lift();
+                }}
               >
-                {reps === 8 ? "Again" : "Lift"}
+                <span
+                  className="gym-recovery"
+                  ref={recovery}
+                  aria-hidden="true"
+                />
+                <span className="gym-action-label">
+                  {complete ? "Again" : touch ? "Tap to lift" : "Lift"}
+                  {!complete && !touch && <kbd>Space / E</kbd>}
+                </span>
               </button>
             </div>
           </>
@@ -281,18 +324,115 @@ export function CognitionFurnishings() {
   );
 }
 
+const ARM_UP = new THREE.Vector3(0, 1, 0);
+
+function GymArm({ side }: { side: -1 | 1 }) {
+  const upper = useRef<THREE.Group>(null);
+  const forearm = useRef<THREE.Group>(null);
+  const hand = useRef<THREE.Group>(null);
+  const pose = useMemo(
+    () => ({
+      shoulder: new THREE.Vector3(side * 0.43, 1.12, -2.92),
+      grip: new THREE.Vector3(side * 1.05, 1.65, -3),
+      elbow: new THREE.Vector3(),
+      outward: new THREE.Vector3(),
+      direction: new THREE.Vector3(),
+    }),
+    [side],
+  );
+  useFrame(() => {
+    if (!upper.current || !forearm.current || !hand.current) return;
+    const { shoulder, grip, elbow, outward, direction } = pose;
+    grip.y = gymRepMotion(useGym.getState().liftedAt).height;
+    direction.copy(grip).sub(shoulder);
+    // Equal-length upper/forearms: elbows bend out, hands stay on the bar.
+    const bend = Math.sqrt(Math.max(0, 0.8 ** 2 - direction.lengthSq() / 4));
+    outward.set(side * direction.y, -Math.abs(direction.x), 0).normalize();
+    elbow.copy(shoulder).lerp(grip, 0.5).addScaledVector(outward, bend);
+    const place = (
+      part: THREE.Group,
+      from: THREE.Vector3,
+      to: THREE.Vector3,
+    ) => {
+      direction.copy(to).sub(from);
+      part.position.copy(from).lerp(to, 0.5);
+      part.scale.y = direction.length();
+      part.quaternion.setFromUnitVectors(ARM_UP, direction.normalize());
+    };
+    place(upper.current, shoulder, elbow);
+    place(forearm.current, elbow, grip);
+    hand.current.position.copy(grip);
+  });
+  return (
+    <group>
+      <group ref={upper}>
+        <Box s={[0.29, 1, 0.29]} c="#c78f69" />
+      </group>
+      <group ref={forearm}>
+        <Box s={[0.25, 1, 0.25]} c="#c78f69" />
+      </group>
+      <group ref={hand}>
+        <Box s={[0.29, 0.24, 0.3]} c="#d7a17a" />
+        <Box p={[0, -0.17, 0]} s={[0.27, 0.1, 0.26]} c="#344453" />
+      </group>
+    </group>
+  );
+}
+
+function GymLifter() {
+  return (
+    <group>
+      <Box p={[0, 1.03, -2.3]} s={[0.86, 0.38, 1.4]} c="#70869a" />
+      <Box p={[0, 1.14, -3.4]} s={[0.62, 0.56, 0.63]} c="#d7a17a" />
+      <Box p={[0, 1.22, -3.67]} s={[0.65, 0.54, 0.2]} c="#293731" />
+      {[-1, 1].map((side) => (
+        <Box
+          key={side}
+          p={[side * 0.14, 1.43, -3.39]}
+          s={[0.06, 0.03, 0.08]}
+          c="#293731"
+        />
+      ))}
+      <Box p={[0, 1.43, -3.19]} s={[0.13, 0.025, 0.04]} c="#915b48" />
+      <Box p={[0, 1, -1.3]} s={[0.86, 0.36, 0.65]} c="#293e4d" />
+      {[-1, 1].map((side) => (
+        <group key={side}>
+          <Box
+            p={[side * 0.4, 0.94, -0.72]}
+            s={[0.34, 0.34, 0.9]}
+            r={[0, side * 0.25, 0]}
+            c="#293e4d"
+          />
+          <Box
+            p={[side * 0.58, 0.61, -0.16]}
+            s={[0.27, 0.64, 0.27]}
+            r={[0.15, 0, side * 0.12]}
+            c="#c78f69"
+          />
+          <Box
+            p={[side * 0.62, 0.29, 0.11]}
+            s={[0.43, 0.24, 0.65]}
+            c="#e4e8eb"
+          />
+        </group>
+      ))}
+      <GymArm side={-1} />
+      <GymArm side={1} />
+    </group>
+  );
+}
+
 export function GymFurnishings() {
   const active = useGameMode((s) => s.active?.id === "gym");
   const bar = useRef<THREE.Group>(null);
   useFrame(() => {
     if (!bar.current) return;
-    const t = (performance.now() - useGym.getState().liftedAt) / 900;
-    const lift = t >= 0 && t <= 1 ? Math.sin(t * Math.PI) * 0.9 : 0;
-    bar.current.position.y = 1.65 + lift;
+    bar.current.position.y = gymRepMotion(useGym.getState().liftedAt).height;
   });
   return (
     <group>
       {active && <GymCamera />}
+      {active && <GymLifter />}
       <GymControls />
       <Box p={[0, 0.1, -2]} s={[5.8, 0.14, 5.3]} c="#354c46" />
       <Box p={[0, 0.7, -2]} s={[1.1, 0.28, 3.6]} c="#a9563e" />
