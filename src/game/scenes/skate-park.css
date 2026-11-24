@@ -27,7 +27,7 @@
 .skate-ui .is-grinding {
   background: #a56b36;
 }
-.skate-ui button:focus-visible {
+.game-shell .skate-ui button:focus-visible {
   outline: 2px solid #c3d0d0;
   outline-offset: 3px;
 }
