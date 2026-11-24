@@ -11,6 +11,10 @@ import { campus } from "../core/campus";
 import { POND, POND_SURFACE } from "../core/pond";
 import { WORLD_ELLIPSE } from "../../shared/world-bounds";
 import type { WorldId } from "../core/worlds";
+import {
+  isKoreaLandmarkArea,
+  KOREA_LANDMARK_CANOPY_CLEARANCE,
+} from "../core/koreaLandmarks";
 
 type Block = [number, number, number, number, number, number, string, number?];
 function Blocks({
@@ -66,6 +70,12 @@ const rimTrees: TreePlacement[] = Array.from({ length: 40 }, (_, i) => {
 });
 const rimGroves = Array.from({ length: 8 }, (_, i) =>
   rimTrees.slice(i * 5, i * 5 + 5),
+);
+const koreaRimGroves = rimGroves.map((grove) =>
+  grove.filter(
+    ({ p: [x, , z] }) =>
+      !isKoreaLandmarkArea(x, z, KOREA_LANDMARK_CANOPY_CLEARANCE),
+  ),
 );
 const masonry: Block[] = [];
 for (let i = 0; i < 125; i++) {
@@ -152,7 +162,7 @@ export function Landscape({ world = "stanford" }: { world?: WorldId }) {
           />
         </>
       )}
-      <Scenery />
+      <Scenery world={world} />
       {world === "stanford" && (
         <group position={[campus.x, 0, campus.z]} rotation={[0, Math.PI, 0]}>
           <CampusDistrict />
@@ -223,7 +233,7 @@ export function Landscape({ world = "stanford" }: { world?: WorldId }) {
       <group position={[-23, 0.1, 98]} rotation={[0, 1.4, 0]}>
         <Boat pace={0} color="#edc96e" />
       </group>
-      {rimGroves.map((trees, i) => (
+      {(world === "korea" ? koreaRimGroves : rimGroves).map((trees, i) => (
         <NaturalTrees key={i} trees={trees} />
       ))}
       {world === "home" && (

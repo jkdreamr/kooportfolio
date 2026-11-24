@@ -3,6 +3,7 @@ import type { WorldId } from "./worlds";
 export const GARDEN_REGROW_SECONDS = 35;
 export const PICNIC_MEAL_SECONDS = 30;
 export const BASKET_CAPACITY = 3;
+export const KOREA_EXERCISE_YARD = [-43, 3, 18, 11] as const;
 export type RegionalAction =
   | "harvest-0"
   | "harvest-1"

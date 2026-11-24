@@ -334,7 +334,13 @@ export function Hub() {
       <VillageGardens world={world} />
       {world !== "stanford" && <RegionalActivities world={world} />}
       {world === "home" && <HomeWorldEnvironment />}
-      {world === "korea" && <KoreaWorldEnvironment />}
+      {world === "korea" && (
+        <KoreaWorldEnvironment
+          onVisitLandmark={(x, z) => {
+            if (!build && !traveling) walkTo(x, z);
+          }}
+        />
+      )}
       <Bulletin />
       <Wildlife />
       {world === "stanford" && !save.memories.includes(HOOVER_KEY) && (
