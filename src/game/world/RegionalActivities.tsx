@@ -305,13 +305,14 @@ export function RegionalActivities({ world }: { world: WorldId }) {
         !available(world)
       )
         return;
-      const spot = nearbyRegionalActivity(
-        world,
-        runtime.x,
-        runtime.z,
-        useActivities.getState().play,
-      );
-      if (!spot) return;
+      const play = useActivities.getState().play;
+      const spot = nearbyRegionalActivity(world, runtime.x, runtime.z, play);
+      // Leave E to doors and villagers when this spot has nothing to do.
+      if (
+        !spot ||
+        stepRegionalActivity(play, spot.id, performance.now() / 1000) === play
+      )
+        return;
       selectActivity(spot.id, world);
       // Delivering at a door's own prompt still lets the same E enter it.
       const door = spot.id.startsWith("parcel-")
