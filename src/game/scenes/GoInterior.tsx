@@ -268,11 +268,11 @@ export function GoInterior() {
             onClick={(e) => e.stopPropagation()}
             onKeyDown={panelKey}>
             {!started ? <button ref={(node) => focusWhenReady(node, "launch")} className="go-primary" onClick={open}>Play Go</button> : <>
-              <header className="go-heading"><h2>Go <small>9 × 9</small></h2>
+              <header className="go-heading" inert={confirmNew}><h2>Go <small>9 × 9</small></h2>
                 <strong className="go-status" aria-live="polite">{status}</strong>
                 <button className="go-close" onClick={close} aria-label="Close Go board">Close</button></header>
               <div className="go-layout">
-                <div className="go-board" role="grid" aria-label="9 by 9 Go board" aria-rowcount={9} aria-colcount={9} aria-busy={thinking}
+                <div className="go-board" inert={confirmNew} role="grid" aria-label="9 by 9 Go board" aria-rowcount={9} aria-colcount={9} aria-busy={thinking}
                   aria-describedby="go-help" onPointerLeave={() => { if (aimKind.current === "pointer") setAim(null); }}>
                   {Array.from({ length: GO_SIZE }, (_, row) => <div role="row" key={row}>
                     {Array.from({ length: GO_SIZE }, (_, col) => {
@@ -299,6 +299,7 @@ export function GoInterior() {
                   </div>)}
                 </div>
                 <div className="go-details">
+                  <div inert={confirmNew}>
                   <p className="go-caption">{computer ? `You: Black · Computer: White (${level})` : "Two players · same device"}</p>
                   {game.phase === "playing" ? <>
                     <div className="go-captures"><span>Black <b>{game.captures[0]}</b></span><span>White <b>{game.captures[1]}</b></span></div>
@@ -336,6 +337,7 @@ export function GoInterior() {
                     </>}
                   </>}
                   <p id="go-help" className="go-message" role="status">{game.phase === "finished" ? "Final score · stones + territory + komi" : game.phase === "scoring" ? "Tap a group to mark or restore it." : message || "Tap a point, or use arrows + Enter / Space."}</p>
+                  </div>
                   {confirmNew ? <div className="go-confirm" role="alertdialog" aria-modal="true" aria-label="Start a new Go game?"><p>Start over?</p><div className="go-actions">
                     <button ref={(node) => focusWhenReady(node, "confirm")} onClick={() => { focusTarget.current = "board"; setConfirmNew(false); }}>Keep playing</button>
                     <button onClick={reset}>Start over</button>
@@ -343,7 +345,7 @@ export function GoInterior() {
                     if (game.moves && game.phase !== "finished") { focusTarget.current = "confirm"; setConfirmNew(true); }
                     else reset();
                   }}>New game</button>}
-                  {game.moves === 0 && <label className="go-mode">Opponent <select value={computer ? level : "local"} onChange={(e) => {
+                  {game.moves === 0 && <label className="go-mode" inert={confirmNew}>Opponent <select value={computer ? level : "local"} onChange={(e) => {
                     const next = GO_LEVELS.find((option) => option === e.target.value);
                     setComputer(Boolean(next));
                     if (next) {
@@ -354,7 +356,7 @@ export function GoInterior() {
                     <optgroup label="Computer">{GO_LEVELS.map((option) =>
                       <option key={option} value={option}>{option[0].toUpperCase() + option.slice(1)}</option>)}</optgroup>
                     <option value="local">Local player</option></select></label>}
-                  <details className="go-rules"><summary>Rules</summary><p>Black starts. Connect stones and surround space. Groups with no adjacent empty points are captured. No suicide or repeated positions. Pass twice to count; mark dead groups by agreement, or resume to capture them.</p>
+                  <details className="go-rules" inert={confirmNew}><summary>Rules</summary><p>Black starts. Connect stones and surround space. Groups with no adjacent empty points are captured. No suicide or repeated positions. Pass twice to count; mark dead groups by agreement, or resume to capture them.</p>
                     <p>Area scoring: stones + surrounded space. White gets {GO_KOMI} komi. Captures aren’t added again. Arrow keys move; Enter places. Local game, no online opponent.</p></details>
                 </div>
               </div>
