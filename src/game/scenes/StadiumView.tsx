@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { PerspectiveCamera } from "@react-three/drei";
 import * as THREE from "three";
@@ -43,12 +43,21 @@ export function StadiumView({
     [],
   );
   const anchor = useMemo(() => new THREE.Vector3(), []);
+  const target = useMemo(() => new THREE.Vector3(), []);
+  const nextTarget = useMemo(() => new THREE.Vector3(), []);
+  const wasPlaying = useRef(false);
 
-  useFrame(({ camera, size, scene }) => {
+  useFrame(({ camera, size, scene }, delta) => {
     const portrait = size.width < 700 && size.height > size.width;
     if (camera instanceof THREE.PerspectiveCamera) {
       const offset = playing ? stadiumViewOffset(size.width, size.height) : 0;
-      if (offset)
+      if (
+        offset &&
+        (!camera.view?.enabled ||
+          camera.view.offsetX !== offset ||
+          camera.view.fullWidth !== size.width ||
+          camera.view.fullHeight !== size.height)
+      )
         camera.setViewOffset(
           size.width,
           size.height,
@@ -57,7 +66,7 @@ export function StadiumView({
           size.width,
           size.height,
         );
-      else if (camera.view?.enabled) camera.clearViewOffset();
+      else if (!offset && camera.view?.enabled) camera.clearViewOffset();
     }
     const frame = stadiumCameraFrame(
       runtime,
@@ -66,7 +75,11 @@ export function StadiumView({
       portrait,
     );
     camera.position.set(...frame.position);
-    camera.lookAt(...frame.target);
+    nextTarget.set(...frame.target);
+    if (!playing || !wasPlaying.current) target.copy(nextTarget);
+    else target.lerp(nextTarget, 1 - Math.exp(-10 * delta));
+    wasPlaying.current = playing;
+    camera.lookAt(target);
     camera.updateMatrixWorld();
     if (controlsRef.current) {
       const x = size.width - 78;

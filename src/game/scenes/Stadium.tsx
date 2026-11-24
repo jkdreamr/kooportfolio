@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { Ball, Box, Cylinder } from "../world/Models";
@@ -16,10 +16,11 @@ import {
   loadStadiumBest,
   saveStadiumBest,
   scoreStadiumKick,
-  stadiumAimTarget,
+  stadiumAimWindow,
   stadiumKick,
   stadiumPowerTarget,
   stadiumTiming,
+  stadiumTimingStart,
   STADIUM_KICKS,
 } from "../core/stadiumChallenge";
 import { GameControls, gameIsActive } from "./InteriorProps";
@@ -100,6 +101,7 @@ function FootballPlayer({
 type Flight = { kick: Kick; time: number };
 const EMPTY_SCORE = { points: 0, streak: 0 };
 const WALKING_SPOT = { x: 0, z: FIELD_GOAL.startZ, wind: 0 };
+const TRAIL_DOTS = 7;
 
 /** Complete room-sized outdoor stadium. Mount instead of the generic room shell. */
 export function StadiumInterior() {
@@ -109,62 +111,81 @@ export function StadiumInterior() {
   const [score, setScore] = useState(EMPTY_SCORE);
   const [best, setBest] = useState(loadStadiumBest);
   const [phase, setPhase] = useState<StadiumPhase>("power");
-  const [result, setResult] = useState<KickResult | null>(null);
+  const [results, setResults] = useState<KickResult[]>([]);
   const [lockedPower, setLockedPower] = useState(0);
   const ball = useRef<THREE.Group>(null);
   const controls = useRef<THREE.Group>(null);
   const aimMarker = useRef<THREE.Group>(null);
+  const trail = useRef<THREE.InstancedMesh>(null);
+  const trailDot = useMemo(() => new THREE.Object3D(), []);
   const cursor = useRef<HTMLSpanElement>(null);
   const returnFocus = useRef(false);
   const flight = useRef<Flight | null>(null);
   const clock = useRef(0);
+  const sweepStart = useRef(0);
   const timing = useRef(0);
+  const bindCursor = useCallback((element: HTMLSpanElement | null) => {
+    cursor.current = element;
+    if (element) element.style.left = `${timing.current * 100}%`;
+  }, []);
+  const phaseRef = useRef<StadiumPhase>("power");
   const flying = phase === "flight";
   const finished = phase === "result" && attempt === STADIUM_KICKS.length - 1;
   const spot = playing ? STADIUM_KICKS[attempt] : WALKING_SPOT;
+  const result = results[attempt] ?? null;
   const powerTarget = useMemo(() => stadiumPowerTarget(spot), [spot]);
   const aimWindow = useMemo(
-    () =>
-      [
-        stadiumAimTarget(spot, lockedPower, -2.1),
-        stadiumAimTarget(spot, lockedPower, 2.1),
-      ] as const,
+    () => stadiumAimWindow(spot, lockedPower),
     [spot, lockedPower],
   );
 
-  function resetTiming() {
+  function showTiming(start: number) {
     clock.current = 0;
-    timing.current = 0;
-    if (cursor.current) cursor.current.style.left = "0%";
+    sweepStart.current = timing.current = start;
+    if (cursor.current) cursor.current.style.left = `${start * 100}%`;
+  }
+
+  function moveTo(next: StadiumPhase) {
+    phaseRef.current = next;
+    setPhase(next);
   }
 
   function reset() {
     setAttempt(0);
     setScore(EMPTY_SCORE);
-    setPhase("power");
-    setResult(null);
-    resetTiming();
+    setResults([]);
+    showTiming(
+      stadiumTimingStart(0, [stadiumPowerTarget(STADIUM_KICKS[0]), 1]),
+    );
+    moveTo("power");
   }
 
-  function act() {
-    if (!playing || !gameIsActive() || !runtime.active || flight.current)
+  function act(sample = timing.current) {
+    if (
+      !playing ||
+      !gameIsActive() ||
+      !runtime.active ||
+      phaseRef.current !== phase
+    )
       return;
     if (phase === "power") {
-      setLockedPower(timing.current);
-      resetTiming();
-      setPhase("aim");
+      setLockedPower(sample);
+      showTiming(stadiumTimingStart(attempt, stadiumAimWindow(spot, sample)));
+      moveTo("aim");
     } else if (phase === "aim") {
       flight.current = {
-        kick: stadiumKick(spot, lockedPower, timing.current),
+        kick: stadiumKick(spot, lockedPower, sample),
         time: 0,
       };
-      setPhase("flight");
+      timing.current = sample;
+      if (cursor.current) cursor.current.style.left = `${sample * 100}%`;
+      moveTo("flight");
     } else if (phase === "result") {
       if (finished) reset();
       else {
         setAttempt(attempt + 1);
-        resetTiming();
-        setPhase("power");
+        showTiming(0);
+        moveTo("power");
       }
     }
   }
@@ -214,19 +235,40 @@ export function StadiumInterior() {
   useFrame((_, delta) => {
     if (aimMarker.current)
       aimMarker.current.visible = playing && phase === "aim";
+    if (trail.current) trail.current.visible = playing && flying;
     if (!playing && ball.current) {
       ball.current.position.set(0, 0.48, FIELD_GOAL.startZ);
       ball.current.rotation.set(0, 0, 0);
     }
-    if (!playing || !gameIsActive() || !runtime.active) return;
+    if (
+      !playing ||
+      !gameIsActive() ||
+      !runtime.active ||
+      phaseRef.current !== phase
+    )
+      return;
     const dt = Math.min(delta, 0.08);
     const current = flight.current;
     if (current) {
-      current.time += dt;
+      const flightDelta = Math.min(delta, 0.16);
+      current.time += flightDelta;
       const [x, y, z] = kickPosition(current.kick, current.time);
       if (ball.current) {
         ball.current.position.set(x, Math.max(0.32, y), z);
-        ball.current.rotation.x -= dt * 13;
+        ball.current.rotation.x -= flightDelta * 13;
+      }
+      if (trail.current) {
+        const count = Math.min(TRAIL_DOTS, Math.floor(current.time / 0.03));
+        trail.current.count = count;
+        for (let i = 0; i < count; i++) {
+          trailDot.position.set(
+            ...kickPosition(current.kick, current.time - (i + 1) * 0.03),
+          );
+          trailDot.scale.setScalar(0.13 - i * 0.013);
+          trailDot.updateMatrix();
+          trail.current.setMatrixAt(i, trailDot.matrix);
+        }
+        trail.current.instanceMatrix.needsUpdate = true;
       }
       if (y < 0.28 || z < FIELD_GOAL.goalZ - 1.5) {
         const outcome =
@@ -239,13 +281,18 @@ export function StadiumInterior() {
           setBest(next.points);
           saveStadiumBest(next.points);
         }
-        setResult(outcome);
-        setPhase("result");
+        setResults((previous) => [...previous, outcome]);
+        moveTo("result");
         flight.current = null;
       }
     } else if (phase === "power" || phase === "aim") {
       clock.current += dt;
-      timing.current = stadiumTiming(clock.current, attempt, phase === "aim");
+      timing.current = stadiumTiming(
+        clock.current,
+        attempt,
+        phase === "aim",
+        sweepStart.current,
+      );
       if (cursor.current)
         cursor.current.style.left = `${timing.current * 100}%`;
       if (aimMarker.current)
@@ -266,6 +313,7 @@ export function StadiumInterior() {
       <StadiumArchitecture
         score={score.points}
         attempt={playing ? attempt + 1 : 0}
+        made={playing && phase === "result" && result === "Good"}
       />
       <group ref={aimMarker} position={[spot.x, 0.2, spot.z]} visible={false}>
         {[0, 1, 2, 3, 4].map((i) => (
@@ -278,6 +326,16 @@ export function StadiumInterior() {
         ))}
       </group>
       <Football ballRef={ball} />
+      <instancedMesh
+        ref={trail}
+        args={[undefined, undefined, TRAIL_DOTS]}
+        count={0}
+        visible={false}
+        frustumCulled={false}
+      >
+        <sphereGeometry args={[1, 6, 4]} />
+        <meshBasicMaterial color="#ffdfa0" />
+      </instancedMesh>
       <FootballPlayer p={[spot.x - 0.6, 0.17, spot.z + 0.7]} kicking={flying} />
       <Box p={[spot.x, 0.22, spot.z]} s={[0.25, 0.1, 0.25]} c="#d29433" />
       {[-1, 1].map((side) => (
@@ -315,11 +373,12 @@ export function StadiumInterior() {
           wind={spot.wind}
           phase={phase}
           finished={finished}
-          result={result}
+          results={results}
           lockedPower={lockedPower}
           powerTarget={powerTarget}
           aimWindow={aimWindow}
-          cursor={cursor}
+          cursor={bindCursor}
+          readTiming={() => timing.current}
           onAction={act}
           onClose={close}
         />
