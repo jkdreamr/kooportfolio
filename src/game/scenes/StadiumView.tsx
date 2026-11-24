@@ -27,11 +27,11 @@ const fragmentShader = `
 
 /** Walking stays player-scale; a broadcast cut follows the full kick arc. */
 export function StadiumView({
-  flying,
+  playing,
   ballRef,
   controlsRef,
 }: {
-  flying: boolean;
+  playing: boolean;
   ballRef: React.RefObject<THREE.Group | null>;
   controlsRef: React.RefObject<THREE.Group | null>;
 }) {
@@ -48,7 +48,7 @@ export function StadiumView({
     const portrait = size.width < 700 && size.height > size.width;
     const frame = stadiumCameraFrame(
       runtime,
-      flying,
+      playing,
       ballRef.current?.position.toArray() ?? [0, 0.48, FIELD_GOAL.startZ],
       portrait,
     );
@@ -56,8 +56,7 @@ export function StadiumView({
     camera.lookAt(...frame.target);
     camera.updateMatrixWorld();
     if (controlsRef.current) {
-      const panelWidth = Math.min(250, size.width - 144);
-      const x = portrait ? size.width - 18 - panelWidth / 2 : size.width - 180;
+      const x = size.width - 78;
       const y = size.height - (size.height < 500 ? 96 : 140);
       controlsRef.current.position.copy(
         anchor
