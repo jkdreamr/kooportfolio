@@ -25,6 +25,7 @@
     align-items: baseline;
     gap: 8px;
     font-size: 11px;
+    letter-spacing: 0;
   }
 
   .game-shell .game-ui.scene-rowing .last-split b {
