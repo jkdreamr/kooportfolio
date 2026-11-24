@@ -391,6 +391,13 @@ export function WritingRoomControls() {
     setDraftStored(writingDraftSession.write(next));
     setDraft(next);
   };
+  useEffect(() => {
+    const refresh = () => {
+      if (!document.hidden) setDraft(writingDraftSession.read());
+    };
+    document.addEventListener("visibilitychange", refresh);
+    return () => document.removeEventListener("visibilitychange", refresh);
+  }, []);
   const trigger = useRef<HTMLButtonElement>(null);
   const close = () => {
     setOpen(false);
@@ -398,7 +405,14 @@ export function WritingRoomControls() {
   };
   return (
     <GameControls name="Writing room" position={[6, 0.6, 5]}>
-      <button type="button" ref={trigger} onClick={() => setOpen(true)}>
+      <button
+        type="button"
+        ref={trigger}
+        onClick={() => {
+          setDraft(writingDraftSession.read());
+          setOpen(true);
+        }}
+      >
         Read / Write
       </button>
       {open && (

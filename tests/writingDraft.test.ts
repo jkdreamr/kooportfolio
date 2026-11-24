@@ -7,6 +7,25 @@ const draft = {
   body: "One line.\nAnother line.",
 };
 describe("writing draft session", () => {
+  it("refreshes a stale tab before title-only edits can overwrite a newer body", () => {
+    let persisted = JSON.stringify(draft);
+    const storage = () => ({
+      getItem: () => persisted,
+      setItem: (_key: string, value: string) => {
+        persisted = value;
+      },
+    });
+    const olderTab = createWritingDraftSession(storage);
+    const newerTab = createWritingDraftSession(storage);
+    expect(olderTab.read()).toEqual(draft);
+    const newer = { ...newerTab.read(), body: "Newer text in another tab" };
+    newerTab.write(newer);
+    // The editor refreshes on reopen and on a visible-tab return.
+    const reopened = olderTab.read();
+    expect(reopened).toEqual(newer);
+    olderTab.write({ ...reopened, title: "A new title" });
+    expect(JSON.parse(persisted)).toEqual({ ...newer, title: "A new title" });
+  });
   it("retains exact unsaved text for a new reader when storage access is denied", () => {
     const session = createWritingDraftSession(() => {
       throw new DOMException("Denied", "SecurityError");
