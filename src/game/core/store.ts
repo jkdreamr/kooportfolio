@@ -10,7 +10,7 @@ import {
 } from "../../shared/save";
 import { canWalk, findPath, isInterior, type PlaceId } from "./world";
 import { ROOM } from "./room";
-export type Scene = "hub" | "rowing" | PlaceId;
+export type Scene = "hub" | "rowing" | "secret" | PlaceId;
 let storageIssue = "";
 let savedRaw: string | null = null;
 function load() {

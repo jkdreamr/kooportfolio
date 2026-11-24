@@ -11,6 +11,7 @@ import {
 } from "../core/interiorGames";
 import { newRestaurant, restaurantReducer } from "../core/restaurant";
 import { CraftedBox, Customer, WallSconce } from "./CraftedDetails";
+import { HouseRooms } from "./HouseRooms";
 import {
   Barrel,
   Bottle,
@@ -322,6 +323,7 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
   return (
     <group>
       {/* A ceramic backsplash, not another room shell. */}
+      <HouseRooms scene="kitchen" />
       {Array.from({ length: 48 }, (_, i) => (
         <Box
           key={i}
@@ -330,7 +332,7 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
           c={i % 3 === 0 ? "#7d9d8a" : "#e7d6aa"}
         />
       ))}
-      <group position={[-5.8, 0, -10.5]} scale={1.35}>
+      <group position={[-8, 0, -10.5]}>
         <Cabinet p={[0, 0, 0]} width={4.1} />
         {SOUP_INGREDIENTS.map((kind, i) => (
           <Crate
@@ -540,7 +542,7 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
           <Bottle p={[0, 1.4, 0]} color="#608255" />
         </group>
       ))}
-      <GameControls name="Cooking game" position={[0, 0.4, 6]}>
+      <GameControls name="Cooking game" position={[0, 0.4, 6]} mobileSheet>
         {shift.status === "closed" ? (
           <>
             <button onClick={start}>Open kitchen</button>
@@ -557,7 +559,7 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
                 Tips <strong>{shift.tips}</strong>
               </span>
             </div>
-            <p>{shift.missed} customers left</p>
+            <p className="kitchen-missed">{shift.missed} customers left</p>
             <button onClick={start}>Next shift</button>
           </>
         ) : (
@@ -566,6 +568,14 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
               <b>{Math.ceil(shift.remaining)}s</b>
               <span>{shift.served} served</span>
               <b>{shift.tips} tips</b>
+              <button
+                className="kitchen-close"
+                aria-label="Close kitchen"
+                title="Close kitchen"
+                onClick={() => shiftDispatch({ type: "end" })}
+              >
+                ×
+              </button>
             </div>
             <div className="kitchen-orders" aria-label="Customer orders">
               {shift.orders.map((order) => (
@@ -589,7 +599,19 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
                 </button>
               ))}
             </div>
-            {active && <h2>{RECIPES[active.recipe].name}</h2>}
+            {active && (
+              <div className="kitchen-active">
+                <h2>
+                  {active.name} · {RECIPES[active.recipe].name}
+                </h2>
+                <meter
+                  aria-label={`${active.name} patience`}
+                  min={0}
+                  max={active.maxPatience}
+                  value={active.patience}
+                />
+              </div>
+            )}
             {shift.active === null && <p role="status">{shift.feedback}</p>}
             {game.stage === "gather" && (
               <>
@@ -644,12 +666,6 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
                 </p>
               </>
             )}
-            <button
-              className="kitchen-end"
-              onClick={() => shiftDispatch({ type: "end" })}
-            >
-              Close kitchen
-            </button>
           </>
         )}
       </GameControls>

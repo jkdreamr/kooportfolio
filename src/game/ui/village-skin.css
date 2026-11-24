@@ -533,3 +533,45 @@
     line-height: 1.4;
   }
 }
+
+/* A board is its own touch surface; a second movement control only obscures it. */
+.game-shell:has(.go-card-open, .writing-modal, .theater-dialog) .joystick {
+  display: none;
+}
+@media (max-height: 650px) and (orientation: landscape) {
+  .game-shell .interior-heading {
+    top: 78px;
+    bottom: auto;
+    left: max(20px, env(safe-area-inset-left));
+    max-width: 220px;
+  }
+  .game-shell .interior-heading h1 {
+    font-size: 22px;
+    margin-top: 4px;
+  }
+  .game-shell .room-story {
+    display: none;
+  }
+  .game-shell .joystick {
+    bottom: max(32px, calc(env(safe-area-inset-bottom) + 16px));
+    left: max(24px, calc(env(safe-area-inset-left) + 16px));
+  }
+}
+.game-shell .scene-rowing .stamina-label {
+  font-size: 11px;
+  opacity: 1;
+}
+.game-shell .scene-rowing .race-progress {
+  font-size: 10px;
+}
+@media (min-width: 701px) and (min-height: 600px) {
+  .game-shell .scene-rowing .race-control-panel {
+    top: 252px;
+    bottom: auto;
+    left: 38px;
+    padding: 16px;
+  }
+  .game-shell .scene-rowing .stamina-label {
+    font-size: 12px;
+  }
+}
