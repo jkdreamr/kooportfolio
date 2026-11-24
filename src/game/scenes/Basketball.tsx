@@ -563,7 +563,7 @@ export function Basketball() {
           <Ball key={i} s={[0.04, 0.04, 0.04]} c="#f9dda0" />
         ))}
       </group>
-      <Sign text="COURT 01" p={[0, 5.9, -8.5]} size={[3.5, 0.65]} />
+      <Sign text="COURT 01" p={[0, 5.9, -8.45]} size={[3.5, 0.65]} />
       <Tree p={[-10, 0, -7]} variant={1} />
       <Tree p={[10, 0, -7]} />
       <Flowers p={[-8, 0, 7]} />
