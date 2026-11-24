@@ -7,6 +7,7 @@ import { CampusDistrict } from "./CampusDistrict";
 import { campus } from "../core/campus";
 import { POND } from "../core/pond";
 import { WORLD_ELLIPSE } from "../../shared/world-bounds";
+import type { WorldId } from "../core/worlds";
 
 type Block = [number, number, number, number, number, number, string, number?];
 function Blocks({
@@ -126,16 +127,18 @@ for (let i = 0; i < 108; i++)
     i % 3 ? "#d9c99d" : "#b9a37b",
   ]);
 
-export function Landscape() {
+export function Landscape({ world = "stanford" }: { world?: WorldId }) {
   return (
     <group>
       <Cylinder p={[0, -2.1, 12]} s={[86.8, 4.2, 91.8]} c="#655e3e" />
       <Cylinder p={[0, -0.5, 12]} s={[87, 1, 92]} c="#a49564" />
       <Cylinder p={[0, -0.01, 12]} s={[86.5, 0.3, 91.5]} c="#568f38" />
       <Scenery />
-      <group position={[campus.x, 0, campus.z]} rotation={[0, Math.PI, 0]}>
-        <CampusDistrict />
-      </group>
+      {world === "stanford" && (
+        <group position={[campus.x, 0, campus.z]} rotation={[0, Math.PI, 0]}>
+          <CampusDistrict />
+        </group>
+      )}
       <Cylinder p={[POND.x, 0.13, POND.z]} s={[6.4, 0.18, 4.4]} c="#736c50" />
       <Cylinder p={[POND.x, 0.19, POND.z]} s={[6, 0.06, 4]} c="#459d96" />
       {Array.from({ length: 20 }, (_, i) => {
@@ -198,9 +201,13 @@ export function Landscape() {
           />
         );
       })}
-      <Orchard />
-      <MusicCorner />
-      <Windmill />
+      {world === "home" && (
+        <>
+          <Orchard />
+          <MusicCorner />
+          <Windmill />
+        </>
+      )}
       <Bench p={[-2.7, 0.2, 3.4]} />
       <Bench p={[2.8, 0.2, -2.9]} rotation={Math.PI} />
       {[-1, 1].map((side) => (

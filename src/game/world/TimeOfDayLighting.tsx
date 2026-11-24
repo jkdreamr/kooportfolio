@@ -3,6 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { advanceHour, DAYLIGHT_KEYS, sampleDaylight } from "../core/daylight";
 import { daylightClock, useTimeOfDay } from "../core/timeOfDay";
+import { readWorldHour } from "../core/worldTime";
 import { runtime, useGame } from "../core/store";
 import { isInterior } from "../core/world";
 
@@ -14,6 +15,7 @@ const palettes = DAYLIGHT_KEYS.map((key) => ({
   ground: new THREE.Color(key.ground),
 }));
 const indoor = {
+  backdrop: new THREE.Color("#34494e"),
   sun: new THREE.Color("#fff0cc"),
   sky: new THREE.Color("#dceaff"),
   ground: new THREE.Color("#64533c"),
@@ -100,10 +102,12 @@ export function TimeOfDayLighting() {
   useFrame(({ scene: world, size }, delta) => {
     const state = useGame.getState();
     if (!state.paused && runtime.active) {
+      const time = useTimeOfDay.getState();
       daylightClock.hour = advanceHour(
         daylightClock.hour,
         delta,
-        useTimeOfDay.getState().mode,
+        time.mode,
+        time.mode === "auto" ? readWorldHour(time.timeZone) : undefined,
       );
       displayedAt.current += Math.min(delta, 0.1);
       if (displayedAt.current >= 0.25) {
@@ -124,8 +128,9 @@ export function TimeOfDayLighting() {
       colors.ground.lerp(indoor.ground, 0.65);
     }
     if (world.background instanceof THREE.Color)
-      world.background.copy(colors.horizon);
-    if (world.fog) world.fog.color.copy(colors.horizon);
+      world.background.copy(interior ? indoor.backdrop : colors.horizon);
+    if (world.fog)
+      world.fog.color.copy(interior ? indoor.backdrop : colors.horizon);
     if (!lights.current) {
       const sun = world.getObjectByName("world-sun");
       const fill = world.getObjectByName("world-fill");

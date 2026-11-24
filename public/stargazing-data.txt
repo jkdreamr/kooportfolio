@@ -1,0 +1,38 @@
+STARGAZING STAR CATALOGUE
+
+Source: HYG Database v4.1, by David Nash / Astronexus.
+https://github.com/astronexus/HYG-Database
+https://github.com/astronexus/HYG-Database/blob/main/hyg/CURRENT/hygdata_v41.csv
+
+Copyright David Nash and contributors. Licensed under Creative Commons
+Attribution-ShareAlike 4.0 International (CC BY-SA 4.0).
+License: https://creativecommons.org/licenses/by-sa/4.0/
+Legal code: https://creativecommons.org/licenses/by-sa/4.0/legalcode
+
+This redistributed/modified catalogue subset is also licensed CC BY-SA 4.0.
+Changes: omit the Sun and entries fainter than apparent visual magnitude 6;
+keep only HYG id, J2000 right ascension (hours), declination (degrees), visual
+magnitude, B-V color index (null if absent), proper name and proper motions
+RA*cos(dec) / declination (milliarcseconds/year), in that tuple order.
+No catalogue endorsement is implied. All source numeric precision is retained.
+
+SKY MODEL
+
+Positions are computed locally from the device clock's UTC timestamp and the
+selected world's latitude/longitude, with proper motion, IAU 1976 precession,
+Greenwich mean sidereal time and equatorial-to-horizontal conversion.
+Reference: https://aa.usno.navy.mil/faq/GAST
+Reference: https://aa.usno.navy.mil/faq/alt_az
+Solar approximation: https://aa.usno.navy.mil/faq/sun_approx
+
+Live updates every 30 seconds. Tonight is a clearly marked preview at 22:00
+on today's date in that destination's timezone (including DST). Real solar
+altitude gates live star visibility after civil twilight, independent of the
+village's artistic lighting presets. Stars below the horizon never render.
+Stanford and Home use the same Bay Area coordinates; Seoul uses its own.
+
+This is a wide-field clear-sky star chart, not a literal optical telescope
+simulation or observatory-grade prediction. It does not model local weather,
+light pollution, atmospheric refraction/extinction, nutation, aberration,
+parallax, variable-star brightness, planets, satellites or the Moon. Colors
+and point sizes are display approximations of catalogue color/magnitude.

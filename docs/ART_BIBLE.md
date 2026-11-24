@@ -35,3 +35,11 @@ Reviewed Supercell's own material process in [Adobe's Creature Shop interview](h
 ## National flags
 
 `NationalFlag.tsx` draws original canvas textures and folded cloth geometry. United States flags use 13 stripes and 50 stars (alternating six/five across nine rows), following the [National Archives construction order](https://www.archives.gov/federal-register/codification/executive-order/10834.html). South Korean flags use a 3:2 white field, red/blue taegeuk and geon/gon/gam/ri trigrams, following the [Korean National Archives construction guide](https://theme.archives.go.kr/next/symbolKorea/makeNationalFlag.do). No external image or emoji font is loaded. These are requested scenery, not claims about Josh's nationality, affiliation or endorsement.
+
+## Grounded nature and room detail
+
+Reviewed [SpeedTree's modeling fundamentals](https://docs.speedtree.com/doku.php?id=gettingstarted) and [generation guide](https://docs8.speedtree.com/modeler/doku.php?id=generation_properties) for taper, bifurcation, branch-length variance, irregular pine whorls and foliage attached to actual branch tips. The implementation is original procedural Three.js geometry, not SpeedTree code, models or textures. Closed leaf volumes retain the solid game-art direction; no transparent leaf cards or photo assets.
+
+`TreeArt.tsx` supplies rooted, bent trunks, forked limbs, irregular broadleaf crowns and separate pine branch fans. Position-derived seeds keep variations stable. `NaturalTrees` batches a whole grove into at most three opaque meshes; `Models.Tree({ p, size, variant })` stays compatible. Forest positions and collision/pathfinding data are untouched.
+
+Room dressing uses practical edge zones and keeps the middle/entrance clear: boathouse lockers, repair tools, life vests, rope and footlockers; office workstations/reading furniture; gym weights and towels. New details are instanced in at most three additional batches per furnished room, with no decorative labels or invented biographical claims. Secret rooms, theater, kitchen and partition/game logic remain owned by their builders.
