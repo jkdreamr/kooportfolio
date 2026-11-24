@@ -150,11 +150,22 @@ export function stepSkate(g: SkateState, input: SkateInput, delta: number) {
       },
       dt / steps,
     );
-    if (g.phase !== "riding") break;
+  }
+  // Deadline uses active elapsed time, not the capped physics budget. A slow
+  // frame may simplify contacts but must never grant extra scoring time.
+  g.time += delta;
+  if (g.mode === "run" && g.time + 1e-8 >= SKATE.duration) {
+    g.time = SKATE.duration;
+    if (g.grounded && !g.trick) bankSkateCombo(g);
+    else {
+      g.combo = g.count = g.comboTime = 0;
+    }
+    g.trick = null;
+    g.phase = "done";
+    g.speed = 0;
   }
 }
 function integrate(g: SkateState, input: SkateInput, dt: number) {
-  g.time += dt;
   g.messageTime = Math.max(0, g.messageTime - dt);
   g.railLock = Math.max(0, g.railLock - dt);
   if (g.bailTime > 0) {
@@ -274,14 +285,5 @@ function integrate(g: SkateState, input: SkateInput, dt: number) {
   if (g.combo && g.grounded && g.rail < 0) {
     g.comboTime -= dt;
     if (g.comboTime <= 0) bankSkateCombo(g);
-  }
-  if (g.mode === "run" && g.time >= SKATE.duration) {
-    if (g.grounded && !g.trick) bankSkateCombo(g);
-    else {
-      g.combo = g.count = g.comboTime = 0;
-    }
-    g.trick = null;
-    g.phase = "done";
-    g.speed = 0;
   }
 }

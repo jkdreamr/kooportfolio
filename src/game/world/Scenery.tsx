@@ -1,6 +1,8 @@
 import { useLayoutEffect, useRef } from "react";
 import * as THREE from "three";
 import { forest } from "../core/scenery";
+import { NaturalTrees } from "./TreeArt";
+import { sculptedMaterial } from "./Surface";
 
 type Part = {
   p: [number, number, number];
@@ -8,9 +10,8 @@ type Part = {
   c: string;
 };
 const crown = new THREE.IcosahedronGeometry(1, 1);
-const trunk = new THREE.CylinderGeometry(0.8, 1, 1, 7);
 const reed = new THREE.ConeGeometry(1, 1, 5);
-const matte = new THREE.MeshStandardMaterial({ roughness: 0.92 });
+const matte = sculptedMaterial({ roughness: 0.92 });
 function Instances({
   parts,
   geometry,
@@ -45,22 +46,14 @@ function Instances({
     />
   );
 }
-const trunks: Part[] = [],
-  crowns: Part[] = [],
-  rocks: Part[] = [],
+const rocks: Part[] = [],
   grass: Part[] = [];
-forest.forEach(({ x, z, height: h }, i) => {
-  trunks.push({ p: [x, h / 2, z], s: [0.28, h, 0.28], c: "#755032" });
-  for (let j = 0; j < 3; j++)
-    crowns.push({
-      p: [
-        x + Math.sin(j * 2.1) * 0.8,
-        h - 0.5 + j * 0.7,
-        z + Math.cos(j * 2.1) * 0.6,
-      ],
-      s: [1.5, 1.65, 1.5],
-      c: ["#427535", "#568639", "#739746"][(i + j) % 3],
-    });
+const trees = forest.map(({ x, z, height }, i) => ({
+  p: [x, 0, z] as const,
+  size: (height + 1.8) / 4.8,
+  variant: i % 7,
+}));
+forest.forEach(({ x, z }, i) => {
   if (i % 3 === 0)
     rocks.push({
       p: [x + 1.7, 0.5, z - 0.7],
@@ -85,14 +78,13 @@ for (let i = 0; i < 650; i++) {
     grass.push({
       p: [x + j * 0.16, 0.32, z + (j % 2) * 0.15],
       s: [0.12, 0.35 + (i % 4) * 0.1, 0.12],
-      c: i % 3 ? "#638d3d" : "#8aab4d",
+      c: i % 3 ? "#638143" : "#8b9c59",
     });
 }
 export function Scenery() {
   return (
     <>
-      <Instances parts={trunks} geometry={trunk} />
-      <Instances parts={crowns} geometry={crown} />
+      <NaturalTrees trees={trees} />
       <Instances parts={rocks} geometry={crown} />
       <Instances parts={grass} geometry={reed} />
     </>
