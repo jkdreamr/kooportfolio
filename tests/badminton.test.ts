@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   BADMINTON,
+  canReturnBadminton,
   newBadmintonGame,
   stepBadminton,
   type BadmintonGame,
@@ -52,7 +53,7 @@ describe("badminton quick singles", () => {
     });
     stepBadminton(game, { ...idle, swing: true }, 1 / 120);
     expect(game.lastHit).toBe("opponent");
-    expect(game.message).toBe("Miss");
+    expect(game.message).toBe("Move to shuttle");
     game.player.x = 3.2;
     stepBadminton(game, { ...idle, swing: true }, 1 / 120);
     expect(game.lastHit).toBe("opponent");
@@ -62,6 +63,55 @@ describe("badminton quick singles", () => {
     expect(game.shuttle.vx).toBeLessThan(0);
     expect(game.shuttle.vz).toBeLessThan(0);
   });
+
+  it("uses a standard high serve while preserving aim and the selected return shot", () => {
+    const serves = (["clear", "drop", "smash"] as const).map((shot) => {
+      const game = newBadmintonGame();
+      const input = { ...idle, swing: true, aim: 1 as const, shot };
+      stepBadminton(game, input, 1 / 120);
+      expect(input.shot).toBe(shot);
+      expect(game.shuttle.vx).toBeGreaterThan(0);
+      expect(game.shuttle.vz).toBeLessThan(0);
+      return game.shuttle;
+    });
+    expect(serves[1]).toEqual(serves[0]);
+    expect(serves[2]).toEqual(serves[0]);
+    const left = newBadmintonGame();
+    stepBadminton(left, { ...idle, swing: true, aim: -1 }, 1 / 120);
+    expect(left.shuttle.vx).toBeLessThan(0);
+  });
+
+  it("shows a timing cue only when pressing hit can return the shuttle", () => {
+    const game = newBadmintonGame();
+    expect(canReturnBadminton(game)).toBe(false);
+    game.phase = "rally";
+    game.lastHit = "opponent";
+    Object.assign(game.shuttle, { x: 0, z: 5.7, y: 1.6, vx: 0, vy: 0, vz: 1 });
+    expect(canReturnBadminton(game)).toBe(true);
+    stepBadminton(game, { ...idle, swing: true, shot: "drop" }, 1 / 120);
+    expect(game.lastHit).toBe("player");
+    expect(game.rally).toBe(1);
+    expect(canReturnBadminton(game)).toBe(false);
+  });
+
+  it.each([
+    { x: 0, z: -2, y: 1.6, message: "Wait for return" },
+    { x: 0, z: 5.7, y: 5, message: "Too early" },
+    { x: 0, z: 5.7, y: 0.4, message: "Too late" },
+    { x: 3, z: 5.7, y: 1.6, message: "Move to shuttle" },
+  ])(
+    "gives actionable missed-return feedback: $message",
+    ({ x, z, y, message }) => {
+      const game = newBadmintonGame();
+      game.phase = "rally";
+      game.lastHit = "opponent";
+      Object.assign(game.shuttle, { x, z, y, vx: 0, vy: 0, vz: 0 });
+      expect(canReturnBadminton(game)).toBe(false);
+      stepBadminton(game, { ...idle, swing: true }, 1 / 120);
+      expect(game.lastHit).toBe("opponent");
+      expect(game.message).toBe(message);
+    },
+  );
 
   it("lets the opponent return a reachable serve instead of awarding automatic points", () => {
     const game = newBadmintonGame();
@@ -101,7 +151,9 @@ describe("badminton quick singles", () => {
       const contact = Math.max(
         0,
         (s.vy +
-          Math.sqrt(Math.max(0, s.vy ** 2 + 2 * BADMINTON.gravity * (s.y - 1.8)))) /
+          Math.sqrt(
+            Math.max(0, s.vy ** 2 + 2 * BADMINTON.gravity * (s.y - 1.8)),
+          )) /
           BADMINTON.gravity,
       );
       const tx = Math.max(-3.8, Math.min(3.8, s.x + s.vx * contact));
