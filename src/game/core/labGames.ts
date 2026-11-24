@@ -125,7 +125,8 @@ export function hitBeat(game: BeatGame, lane: number): BeatGame {
     (a, b) => Math.abs(a.at - game.time) - Math.abs(b.at - game.time),
   )[0];
   const error = note ? Math.abs(note.at - game.time) : Infinity;
-  if (error > HIT_WINDOW)
+  if (error > HIT_WINDOW) {
+    if (game.time < BEAT_COUNT_IN) return game;
     return {
       ...game,
       combo: 0,
@@ -134,6 +135,7 @@ export function hitBeat(game: BeatGame, lane: number): BeatGame {
       feedback: "Off beat",
       feedbackAt: game.time,
     };
+  }
   const comboHits = [...game.comboHits, game.notes.indexOf(note)];
   const combo = consecutiveHits(game.notes, comboHits);
   return {

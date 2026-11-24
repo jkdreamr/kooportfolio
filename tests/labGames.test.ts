@@ -75,6 +75,16 @@ describe("Beat Lab", () => {
     expect(beatCue(hitBeat(first, 0), 0)).toBe(false);
     expect(beatCue(advanceBeat(first, 0.5), 0)).toBe(false);
   });
+  it("does not deduct points for a wrong pad after an early hit in the count-in", () => {
+    const start = { ...newBeatGame(), phase: "playing" as const };
+    const early = advanceBeat(start, BEAT_COUNT_IN - 0.1);
+    const hit = hitBeat(early, 0);
+    expect(hit.points).toBe(60);
+    expect(hitBeat(hit, 1)).toBe(hit);
+    expect(hitBeat(hit, 0)).toBe(hit);
+    const onBeat = advanceBeat(hit, BEAT_COUNT_IN - hit.time);
+    expect(hitBeat(onBeat, 1).points).toBe(25);
+  });
   it("introduces the rhythm before faster pairs without extending the round", () => {
     const game = newBeatGame();
     const gaps = game.notes
