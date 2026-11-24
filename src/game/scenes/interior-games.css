@@ -1,8 +1,20 @@
+.interior-game-root {
+  color-scheme: dark;
+  overflow: visible !important;
+}
+.interior-game-root::-webkit-scrollbar {
+  display: none;
+}
 .interior-game {
+  position: relative;
   box-sizing: border-box;
   width: min(320px, calc(100vw - 36px));
   max-height: calc(100dvh - 120px);
   overflow-y: auto;
+  overflow-x: hidden;
+  color-scheme: dark;
+  scrollbar-width: thin;
+  scrollbar-color: #70888a #243b45;
   overscroll-behavior: contain;
   padding: 12px 14px;
   border: 1px solid #ae8b4a;
@@ -15,6 +27,17 @@
   font-family: inherit;
   text-align: center;
   user-select: none;
+}
+.interior-game::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.interior-game::-webkit-scrollbar-track {
+  background: #243b45;
+}
+.interior-game::-webkit-scrollbar-thumb {
+  background: #70888a;
+  border-radius: 4px;
 }
 .interior-game h2 {
   font: inherit;
@@ -112,6 +135,7 @@
 }
 .kitchen-shift {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   font-size: 12px;
   margin-bottom: 10px;
@@ -149,14 +173,238 @@
   height: 10px;
   margin: 5px auto 0;
 }
-.interior-game .kitchen-end {
-  padding: 5px 10px;
+.interior-game .kitchen-close {
+  padding: 0;
+  width: 44px;
   min-height: 44px;
   background: transparent;
   border: 0;
   color: #c4bd98;
+  font-size: 24px;
+}
+.kitchen-active > meter {
+  display: none;
+}
+.house-game-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.house-game-tabs button {
+  flex: 1;
+  background: transparent;
+  font-size: 12px;
+  padding: 5px 10px;
+}
+.house-game-tabs button[aria-pressed="true"],
+.blackjack-bets button[aria-pressed="true"] {
+  background: #827344;
+  border-color: #c5aa61;
+}
+.blackjack-bank,
+.pong-score {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin: 3px 0 5px;
+}
+.blackjack-hands {
+  font-size: 12px;
+  margin-bottom: 6px;
+  text-align: left;
+}
+.blackjack-hands > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 21px;
+  align-items: center;
+}
+.blackjack-hands b {
+  letter-spacing: 1px;
+}
+.blackjack-bets {
+  margin-bottom: 6px;
+}
+.blackjack-bets button {
+  font-size: 12px;
+  padding: 5px;
+}
+.blackjack-deal {
+  width: 100%;
+}
+.blackjack-bets .blackjack-deal {
+  flex: 1.4;
+  width: auto;
+}
+.house-game-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 44px;
+  margin-bottom: 4px;
+}
+.house-game-header .house-game-tabs {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+.house-game-header .house-game-tabs button {
+  min-width: 0;
+  padding: 4px;
   font-size: 11px;
-  margin-top: 6px;
+}
+.house-game-header .blackjack-bank,
+.house-game-header .pong-score {
+  flex-direction: column;
+  flex: 0 0 auto;
+  gap: 2px;
+  margin: 0;
+  text-align: right;
+  font-size: 11px;
+}
+.interior-game .house-game-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 40px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 24px;
+  color: #c4d0cb;
+}
+.interior-game--house .blackjack-hands {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.interior-game--house .blackjack-hands > div {
+  flex-direction: column;
+  gap: 1px;
+  align-items: start;
+  font-size: 11px;
+}
+.interior-game--house .blackjack-hands b {
+  letter-spacing: 0.3px;
+  overflow-wrap: anywhere;
+}
+.interior-game--house p[role="status"] {
+  margin-top: 3px;
+  font-size: 11px;
+  line-height: 1.3;
+}
+.pong-throw-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px;
+  gap: 2px 10px;
+  align-items: center;
+}
+.pong-throw-controls .pong-aim {
+  grid-column: 1;
+  grid-row: 1;
+}
+.pong-throw-controls .pong-power {
+  grid-column: 1;
+  grid-row: 2;
+  margin: 0 2px 4px;
+}
+.pong-throw-controls > button {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+.pong-aim {
+  display: block;
+  width: 100%;
+  height: 44px;
+  margin: 0;
+  accent-color: #d7b468;
+  touch-action: pan-x;
+}
+.pong-power {
+  position: relative;
+  height: 8px;
+  margin: 2px 2px 8px;
+  border-radius: 4px;
+  background: #567552;
+}
+.pong-power::before,
+.pong-power::after {
+  content: "";
+  position: absolute;
+  width: 2px;
+  height: 100%;
+  top: 0;
+  background: #c8b679;
+}
+.pong-power::before {
+  left: 25%;
+}
+.pong-power::after {
+  left: 82.5%;
+}
+.pong-power i {
+  position: absolute;
+  top: -3px;
+  width: 4px;
+  height: 14px;
+  background: #efd59a;
+  transform: translateX(-50%);
+}
+@media (max-width: 700px) and (min-height: 600px) {
+  .interior-game.interior-game--sheet {
+    width: calc(100vw - 24px);
+    max-height: 180px;
+    padding: 6px 10px;
+    border-radius: 5px;
+  }
+  .interior-game--sheet .kitchen-shift {
+    margin-bottom: 2px;
+    font-size: 11px;
+  }
+  .interior-game--sheet .kitchen-orders {
+    margin-bottom: 0;
+  }
+  .interior-game--sheet .kitchen-orders button {
+    padding: 4px;
+  }
+  .interior-game--sheet .kitchen-orders:has(.active) {
+    display: none;
+  }
+  .interior-game--sheet h2 {
+    font-size: 12px;
+    margin: 0 0 3px;
+  }
+  .interior-game--sheet p {
+    display: none;
+  }
+  .interior-game--sheet p[role="status"],
+  .interior-game--sheet p.kitchen-missed {
+    display: block;
+    margin-top: 3px;
+    font-size: 11px;
+  }
+  .interior-game--sheet .kitchen-active > meter {
+    display: block;
+    width: 100%;
+    height: 6px;
+    margin-bottom: 5px;
+  }
+  .interior-game--sheet .interior-heat {
+    margin: 5px 0 8px;
+    height: 12px;
+  }
+}
+@media (min-width: 700px) and (max-height: 599px) {
+  .interior-game--left {
+    max-height: calc(100dvh - 172px);
+  }
+}
+.interior-game.interior-game--collapsed {
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  padding: 4px;
 }
 @media (max-width: 600px) {
   .interior-game {

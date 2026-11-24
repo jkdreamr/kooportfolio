@@ -1,0 +1,145 @@
+.game-shell .game-modal.leaderboard {
+  box-sizing: border-box;
+  position: fixed;
+  inset: 0;
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 22px;
+  font: inherit;
+  line-height: 1.4;
+  pointer-events: auto;
+}
+
+.leaderboard::backdrop {
+  background: #10293980;
+  backdrop-filter: blur(5px);
+}
+
+.leaderboard-header,
+.leaderboard-picker,
+.leaderboard-caption,
+.leaderboard-submit div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.leaderboard-header {
+  margin-bottom: 18px;
+}
+
+.game-shell .leaderboard .leaderboard-header h2 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.leaderboard :is(select, input) {
+  min-height: 40px;
+  padding: 7px 10px;
+  color: var(--hud-ink);
+  background: var(--hud-low);
+  border: 1px solid var(--hud-edge);
+  border-radius: 8px;
+  font: inherit;
+}
+
+.leaderboard-header .close-button {
+  position: static;
+  width: 36px;
+  height: 36px;
+}
+
+.leaderboard-picker select {
+  flex: 1;
+  min-width: 0;
+}
+
+.leaderboard-caption {
+  margin: 14px 0 8px;
+  min-height: 40px;
+  color: var(--hud-muted);
+  font-size: 12px;
+}
+
+.leaderboard-caption .quiet-button {
+  width: auto;
+  padding: 8px 12px;
+  border: 1px solid var(--hud-edge);
+  border-radius: 8px;
+}
+
+.leaderboard table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  background: var(--hud-low);
+  font-variant-numeric: tabular-nums;
+}
+
+.leaderboard :is(th, td) {
+  padding: 8px 9px;
+  border-bottom: 1px solid var(--hud-edge);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.leaderboard th,
+.leaderboard td:first-child:not(.leaderboard-empty) {
+  color: var(--hud-muted);
+}
+
+.leaderboard th:first-child {
+  width: 42px;
+}
+
+.leaderboard th:last-child {
+  width: 96px;
+}
+
+.leaderboard tr :last-child:not(.leaderboard-empty) {
+  text-align: right;
+}
+
+.leaderboard tr :is(:first-child, :last-child):not(.leaderboard-empty) {
+  white-space: nowrap;
+}
+
+.leaderboard .leaderboard-empty {
+  padding: 20px 9px;
+  color: var(--hud-muted);
+  text-align: center;
+}
+
+.leaderboard-submit,
+.game-shell .leaderboard > .leaderboard-instruction {
+  margin: 16px 0 0;
+  color: var(--hud-muted);
+}
+
+.leaderboard-submit div {
+  margin-top: 7px;
+}
+
+.leaderboard-submit p {
+  margin: 0;
+}
+
+.leaderboard-sr-only {
+  position: absolute;
+  clip-path: inset(50%);
+}
+
+.leaderboard-submit input {
+  flex: 1;
+  min-width: 0;
+  font-size: 16px;
+}
+
+.leaderboard-submit .primary-button {
+  flex-shrink: 0;
+  width: auto;
+  min-height: 40px;
+  padding: 8px 16px;
+}

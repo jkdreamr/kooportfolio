@@ -27,7 +27,7 @@ type PhotoState = {
 let sequence = 0;
 export const usePhotoBooth = create<PhotoState>(() => ({
   pose: "wave",
-  frame: "cream",
+  frame: "slate",
   stage: "posing",
   request: null,
   card: null,
@@ -55,7 +55,7 @@ export function clearPhoto() {
 }
 export function beginPhoto(x: number, z: number) {
   clearPhoto();
-  usePhotoBooth.setState({ x, z, pose: "wave", frame: "cream" });
+  usePhotoBooth.setState({ x, z, pose: "wave", frame: "slate" });
   requestPhoto();
 }
 export function finishPhoto(id: number, blob: Blob) {

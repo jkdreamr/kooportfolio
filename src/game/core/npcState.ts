@@ -8,8 +8,15 @@ import {
 } from "./npcs";
 import { runtime, useGame } from "./store";
 import { doors } from "./world";
+import { belongsToWorld } from "./worlds";
 
 export const npcActors = createNpcActors();
+export const npcInWorld = (id: string) => {
+  const npc = villagers.find((person) => person.id === id);
+  return !!npc && belongsToWorld(npc.place, useGame.getState().world);
+};
+export const activeNpcActors = () =>
+  npcActors.filter((actor) => npcInWorld(actor.id));
 export const useNpcs = create<{
   talking: string | null;
   line: number;
@@ -17,11 +24,11 @@ export const useNpcs = create<{
 }>(() => ({ talking: null, line: 0, pending: null }));
 
 export function nearbyNpcId(x: number, z: number) {
-  const npc = nearestNpc(npcActors, x, z);
+  const npc = nearestNpc(activeNpcActors(), x, z);
   return npc ? "npc" : "";
 }
 export function npcName() {
-  const actor = nearestNpc(npcActors, runtime.x, runtime.z);
+  const actor = nearestNpc(activeNpcActors(), runtime.x, runtime.z);
   return villagers.find((npc) => npc.id === actor?.id)?.name ?? "Villager";
 }
 export function closeConversation() {
@@ -38,9 +45,9 @@ export function talkToNpc(id: string) {
   )
     return;
   const actor = npcActors.find((npc) => npc.id === id);
-  if (!actor) return;
+  if (!actor || !npcInWorld(id)) return;
   if (!canTalkToNpc(actor, runtime.x, runtime.z)) {
-    const path = approachNpc(actor, [runtime.x, runtime.z]);
+    const path = approachNpc(actor, [runtime.x, runtime.z], game.world);
     if (!path.length) return;
     runtime.path = path;
     runtime.target = runtime.path.shift() ?? null;
@@ -74,7 +81,7 @@ export function interactWithNpc() {
     doors.some((door) => door.id === game.near)
   )
     return false;
-  const actor = nearestNpc(npcActors, runtime.x, runtime.z);
+  const actor = nearestNpc(activeNpcActors(), runtime.x, runtime.z);
   if (!actor) return false;
   talkToNpc(actor.id);
   return true;
