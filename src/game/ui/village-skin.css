@@ -861,18 +861,14 @@
     width: min(230px, calc(100vw - 148px));
   }
 }
-/* Labs already have an Exit link. Keep that single target clear of idle help. */
+/* At the door, the working Exit action takes priority over passive lab help. */
 @media (max-height: 650px) {
-  .game-shell
-    :is(.scene-math, .scene-music)
-    .context-action[data-action="exit"] {
+  .game-shell:has(
+      :is(.scene-math, .scene-music)
+        .context-action.visible[data-action="exit"]
+    )
+    .lab-controls:not(.lab-game) {
     display: none;
-  }
-  .game-shell :is(.scene-math, .scene-music) .back-link {
-    min-width: 44px;
-    min-height: 44px;
-    margin-bottom: 4px;
-    font-size: 12px;
   }
 }
 .game-shell .scene-rowing .stamina-label {
