@@ -77,7 +77,7 @@ function CampusIdentifier() {
     <group position={[23, 8.2, -16]}>
       {[0, 1, 2, 3].map((side) => (
         <group key={side} rotation={[0, (side * Math.PI) / 2, 0]}>
-          <mesh position={[0, 0, 2.16]}>
+          <mesh position={[0, 0, 2.3]}>
             <planeGeometry args={[2.6, 2.6]} />
             <meshBasicMaterial map={texture} transparent alphaTest={0.1} />
           </mesh>
@@ -117,7 +117,7 @@ export function CampusDistrict() {
       />
       <CampusSign
         text="STANFORD"
-        p={[0, 4.05, -27.5]}
+        p={[0, 7.1, -28]}
         size={[5.8, 0.9]}
         color="#8c332b"
         ink="#f0dba7"
