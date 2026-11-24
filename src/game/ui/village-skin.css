@@ -418,8 +418,8 @@
 .game-shell .room-story[hidden] {
   display: none;
 }
-/* Activity choices take priority; the entry biography returns off the race pad. */
-.game-shell:has(.race-select) .room-story {
+/* The course picker owns this surface; no duplicate Race CTA over Daily river. */
+.game-shell:has(.race-select) :is(.room-story, .context-action) {
   display: none;
 }
 .game-shell .story-read {
