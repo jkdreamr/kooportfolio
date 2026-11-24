@@ -4,7 +4,7 @@ import { PerspectiveCamera } from "@react-three/drei";
 import * as THREE from "three";
 import { runtime } from "../core/store";
 import { FIELD_GOAL } from "../core/fieldGoal";
-import { stadiumCameraFrame } from "../core/stadiumCamera";
+import { stadiumCameraFrame, stadiumViewOffset } from "../core/stadiumCamera";
 
 const vertexShader = `
   varying vec2 vUv;
@@ -46,6 +46,19 @@ export function StadiumView({
 
   useFrame(({ camera, size, scene }) => {
     const portrait = size.width < 700 && size.height > size.width;
+    if (camera instanceof THREE.PerspectiveCamera) {
+      const offset = playing ? stadiumViewOffset(size.width, size.height) : 0;
+      if (offset)
+        camera.setViewOffset(
+          size.width,
+          size.height,
+          offset,
+          0,
+          size.width,
+          size.height,
+        );
+      else if (camera.view?.enabled) camera.clearViewOffset();
+    }
     const frame = stadiumCameraFrame(
       runtime,
       playing,
