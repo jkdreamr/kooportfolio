@@ -4,6 +4,7 @@ import { PerspectiveCamera } from "@react-three/drei";
 import * as THREE from "three";
 import { runtime } from "../core/store";
 import { FIELD_GOAL } from "../core/fieldGoal";
+import { stadiumCameraFrame } from "../core/stadiumCamera";
 
 const vertexShader = `
   varying vec2 vUv;
@@ -26,11 +27,11 @@ const fragmentShader = `
 
 /** Walking stays player-scale; a broadcast cut follows the full kick arc. */
 export function StadiumView({
-  flying,
+  playing,
   ballRef,
   controlsRef,
 }: {
-  flying: boolean;
+  playing: boolean;
   ballRef: React.RefObject<THREE.Group | null>;
   controlsRef: React.RefObject<THREE.Group | null>;
 }) {
@@ -45,21 +46,17 @@ export function StadiumView({
 
   useFrame(({ camera, size, scene }) => {
     const portrait = size.width < 700 && size.height > size.width;
-    if (flying) {
-      camera.position.set(0, 14, FIELD_GOAL.startZ + 13);
-      camera.lookAt(
-        0,
-        Math.max(2, Math.min(7, (ballRef.current?.position.y ?? 0) * 0.4)),
-        (FIELD_GOAL.startZ + FIELD_GOAL.goalZ) / 2,
-      );
-    } else {
-      camera.position.set(runtime.x + 5, 11, runtime.z + 13);
-      camera.lookAt(runtime.x, 1, runtime.z - 3);
-    }
+    const frame = stadiumCameraFrame(
+      runtime,
+      playing,
+      ballRef.current?.position.toArray() ?? [0, 0.48, FIELD_GOAL.startZ],
+      portrait,
+    );
+    camera.position.set(...frame.position);
+    camera.lookAt(...frame.target);
     camera.updateMatrixWorld();
     if (controlsRef.current) {
-      const panelWidth = Math.min(250, size.width - 144);
-      const x = portrait ? size.width - 18 - panelWidth / 2 : size.width - 180;
+      const x = size.width - 78;
       const y = size.height - (size.height < 500 ? 96 : 140);
       controlsRef.current.position.copy(
         anchor

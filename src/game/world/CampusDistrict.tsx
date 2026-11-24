@@ -6,7 +6,8 @@ import {
   campusDistrictOffsetZ,
   campusDistrictScale,
 } from "../core/campusDistrict";
-import { campusDistrictParts } from "./CampusDistrictArt";
+import { campusDistrictParts, campusDistrictTrees } from "./CampusDistrictArt";
+import { NaturalTrees } from "./TreeArt";
 import { CampusDistrictParts } from "./CampusDistrictParts";
 import { HooverTowerDoor } from "./HooverTowerDoor";
 import { sculptedMaterial } from "./Surface";
@@ -228,6 +229,7 @@ export function CampusDistrict() {
       scale={[...campusDistrictScale]}
     >
       <CampusDistrictParts parts={campusDistrictParts} />
+      <NaturalTrees trees={campusDistrictTrees} />
       <HooverTowerDoor />
       <CampusIdentifier />
       <mesh

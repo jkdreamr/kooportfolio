@@ -52,6 +52,7 @@ function BoothSession() {
   }, []);
   useEffect(() => {
     if (photo.stage !== "countdown") return;
+    let captureFrame = 0;
     // A slow render must not turn three chained timers into a nine-second wait.
     const timer = window.setInterval(() => {
       const remaining = Math.max(
@@ -61,10 +62,16 @@ function BoothSession() {
       setCountdown(remaining);
       if (remaining === 0) {
         window.clearInterval(timer);
-        requestPhoto(true);
+        // Paint the capture state before synchronous WebGL readback starts.
+        captureFrame = window.requestAnimationFrame(() => {
+          captureFrame = window.requestAnimationFrame(() => requestPhoto(true));
+        });
       }
     }, 100);
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearInterval(timer);
+      window.cancelAnimationFrame(captureFrame);
+    };
   }, [photo.stage]);
   const busy = photo.stage === "countdown";
   const ready = photo.stage === "ready";
@@ -100,7 +107,10 @@ function BoothSession() {
             ×
           </button>
         </header>
-        <div className="photo-booth-preview" aria-busy={Boolean(photo.request)}>
+        <div
+          className="photo-booth-preview"
+          aria-busy={busy || Boolean(photo.request)}
+        >
           {photo.card ? (
             <img
               src={photo.card.url}
@@ -117,7 +127,7 @@ function BoothSession() {
               role="status"
               aria-live="polite"
             >
-              {countdown || "Saving…"}
+              {countdown || "Taking…"}
             </strong>
           )}
         </div>
@@ -181,7 +191,7 @@ function BoothSession() {
                   Again
                 </button>
                 <a
-                  className="primary-button"
+                  className="photo-booth-primary"
                   href={photo.card.url}
                   download={photo.card.filename}
                 >
@@ -191,7 +201,7 @@ function BoothSession() {
             ) : (
               <button
                 type="button"
-                className="primary-button"
+                className="photo-booth-primary"
                 disabled={busy || Boolean(photo.request)}
                 onClick={() => {
                   countdownEnds.current = performance.now() + 3000;

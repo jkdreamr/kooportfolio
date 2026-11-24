@@ -11,13 +11,16 @@ export function createWritingDraftSession(
 ) {
   let memory: WritingDraft | undefined;
   let dirty = false;
+  let stored = false;
   return {
     read(): WritingDraft {
       if (!memory || !dirty) {
         let value: Partial<WritingDraft> | null = null;
         try {
           value = JSON.parse(storage().getItem(key) ?? "null");
+          stored = true;
         } catch {
+          stored = false;
           // A formerly clean draft is still safe if storage becomes denied.
           return { ...(memory ?? blank) };
         }
@@ -32,14 +35,17 @@ export function createWritingDraftSession(
       // Update synchronously, before persistence or React's next render.
       memory = { ...draft };
       dirty = true;
+      stored = false;
       try {
         storage().setItem(key, JSON.stringify(memory));
         dirty = false;
+        stored = true;
         return true;
       } catch {
         return false;
       }
     },
+    isStored: () => stored,
   };
 }
 

@@ -4,6 +4,7 @@ import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeom
 import { campus } from "../core/campus";
 import { Ball, Box, Cylinder, Ring, Sign } from "./Models";
 import { GableRoof } from "./ArchitectureDetail";
+import { TreeArt } from "./TreeArt";
 
 type Part = {
   p: [number, number, number];
@@ -155,21 +156,7 @@ function Masonry() {
   );
 }
 function Palm({ x, z }: { x: number; z: number }) {
-  return (
-    <group position={[x, 0, z]}>
-      <Cylinder p={[0, 2.1, 0]} s={[0.22, 4.2, 0.22]} c="#936e44" />
-      {Array.from({ length: 7 }, (_, i) => (
-        <group key={i} rotation={[0, (i * Math.PI * 2) / 7, 0]}>
-          <Ball
-            p={[0.8, 4.1, 0]}
-            s={[1.5, 0.2, 0.35]}
-            c={i % 2 ? "#4c783e" : "#6b8e45"}
-            r={[0, 0, -0.16]}
-          />
-        </group>
-      ))}
-    </group>
-  );
+  return <TreeArt p={[x, 0, z]} size={0.9} species="palm" />;
 }
 
 // An original miniature inspired by Stanford's sandstone quad, not a floor plan.
