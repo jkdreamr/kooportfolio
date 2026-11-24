@@ -236,3 +236,8 @@ export function tonightAtLocation(now: Date, location: SkyLocation): Date {
     ) - wallTime;
   return new Date(wallTime - offset);
 }
+
+export function telescopeSkyTime(now: Date, location: SkyLocation) {
+  const preview = solarAltitude(now, location) >= -6;
+  return { time: preview ? tonightAtLocation(now, location) : now, preview };
+}

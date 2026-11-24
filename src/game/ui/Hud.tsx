@@ -526,7 +526,13 @@ export function Hud({ interact }: { interact: () => void }) {
                                             ?.name}
                 </strong>
               </div>
-              <button onClick={interact}>
+              <button
+                onClick={interact}
+                onKeyDown={(event) => {
+                  if (g.near === "stargazing" && event.key === " ")
+                    event.stopPropagation();
+                }}
+              >
                 <kbd>E</kbd>
                 {g.near === "hoover-key"
                   ? "Take"

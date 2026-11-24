@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   advanceBeat,
+  beatPadLane,
   newBeatGame,
   hitBeat,
   HIT_WINDOW,
@@ -11,6 +12,25 @@ import {
 } from "../src/game/core/labGames";
 
 describe("Beat Lab", () => {
+  it("takes letter and number shortcuts without treating browser shortcuts as hits", () => {
+    const press = (key: string, modifiers: Partial<KeyboardEvent> = {}) =>
+      beatPadLane({
+        key,
+        altKey: false,
+        ctrlKey: false,
+        metaKey: false,
+        isComposing: false,
+        ...modifiers,
+      });
+    expect(
+      ["f", "G", "h", "j", "1", "2", "3", "4"].map((key) => press(key)),
+    ).toEqual([0, 1, 2, 3, 0, 1, 2, 3]);
+    expect(press("f", { metaKey: true })).toBe(-1);
+    expect(press("1", { ctrlKey: true })).toBe(-1);
+    expect(press("g", { altKey: true })).toBe(-1);
+    expect(press("j", { isComposing: true })).toBe(-1);
+    expect(press("Escape")).toBe(-1);
+  });
   it("judges timing and lane, never scores a note twice, and penalizes spamming", () => {
     const start = { ...newBeatGame(), phase: "playing" as const, time: 2.4 };
     const hit = hitBeat(start, 0);

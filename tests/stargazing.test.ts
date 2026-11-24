@@ -14,6 +14,7 @@ import {
   SKY_LOCATIONS,
   solarAltitude,
   STAR_CATALOGUE,
+  telescopeSkyTime,
   tonightAtLocation,
 } from "../src/game/core/stargazing";
 
@@ -141,6 +142,22 @@ describe("real telescope sky", () => {
     expect(
       tonightAtLocation(new Date("2026-11-01T12:00:00Z"), bay).toISOString(),
     ).toBe("2026-11-02T06:00:00.000Z");
+  });
+
+  it("opens on the live sky after twilight and previews tonight otherwise", () => {
+    expect(telescopeSkyTime(instant, bay)).toEqual({
+      time: instant,
+      preview: false,
+    });
+    const daytime = new Date("2026-11-24T20:00:00Z");
+    expect(telescopeSkyTime(daytime, bay)).toEqual({
+      time: new Date("2026-11-25T06:00:00Z"),
+      preview: true,
+    });
+    const twilight = new Date("2026-11-25T01:00:00Z");
+    expect(solarAltitude(twilight, bay)).toBeLessThan(0);
+    expect(solarAltitude(twilight, bay)).toBeGreaterThan(-6);
+    expect(telescopeSkyTime(twilight, bay).preview).toBe(true);
   });
 
   it("centers targets geometrically, excludes the far hemisphere, and bounds the controls", () => {

@@ -1,5 +1,22 @@
 export const BEAT_INTERVAL = 0.6;
 export const HIT_WINDOW = 0.21;
+export const BEAT_PAD_KEYS = ["F", "G", "H", "J"] as const;
+
+export function beatPadLane({
+  key,
+  altKey,
+  ctrlKey,
+  metaKey,
+  isComposing,
+}: Pick<
+  KeyboardEvent,
+  "key" | "altKey" | "ctrlKey" | "metaKey" | "isComposing"
+>): number {
+  if (altKey || ctrlKey || metaKey || isComposing) return -1;
+  const letter = BEAT_PAD_KEYS.findIndex((pad) => pad === key.toUpperCase());
+  return letter >= 0 ? letter : /^[1-4]$/.test(key) ? Number(key) - 1 : -1;
+}
+
 const phrase = [0, 2, 1, 2, 0, 3, 1, 2, 0, 1, 3, 2, 0, 2, 3, 1];
 export type BeatNote = {
   lane: number;

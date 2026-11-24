@@ -9,6 +9,7 @@ import {
 import { runtime, useGame } from "./store";
 import { doors } from "./world";
 import { belongsToWorld } from "./worlds";
+import { topicsFor } from "./npcTopics";
 
 export const npcActors = createNpcActors();
 export const npcInWorld = (id: string) => {
@@ -20,8 +21,9 @@ export const activeNpcActors = () =>
 export const useNpcs = create<{
   talking: string | null;
   line: number;
+  topic: string | null;
   pending: string | null;
-}>(() => ({ talking: null, line: 0, pending: null }));
+}>(() => ({ talking: null, line: 0, topic: null, pending: null }));
 
 export function nearbyNpcId(x: number, z: number) {
   const npc = nearestNpc(activeNpcActors(), x, z, useGame.getState().world);
@@ -37,7 +39,7 @@ export function npcName() {
   return villagers.find((npc) => npc.id === actor?.id)?.name ?? "Villager";
 }
 export function closeConversation() {
-  useNpcs.setState({ talking: null, pending: null });
+  useNpcs.setState({ talking: null, topic: null, pending: null });
   if (useGame.getState().panel === "npc") useGame.setState({ panel: "none" });
 }
 export function talkToNpc(id: string) {
@@ -65,14 +67,29 @@ export function talkToNpc(id: string) {
   actor.pose = "stand";
   actor.posture = 0;
   actor.heading = Math.atan2(runtime.x - actor.x, runtime.z - actor.z);
-  useNpcs.setState({ talking: id, line: 0, pending: null });
+  useNpcs.setState({ talking: id, line: 0, topic: null, pending: null });
   useGame.setState({ panel: "npc" });
 }
+export function chooseNpcTopic(id: string) {
+  const { talking, line } = useNpcs.getState();
+  const npc = villagers.find((npc) => npc.id === talking);
+  if (
+    npc &&
+    line === npc.lines.length - 1 &&
+    topicsFor(npc.id).some((topic) => topic.id === id)
+  )
+    useNpcs.setState({ topic: id });
+}
+
 export function advanceConversation() {
   const state = useNpcs.getState(),
     npc = villagers.find((npc) => npc.id === state.talking);
   if (npc && state.line < npc.lines.length - 1)
     useNpcs.setState({ line: state.line + 1 });
+  else if (state.topic)
+    useNpcs.setState({ topic: null });
+  else if (npc && topicsFor(npc.id).length)
+    return;
   else closeConversation();
 }
 /** Called by the existing E-key action, so doors and conversations never double-fire. */

@@ -63,7 +63,7 @@ const skyFragment = `
 `;
 
 /** Drives the named world lights; the world builder retains shadow/position ownership. */
-export function TimeOfDayLighting() {
+export function TimeOfDayLighting({ dimmed = false }: { dimmed?: boolean }) {
   const sky = useRef<THREE.Mesh>(null);
   const skyMaterial = useRef<THREE.ShaderMaterial>(null);
   const lights = useRef<{
@@ -146,15 +146,16 @@ export function TimeOfDayLighting() {
     }
     if (lights.current) {
       const { sun, fill, hemi, ambient } = lights.current;
+      const dimmer = dimmed ? 0.16 : 1;
       sun.color.copy(colors.sun);
-      sun.intensity = interior ? 2.7 : light.key;
+      sun.intensity = (interior ? 2.7 : light.key) * dimmer;
       hemi.color.copy(colors.sky);
       hemi.groundColor.copy(colors.ground);
-      hemi.intensity = interior ? 1.05 : light.hemi;
+      hemi.intensity = (interior ? 1.05 : light.hemi) * dimmer;
       ambient.color.copy(interior ? indoor.ambient : colors.sky);
-      ambient.intensity = interior ? 0.28 : light.ambient;
+      ambient.intensity = (interior ? 0.28 : light.ambient) * dimmer;
       fill.color.copy(colors.sky);
-      fill.intensity = interior ? 0.65 : light.fill;
+      fill.intensity = (interior ? 0.65 : light.fill) * dimmer;
     }
     // R3F copies uniform wrappers into the material. Update that live object,
     // not the memo's numeric values (Color/Vector values happen to be shared).
