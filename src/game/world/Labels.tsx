@@ -1,7 +1,7 @@
 import { useFrame } from "@react-three/fiber";
 import { Vector3 } from "three";
 import { runtime, useGame, walkTo } from "../core/store";
-import { destinations, destinationsInWorld } from "../core/world";
+import { destinationsInWorld } from "../core/world";
 
 const elements = new Map<string, HTMLButtonElement>();
 const projected = new Vector3();
@@ -38,7 +38,7 @@ export function LabelProjection() {
       }
     }
     const compact = size.height < 500;
-    const distance = (door: (typeof destinations)[number]) =>
+    const distance = (door: { x: number; z: number }) =>
       Math.hypot(door.x - runtime.x, door.z - runtime.z);
     destinationsInWorld(useGame.getState().world)
       .sort((a, b) => distance(a) - distance(b))

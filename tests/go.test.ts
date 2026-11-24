@@ -80,6 +80,8 @@ describe("9×9 Go", () => {
     const score = scoreGo(game);
     expect(score.black).toBe(5);
     expect(score.white).toBe(1 + GO_KOMI);
+    expect(score.stones).toEqual([4, 1]);
+    expect(score.territory).toEqual([1, 0]);
     expect(score.owners[40]).toBe(1);
     expect(score.owners[0]).toBe(0);
     expect(scoreGo(newGoGame()).black).toBe(0);
@@ -91,10 +93,24 @@ describe("9×9 Go", () => {
     expect(marked.dead.sort()).toEqual([0, 1]);
     expect(scoreGo(marked).black).toBe(5);
     expect(scoreGo(marked).white).toBe(1 + GO_KOMI);
+    expect(scoreGo(marked).stones).toEqual([3, 1]);
+    expect(scoreGo(marked).territory).toEqual([2, 0]);
     expect(toggleGoDead(marked, 1).dead).toEqual([]);
     expect(resumeGo(marked).dead).toEqual([]);
     expect(resumeGo(marked).board[0]).toBe(2);
     expect(toggleGoDead(newGoGame(), 0).dead).toEqual([]);
+  });
+  it("explains a single-color board's total without counting dead stones twice", () => {
+    const game = { ...position([10, 11], [80]), phase: "scoring" as const };
+    const marked = toggleGoDead(game, 10);
+    const score = scoreGo(marked);
+    expect(score.stones).toEqual([0, 1]);
+    expect(score.territory).toEqual([0, 80]);
+    expect(score.black).toBe(0);
+    expect(score.white).toBe(87.5);
+    expect(score.stones[0] + score.territory[0]).toBe(score.black);
+    expect(score.stones[1] + score.territory[1] + GO_KOMI).toBe(score.white);
+    expect(scoreGo(resumeGo(marked)).stones).toEqual([2, 1]);
   });
   it("computer takes a capture, returns only legal moves, and can agree to finish", () => {
     const capture = position([2, 9], [0, 1]);

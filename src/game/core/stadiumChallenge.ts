@@ -21,10 +21,22 @@ export const STADIUM_KICKS = [
 
 export const STADIUM_TARGET = 12;
 
-export function stadiumTiming(time: number, attempt: number, aiming: boolean) {
-  const sweep = time * ((aiming ? 0.58 : 0.63) + attempt * 0.095);
+export function stadiumTiming(
+  time: number,
+  attempt: number,
+  aiming: boolean,
+  start = 0,
+) {
+  const sweep = start + time * ((aiming ? 0.58 : 0.63) + attempt * 0.095);
   const cycle = sweep % 2;
   return cycle <= 1 ? cycle : 2 - cycle;
+}
+
+export function stadiumTimingStart(
+  attempt: number,
+  window: readonly [number, number],
+) {
+  return attempt === 0 ? window[0] + (window[1] - window[0]) * 0.15 : 0;
 }
 
 export function stadiumKick(
@@ -68,6 +80,16 @@ export function stadiumAimTarget(
     else high = middle;
   }
   return (low + high) / 2;
+}
+
+export function stadiumAimWindow(
+  spot: NonNullable<Kick["spot"]>,
+  power: number,
+) {
+  return [
+    stadiumAimTarget(spot, power, -2.1),
+    stadiumAimTarget(spot, power, 2.1),
+  ] as const;
 }
 
 export type StadiumScore = { points: number; streak: number };

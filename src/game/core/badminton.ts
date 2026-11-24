@@ -62,6 +62,20 @@ const clamp = (v: number, min: number, max: number) =>
 const other = (side: BadmintonSide): BadmintonSide =>
   side === "player" ? "opponent" : "player";
 
+/** Shared by the racket and its timing cue so a lit cue always means a legal hit. */
+export function canReturnBadminton(game: BadmintonGame): boolean {
+  const s = game.shuttle;
+  return (
+    game.phase === "rally" &&
+    game.lastHit === "opponent" &&
+    game.playerCooldown === 0 &&
+    s.z > 0.25 &&
+    s.y >= 0.5 &&
+    s.y <= 4.7 &&
+    Math.hypot(s.x - game.player.x, s.z - game.player.z) <= 1.65
+  );
+}
+
 function launch(
   game: BadmintonGame,
   side: BadmintonSide,
@@ -170,17 +184,21 @@ export function stepBadminton(
     );
     const s = game.shuttle;
     if (swing && game.playerCooldown === 0) {
+      const reachable = canReturnBadminton(game);
       game.player.swing = 0.28;
       game.playerCooldown = 0.27;
-      if (
-        game.lastHit === "opponent" &&
-        s.z > 0.25 &&
-        s.y >= 0.5 &&
-        s.y <= 4.7 &&
-        Math.hypot(s.x - game.player.x, s.z - game.player.z) <= 1.65
-      ) {
+      if (reachable) {
         launch(game, "player", input.aim, input.shot);
-      } else game.message = "Miss";
+      } else {
+        game.message =
+          game.lastHit !== "opponent" || s.z <= 0.25
+            ? "Wait for return"
+            : s.y > 4.7
+              ? "Too early"
+              : s.y < 0.5
+                ? "Too late"
+                : "Move to shuttle";
+      }
     }
     swing = false;
     game.flightTime += dt;
@@ -201,7 +219,10 @@ export function stepBadminton(
       az = tz - game.opponent.z;
     const distance = Math.hypot(ax, az);
     // Slow recovery leaves space to attack; the guest cannot cover every corner.
-    const step = Math.min(distance, dt * (attacking ? 3.2 : recovering ? 1.3 : 0));
+    const step = Math.min(
+      distance,
+      dt * (attacking ? 3.2 : recovering ? 1.3 : 0),
+    );
     if (distance > 0) {
       game.opponent.x += (ax / distance) * step;
       game.opponent.z += (az / distance) * step;
@@ -250,5 +271,7 @@ export function stepBadminton(
         inBounds ? "Down" : "Out",
       );
     }
+    // A recovered position/timing must not retain the previous missed-swing hint.
+    if (canReturnBadminton(game)) game.message = "";
   }
 }
