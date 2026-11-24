@@ -7,6 +7,7 @@ import {
 } from "../core/campusDistrict";
 import { campusDistrictParts } from "./CampusDistrictArt";
 import { CampusDistrictParts } from "./CampusDistrictParts";
+import { HooverTowerDoor } from "./HooverTowerDoor";
 import { Sign } from "./Models";
 
 /** Locally drawn block-S identifier; no downloaded university artwork. */
@@ -107,6 +108,7 @@ export function CampusDistrict() {
       scale={[...campusDistrictScale]}
     >
       <CampusDistrictParts parts={campusDistrictParts} />
+      <HooverTowerDoor />
       <CampusIdentifier />
       <CampusSign
         text="STANFORD"
