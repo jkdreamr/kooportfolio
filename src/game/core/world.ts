@@ -1,4 +1,4 @@
-import { WORLD_BOUNDS, WORLD_ELLIPSE } from "../../shared/world-bounds";
+import { WORLD_BOUNDS } from "../../shared/world-bounds";
 import { ISLAND_RAIL } from "./islandRail";
 import { forest, koreaForest } from "./scenery";
 import {
@@ -18,6 +18,9 @@ import { HOME_COMMUNITY_OBSTACLES } from "../world/CommunityScenery";
 import { villageGardenSolids } from "./villageGardens";
 import { HOME_GARDEN_OBSTACLES } from "./homeGardens";
 import { HOME_DESTINATION_CENTERS } from "./homeLayout";
+import { HOME_AIRPORT_GATE, islandForWorld } from "./homeIsland";
+import { journeyGate } from "./journey";
+import { railForWorld } from "./islandRail";
 import { STANFORD_BUILDINGS, isStanfordTownSpace } from "./stanfordLayout";
 import {
   KOREA_WATER_OBSTACLES,
@@ -266,7 +269,25 @@ export const doorsInWorld = (world: WorldId) =>
         });
 export const destinationsInWorld = (world: WorldId) => [
   ...doorsInWorld(world),
-  ...landmarks.filter((place) => belongsToWorld(place.id, world)),
+  ...landmarks
+    .filter((place) => belongsToWorld(place.id, world))
+    .map((place) => {
+      if (world !== "home") return place;
+      if (place.id === "airport") {
+        const [x, z] = HOME_AIRPORT_GATE;
+        return { ...place, x, z, anchor: [x, 8, z - 9] as const };
+      }
+      if (place.id === "station") {
+        const [x, z] = journeyGate("train", world);
+        return {
+          ...place,
+          x,
+          z,
+          anchor: [railForWorld(world).station[0], 4, z] as const,
+        };
+      }
+      return place;
+    }),
 ];
 export type PlaceId = (typeof doors)[number]["id"];
 export function isInterior(scene: string) {
@@ -283,8 +304,13 @@ const sharedObstacles: ReadonlyArray<readonly number[]> = [
   [58, 52, 9, 7],
 ];
 const obstaclesFor = (world?: WorldId): ReadonlyArray<readonly number[]> => [
-  ...sharedObstacles,
-  ...(world === "korea" ? koreaForest : forest)
+  ...(world === "home"
+    ? [
+        ...sharedObstacles.slice(1, 4),
+        [HOME_AIRPORT_GATE[0], HOME_AIRPORT_GATE[1] - 9, 5, 3.8],
+      ]
+    : sharedObstacles),
+  ...(world === "home" ? [] : world === "korea" ? koreaForest : forest)
     .filter(({ x, z }) => world !== "stanford" || !isStanfordTownSpace(x, z, 3))
     .map((tree) => [tree.x, tree.z, 0.4, 0.4]),
   ...(world ? villageGardenSolids(world) : []),
@@ -311,13 +337,14 @@ const regionalObstacles = {
   all: obstaclesFor(),
 };
 export function canWalk(x: number, z: number, world?: WorldId) {
+  const island = islandForWorld(world);
   if (
     x < WORLD_BOUNDS.minX ||
     x > WORLD_BOUNDS.maxX ||
     z < WORLD_BOUNDS.minZ ||
     z > WORLD_BOUNDS.maxZ ||
-    (x / WORLD_ELLIPSE.radiusX) ** 2 +
-      ((z - WORLD_ELLIPSE.centerZ) / WORLD_ELLIPSE.radiusZ) ** 2 >
+    ((x - island.centerX) / island.radiusX) ** 2 +
+      ((z - island.centerZ) / island.radiusZ) ** 2 >
       1
   )
     return false;

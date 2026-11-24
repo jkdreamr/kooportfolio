@@ -13,6 +13,7 @@ import {
   zoomWorld,
 } from "../src/game/core/worldView";
 import { WORLD_ELLIPSE } from "../src/shared/world-bounds";
+import { islandForWorld } from "../src/game/core/homeIsland";
 import { POND_SURFACE } from "../src/game/core/pond";
 import { villageGardenPlots } from "../src/game/core/villageGardens";
 import { WORLD_IDS } from "../src/game/core/worlds";
@@ -111,11 +112,12 @@ describe("stable, planted island", () => {
       const plots = villageGardenPlots(world);
       // Stanford trades filler plots for adjacent playable destinations.
       // Its clear-street invariant is covered by stanfordLayout.test.ts.
-      expect(plots.length).toBeGreaterThan(world === "stanford" ? 0 : 100);
+      expect(plots.length).toBeGreaterThan(world === "korea" ? 100 : 0);
+      const island = islandForWorld(world);
       for (const { x, z } of plots) {
         expect(
-          (x / WORLD_ELLIPSE.radiusX) ** 2 +
-            ((z - WORLD_ELLIPSE.centerZ) / WORLD_ELLIPSE.radiusZ) ** 2,
+          ((x - island.centerX) / island.radiusX) ** 2 +
+            ((z - island.centerZ) / island.radiusZ) ** 2,
         ).toBeLessThan(1);
         if (world === "korea")
           expect(x > -14 && x < 64 && z > 20 && z < 46).toBe(false);

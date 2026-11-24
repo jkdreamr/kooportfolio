@@ -18,7 +18,7 @@ import {
   type WorldId,
 } from "./worlds";
 import { keys, touch } from "./input";
-import { ISLAND_RAIL } from "./islandRail";
+import { journeyGate } from "./journey";
 export type Scene = "hub" | "rowing" | "secret" | PlaceId;
 let storageIssue = "";
 let savedRaw: string | null = null;
@@ -160,8 +160,7 @@ export const useGame = create<State>((set, get) => ({
     if (!validJourney(get().world, world, mode) || get().scene !== "hub")
       return;
     get().persist();
-    const position: [number, number] =
-      mode === "plane" ? [58, 61] : [-73, ISLAND_RAIL.station[1]];
+    const position: [number, number] = [...journeyGate(mode, world)];
     [runtime.x, runtime.z] = position;
     runtime.path = [];
     runtime.target = null;

@@ -32,7 +32,7 @@ export function IslandJourney({
   );
   const time = useRef(0),
     arrived = useRef(false);
-  const gate = journeyGate(trip.mode);
+  const gate = journeyGate(trip.mode, trip.from);
   const route = useRef(findPath(trip.origin, [gate[0], gate[1]], trip.from));
   const position = useRef(
     new THREE.Vector3(...[trip.origin[0], 0.3, trip.origin[1]]),
@@ -52,7 +52,9 @@ export function IslandJourney({
       return;
     const dt = Math.min(delta, 0.1);
     const plane = trip.mode === "plane";
-    const initial = journeyPose(trip.mode, 0);
+    const localWorld = arrived.current ? trip.destination : trip.from;
+    const gate = journeyGate(trip.mode, localWorld);
+    const initial = journeyPose(trip.mode, 0, localWorld);
     let pose = initial;
     time.current += dt;
     if (phase.current === "approach") {
@@ -96,7 +98,28 @@ export function IslandJourney({
       }
     } else if (phase.current === "ride") {
       const p = Math.min(1, time.current / (reduced ? 5 : plane ? 12 : 10));
-      pose = journeyPose(trip.mode, p);
+      const from = journeyPose(trip.mode, p, trip.from);
+      const to = journeyPose(trip.mode, p, trip.destination);
+      const blend = p * p * (3 - 2 * p);
+      // Different-sized coastlines meet offshore without snapping the vehicle
+      // when the destination region mounts at the midpoint.
+      pose = {
+        ...from,
+        x: THREE.MathUtils.lerp(from.x, to.x, blend),
+        z: THREE.MathUtils.lerp(from.z, to.z, blend),
+        heading: Math.atan2(
+          THREE.MathUtils.lerp(
+            Math.sin(from.heading),
+            Math.sin(to.heading),
+            blend,
+          ),
+          THREE.MathUtils.lerp(
+            Math.cos(from.heading),
+            Math.cos(to.heading),
+            blend,
+          ),
+        ),
+      };
       position.current.set(pose.x, pose.y + 1, pose.z);
       if (p >= 0.5 && !arrived.current) {
         arrived.current = true;
@@ -147,7 +170,7 @@ export function IslandJourney({
       camera.updateProjectionMatrix();
     }
   });
-  const parked = journeyPose(trip.mode, 0);
+  const parked = journeyPose(trip.mode, 0, trip.from);
   return (
     <group name="in-world-journey">
       <group ref={actor} position={[trip.origin[0], 0.3, trip.origin[1]]}>

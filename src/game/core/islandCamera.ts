@@ -1,5 +1,6 @@
 import { Vector3 } from "three";
-import { WORLD_ELLIPSE } from "../../shared/world-bounds";
+import { islandForWorld } from "./homeIsland";
+import type { WorldId } from "./worlds";
 
 // Stay behind the entire island; the old close camera clipped the foreground
 // when zoomed out because orthographic zoom does not change viewing distance.
@@ -12,9 +13,10 @@ const up = new Vector3().crossVectors(direction, right);
 
 /** Project the island's ellipse, coastal rail, lake and tallest landmark.
  * Fit against the usable viewport, not a hard-coded desktop zoom. */
-export function islandZoom(width: number, height: number) {
-  const rx = WORLD_ELLIPSE.radiusX + 9;
-  const rz = WORLD_ELLIPSE.radiusZ + 16;
+export function islandZoom(width: number, height: number, world?: WorldId) {
+  const island = islandForWorld(world);
+  const rx = island.radiusX + (world === "home" ? 6 : 9);
+  const rz = island.radiusZ + (world === "home" ? 8 : 16);
   const projectedWidth = 2 * Math.hypot(rx * right.x, rz * right.z);
   const projectedHeight = 2 * Math.hypot(rx * up.x, rz * up.z) + 26 * up.y;
   const compact = height < 500;

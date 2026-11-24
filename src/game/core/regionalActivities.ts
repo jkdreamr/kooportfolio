@@ -94,10 +94,10 @@ export const activitySpots: readonly {
   world: WorldId;
   p: readonly [number, number];
 }[] = [
-  { id: "harvest-0", world: "home", p: [16.5, 42] },
-  { id: "harvest-1", world: "home", p: [16.5, 55] },
-  { id: "harvest-2", world: "home", p: [23.5, 42] },
-  { id: "harvest-3", world: "home", p: [23.5, 55] },
+  { id: "harvest-0", world: "home", p: [-14.5, 0] },
+  { id: "harvest-1", world: "home", p: [-14.5, 7] },
+  { id: "harvest-2", world: "home", p: [-11.5, 0] },
+  { id: "harvest-3", world: "home", p: [-11.5, 7] },
   { id: "produce", world: "home", p: [25, -8.8] },
   { id: "postbox", world: "home", p: [16, -4.6] },
   ...PARCEL_DOORS.map((d, i) => ({

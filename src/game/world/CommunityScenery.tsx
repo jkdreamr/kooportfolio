@@ -95,16 +95,16 @@ function bicycle(a: SceneryPart[], x: number, z: number, c: string) {
   part(a, x + 0.45, 1.88, z, 0.12, 0.08, 0.65, "#424d47");
 }
 
-homeSolids.push([-43, -7, 1.6, 2.2]);
+homeSolids.push([-35, -7, 1.6, 2.2]);
 for (let i = 0; i < 3; i++)
-  bicycle(home, -43, -8.3 + i * 1.3, ["#8b5d4e", "#657e70", "#b29a68"][i]);
+  bicycle(home, -35, -8.3 + i * 1.3, ["#8b5d4e", "#657e70", "#b29a68"][i]);
 
 // Kitchen-adjacent allotments have a working central aisle, water barrel and
 // timber trellises; beds are separate solids so the whole garden is explorable.
-part(home, 20, 0.185, 48, 3.2, 0.06, 35, "#b3a586");
-part(home, 20, 0.19, 49, 30, 0.065, 3, "#b3a586");
-for (const x of [12, 28])
-  for (const z of [42, 55]) {
+part(home, -13, 0.185, 3.5, 2.2, 0.06, 17, "#b3a586");
+part(home, -13, 0.19, 3.5, 24, 0.065, 1.6, "#b3a586");
+for (const x of [-19, -7])
+  for (const z of [0, 7]) {
     homeSolids.push([x, z, 3.8, 2.3]);
     part(home, x, 0.38, z, 7.6, 0.45, 4.6, "#806b4a");
     part(home, x, 0.62, z, 7.2, 0.08, 4.2, "#63573f");
@@ -112,7 +112,7 @@ for (const x of [12, 28])
       part(home, x + side * 3.75, 0.63, z, 0.16, 0.18, 4.7, "#b19b70");
       part(home, x, 0.63, z + side * 2.25, 7.6, 0.18, 0.16, "#b19b70");
     }
-    const tomatoes = z === 55;
+    const tomatoes = z === 7;
     for (let i = 0; i < 6; i++)
       for (let j = 0; j < 3; j++) {
         const px = x - 2.8 + i * 1.1,
@@ -134,22 +134,22 @@ for (const x of [12, 28])
       }
     if (tomatoes) part(home, x, 2.35, z, 7.3, 0.1, 0.1, "#a99266");
   }
-homeSolids.push([36, 55, 0.9, 0.9]);
-part(home, 36, 1.1, 55, 1.5, 1.9, 1.5, "#6b8275", "column");
-part(home, 36, 2.1, 55, 1.6, 0.16, 1.6, "#9ba78b", "column");
-rod(home, [36, 1.5, 55], [37, 1.5, 55], 0.12, "#b4a577");
-part(home, 39, 0.22, 41, 13, 0.15, 11, "#b5a78a");
-part(home, 39, 0.19, 32, 3, 0.06, 12, "#b3a586");
+homeSolids.push([-26, 0, 0.9, 0.9]);
+part(home, -26, 1.1, 0, 1.5, 1.9, 1.5, "#6b8275", "column");
+part(home, -26, 2.1, 0, 1.6, 0.16, 1.6, "#9ba78b", "column");
+rod(home, [-26, 1.5, 0], [-25, 1.5, 0], 0.12, "#b4a577");
+part(home, 10, 0.22, 2, 13, 0.15, 11, "#b5a78a");
+part(home, 10, 0.19, -3, 3, 0.06, 4, "#b3a586");
 for (const dx of [-5.3, 5.3])
   for (const dz of [-4.3, 4.3]) {
-    part(home, 39 + dx, 2.4, 41 + dz, 0.26, 4.4, 0.26, "#8e7857");
-    homeSolids.push([39 + dx, 41 + dz, 0.2, 0.2]);
+    part(home, 10 + dx, 2.4, 2 + dz, 0.26, 4.4, 0.26, "#8e7857");
+    homeSolids.push([10 + dx, 2 + dz, 0.2, 0.2]);
   }
 for (let i = 0; i < 13; i++)
-  part(home, 33 + i, 4.7, 41, 0.18, 0.26, 10.4, "#a38a61");
+  part(home, 4 + i, 4.7, 2, 0.18, 0.26, 10.4, "#a38a61");
 for (const dz of [-4.3, 4.3])
-  part(home, 39, 4.5, 41 + dz, 12, 0.25, 0.22, "#806d52");
-picnic(home, homeSolids, 39, 41);
+  part(home, 10, 4.5, 2 + dz, 12, 0.25, 0.22, "#806d52");
+picnic(home, homeSolids, 10, 2);
 
 // Hangang's social north bank: food tents on one side, continuous promenade
 // and cycle lane on the other. No counters or tables occupy either through-lane.

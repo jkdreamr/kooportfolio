@@ -101,7 +101,8 @@ describe("separate worlds", () => {
     expect(canWalk(45, 30.38, "korea")).toBe(false);
     for (let x = 26; x <= 64; x++)
       expect(canWalk(x, 34, "korea"), `bridge x=${x}`).toBe(true);
-    expect(canWalk(45, 26, "home")).toBe(true);
+    // That coordinate is now offshore at Home, not a shared regional lawn.
+    expect(canWalk(45, 26, "home")).toBe(false);
   });
   it("lists each Seoul landmark once and connects the airport to it", () => {
     const korea = destinationsInWorld("korea");

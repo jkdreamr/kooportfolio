@@ -9,7 +9,13 @@ import {
   villagers,
 } from "../src/game/core/npcs";
 import { islandLocals } from "../src/game/core/npcPopulation";
-import { canWalk, doors, findPath, moveWorld } from "../src/game/core/world";
+import {
+  canWalk,
+  doors,
+  doorsInWorld,
+  findPath,
+  moveWorld,
+} from "../src/game/core/world";
 import {
   activeNpcActors,
   advanceConversation,
@@ -136,12 +142,14 @@ describe("wandering village crowd", () => {
     ).toBeGreaterThan(2);
   });
   it("uses the active world's collision for conversations instead of phantom buildings", () => {
-    const [x, z] = doors.find((door) => door.id === "kappa")!.footprint;
+    const [x, z] = doorsInWorld("home").find(
+      (door) => door.id === "music",
+    )!.footprint;
     const actor = { ...createNpcActors()[0], x, z };
-    expect(canWalk(x, z, "home")).toBe(true);
-    expect(canWalk(x, z, "stanford")).toBe(false);
-    expect(canTalkToNpc(actor, x + 1, z, "home")).toBe(true);
-    expect(canTalkToNpc(actor, x + 1, z, "stanford")).toBe(false);
+    expect(canWalk(x, z, "stanford")).toBe(true);
+    expect(canWalk(x, z, "home")).toBe(false);
+    expect(canTalkToNpc(actor, x + 1, z, "stanford")).toBe(true);
+    expect(canTalkToNpc(actor, x + 1, z, "home")).toBe(false);
   });
   it("does not offer a conversation through a collision corner", () => {
     const actor = { ...createNpcActors()[0], x: 1.9, z: 1.5 };
@@ -220,7 +228,8 @@ describe("NPC interaction boundaries", () => {
     expect(useNpcs.getState().topic).toBeNull();
     chooseNpcTopic("campus");
     expect(
-      topicsFor(local.id).find(({ id }) => id === useNpcs.getState().topic)?.picture,
+      topicsFor(local.id).find(({ id }) => id === useNpcs.getState().topic)
+        ?.picture,
     ).toBe("campus");
     expect(interactWithNpc()).toBe(true);
     expect(useNpcs.getState().topic).toBeNull();
