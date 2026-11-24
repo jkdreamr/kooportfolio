@@ -6,26 +6,36 @@ import { destinations, destinationsInWorld } from "../core/world";
 const elements = new Map<string, HTMLButtonElement>();
 const projected = new Vector3();
 
+type LabelRect = { x: number; y: number; w: number; h: number };
+
+export function labelsOverlap(a: LabelRect, b: LabelRect) {
+  return (
+    Math.abs(a.x - b.x) < (a.w + b.w) / 2 &&
+    Math.abs(a.y - b.y) < (a.h + b.h) / 2
+  );
+}
+
 // Keep labels in the main React DOM tree, not independent roots inside Canvas.
 // The renderer only updates their projection; React owns their full lifecycle.
 export function LabelProjection() {
   useFrame(({ camera, size }) => {
-    const occupied: { x: number; y: number; w: number; h: number }[] = [];
-    // Physical door actions win over projected destination labels, including
-    // the frame in which the mobile prompt animates into view.
-    const prompt = document
-      .querySelector(".context-action.visible")
-      ?.getBoundingClientRect();
-    if (prompt) {
-      const origin = document
-        .querySelector(".game-shell")
-        ?.getBoundingClientRect();
-      occupied.push({
-        x: prompt.left - (origin?.left ?? 0) + prompt.width / 2,
-        y: prompt.top - (origin?.top ?? 0) + prompt.height / 2,
-        w: prompt.width + 20,
-        h: prompt.height + 20,
-      });
+    const occupied: LabelRect[] = [];
+    const shell = document.querySelector(".game-shell");
+    if (shell) {
+      const origin = shell.getBoundingClientRect();
+      for (const control of shell.querySelectorAll(
+        ".context-action.visible, .time-of-day-control, .world-zoom",
+      )) {
+        if (getComputedStyle(control).visibility === "hidden") continue;
+        const bounds = control.getBoundingClientRect();
+        if (!bounds.width || !bounds.height) continue;
+        occupied.push({
+          x: bounds.left - origin.left + bounds.width / 2,
+          y: bounds.top - origin.top + bounds.height / 2,
+          w: bounds.width + 20,
+          h: bounds.height + 20,
+        });
+      }
     }
     const compact = size.height < 500;
     const distance = (door: (typeof destinations)[number]) =>
@@ -49,11 +59,7 @@ export function LabelProjection() {
           x < size.width - w / 2 - 10 &&
           y > (compact ? 75 : 100) &&
           y < size.height - (compact ? 80 : 155) &&
-          !occupied.some(
-            (b) =>
-              Math.abs(x - b.x) < (w + b.w) / 2 &&
-              Math.abs(y - b.y) < (h + b.h) / 2,
-          );
+          !occupied.some((b) => labelsOverlap({ x, y, w, h }, b));
         element.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
         element.style.visibility = visible ? "visible" : "hidden";
         if (visible) occupied.push({ x, y, w, h });
