@@ -1,3 +1,13 @@
+// A daily course may share a seed with a ranked course, but never its board.
+export function rowingLeaderboardBoard(
+  mode: "sprint" | "regatta" | "daily",
+  length: number,
+  seed: number,
+) {
+  if (mode === "sprint" && length === 360 && seed === 1) return "rowing-sprint";
+  if (mode === "regatta" && length === 750 && seed === 2) return "rowing-regatta";
+  return null;
+}
 export const TICK = 1 / 60;
 export type RaceState = {
   tick: number;

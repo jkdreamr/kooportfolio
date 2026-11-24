@@ -36,6 +36,7 @@ function BoothSession() {
   const dialog = useRef<HTMLDialogElement>(null);
   const photo = usePhotoBooth();
   const [countdown, setCountdown] = useState(0);
+  const countdownEnds = useRef(0);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     const modal = dialog.current;
@@ -50,13 +51,28 @@ function BoothSession() {
     };
   }, []);
   useEffect(() => {
-    if (!countdown) return;
-    const timer = window.setTimeout(() => {
-      setCountdown(countdown - 1);
-      if (countdown === 1) requestPhoto(true);
-    }, 1000);
-    return () => window.clearTimeout(timer);
-  }, [countdown]);
+    if (photo.stage !== "countdown") return;
+    let captureFrame = 0;
+    // A slow render must not turn three chained timers into a nine-second wait.
+    const timer = window.setInterval(() => {
+      const remaining = Math.max(
+        0,
+        Math.ceil((countdownEnds.current - performance.now()) / 1000),
+      );
+      setCountdown(remaining);
+      if (remaining === 0) {
+        window.clearInterval(timer);
+        // Paint the capture state before synchronous WebGL readback starts.
+        captureFrame = window.requestAnimationFrame(() => {
+          captureFrame = window.requestAnimationFrame(() => requestPhoto(true));
+        });
+      }
+    }, 100);
+    return () => {
+      window.clearInterval(timer);
+      window.cancelAnimationFrame(captureFrame);
+    };
+  }, [photo.stage]);
   const busy = photo.stage === "countdown";
   const ready = photo.stage === "ready";
   function choose(pose: PhotoPose, frame: PostcardFrame) {
@@ -91,7 +107,10 @@ function BoothSession() {
             ×
           </button>
         </header>
-        <div className="photo-booth-preview" aria-busy={Boolean(photo.request)}>
+        <div
+          className="photo-booth-preview"
+          aria-busy={busy || Boolean(photo.request)}
+        >
           {photo.card ? (
             <img
               src={photo.card.url}
@@ -108,7 +127,7 @@ function BoothSession() {
               role="status"
               aria-live="polite"
             >
-              {countdown || "Click!"}
+              {countdown || "Taking…"}
             </strong>
           )}
         </div>
@@ -138,7 +157,7 @@ function BoothSession() {
                 <legend>Border</legend>
                 {(
                   [
-                    ["cream", "Cream"],
+                    ["slate", "Slate"],
                     ["pine", "Pine"],
                   ] as const
                 ).map(([frame, label]) => (
@@ -172,7 +191,7 @@ function BoothSession() {
                   Again
                 </button>
                 <a
-                  className="primary-button"
+                  className="photo-booth-primary"
                   href={photo.card.url}
                   download={photo.card.filename}
                 >
@@ -182,9 +201,10 @@ function BoothSession() {
             ) : (
               <button
                 type="button"
-                className="primary-button"
+                className="photo-booth-primary"
                 disabled={busy || Boolean(photo.request)}
                 onClick={() => {
+                  countdownEnds.current = performance.now() + 3000;
                   usePhotoBooth.setState({ stage: "countdown" });
                   setCountdown(3);
                 }}

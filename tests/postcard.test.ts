@@ -78,4 +78,15 @@ describe("photo booth asynchronous captures", () => {
     requestPhoto();
     expect(usePhotoBooth.getState().error).toBe("");
   });
+  it("keeps pose previews lightweight and retains a single full-resolution approved shot", () => {
+    expect(usePhotoBooth.getState().request?.resolution).toBe("preview");
+    requestPhoto(true);
+    const shot = usePhotoBooth.getState().request!;
+    expect(shot.resolution).toBe("full");
+    finishPhoto(shot.id, new Blob());
+    expect(usePhotoBooth.getState().stage).toBe("ready");
+    expect(usePhotoBooth.getState().card?.resolution).toBe("full");
+    expect(usePhotoBooth.getState().request).toBeNull();
+    expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+  });
 });

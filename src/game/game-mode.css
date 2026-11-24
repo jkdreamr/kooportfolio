@@ -1,0 +1,10 @@
+/* Gameplay belongs to each game's stage, not to the village navigation. Keep
+   pause/result and native modal dialogs available, including when a tab returns
+   while paused or the player opens Records after a finished round. */
+.game-ui[data-game-mode] > :not(.modal-scrim):not(.game-toast):not(dialog[open]) {
+  display: none;
+}
+.game-shell[data-game-mode] .room-story,
+.game-shell[data-game-mode] .joystick {
+  display: none;
+}

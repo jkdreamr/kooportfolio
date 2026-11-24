@@ -1,6 +1,6 @@
 # Writing room
 
-Original chunky library with bound books, timber drawers, tufted chairs, green-shade lamps and a typewriter. No decorative in-world prose. Reading and composing open only on request in a keyboard-trapped native dialog. Public posts are plain text; author names are explicitly unverified. No seeded posts or local-only feed presented as public.
+Original chunky library with bound books, timber drawers, tufted chairs, green-shade lamps and a typewriter. No decorative in-world prose. Reading and composing open only on request in a keyboard-trapped native dialog. Public posts are plain text; author names are unverified. No seeded posts or local-only feed presented as public. The neutral slate editor uses a thin border and one muted line for any publication/error/session-only draft notice; no banners or disclaimer paragraph.
 
 ## Integration
 
@@ -8,7 +8,7 @@ The shared world builder mounts `WritingInterior` from `src/game/scenes/WritingI
 
 ## Storage boundary
 
-Default configuration has **no D1 binding**. The API returns 503 and the reader explains that public writing is not connected. Drafts remain in this browser; a successful publication is reported only after the shared server accepts it. Delete credentials are random, stored in the browser before posting, and never included in public responses. Clearing browser storage loses the ability to remove one's own post; the moderator can still remove it. Private/incognito or storage-denied users are warned. No accounts or claim that a name belongs to Joshua.
+Default configuration has **no D1 binding**. The API returns 503 and the reader explains that public writing is not connected. Drafts remain in this browser; a successful publication is reported only after the shared server accepts it. Draft state lives above the conditional controls portal with a synchronous session-memory fallback: storage denial, closing the modal, leaving the room, and tab-away auto-pause do not discard unsaved text. Without working browser storage, a page reload still loses the session draft. Delete credentials are random, stored in the browser before posting, and never included in public responses. Clearing browser storage loses the ability to remove one's own post; the moderator can still remove it. Private/incognito or storage-denied users are warned. No accounts or claim that a name belongs to Joshua.
 
 Nothing has been provisioned or deployed. No remote API calls, new paid services, or production DNS changes are part of this PR.
 

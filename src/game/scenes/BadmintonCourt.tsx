@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
@@ -11,12 +11,17 @@ import {
   type BadmintonShot,
 } from "../core/badminton";
 import { runtime, useGame } from "../core/store";
+import { startGameMode, endGameMode, useGameMode } from "../core/gameMode";
 import { keys, touch } from "../core/input";
 import { newRunId } from "../../shared/run-id";
 import { Ball, Box, Cylinder, Ring } from "../world/Models";
-import { CraftedBox, WallSconce } from "./CraftedDetails";
+import { HitPad, MovePad } from "./BadmintonControls";
+import { BadmintonGym } from "./BadmintonGym";
 import { gameIsActive } from "./InteriorProps";
 import "./badminton.css";
+
+// Enlarge only the horizontal playing surface; avatars retain village scale.
+const COURT_SCALE = 1.4;
 
 function Racket({ color = "#dba752" }: { color?: string }) {
   return (
@@ -53,7 +58,7 @@ function Shuttlecock() {
       <Cylinder p={[0, 0.12, 0]} s={[0.145, 0.06, 0.145]} c="#ab6a40" />
       {Array.from({ length: 8 }, (_, i) => (
         <group key={i} rotation={[0, (i * Math.PI) / 4, 0]}>
-          <CraftedBox
+          <Box
             p={[0.12, 0.34, 0]}
             s={[0.09, 0.46, 0.06]}
             r={[0, 0, -0.4]}
@@ -87,7 +92,7 @@ function Player({
       p.z - previous.current.z,
     );
     previous.current.stride += Math.min(delta, 0.05) * (speed > 0.001 ? 15 : 0);
-    rig.current.position.set(p.x, 0.19, p.z - 2);
+    rig.current.position.set(p.x * COURT_SCALE, 0.19, (p.z - 2) * COURT_SCALE);
     rig.current.rotation.y = opponent ? 0 : Math.PI;
     if (arm.current)
       arm.current.rotation.x =
@@ -102,38 +107,46 @@ function Player({
     previous.current.z = p.z;
   });
   return (
-    <group ref={rig} position={[0, 0.19, opponent ? -7.7 : 3.7]}>
+    <group
+      ref={rig}
+      position={[0, 0.19, (opponent ? -7.7 : 3.7) * COURT_SCALE]}
+    >
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]}>
+        <circleGeometry args={[0.5, 24]} />
+        <meshBasicMaterial
+          color="#143c3b"
+          transparent
+          opacity={0.2}
+          depthWrite={false}
+        />
+      </mesh>
       <group ref={legs}>
         {[-0.2, 0.2].map((x) => (
           <group key={x} position={[x, 0.5, 0]}>
-            <CraftedBox p={[0, -0.05, 0]} s={[0.3, 0.36, 0.36]} c="#263b40" />
-            <CraftedBox p={[0, -0.28, 0]} s={[0.2, 0.25, 0.23]} c="#d9a57b" />
-            <CraftedBox
-              p={[0, -0.42, 0.08]}
-              s={[0.33, 0.18, 0.49]}
-              c="#f4e8ce"
-            />
+            <Box p={[0, -0.05, 0]} s={[0.3, 0.36, 0.36]} c="#263b40" />
+            <Box p={[0, -0.28, 0]} s={[0.2, 0.25, 0.23]} c="#d9a57b" />
+            <Box p={[0, -0.42, 0.08]} s={[0.33, 0.18, 0.49]} c="#f4e8ce" />
             <Box p={[0, -0.48, 0.08]} s={[0.34, 0.05, 0.5]} c={color} />
           </group>
         ))}
       </group>
-      <CraftedBox p={[0, 0.95, 0]} s={[0.8, 0.72, 0.46]} c={color} />
+      <Box p={[0, 0.95, 0]} s={[0.8, 0.72, 0.46]} c={color} />
       <Box p={[0, 1.18, 0.24]} s={[0.12, 0.13, 0.025]} c="#efdca6" />
       <group ref={arm} position={[-0.5, 1.13, 0]}>
-        <CraftedBox p={[0, -0.2, 0]} s={[0.24, 0.5, 0.26]} c="#e4b28a" />
+        <Box p={[0, -0.2, 0]} s={[0.24, 0.5, 0.26]} c="#e4b28a" />
         <Box p={[0, -0.35, 0]} s={[0.26, 0.1, 0.28]} c="#f5e8cd" />
         <group position={[0, -0.45, 0.08]} rotation={[Math.PI / 2, 0, 0]}>
           <Racket color={opponent ? "#c45e44" : "#dba752"} />
         </group>
       </group>
-      <CraftedBox
+      <Box
         p={[0.5, 0.94, 0]}
         s={[0.23, 0.5, 0.25]}
         c="#e4b28a"
         r={[-0.2, 0, 0.15]}
       />
-      <CraftedBox p={[0, 1.67, 0]} s={[0.8, 0.7, 0.68]} c="#e4b28a" />
-      <CraftedBox p={[0, 1.99, -0.02]} s={[0.84, 0.2, 0.72]} c="#3d332c" />
+      <Box p={[0, 1.67, 0]} s={[0.8, 0.7, 0.68]} c="#e4b28a" />
+      <Box p={[0, 1.99, -0.02]} s={[0.84, 0.2, 0.72]} c="#3d332c" />
       <Box
         p={[0, 1.9, 0.04]}
         s={[0.83, 0.09, 0.67]}
@@ -155,87 +168,79 @@ function Player({
 function CourtFurnishings() {
   return (
     <group>
-      <CraftedBox p={[0, 0.05, -2]} s={[10.4, 0.24, 19.4]} c="#365844" />
-      <Box p={[0, 0.185, -2]} s={[8, 0.035, 17]} c="#387e83" sharp />
-      {[-4, -3.4, 3.4, 4].map((x) => (
+      <group scale={[COURT_SCALE, 1, COURT_SCALE]}>
+        <Box p={[0, 0.05, -2]} s={[10.4, 0.24, 19.4]} c="#365844" />
+        <Box p={[0, 0.185, -2]} s={[8, 0.035, 17]} c="#387e83" sharp />
+        {[-4, -3.4, 3.4, 4].map((x) => (
+          <Box
+            key={x}
+            p={[x, 0.213, -2]}
+            s={[0.055, 0.025, 17.05]}
+            c="#f2e5c2"
+            sharp
+          />
+        ))}
+        {[-8.5, -7.55, -2.5, 2.5, 7.55, 8.5].map((z) => (
+          <Box
+            key={z}
+            p={[0, 0.213, z - 2]}
+            s={[8.05, 0.025, 0.055]}
+            c="#f2e5c2"
+            sharp
+          />
+        ))}
+        {[-1, 1].map((side) => (
+          <Box
+            key={side}
+            p={[0, 0.213, side * 5.5 - 2]}
+            s={[0.055, 0.025, 6]}
+            c="#f2e5c2"
+            sharp
+          />
+        ))}
+        {[-4.15, 4.15].map((x) => (
+          <group key={x} position={[x, 0, -2]}>
+            <Box p={[0, 0.3, 0]} s={[0.68, 0.35, 0.7]} c="#3a433c" />
+            <Cylinder p={[0, 1.25, 0]} s={[0.1, 2.25, 0.1]} c="#ca9b4f" />
+            <Ball p={[0, 2.42, 0]} s={[0.15, 0.15, 0.15]} c="#e6ba62" />
+            <Ring p={[0, 0.52, 0]} radius={0.15} tube={0.04} c="#9d7136" />
+          </group>
+        ))}
+        {/* Real open mesh, rather than an opaque card across the play area. */}
+        {Array.from({ length: 41 }, (_, i) => (
+          <Box
+            key={`v${i}`}
+            p={[-4 + i * 0.2, 1.65, -2]}
+            s={[0.015, 1.2, 0.015]}
+            c="#293c39"
+            sharp
+          />
+        ))}
+        {Array.from({ length: 7 }, (_, i) => (
+          <Box
+            key={`h${i}`}
+            p={[0, 1.05 + i * 0.2, -2]}
+            s={[8.1, 0.015, 0.015]}
+            c="#293c39"
+            sharp
+          />
+        ))}
         <Box
-          key={x}
-          p={[x, 0.213, -2]}
-          s={[0.055, 0.025, 17.05]}
-          c="#f2e5c2"
-          sharp
+          p={[0, BADMINTON.net + 0.18, -2]}
+          s={[8.25, 0.095, 0.065]}
+          c="#f5e6bd"
         />
-      ))}
-      {[-8.5, -7.55, -2.5, 2.5, 7.55, 8.5].map((z) => (
-        <Box
-          key={z}
-          p={[0, 0.213, z - 2]}
-          s={[8.05, 0.025, 0.055]}
-          c="#f2e5c2"
-          sharp
-        />
-      ))}
-      {[-1, 1].map((side) => (
-        <Box
-          key={side}
-          p={[0, 0.213, side * 5.5 - 2]}
-          s={[0.055, 0.025, 6]}
-          c="#f2e5c2"
-          sharp
-        />
-      ))}
-      {[-4.15, 4.15].map((x) => (
-        <group key={x} position={[x, 0, -2]}>
-          <CraftedBox p={[0, 0.3, 0]} s={[0.68, 0.35, 0.7]} c="#3a433c" />
-          <Cylinder p={[0, 1.25, 0]} s={[0.1, 2.25, 0.1]} c="#ca9b4f" />
-          <Ball p={[0, 2.42, 0]} s={[0.15, 0.15, 0.15]} c="#e6ba62" />
-          <Ring p={[0, 0.52, 0]} radius={0.15} tube={0.04} c="#9d7136" />
-        </group>
-      ))}
-      {/* Real open mesh, rather than an opaque card across the play area. */}
-      {Array.from({ length: 41 }, (_, i) => (
-        <Box
-          key={`v${i}`}
-          p={[-4 + i * 0.2, 1.65, -2]}
-          s={[0.015, 1.2, 0.015]}
-          c="#293c39"
-          sharp
-        />
-      ))}
-      {Array.from({ length: 7 }, (_, i) => (
-        <Box
-          key={`h${i}`}
-          p={[0, 1.05 + i * 0.2, -2]}
-          s={[8.1, 0.015, 0.015]}
-          c="#293c39"
-          sharp
-        />
-      ))}
-      <Box
-        p={[0, BADMINTON.net + 0.18, -2]}
-        s={[8.25, 0.095, 0.065]}
-        c="#f5e6bd"
-      />
-      <Box p={[0, 1.05, -2]} s={[8.25, 0.035, 0.035]} c="#dfc898" />
-      {[-7.5, 7.5].map((x) => (
-        <group key={x} position={[x, 0, -4]}>
+        <Box p={[0, 1.05, -2]} s={[8.25, 0.035, 0.035]} c="#dfc898" />
+      </group>
+      {[-10.5, 10.5].map((x) => (
+        <group key={x} position={[x, 0, -5]}>
           {[-1.1, 1.1].map((z) => (
-            <CraftedBox
-              key={z}
-              p={[0, 0.35, z]}
-              s={[1, 0.7, 0.4]}
-              c="#4d4030"
-            />
+            <Box key={z} p={[0, 0.35, z]} s={[1, 0.7, 0.4]} c="#4d4030" />
           ))}
           {[-0.32, 0, 0.32].map((xx) => (
-            <CraftedBox
-              key={xx}
-              p={[xx, 0.78, 0]}
-              s={[0.28, 0.2, 3.5]}
-              c="#a86b38"
-            />
+            <Box key={xx} p={[xx, 0.78, 0]} s={[0.28, 0.2, 3.5]} c="#a86b38" />
           ))}
-          <CraftedBox
+          <Box
             p={[x < 0 ? -0.5 : 0.5, 1.22, 0]}
             s={[0.18, 0.7, 3.5]}
             c="#86502d"
@@ -249,12 +254,12 @@ function CourtFurnishings() {
           </group>
           <Cylinder p={[0.1, 1.03, 0.8]} s={[0.14, 0.52, 0.14]} c="#688d9d" />
           <Cylinder p={[0.1, 1.32, 0.8]} s={[0.1, 0.08, 0.1]} c="#dfc998" />
-          <CraftedBox p={[0, 0.93, 0.2]} s={[0.75, 0.12, 0.62]} c="#e2d4b4" />
+          <Box p={[0, 0.93, 0.2]} s={[0.75, 0.12, 0.62]} c="#e2d4b4" />
         </group>
       ))}
-      <group position={[-7.5, 0, 3.7]}>
-        <CraftedBox p={[0, 0.42, 0]} s={[1.4, 0.8, 1.1]} c="#795132" />
-        <CraftedBox p={[0, 0.84, 0]} s={[1.48, 0.15, 1.18]} c="#c39a54" />
+      <group position={[-10.5, 0, 7.7]}>
+        <Box p={[0, 0.42, 0]} s={[1.4, 0.8, 1.1]} c="#795132" />
+        <Box p={[0, 0.84, 0]} s={[1.48, 0.15, 1.18]} c="#c39a54" />
         {[0, 1, 2].map((i) => (
           <group
             key={i}
@@ -265,9 +270,6 @@ function CourtFurnishings() {
           </group>
         ))}
       </group>
-      {[-8, 8].map((x) => (
-        <WallSconce key={x} p={[x, 3.5, -12.2]} />
-      ))}
     </group>
   );
 }
@@ -301,9 +303,12 @@ const moveKeys = new Set([
   " ",
   "q",
   "e",
+  "1",
+  "2",
+  "3",
 ]);
 
-/** Furnishings for the shared 22×26 shell; the host hides Walker while playing. */
+/** Furnishings for the shared 34×40 hall; the host hides Walker while playing. */
 export function BadmintonCourt({
   onPlayingChange,
 }: {
@@ -312,9 +317,9 @@ export function BadmintonCourt({
   const game = useRef(newBadmintonGame());
   const input = useRef(noInput()),
     held = useRef(new Set<string>()),
-    pointers = useRef(new Map<number, string>());
-  const [playing, setPlaying] = useState(false),
-    [snapshot, setSnapshot] = useState(() => view(game.current));
+    movement = useRef({ x: 0, z: 0 });
+  const playing = useGameMode((s) => s.active?.id === "badminton");
+  const [snapshot, setSnapshot] = useState(() => view(game.current));
   const [aim, setAim] = useState<-1 | 0 | 1>(0),
     [shot, setShot] = useState<BadmintonShot>("clear");
   const blocked = useGame((s) => s.paused || s.panel !== "none" || s.build);
@@ -327,6 +332,14 @@ export function BadmintonCourt({
     rewarded = useRef(false),
     runId = useRef("");
   const direction = useMemo(() => new THREE.Vector3(), []);
+  const matchCamera = useThree((s) => s.camera);
+  useEffect(
+    () => () => {
+      if (matchCamera instanceof THREE.OrthographicCamera)
+        matchCamera.clearViewOffset();
+    },
+    [playing, matchCamera],
+  );
   useEffect(() => {
     onPlayingChange?.(playing);
     return () => onPlayingChange?.(false);
@@ -335,7 +348,7 @@ export function BadmintonCourt({
     if (!playing) return;
     const clear = () => {
       held.current.clear();
-      pointers.current.clear();
+      movement.current.x = movement.current.z = 0;
       input.current.x = input.current.z = 0;
       input.current.swing = false;
       keys.clear();
@@ -358,6 +371,11 @@ export function BadmintonCourt({
       held.current.add(key);
       if (e.repeat) return;
       if (key === " ") input.current.swing = true;
+      if (["1", "2", "3"].includes(key)) {
+        const next = (["clear", "drop", "smash"] as const)[Number(key) - 1];
+        input.current.shot = next;
+        setShot(next);
+      }
       if (key === "q" || key === "e") {
         const next = Math.max(
           -1,
@@ -373,31 +391,34 @@ export function BadmintonCourt({
     window.addEventListener("keydown", down, true);
     window.addEventListener("keyup", up, true);
     window.addEventListener("blur", clear);
+    window.addEventListener("interior-game-close", clear);
     return () => {
       window.removeEventListener("keydown", down, true);
       window.removeEventListener("keyup", up, true);
       window.removeEventListener("blur", clear);
+      window.removeEventListener("interior-game-close", clear);
       clear();
     };
   }, [playing]);
   useEffect(() => {
     if (blocked) {
       held.current.clear();
-      pointers.current.clear();
+      movement.current.x = movement.current.z = 0;
       input.current.swing = false;
     }
   }, [blocked]);
   useFrame(({ camera, size }, delta) => {
     if (!playing) return;
     if (gameIsActive() && runtime.active) {
-      const h = held.current,
-        p = [...pointers.current.values()];
+      const h = held.current;
       input.current.x =
-        Number(h.has("d") || h.has("arrowright") || p.includes("right")) -
-        Number(h.has("a") || h.has("arrowleft") || p.includes("left"));
+        Number(h.has("d") || h.has("arrowright")) -
+        Number(h.has("a") || h.has("arrowleft")) +
+        movement.current.x;
       input.current.z =
-        Number(h.has("s") || h.has("arrowdown") || p.includes("down")) -
-        Number(h.has("w") || h.has("arrowup") || p.includes("up"));
+        Number(h.has("s") || h.has("arrowdown")) -
+        Number(h.has("w") || h.has("arrowup")) +
+        movement.current.z;
       stepBadminton(game.current, input.current, Math.min(delta, 0.05));
       input.current.swing = false;
       if (game.current.winner === "player" && !rewarded.current) {
@@ -412,8 +433,12 @@ export function BadmintonCourt({
     }
     const s = game.current.shuttle;
     if (shuttle.current) {
-      shuttle.current.position.set(s.x, s.y + 0.18, s.z - 2);
-      direction.set(s.vx, s.vy, s.vz);
+      shuttle.current.position.set(
+        s.x * COURT_SCALE,
+        s.y + 0.18,
+        (s.z - 2) * COURT_SCALE,
+      );
+      direction.set(s.vx * COURT_SCALE, s.vy, s.vz * COURT_SCALE);
       if (direction.lengthSq() > 0.01)
         shuttle.current.quaternion.setFromUnitVectors(
           THREE.Object3D.DEFAULT_UP,
@@ -421,31 +446,50 @@ export function BadmintonCourt({
         );
     }
     if (shadow.current) {
-      shadow.current.position.set(s.x, 0.24, s.z - 2);
+      shadow.current.position.set(
+        s.x * COURT_SCALE,
+        0.24,
+        (s.z - 2) * COURT_SCALE,
+      );
       shadow.current.scale.setScalar(0.8 + s.y * 0.06);
     }
     camera.position.lerp(
-      new THREE.Vector3(0, 26, 28),
+      new THREE.Vector3(0, 34, 34),
       1 - Math.exp(-delta * 7),
     );
-    camera.lookAt(0, 0, -1.5);
+    camera.lookAt(0, 0, -2.1);
     if (camera instanceof THREE.OrthographicCamera) {
       const narrow = size.width < 700;
+      // Keep the entire court between the score and two compact touch surfaces.
+      const portrait = size.width < 600 && size.height >= 500;
       const zoom = Math.min(
-        35,
-        (size.width - (narrow ? 24 : 120)) / (narrow ? 11 : 23),
-        (size.height - (size.height < 500 ? 140 : 250)) / 17,
+        30,
+        (size.width - (narrow ? 24 : 120)) / (narrow ? 15 : 29),
+        portrait
+          ? (size.height - 154) / 20
+          : (size.height - (size.height < 500 ? 84 : 160)) / 20,
       );
       camera.zoom = THREE.MathUtils.damp(
         camera.zoom,
-        Math.max(8, zoom),
+        Math.max(6, zoom),
         7,
         delta,
       );
+      if (portrait || size.height < 500)
+        camera.setViewOffset(
+          size.width,
+          size.height,
+          0,
+          portrait ? 15 : -20,
+          size.width,
+          size.height,
+        );
+      else if (camera.view?.enabled) camera.clearViewOffset();
       camera.updateProjectionMatrix();
     }
   });
   const begin = () => {
+    if (!playing && !startGameMode("badminton")) return;
     game.current = newBadmintonGame();
     rewarded.current = false;
     runId.current = newRunId();
@@ -453,27 +497,13 @@ export function BadmintonCourt({
     setAim(0);
     setShot("clear");
     setSnapshot(view(game.current));
-    setPlaying(true);
   };
   const end = () => {
-    setPlaying(false);
-    runtime.target = null;
-    runtime.path = [];
+    endGameMode();
   };
-  const hold = (control: string) => ({
-    onPointerDown: (e: PointerEvent<HTMLButtonElement>) => {
-      e.currentTarget.setPointerCapture(e.pointerId);
-      pointers.current.set(e.pointerId, control);
-    },
-    onPointerUp: (e: PointerEvent<HTMLButtonElement>) =>
-      pointers.current.delete(e.pointerId),
-    onPointerCancel: (e: PointerEvent<HTMLButtonElement>) =>
-      pointers.current.delete(e.pointerId),
-    onLostPointerCapture: (e: PointerEvent<HTMLButtonElement>) =>
-      pointers.current.delete(e.pointerId),
-  });
   return (
     <>
+      <BadmintonGym score={snapshot.score} />
       <CourtFurnishings />
       <Player game={game.current} opponent color="#b8573f" />
       {playing && (
@@ -497,13 +527,16 @@ export function BadmintonCourt({
         <Html
           portal={portal}
           fullscreen
+          calculatePosition={(_object, _camera, size) => [
+            size.width / 2,
+            size.height / 2,
+          ]}
           zIndexRange={[30, 0]}
           style={{ pointerEvents: "none" }}
         >
           <div className={`badminton-ui ${playing ? "is-playing" : ""}`}>
             {!playing ? (
               <section className="badminton-start" aria-label="Badminton match">
-                <h2>Badminton</h2>
                 <p>Quick singles · first to 7</p>
                 <button onClick={begin}>Play a match</button>
               </section>
@@ -542,48 +575,21 @@ export function BadmintonCourt({
                   </section>
                 ) : (
                   <>
-                    <div
-                      className="badminton-move"
-                      role="group"
-                      aria-label="Move on court"
-                    >
-                      <button aria-label="Move forward" {...hold("up")}>
-                        ↑
-                      </button>
-                      <button aria-label="Move left" {...hold("left")}>
-                        ←
-                      </button>
-                      <button aria-label="Move back" {...hold("down")}>
-                        ↓
-                      </button>
-                      <button aria-label="Move right" {...hold("right")}>
-                        →
-                      </button>
-                    </div>
+                    <MovePad movement={movement} />
                     <section
                       className="badminton-actions"
                       aria-label="Racket controls"
                       data-badminton-shortcuts
                     >
-                      <div
-                        className="badminton-aim"
-                        role="group"
-                        aria-label="Aim shot"
+                      <output
+                        className="badminton-selection"
+                        aria-label="Selected shot"
                       >
-                        {([-1, 0, 1] as const).map((v) => (
-                          <button
-                            key={v}
-                            aria-label={`Aim ${v === -1 ? "left" : v === 1 ? "right" : "center"}`}
-                            aria-pressed={aim === v}
-                            onClick={() => {
-                              setAim(v);
-                              input.current.aim = v;
-                            }}
-                          >
-                            {v === -1 ? "↖" : v === 1 ? "↗" : "↑"}
-                          </button>
-                        ))}
-                      </div>
+                        {shot}{" "}
+                        <span>
+                          {aim === -1 ? "↖" : aim === 1 ? "↗" : "↑"}
+                        </span>
+                      </output>
                       <div
                         className="badminton-shots"
                         role="group"
@@ -606,28 +612,33 @@ export function BadmintonCourt({
                           </button>
                         ))}
                       </div>
-                      <button
-                        className="badminton-hit"
-                        onClick={() => {
-                          input.current.swing = true;
-                        }}
+                      <HitPad
+                        input={input}
                         disabled={snapshot.phase === "point"}
-                      >
-                        {snapshot.phase === "ready" &&
-                        game.current.server === "player"
-                          ? "Serve"
-                          : "Hit"}
-                        <kbd>Space</kbd>
-                      </button>
+                        serve={
+                          snapshot.phase === "ready" &&
+                          game.current.server === "player"
+                        }
+                        onShot={({ aim: nextAim, shot: nextShot }) => {
+                          input.current.aim = nextAim;
+                          input.current.shot = nextShot;
+                          setAim(nextAim);
+                          setShot(nextShot);
+                        }}
+                      />
+                      <small className="badminton-gesture-hint">
+                        ↑ clear · <span className="badminton-tap-hint">tap drop · </span>↓ smash
+                      </small>
                     </section>
                     <p className="badminton-hint">
-                      WASD move · Space hit · Q/E aim
+                      WASD move · Space hit · Q/E aim · 1/2/3 shot
                     </p>
                     <button
                       className="badminton-leave badminton-quiet"
+                      aria-label="Close match"
                       onClick={end}
                     >
-                      End match
+                      Close
                     </button>
                   </>
                 )}
@@ -644,8 +655,8 @@ export function BadmintonCourt({
 export function BadmintonPavilion() {
   return (
     <group>
-      <CraftedBox p={[0, 0.3, 0]} s={[8, 0.6, 10]} c="#6c7053" />
-      <CraftedBox p={[0, 0.62, 0]} s={[7.5, 0.15, 9.5]} c="#bca67c" />
+      <Box p={[0, 0.3, 0]} s={[8, 0.6, 10]} c="#6c7053" />
+      <Box p={[0, 0.62, 0]} s={[7.5, 0.15, 9.5]} c="#bca67c" />
       <Box p={[0, 0.72, 0]} s={[4.8, 0.06, 7.7]} c="#337b7f" />
       {[-2.2, 2.2].map((x) => (
         <Box
@@ -667,7 +678,7 @@ export function BadmintonPavilion() {
       ))}
       {[-2.4, 2.4].map((x) => (
         <group key={x}>
-          <CraftedBox p={[x, 0.9, 0]} s={[0.5, 0.35, 0.5]} c="#4c5140" />
+          <Box p={[x, 0.9, 0]} s={[0.5, 0.35, 0.5]} c="#4c5140" />
           <Cylinder p={[x, 1.6, 0]} s={[0.07, 1.6, 0.07]} c="#d4a64f" />
         </group>
       ))}

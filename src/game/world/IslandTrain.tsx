@@ -11,6 +11,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { Box, Cylinder, Sign } from "./Models";
 import { runtime, useGame } from "../core/store";
+import { keys, touch } from "../core/input";
 import { ISLAND_RAIL, railPose } from "../core/islandRail";
 import "./island-train.css";
 
@@ -123,7 +124,7 @@ function Wheels({ phase }: { phase: React.RefObject<number> }) {
   );
 }
 
-function Car({
+export function RailCar({
   engine = false,
   phase,
 }: {
@@ -199,15 +200,18 @@ function Car({
 
 export function IslandTrain({
   onRidingChange,
+  disabled = false,
 }: {
   onRidingChange?: (riding: boolean) => void;
+  disabled?: boolean;
 }) {
   const [riding, setRiding] = useState(false);
   const [near, setNear] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(
     () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
-  const hidden = useGame((s) => s.paused || s.panel !== "none" || s.build);
+  const hidden =
+    useGame((s) => s.paused || s.panel !== "none" || s.build) || disabled;
   const coaches = useRef<THREE.Group>(null);
   const phase = useRef(0);
   const turns = useRef(0);
@@ -222,6 +226,8 @@ export function IslandTrain({
   const boardRef = useRef<HTMLButtonElement>(null);
   const leave = useCallback(() => {
     // Ground clicks during the ride must not become a walk after disembarking.
+    keys.clear();
+    touch.x = touch.z = 0;
     runtime.target = null;
     runtime.path = [];
     runtime.moving = false;
@@ -283,6 +289,8 @@ export function IslandTrain({
     }
   });
   const board = () => {
+    keys.clear();
+    touch.x = touch.z = 0;
     runtime.target = null;
     runtime.path = [];
     runtime.moving = false;
@@ -300,7 +308,7 @@ export function IslandTrain({
               position={[pose.x, ISLAND_RAIL.height, pose.z]}
               rotation={[0, pose.heading, 0]}
             >
-              <Car engine={i === 0} phase={phase} />
+              <RailCar engine={i === 0} phase={phase} />
             </group>
           );
         })}
@@ -328,6 +336,11 @@ export function IslandTrain({
       {!hidden && (near || riding) && (
         <Html
           fullscreen
+          calculatePosition={(_object, _camera, size) => [
+            size.width / 2,
+            size.height / 2,
+          ]}
+          onOcclude={() => undefined}
           portal={portal}
           zIndexRange={[25, 0]}
           style={{ pointerEvents: "none" }}

@@ -1,10 +1,14 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Html } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
 import { create } from "zustand";
 import { Box, Cylinder, Sign } from "../world/Models";
 import { runtime, useGame } from "../core/store";
-import { THEATER_PROGRAM, youtubeEmbedUrl } from "../core/theaterProgram";
+import {
+  THEATER_PROGRAM,
+  youtubeEmbedUrl,
+  type TheaterFilm,
+} from "../core/theaterProgram";
 import { GameControls } from "./InteriorProps";
 import "./movie-theater.css";
 
@@ -28,8 +32,10 @@ export const useTheater = create<TheaterState>((set) => ({
 
 export function MovieTheaterBuilding({
   p = [-38, 0, -39],
+  korean = false,
 }: {
   p?: [number, number, number];
+  korean?: boolean;
 }) {
   return (
     <group position={p}>
@@ -51,7 +57,11 @@ export function MovieTheaterBuilding({
       <Box p={[0, 1.9, 4]} s={[0.12, 2.6, 0.1]} c="#d6af5e" />
       <Box p={[0, 3.8, 4.15]} s={[7.8, 0.8, 1.8]} c="#985441" />
       <Box p={[0, 4.22, 4.15]} s={[8.2, 0.16, 2]} c="#d1ac62" />
-      <Sign text="THE PICTURE HOUSE" p={[0, 3.85, 5.08]} size={[6.8, 0.6]} />
+      <Sign
+        text={korean ? "서울 극장" : "THE PICTURE HOUSE"}
+        p={[0, 3.85, 5.08]}
+        size={[6.8, 0.6]}
+      />
       {[-3.4, -2.55, -1.7, -0.85, 0, 0.85, 1.7, 2.55, 3.4].map((x) => (
         <mesh key={x} position={[x, 3.32, 4.75]}>
           <sphereGeometry args={[0.1, 6, 4]} />
@@ -93,11 +103,24 @@ function TheaterSeat({ x, z }: { x: number; z: number }) {
   );
 }
 
-function TheaterViewer() {
+function TheaterViewer({
+  program,
+  title,
+  onClose,
+}: {
+  program: readonly TheaterFilm[];
+  title: string;
+  onClose: () => void;
+}) {
   const filmId = useTheater((s) => s.filmId);
   const hidden = useGame((s) => s.paused || s.build || s.panel !== "none");
-  const selected = THEATER_PROGRAM.find((film) => film.id === filmId);
+  const selected = program.find((film) => film.id === filmId);
   const close = useRef<HTMLButtonElement>(null);
+  // Html owns a separate DOM root; focus when its button actually mounts.
+  const focusClose = useCallback((button: HTMLButtonElement | null) => {
+    close.current = button;
+    button?.focus();
+  }, []);
   const dialog = useRef<HTMLElement>(null);
   const gl = useThree((s) => s.gl);
   const setFrameloop = useThree((s) => s.setFrameloop);
@@ -111,13 +134,12 @@ function TheaterViewer() {
     return () => setFrameloop(useGame.getState().paused ? "demand" : "always");
   }, [setFrameloop, hidden]);
   useEffect(() => {
-    const previous = document.activeElement;
-    close.current?.focus();
+    if (hidden) return;
     const keydown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopImmediatePropagation();
-        useTheater.getState().stand();
+        onClose();
       }
       if (event.key === "Tab") {
         const controls = dialog.current?.querySelectorAll<HTMLElement>(
@@ -126,6 +148,11 @@ function TheaterViewer() {
         if (!controls?.length) return;
         const first = controls[0],
           last = controls[controls.length - 1];
+        if (!dialog.current?.contains(document.activeElement)) {
+          (event.shiftKey ? last : first).focus();
+          event.preventDefault();
+          return;
+        }
         if (event.shiftKey && document.activeElement === first) {
           last.focus();
           event.preventDefault();
@@ -139,24 +166,32 @@ function TheaterViewer() {
     window.addEventListener("keydown", keydown, true);
     return () => {
       window.removeEventListener("keydown", keydown, true);
-      if (previous instanceof HTMLElement && previous.isConnected)
-        previous.focus();
     };
-  }, []);
+  }, [hidden, onClose]);
+  if (hidden) return null;
   return (
-    <Html fullscreen portal={portal} zIndexRange={[80, 0]}>
+    <Html
+      fullscreen
+      calculatePosition={(_object, _camera, size) => [
+        size.width / 2,
+        size.height / 2,
+      ]}
+      onOcclude={() => undefined}
+      portal={portal}
+      zIndexRange={[80, 0]}
+    >
       <section
         ref={dialog}
         className="cinema-viewer"
         role="dialog"
         aria-modal="true"
-        aria-label="Picture house"
+        aria-label={title}
         onPointerDown={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
       >
         <header>
-          <h2>The picture house</h2>
-          <button ref={close} onClick={() => useTheater.getState().stand()}>
+          <h2>{title}</h2>
+          <button ref={focusClose} onClick={onClose}>
             Leave seat
           </button>
         </header>
@@ -189,24 +224,24 @@ function TheaterViewer() {
             >
               Open on YouTube ↗
             </a>
-            <button onClick={() => useTheater.setState({ filmId: null })}>
+            <button
+              onClick={() => {
+                useTheater.setState({ filmId: null });
+                close.current?.focus();
+              }}
+            >
               Stop
             </button>
           </div>
         )}
         <div className="cinema-program" aria-label="Program">
-          {THEATER_PROGRAM.length === 0 && (
-            <p>The program is being prepared.</p>
-          )}
-          {THEATER_PROGRAM.map((film) => (
+          {program.length === 0 && <p>The program is being prepared.</p>}
+          {program.map((film) => (
             <button
               key={film.id}
               aria-pressed={filmId === film.id}
               onClick={() => useTheater.setState({ filmId: film.id })}
             >
-              <small>
-                {film.kind} · {film.channel}
-              </small>
               <strong>{film.title}</strong>
               <span>{film.episode}</span>
             </button>
@@ -217,8 +252,22 @@ function TheaterViewer() {
   );
 }
 
-export function MovieTheaterInterior() {
+export function MovieTheaterInterior({
+  program = THEATER_PROGRAM,
+  title = "The picture house",
+}: { program?: readonly TheaterFilm[]; title?: string } = {}) {
   const seated = useTheater((s) => s.seated);
+  const restoreSeatFocus = useRef(false);
+  const leaveSeat = useCallback(() => {
+    restoreSeatFocus.current = true;
+    useTheater.getState().stand();
+  }, []);
+  const seatButton = useCallback((button: HTMLButtonElement | null) => {
+    if (button && restoreSeatFocus.current) {
+      restoreSeatFocus.current = false;
+      button.focus();
+    }
+  }, []);
   useEffect(() => {
     const stopWhenHidden = () => {
       if (document.hidden) useTheater.setState({ filmId: null });
@@ -252,7 +301,7 @@ export function MovieTheaterInterior() {
           />
         )),
       )}
-      <Sign text="THE PICTURE HOUSE" p={[0, 5.25, -10.3]} size={[6.5, 0.6]} />
+      <Sign text={title.toUpperCase()} p={[0, 5.25, -10.3]} size={[6.5, 0.6]} />
       {[-5.2, -1.6, 2, 5.6].flatMap((z) =>
         [-7.5, -5.8, -4.1, 4.1, 5.8, 7.5].map((x) => (
           <TheaterSeat key={`${x}:${z}`} x={x} z={z} />
@@ -269,13 +318,15 @@ export function MovieTheaterInterior() {
       <Sign text="EXIT ↓" p={[0, 3, 10.6]} size={[2, 0.55]} />
       {!seated && (
         <GameControls name="Picture house seating" position={[0, 1, 7]}>
-          <h2>The picture house</h2>
-          <button onClick={() => useTheater.getState().sit()}>
+          <h2>{title}</h2>
+          <button ref={seatButton} onClick={() => useTheater.getState().sit()}>
             Take a seat
           </button>
         </GameControls>
       )}
-      {seated && <TheaterViewer />}
+      {seated && (
+        <TheaterViewer program={program} title={title} onClose={leaveSeat} />
+      )}
     </group>
   );
 }

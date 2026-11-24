@@ -1,9 +1,9 @@
 // Small, deterministic ballistic model. The rendering and score use this same arc.
 export const FIELD_GOAL = {
-  startZ: 6.2,
-  goalZ: -9.7,
+  startZ: 14.2,
+  goalZ: -23.7,
   crossbar: 2.9,
-  halfWidth: 1.65,
+  halfWidth: 2.82,
   ballRadius: 0.13,
   postRadius: 0.085,
   gravity: 9.8,
@@ -14,11 +14,15 @@ export const FIELD_GOAL = {
 export type Kick = { angle: number; power: number };
 export type KickResult = "Good" | "Wide left" | "Wide right" | "Short";
 
+function kickSpeed(power: number): number {
+  return 16 + Math.max(0, Math.min(1, power)) * 9;
+}
+
 export function kickPosition(
   kick: Kick,
   time: number,
 ): [number, number, number] {
-  const speed = 11 + Math.max(0, Math.min(1, kick.power)) * 5.5;
+  const speed = kickSpeed(kick.power);
   const horizontal = Math.cos(FIELD_GOAL.loft) * speed;
   const t = Math.max(0, time);
   return [
@@ -31,7 +35,7 @@ export function kickPosition(
 }
 
 export function goalCrossingTime(kick: Kick): number {
-  const speed = 11 + Math.max(0, Math.min(1, kick.power)) * 5.5;
+  const speed = kickSpeed(kick.power);
   return (
     (FIELD_GOAL.startZ - FIELD_GOAL.goalZ) /
     (Math.cos(kick.angle) * Math.cos(FIELD_GOAL.loft) * speed)

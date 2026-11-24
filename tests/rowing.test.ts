@@ -7,6 +7,7 @@ import {
   riverCenter,
   riverCurrent,
   rivalInput,
+  rowingLeaderboardBoard,
   stepRace,
   strokeDrive,
   TICK,
@@ -17,6 +18,12 @@ import {
   ROWING_RECORDS_KEY,
   saveRaceRecord,
 } from "../src/game/core/rowingRecords";
+
+it("never ranks a daily river even when its seed matches Regatta", () => {
+  expect(rowingLeaderboardBoard("daily", 750, 2)).toBeNull();
+  expect(rowingLeaderboardBoard("regatta", 750, 2)).toBe("rowing-regatta");
+  expect(rowingLeaderboardBoard("sprint", 360, 1)).toBe("rowing-sprint");
+});
 
 const drive = (cadence = 30, burst = false, length = 360, seed = 7) => {
   let race = newRace();

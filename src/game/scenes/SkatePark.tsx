@@ -10,6 +10,7 @@ import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { runtime, useGame } from "../core/store";
+import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import { keys, movement, touch } from "../core/input";
 import { newRunId } from "../../shared/run-id";
 import { Box, Ball, Character, Cylinder } from "../world/Models";
@@ -17,6 +18,7 @@ import { gameIsActive } from "./InteriorProps";
 import { SkateParkTerrain } from "./SkateParkTerrain";
 import {
   SKATE,
+  SKATE_EXIT,
   idleSkateInput,
   newSkateGame,
   skateComboValue,
@@ -188,8 +190,8 @@ export function SkateParkInterior() {
   const held = useRef(new Set<string>()),
     pointers = useRef(new Map<number, Hold>()),
     uiKeys = useRef(new Set<Hold>());
-  const [riding, setRiding] = useState(false),
-    [overview, setOverview] = useState(true);
+  const riding = useGameMode((s) => s.active?.id === "skate");
+  const [overview, setOverview] = useState(true);
   const [view, setView] = useState(() => snapshot(game.current));
   const [mode, setMode] = useState<SkateState["mode"]>("free");
   const blocked = useGame((s) => s.paused || s.panel !== "none" || s.build);
@@ -207,7 +209,16 @@ export function SkateParkInterior() {
   const follow = useRef(new THREE.Vector3(0, 0, 16));
   const cameraTarget = useRef(new THREE.Vector3());
   const cameraOffset = useMemo(() => new THREE.Vector3(22, 30, 34), []);
-  const active = () => gameIsActive() && runtime.active;
+  const active = () => {
+    const state = useGame.getState();
+    // Other minigames pause at an exit prompt; walking must still leave it.
+    return (
+      runtime.active &&
+      (riding
+        ? gameIsActive() && useGameMode.getState().active?.id === "skate"
+        : !state.paused && !state.build && state.panel === "none")
+    );
+  };
 
   useEffect(() => {
     runtime.x = 0;
@@ -217,6 +228,18 @@ export function SkateParkInterior() {
     return () => {
       runtime.moving = false;
     };
+  }, []);
+  useEffect(() => {
+    const close = () => {
+      const state = useGame.getState();
+      if (state.paused || state.panel !== "none") return;
+      // Escape abandons the current line/run without evaluating rewards.
+      game.current = newSkateGame();
+      input.current = idleSkateInput();
+      setOverview(true);
+    };
+    window.addEventListener("interior-game-close", close);
+    return () => window.removeEventListener("interior-game-close", close);
   }, []);
   useEffect(() => {
     const clear = () => {
@@ -280,7 +303,7 @@ export function SkateParkInterior() {
         input.current.brake =
           h.has("s") || h.has("arrowdown") || has("brake") || touch.z > 0.3;
         input.current.grind = h.has("shift") || has("grind");
-        stepSkate(g, input.current, dt);
+        stepSkate(g, input.current, delta);
         input.current.jump = false;
         input.current.trick = null;
         runtime.x = g.x * S;
@@ -327,7 +350,12 @@ export function SkateParkInterior() {
         }
         useGame
           .getState()
-          .setNear(runtime.z > 23 && Math.abs(runtime.x) < 3.5 ? "exit" : "");
+          .setNear(
+            runtime.z > SKATE_EXIT[1] - 1 &&
+              Math.abs(runtime.x - SKATE_EXIT[0]) < 3.5
+              ? "exit"
+              : "",
+          );
       }
     }
     // Fixed isometric orientation makes steering readable; follow exposes the park's real size.
@@ -356,6 +384,7 @@ export function SkateParkInterior() {
   });
 
   const begin = (nextMode: SkateState["mode"]) => {
+    if (!riding && !startGameMode("skate")) return;
     game.current = newSkateGame(nextMode);
     game.current.x = THREE.MathUtils.clamp(runtime.x / S, -7, 7);
     game.current.z = THREE.MathUtils.clamp(runtime.z / S, -9, 9);
@@ -366,18 +395,21 @@ export function SkateParkInterior() {
     runtime.target = null;
     runtime.path = [];
     runtime.moving = false;
+    runtime.x = game.current.x * S;
+    runtime.z = game.current.z * S;
+    useGame.getState().setNear("");
     setMode(nextMode);
     setView(snapshot(game.current));
-    setRiding(true);
     setOverview(false);
   };
   const leaveBoard = () => {
-    setRiding(false);
+    endGameMode();
     setOverview(true);
-    runtime.x = 0;
-    runtime.z = 23.5;
+    // Shared mode restores the walking position and heading from boarding.
     runtime.target = null;
     runtime.path = [];
+    runtime.moving = false;
+    useGame.getState().setNear("");
   };
   const hold = (control: Hold) => ({
     onPointerDown: (e: PointerEvent<HTMLButtonElement>) => {
@@ -456,12 +488,19 @@ export function SkateParkInterior() {
                 e.target.blur();
             }}
           >
-            <button
-              className="skate-view"
-              onClick={() => setOverview(!overview)}
-            >
-              {overview ? "Follow view" : "Park view"}
-            </button>
+            <div className="skate-view-controls">
+              <button
+                className="skate-view"
+                onClick={() => setOverview(!overview)}
+              >
+                {overview ? "Follow view" : "Park view"}
+              </button>
+              {riding && (
+                <button onClick={() => useGame.setState({ paused: true })}>
+                  Pause
+                </button>
+              )}
+            </div>
             {!riding ? (
               <section className="skate-card" aria-label="Skate park">
                 <span className="skate-eyebrow">Bowl + street</span>

@@ -29,7 +29,42 @@
 .go-card::-webkit-scrollbar { width: 8px; }
 .go-card::-webkit-scrollbar-track { background: #21353f; border-radius: 6px; }
 .go-card::-webkit-scrollbar-thumb { background: #829398; border: 2px solid #21353f; border-radius: 6px; }
-.go-card-open { width: 350px; }
+.go-room-ui--playing {
+  inset: 0;
+  display: block;
+  background: #172c35;
+  pointer-events: auto;
+}
+.go-card-playing {
+  --go-board-size: min(720px, calc(100dvh - 100px), calc(100vw - 380px));
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  padding: max(16px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+  border: 0;
+  border-radius: 0;
+  box-shadow: inset 0 3px var(--hud-rim, #b39b66);
+}
+.go-card-playing .go-heading {
+  max-width: 1080px;
+  margin: 0 auto 16px;
+}
+.go-layout {
+  display: grid;
+  grid-template-columns: var(--go-board-size) minmax(220px, 280px);
+  justify-content: center;
+  align-items: start;
+  gap: clamp(20px, 4vw, 64px);
+}
+.go-details {
+  min-width: 0;
+  max-height: calc(100dvh - 100px);
+  padding: 3px 8px 8px 3px;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #829398 #21353f;
+  overscroll-behavior: contain;
+}
 .go-card * { box-sizing: border-box; }
 .go-card button, .go-card select {
   min-height: 40px;
@@ -51,7 +86,7 @@
 .go-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 .go-heading h2 { font-size: 20px; line-height: 1; margin: 0; }
 .go-heading small { font-size: 12px; font-weight: 400; color: var(--hud-muted, #c3d0d0); margin-left: 8px; }
-.go-card .go-close { font-size: 24px; padding: 0; width: 40px; line-height: 1; background: #21353f; }
+.go-card .go-close { padding: 7px 16px; background: #21353f; }
 .go-board {
   width: 100%;
   aspect-ratio: 1;
@@ -93,7 +128,7 @@
 .go-territory { position: absolute; width: 22%; aspect-ratio: 1; border: 1px solid #5d4a2a; }
 .go-territory-1 { background: #26332b; }
 .go-territory-2 { background: #fff2d0; }
-.go-status { display: block; font-size: 15px; margin: 12px 0 2px; }
+.go-status { display: block; font-size: 18px; margin: 0 0 2px; }
 .go-caption { font-size: 11px; color: var(--hud-muted, #c3d0d0); margin: 3px 0 8px; line-height: 1.5; }
 .go-captures, .go-score { display: flex; gap: 20px; justify-content: space-between; margin-top: 10px; }
 .go-captures b, .go-score b { font-size: 20px; margin-left: 7px; }
@@ -108,13 +143,18 @@
 .go-rules summary { cursor: pointer; padding: 6px 0; }
 .go-rules p { margin: 6px 0; }
 @media (max-width: 600px) {
-  .go-room-ui { inset: 72px 12px 98px; justify-content: center; }
-  .go-card-open { width: min(350px, 100%); }
+  .go-room-ui:not(.go-room-ui--playing) { inset: 72px 12px 98px; justify-content: center; }
 }
-@media (max-height: 600px) and (min-width: 560px) {
-  .go-room-ui { inset: 66px 12px 66px; }
-  .go-card-open { width: 570px; }
-  .go-heading { margin-bottom: 5px; }
-  .go-layout { display: grid; grid-template-columns: 230px 1fr; gap: 15px; align-items: start; }
-  .go-status { margin-top: 0; }
+@media (max-width: 700px) and (min-height: 501px), (max-width: 559px) {
+  .go-card-playing { padding-inline: max(16px, env(safe-area-inset-left)); }
+  .go-layout { grid-template-columns: minmax(0, 440px); gap: 20px; }
+  .go-details { max-height: none; overflow: visible; padding-right: 3px; }
+  .go-card-playing .go-heading { max-width: 440px; }
+}
+@media (max-height: 500px) and (min-width: 560px) {
+  .go-card-playing { --go-board-size: min(calc(100dvh - 80px), calc(100vw - 300px)); padding-block: 10px; }
+  .go-card-playing .go-heading { margin-bottom: 10px; }
+  .go-layout { gap: 24px; grid-template-columns: var(--go-board-size) minmax(220px, 320px); }
+  .go-board { padding: 8px; border-width: 5px; }
+  .go-details { max-height: calc(100dvh - 80px); }
 }

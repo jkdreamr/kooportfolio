@@ -1,9 +1,16 @@
 import { useEffect } from "react";
 import { runtime, useGame } from "./store";
+import { escapeGameMode } from "./gameMode";
 export const keys = new Set<string>();
 export const touch = { x: 0, z: 0 };
 export function useInput(interact: () => void) {
   useEffect(() => {
+    const closeGame = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.isComposing || !escapeGameMode(e.repeat))
+        return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    };
     const down = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement).matches("input,textarea,select")) return;
       const k = e.key.toLowerCase();
@@ -39,10 +46,12 @@ export function useInput(interact: () => void) {
       runtime.burst = false;
     };
     window.addEventListener("keydown", down);
+    window.addEventListener("keydown", closeGame, true);
     window.addEventListener("keyup", up);
     window.addEventListener("blur", blur);
     return () => {
       window.removeEventListener("keydown", down);
+      window.removeEventListener("keydown", closeGame, true);
       window.removeEventListener("keyup", up);
       window.removeEventListener("blur", blur);
       blur();
