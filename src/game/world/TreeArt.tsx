@@ -76,13 +76,14 @@ function foliageBuilder() {
 }
 function leafGeometry(flat: boolean) {
   const builder = foliageBuilder();
-  for (let i = 0; i < 16; i++) {
+  const count = flat ? 24 : 32;
+  for (let i = 0; i < count; i++) {
     const angle = i * 2.39996,
-      radius = 0.12 + Math.sqrt((i + 0.5) / 16) * 0.5;
+      radius = 0.12 + Math.sqrt((i + 0.5) / count) * 0.5;
     const x = Math.cos(angle) * radius,
       z = Math.sin(angle) * radius;
-    const y = ((i % 3) - 1) * (flat ? 0.1 : 0.22);
-    const length = 0.45 + Math.sin(i * 3.7) * 0.1;
+    const y = flat ? ((i % 5) - 2) * 0.14 : Math.sin(i * 2.7) * 0.5;
+    const length = 0.55 + Math.sin(i * 3.7) * 0.12;
     builder.leaf(
       [
         x - Math.cos(angle) * length * 0.45,
@@ -91,11 +92,11 @@ function leafGeometry(flat: boolean) {
       ],
       [
         x + Math.cos(angle) * length * 0.55,
-        y + 0.1,
+        y + (flat ? 0.14 : 0.24),
         z + Math.sin(angle) * length * 0.55,
       ],
-      flat ? 0.1 : 0.19,
-      0.045,
+      flat ? 0.12 : 0.23,
+      0.065,
       0.88 + (i % 4) * 0.045,
     );
   }
@@ -270,7 +271,7 @@ function makeTree(
   }
   if (kind === 0) {
     // Uneven whorls with separate branch fans leave real gaps around the trunk.
-    const tiers = redwood ? 6 : 4;
+    const tiers = redwood ? 9 : 4;
     for (let tier = 0; tier < tiers; tier++) {
       const y = redwood
         ? 2.7 + tier * ((height - 3.4) / (tiers - 1))
@@ -278,7 +279,8 @@ function makeTree(
       for (let j = 0; j < 3; j++) {
         const angle = rotation + tier * 2.4 + j * 2.094 + rand() * 0.45;
         const reach =
-          (1.25 - tier * (redwood ? 0.13 : 0.2)) * (0.8 + rand() * 0.35);
+          (1.25 - (tier / (tiers - 1)) * (redwood ? 0.85 : 0.6)) *
+          (0.8 + rand() * 0.35);
         const x = leanX + Math.cos(angle) * reach,
           z = leanZ + Math.sin(angle) * reach;
         branch(
@@ -288,12 +290,12 @@ function makeTree(
         );
         leaf(
           [x * 0.78, y + 0.22 + rand() * 0.2, z * 0.78],
-          [reach * 0.85, 0.65, reach * 0.62],
+          [reach * 0.85, redwood ? 0.9 : 0.65, reach * 0.62],
           angle,
         );
         leaf(
           [x * 1.05, y + 0.2, z * 1.05],
-          [reach * 0.5, 0.42, reach * 0.45],
+          [reach * 0.5, redwood ? 0.65 : 0.42, reach * 0.45],
           angle + 0.4,
         );
       }
@@ -374,7 +376,7 @@ function TreeInstances({
       ref={ref}
       args={[geometry, material, parts.length]}
       castShadow
-      receiveShadow
+      receiveShadow={geometry === woodGeometry}
       dispose={null}
     />
   );

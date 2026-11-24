@@ -21,6 +21,7 @@ import { KoreaWorldEnvironment } from "./KoreaWorldEnvironment";
 import { Bulletin } from "./Bulletin";
 import { roomFor } from "../core/room";
 import { useGameMode } from "../core/gameMode";
+import { useWorldView } from "../core/worldView";
 import { NpcCrowd } from "./VillageNpcs";
 import { nearbyNpcId } from "../core/npcState";
 import { BadmintonPavilion } from "../scenes/BadmintonCourt";
@@ -221,7 +222,8 @@ export function Walker({
           : mobile
             ? 24
             : 28;
-      camera.zoom = THREE.MathUtils.damp(camera.zoom, targetZoom, 5, dt);
+      const zoom = !interior && !state.build ? useWorldView.getState().zoom : 1;
+      camera.zoom = THREE.MathUtils.damp(camera.zoom, targetZoom * zoom, 5, dt);
       camera.updateProjectionMatrix();
     }
   });

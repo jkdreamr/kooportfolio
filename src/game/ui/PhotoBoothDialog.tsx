@@ -31,12 +31,21 @@ function closePhotoBooth() {
   clearPhoto();
   useGame.setState({ panel: "none" });
 }
+function downloadPostcard(card: { url: string; filename: string }) {
+  const link = document.createElement("a");
+  link.href = card.url;
+  link.download = card.filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+}
 
 function BoothSession() {
   const dialog = useRef<HTMLDialogElement>(null);
   const photo = usePhotoBooth();
   const [countdown, setCountdown] = useState(0);
   const countdownEnds = useRef(0);
+  const saveRequested = useRef(false);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     const modal = dialog.current;
@@ -66,7 +75,14 @@ function BoothSession() {
     }, 100);
     return () => window.clearInterval(timer);
   }, [photo.stage]);
-  const busy = photo.stage === "countdown";
+  useEffect(() => {
+    if (saveRequested.current && photo.card?.resolution === "full") {
+      saveRequested.current = false;
+      downloadPostcard(photo.card);
+    }
+  }, [photo.card]);
+  const saving = photo.request?.resolution === "full";
+  const busy = photo.stage === "countdown" || saving;
   const ready = photo.stage === "ready";
   function choose(pose: PhotoPose, frame: PostcardFrame) {
     usePhotoBooth.setState({ pose, frame, stage: "posing" });
@@ -117,7 +133,7 @@ function BoothSession() {
               role="status"
               aria-live="polite"
             >
-              {countdown || "Saving…"}
+              {saving ? "Saving…" : countdown || "…"}
             </strong>
           )}
         </div>
@@ -173,6 +189,7 @@ function BoothSession() {
               <>
                 <button
                   type="button"
+                  disabled={saving}
                   onClick={() => {
                     usePhotoBooth.setState({ stage: "posing" });
                     requestPhoto();
@@ -180,18 +197,27 @@ function BoothSession() {
                 >
                   Again
                 </button>
-                <a
-                  className="primary-button"
-                  href={photo.card.url}
-                  download={photo.card.filename}
+                <button
+                  type="button"
+                  className="photo-booth-primary"
+                  disabled={saving}
+                  onClick={() => {
+                    if (!photo.card) return;
+                    if (photo.card.resolution === "full")
+                      downloadPostcard(photo.card);
+                    else {
+                      saveRequested.current = true;
+                      requestPhoto(true, "full");
+                    }
+                  }}
                 >
-                  Save postcard
-                </a>
+                  {saving ? "Saving…" : "Save postcard"}
+                </button>
               </>
             ) : (
               <button
                 type="button"
-                className="primary-button"
+                className="photo-booth-primary"
                 disabled={busy || Boolean(photo.request)}
                 onClick={() => {
                   countdownEnds.current = performance.now() + 3000;

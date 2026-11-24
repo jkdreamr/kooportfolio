@@ -1,11 +1,11 @@
-import { useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Html } from "@react-three/drei";
-import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { Ball, Box, Cylinder, Ring } from "../world/Models";
 import { CraftedBox, WallSconce } from "./CraftedDetails";
-import { gameIsActive } from "./InteriorProps";
 import { useGame } from "../core/store";
 import { keys, touch } from "../core/input";
+import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import {
   GO_KOMI, GO_SIZE, chooseGoMove, newGoGame, passGo, playGo, resumeGo,
   scoreGo, toggleGoDead, type GoGame,
@@ -86,34 +86,48 @@ function GoFurnishings() {
   );
 }
 
-/** Furnishings + game only. Mount for scene "go" inside the shared 22×26 shell. */
+/** Walking-room furnishings with an explicitly launched, opaque Go game view. */
 export function GoInterior() {
   const [match, setMatch] = useState(freshMatch);
-  const [started, setStarted] = useState(false);
+  const started = useGameMode((s) => s.active?.id === "go");
   const [computer, setComputer] = useState(true);
   const [message, setMessage] = useState("");
   const [confirmNew, setConfirmNew] = useState(false);
   const [focus, setFocus] = useState(0);
   const timer = useRef(0);
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
+  const playButton = useRef<HTMLButtonElement>(null);
   const gl = useThree((s) => s.gl);
   const portal = useMemo(() => ({ current: gl.domElement.parentElement! }), [gl]);
   const hidden = useGame((s) => s.paused || s.panel !== "none" || s.build);
   const { game } = match;
   const thinking = computer && game.turn === 2 && game.phase === "playing";
   const score = useMemo(() => scoreGo(game), [game]);
+  const close = useCallback(() => {
+    setConfirmNew(false);
+    timer.current = 0;
+    endGameMode();
+    requestAnimationFrame(() => playButton.current?.focus());
+  }, []);
+  useEffect(() => {
+    // Shared Escape/room navigation can close the mode without clicking our UI.
+    window.addEventListener("interior-game-close", close);
+    return () => window.removeEventListener("interior-game-close", close);
+  }, [close]);
   const commit = (next: GoGame) => {
     setMatch((old) => ({ game: next, past: [...old.past, old.game] }));
     setConfirmNew(false);
     timer.current = 0;
   };
   const open = () => {
+    if (!startGameMode("go")) return;
     keys.clear(); touch.x = 0; touch.z = 0;
-    setStarted(true);
+    setConfirmNew(false);
+    timer.current = 0;
+    requestAnimationFrame(() => buttons.current[focus]?.focus());
   };
   const place = (point: number) => {
-    if (!gameIsActive()) return;
-    if (!started) { open(); return; }
+    if (!started || hidden) return;
     if (game.phase === "scoring") { setMatch((old) => ({ ...old, game: toggleGoDead(old.game, point) })); return; }
     if (thinking || game.phase !== "playing" || confirmNew) return;
     const move = playGo(game, point);
@@ -122,7 +136,7 @@ export function GoInterior() {
     setMessage(`${colorName(game.turn)} ${coordinate(point)}${move.captured ? ` · captured ${move.captured}` : ""}`);
   };
   useFrame((_, dt) => {
-    if (!started || !thinking || !gameIsActive() || confirmNew) { timer.current = 0; return; }
+    if (!started || hidden || !thinking || confirmNew) { timer.current = 0; return; }
     timer.current += Math.min(dt, 0.1);
     if (timer.current < 0.55) return;
     timer.current = 0;
@@ -147,11 +161,18 @@ export function GoInterior() {
       event.preventDefault(); setFocus(next); buttons.current[next]?.focus();
     }
   };
-  const tableClick = (event: ThreeEvent<MouseEvent>) => {
+  const panelKey = (event: KeyboardEvent<HTMLElement>) => {
+    if (!started) return;
+    // Keep game keys away from walking input, including Escape from a select.
     event.stopPropagation();
-    const x = Math.round((event.point.x + 1.5) / 0.55 + 4);
-    const y = Math.round((event.point.z + 3) / 0.55 + 4);
-    if (x >= 0 && x < GO_SIZE && y >= 0 && y < GO_SIZE) place(y * GO_SIZE + x);
+    if (event.key === "Escape") { event.preventDefault(); close(); return; }
+    if (event.key !== "Tab") return;
+    const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(
+      'button:not(:disabled):not([tabindex="-1"]), select, summary',
+    )).filter((el) => el.getClientRects().length);
+    const first = controls[0], last = controls.at(-1);
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
   };
   const status = game.phase === "finished"
     ? `${colorName(score.winner)} wins by ${score.margin}`
@@ -180,23 +201,19 @@ export function GoInterior() {
             {game.last === point && <Cylinder p={[0, 0.125, 0]} s={[0.055, 0.012, 0.055]} c="#d18443" />}
           </group>
         ) : null)}
-        {/* Pick on the grid itself: a raised plane shifts hits in an angled camera. */}
-        <mesh position={[0, 1.45, 0]} rotation={[-Math.PI / 2, 0, 0]} onClick={tableClick}>
-          <planeGeometry args={[4.95, 4.95]} />
-          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-        </mesh>
       </group>
-      {!hidden && <Html fullscreen portal={portal} zIndexRange={[25, 0]}
+      {!hidden && <Html fullscreen portal={portal} zIndexRange={[80, 0]}
         calculatePosition={(_, __, size) => [size.width / 2, size.height / 2]}
         style={{ pointerEvents: "none" }}>
-        <div className="go-room-ui">
-          <section className={`go-card${started ? " go-card-open" : ""}`} aria-label="Go game"
+        <div className={`go-room-ui${started ? " go-room-ui--playing" : ""}`}>
+          <section className={`go-card${started ? " go-card-playing" : ""}`} aria-label="Go game"
+            role={started ? "dialog" : undefined} aria-modal={started ? true : undefined}
             onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => { if (e.key !== "Escape") e.stopPropagation(); }}>
-            {!started ? <button className="go-primary" onClick={open}>Play Go</button> : <>
+            onKeyDown={panelKey}>
+            {!started ? <button ref={playButton} className="go-primary" onClick={open}>Play Go</button> : <>
               <header className="go-heading"><h2>Go <small>9 × 9</small></h2>
-                <button className="go-close" onClick={() => setStarted(false)} aria-label="Close Go board">×</button></header>
+                <button className="go-close" onClick={close} aria-label="Close Go board">Close</button></header>
               <div className="go-layout">
                 <div className="go-board" role="grid" aria-label="9 by 9 Go board" aria-rowcount={9} aria-colcount={9} aria-busy={thinking}>
                   {Array.from({ length: GO_SIZE }, (_, row) => <div role="row" key={row}>
