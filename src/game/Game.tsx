@@ -276,7 +276,7 @@ export default function Game() {
     else if (g.near === "photo") openPhotoBooth();
     else if (g.near === "stargazing") useGame.setState({ panel: "telescope" });
     else if (g.near === "desk") useGame.setState({ panel: "desk" });
-    else if (g.near === "lift") useGym.getState().lift();
+    else if (g.near === "lift") useGym.getState().startSession();
     else if (g.near === "hoover-key") {
       useGame.setState({
         save: collectHooverKey(g.save),

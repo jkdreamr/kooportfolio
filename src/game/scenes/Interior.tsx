@@ -51,9 +51,7 @@ export function Interior() {
   const back = -room.depth / 2 + 0.2;
   const left = -room.width / 2 + 0.2;
   const planks = Math.floor(room.width / 0.78);
-  if (scene === "stadium") return <StadiumInterior />;
-  return (
-    <group>
+  const walkFloor = (
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
         position={[0, 0.2, 0]}
@@ -76,6 +74,11 @@ export function Interior() {
         <planeGeometry args={[room.width, room.depth]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
+  );
+  if (scene === "stadium") return <group>{walkFloor}<StadiumInterior /></group>;
+  return (
+    <group>
+      {walkFloor}
       <Box
         p={[0, -0.4, 0]}
         s={[room.width + 0.6, 0.8, room.depth + 0.6]}
