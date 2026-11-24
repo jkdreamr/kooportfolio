@@ -302,7 +302,7 @@ export function MovieTheaterInterior({
 }: { program?: readonly TheaterFilm[]; title?: string } = {}) {
   const seated = useTheater((s) => s.seated);
   const playing = useTheater((s) => !!s.filmId);
-  const aspect = useThree((s) => s.size.width / s.size.height);
+  const { width, height } = useThree((s) => s.size);
   const restoreSeatFocus = useRef(false);
   const leaveSeat = useCallback(() => {
     restoreSeatFocus.current = true;
@@ -335,7 +335,7 @@ export function MovieTheaterInterior({
         <PerspectiveCamera
           makeDefault
           position={THEATER_EYE}
-          fov={theaterFov(aspect)}
+          fov={theaterFov(width / height, height)}
           near={0.1}
           far={100}
           onUpdate={(camera) => camera.lookAt(...THEATER_SCREEN)}
