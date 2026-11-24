@@ -32,6 +32,12 @@ import { PhotoBoothCamera } from "./world/PhotoBooth";
 import { PhotoBoothDialog, openPhotoBooth } from "./ui/PhotoBoothDialog";
 import { TelescopeView } from "./ui/TelescopeView";
 import { SkateParkInterior } from "./scenes/SkatePark";
+import {
+  collectHooverKey,
+  claimHooverStash,
+  HOOVER_KEY,
+  HOOVER_STASH,
+} from "./core/hoover";
 import "./game.css";
 
 class WorldBoundary extends Component<
@@ -235,6 +241,18 @@ export default function Game() {
     else if (g.near === "stargazing") useGame.setState({ panel: "telescope" });
     else if (g.near === "desk") useGame.setState({ panel: "desk" });
     else if (g.near === "lift") useGym.getState().lift();
+    else if (g.near === "hoover-key") {
+      useGame.setState({
+        save: collectHooverKey(g.save),
+        notice: "Hoover key found.",
+      });
+      g.persist();
+    } else if (g.near === "hoover-door" && g.save.memories.includes(HOOVER_KEY))
+      g.go("secret");
+    else if (g.near === "stash" && !g.save.memories.includes(HOOVER_STASH)) {
+      useGame.setState({ save: claimHooverStash(g.save), notice: "+75 coins" });
+      g.persist();
+    }
   }, []);
   useInput(interact);
   useEffect(() => {
