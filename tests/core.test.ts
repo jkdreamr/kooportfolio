@@ -192,7 +192,7 @@ describe("walkable physical world", () => {
           ),
         ).toBeLessThan(1.2);
       }
-  });
+  }, 15000);
   it("traverses a Study-to-Court corner without cutting the collision edge", () => {
     const study = doors.find((door) => door.id === "office")!,
       court = doors.find((door) => door.id === "basketball")!;

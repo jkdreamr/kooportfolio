@@ -25,6 +25,9 @@ import { GoInterior } from "./GoInterior";
 import { WritingInterior } from "./WritingInterior";
 import { StadiumInterior } from "./Stadium";
 import { MovieTheaterInterior, useTheater } from "./MovieTheater";
+import { SecretRoomInterior } from "./SecretRoom";
+import { HOOVER_STASH } from "../core/hoover";
+import { KOREA_THEATER_PROGRAM } from "../core/theaterProgram";
 
 const rewardInterior = (game: "dice" | "cooking", coins: number) =>
   useGame
@@ -32,12 +35,17 @@ const rewardInterior = (game: "dice" | "cooking", coins: number) =>
     .award(`${game}-${newRunId()}`, coins, Math.ceil(coins / 2));
 
 export function Interior() {
+  const world = useGame((s) => s.world);
   const [badmintonActive, setBadmintonActive] = useState(false);
   const theaterSeated = useTheater((s) => s.seated);
+  const stashClaimed = useGame((s) => s.save.memories.includes(HOOVER_STASH));
   const scene = useGame((s) => s.scene),
     office = scene === "office",
     theater = scene === "theater";
-  const name = doors.find((door) => door.id === scene)?.name ?? "";
+  const name =
+    scene === "secret"
+      ? "Hoover vault"
+      : (doors.find((door) => door.id === scene)?.name ?? "");
   if (scene === "stadium") return <StadiumInterior />;
   return (
     <group>
@@ -142,8 +150,16 @@ export function Interior() {
       )}
       {scene === "go" && <GoInterior />}
       {scene === "writing" && <WritingInterior />}
-      {theater && <MovieTheaterInterior />}
-      {!theater && <RoomDressing scene={scene as PlaceId} />}
+      {theater && (
+        <MovieTheaterInterior
+          program={world === "korea" ? KOREA_THEATER_PROGRAM : undefined}
+          title={world === "korea" ? "Seoul Cinema" : undefined}
+        />
+      )}
+      {scene === "secret" && <SecretRoomInterior claimed={stashClaimed} />}
+      {!theater && scene !== "secret" && (
+        <RoomDressing scene={scene as PlaceId} />
+      )}
       <Box p={[0, 0.1, ROOM.doorZ]} s={[3, 0.12, 2]} c="#4f7966" />
       <Box p={[-1.7, 1.6, 12.3]} s={[0.35, 3.2, 0.4]} c="#8c6947" />
       <Box p={[1.7, 1.6, 12.3]} s={[0.35, 3.2, 0.4]} c="#8c6947" />

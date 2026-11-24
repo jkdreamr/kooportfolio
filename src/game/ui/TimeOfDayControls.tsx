@@ -1,13 +1,14 @@
 import { useRef } from "react";
 import { clockText, TIME_PRESETS, type TimeMode } from "../core/daylight";
 import { useTimeOfDay } from "../core/timeOfDay";
+import { TIME_ZONE_LABELS } from "../core/worldTime";
 import { useGame } from "../core/store";
 import "./time-of-day.css";
 
 /** A single native select keeps keyboard/touch access without another HUD panel. */
 export function TimeOfDayControls() {
   const pointerSelection = useRef(false);
-  const { hour, mode, setMode } = useTimeOfDay();
+  const { hour, mode, timeZone, setMode } = useTimeOfDay();
   const visible = useGame(
     (state) =>
       state.scene === "hub" &&
@@ -69,8 +70,8 @@ export function TimeOfDayControls() {
           </option>
         ))}
       </select>
-      <time aria-label={`Village time ${clockText(hour)}`}>
-        {clockText(hour)}
+      <time aria-label={`${timeZone} time ${clockText(hour)}`} title={timeZone}>
+        {clockText(hour)} {TIME_ZONE_LABELS[timeZone]}
       </time>
     </div>
   );
