@@ -118,10 +118,10 @@ export const islandLocals: Villager[] = [
     place: "writing",
     lines: ["Just deleted the first sentence. Again."],
     route: [
-      [1, -38],
-      [5, -38],
-      [5, -34],
-      [-1, -34],
+      [1, -29],
+      [6, -29],
+      [6, -27],
+      [-1, -27],
     ],
   },
   {
@@ -133,10 +133,10 @@ export const islandLocals: Villager[] = [
     place: "stadium",
     lines: ["The wind's picked up. Good day to practice."],
     route: [
-      [41, -14],
-      [36, -14],
-      [36, -9],
-      [42, -10],
+      [12, -16],
+      [7, -16],
+      [7, -11],
+      [13, -12],
     ],
   },
   {
@@ -163,10 +163,10 @@ export const islandLocals: Villager[] = [
     place: "go",
     lines: ["I lost the corner. Won the game, though."],
     route: [
-      [-44, 24],
-      [-47, 26],
-      [-43, 30],
-      [-38, 28],
+      [-20, 20],
+      [-26, 20],
+      [-26, 25],
+      [-20, 24],
     ],
   },
   {

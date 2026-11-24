@@ -35,16 +35,16 @@ function path(x: number, z: number, width: number, depth: number) {
 }
 
 // Quiet domestic garden lanes connect the existing Home room thresholds.
-path(0, -12, 3.6, 66);
+path(0, -5, 3.6, 53);
 path(-19, -34, 38, 3.4);
 path(-38, -34.5, 3.4, 9);
-path(-5.5, -18, 11, 3.4);
+path(-12, -18, 24, 3.4);
 path(-11, -20, 3.4, 4);
 path(-21, 10, 42, 3.6);
-path(-42, 24, 3.4, 7);
+path(-14, 18, 28, 3.4);
 path(-21, 29, 42, 3.6);
 path(21.5, -9, 43, 3.6);
-path(43, -12.5, 3.6, 7);
+path(14, -18, 28, 3.4);
 path(-4, 16, 8, 3.6);
 path(-8, 16, 3.4, 3.6);
 path(-59, 12, 32, 3.6);

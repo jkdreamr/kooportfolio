@@ -3,11 +3,16 @@ import { ISLAND_RAIL } from "./islandRail";
 import { forest } from "./scenery";
 import { campusObstacles } from "./campus";
 import { POND } from "./pond";
-import { PHOTO_BOOTH_ENTRY, PHOTO_BOOTH_OBSTACLES, PHOTO_BOOTH_ORIGIN } from "./photoBoothLayout";
+import {
+  PHOTO_BOOTH_ENTRY,
+  PHOTO_BOOTH_OBSTACLES,
+  PHOTO_BOOTH_ORIGIN,
+} from "./photoBoothLayout";
 import { belongsToWorld, type WorldId } from "./worlds";
 import { HOME_COMMUNITY_OBSTACLES } from "../world/CommunityScenery";
 import { villageGardenSolids } from "./villageGardens";
 import { HOME_GARDEN_OBSTACLES } from "./homeGardens";
+import { HOME_DESTINATION_CENTERS } from "./homeLayout";
 import {
   KOREA_WATER_OBSTACLES,
   KOREA_BRIDGE_RAILS,
@@ -222,9 +227,26 @@ export const landmarks = [
 ] as const;
 export const destinations = [...doors, ...landmarks];
 export const doorsInWorld = (world: WorldId) =>
-  doors.filter((door) => belongsToWorld(door.id, world));
-export const destinationsInWorld = (world: WorldId) =>
-  destinations.filter((place) => belongsToWorld(place.id, world));
+  doors
+    .filter((door) => belongsToWorld(door.id, world))
+    .map((door) => {
+      const center = world === "home" && HOME_DESTINATION_CENTERS[door.id];
+      if (!center) return door;
+      const [x, z] = center;
+      const dx = x - door.footprint[0],
+        dz = z - door.footprint[1];
+      return {
+        ...door,
+        x: door.x + dx,
+        z: door.z + dz,
+        anchor: [x, door.anchor[1], z] as const,
+        footprint: [x, z, door.footprint[2], door.footprint[3]] as const,
+      };
+    });
+export const destinationsInWorld = (world: WorldId) => [
+  ...doorsInWorld(world),
+  ...landmarks.filter((place) => belongsToWorld(place.id, world)),
+];
 export type PlaceId = (typeof doors)[number]["id"];
 export function isInterior(scene: string) {
   return (

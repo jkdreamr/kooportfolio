@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { HOME_GARDEN_WALKS } from "../src/game/core/homeGardens";
-import { canWalk, doorsInWorld, findPath } from "../src/game/core/world";
+import { canWalk, doors, doorsInWorld, findPath } from "../src/game/core/world";
 import { AIRPORT_GATE, STATION_GATE } from "../src/game/core/journey";
 
 describe("Home planted districts", () => {
@@ -28,5 +28,30 @@ describe("Home planted districts", () => {
         findPath([0, 5], [...destination], "home").length,
         `route to ${destination}`,
       ).toBeGreaterThan(0);
+  });
+
+  it("shortens actual walking routes, without scaling down the buildings", () => {
+    // Routed distances from [0, 5] in the previous compact-travel layout.
+    // Baselines include obstacles; these are not aerial distance estimates.
+    const original = [
+      ["theater", 75.6],
+      ["writing", 57.8],
+      ["stadium", 63.6],
+      ["go", 60],
+    ] as const;
+    for (const [id, previousWalk] of original) {
+      const door = doorsInWorld("home").find((door) => door.id === id)!;
+      const unchanged = doors.find((door) => door.id === id)!;
+      expect(door.scale).toEqual(unchanged.scale);
+      expect(door.footprint.slice(2)).toEqual(unchanged.footprint.slice(2));
+      const path = [[0, 5], ...findPath([0, 5], [door.x, door.z], "home")];
+      const length = path
+        .slice(1)
+        .reduce(
+          (sum, p, i) => sum + Math.hypot(p[0] - path[i][0], p[1] - path[i][1]),
+          0,
+        );
+      expect(length, id).toBeLessThan(previousWalk * 0.85);
+    }
   });
 });

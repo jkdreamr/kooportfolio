@@ -7,13 +7,14 @@ import { villageGardenPlots } from "./villageGardens";
 export const HOME_FLOWER_BEDS: readonly GroundFootprint[] = [
   [-20, 2, 14, 8], // Reading garden; the record-shop errand stays north of it.
   [-42, -21, 12, 16], // Cinema's western approach.
-  [16, -25, 6, 13],
-  [28, -25, 6, 13],
+  [29, -29, 6, 13],
+  [43, -24, 12, 13], // Former stadium plot becomes its planted approach.
   [17, 0, 13, 11], // Four planted courts, with a generous cross-shaped walk.
   [40, 0, 13, 11],
   [17, 18, 13, 10],
   [40, 18, 13, 10],
-  [-20, 24, 10, 5], // Go garden: leave its players' west-side loop clear.
+  [-43, 21, 12, 8], // Former Go plot becomes a west-side garden.
+  [0, -45, 9, 10], // Writing's former site is planted, not left as a vacant lot.
   [-11, 41, 11, 16], // Pond-side flowers, outside the water/stone bank.
   [4.7, 44.5, 1.2, 12], // Allotment edges leave a gap for the cross-walk.
   [4.7, 58, 1.2, 9],
@@ -35,7 +36,9 @@ export const HOME_GARDEN_WALKS: readonly GroundFootprint[] = [
   [-24, 7.5, 29, 3],
   [-35, -5, 3, 25],
   [-42, -10, 16, 3],
-  [22, -16.8, 27, 3],
+  [14, -16.8, 12, 3],
+  [14, -18, 3.6, 2.8],
+  [14, -12.5, 3.6, 6.5],
   [29, 10, 3.2, 34.4],
   [25, 10, 50, 3.4],
   [50, 10, 3, 38],
