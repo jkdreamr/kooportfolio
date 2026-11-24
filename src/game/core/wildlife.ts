@@ -42,10 +42,10 @@ export const ANIMALS: readonly Animal[] = [
   {
     kind: "cat",
     route: [
-      [20, 12],
-      [17, 14],
-      [16, 10],
-      [18, 9],
+      [20, 9],
+      [17, 10],
+      [16, 8],
+      [18, 7],
     ],
     speed: 0.6,
     rest: 4,
