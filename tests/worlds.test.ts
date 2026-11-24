@@ -103,6 +103,13 @@ describe("separate worlds", () => {
       expect(canWalk(x, 34, "korea"), `bridge x=${x}`).toBe(true);
     expect(canWalk(45, 26, "home")).toBe(true);
   });
+  it("keeps Korea's south-bank walk open behind the airport terminal", () => {
+    for (let x = 49; x <= 68; x++) {
+      expect(canWalk(x, 47, "korea"), `south bank x=${x}`).toBe(true);
+    }
+    expect(canWalk(58, 52, "korea")).toBe(false);
+    expect(canWalk(58, 47, "home")).toBe(false);
+  });
   it("lists each Seoul landmark once and connects the airport to it", () => {
     const korea = destinationsInWorld("korea");
     const airport = korea.find(({ id }) => id === "airport")!;

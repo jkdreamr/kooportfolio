@@ -63,7 +63,7 @@ slab(5, 12, 119, 3.3);
 slab(25, 18.7, 79, 3.2);
 slab(25, 15.8, 79, 1.9, "#a27d72");
 slab(28, 47, 88, 3.2);
-slab(22, 50, 76, 1.9, "#a27d72");
+slab(18, 50, 68, 1.9, "#a27d72");
 slab(-15, 33, 3, 30);
 slab(65, 30, 3, 25);
 // The bank lane skirts the terminal to connect the bridge and departures.

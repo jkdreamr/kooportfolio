@@ -264,10 +264,11 @@ const sharedObstacles: ReadonlyArray<readonly number[]> = [
   [0, -6.6, 2.1, 0.4],
   [0, 0, 1.5, 1.5],
   [-19, -38, 6, 6],
-  [58, 52, 9, 7],
 ];
 const obstaclesFor = (world?: WorldId): ReadonlyArray<readonly number[]> => [
   ...sharedObstacles,
+  // Korea's south-bank walk runs behind the terminal, outside its roof.
+  world === "korea" ? [58, 52, 4.9, 3.9] : [58, 52, 9, 7],
   ...(world === "korea" ? koreaForest : forest)
     .filter(({ x, z }) => world !== "stanford" || !isStanfordTownSpace(x, z, 3))
     .map((tree) => [tree.x, tree.z, 0.4, 0.4]),
