@@ -1,17 +1,15 @@
 import { useEffect } from "react";
 import { runtime, useGame } from "./store";
-import { endGameMode, useGameMode } from "./gameMode";
+import { escapeGameMode } from "./gameMode";
 export const keys = new Set<string>();
 export const touch = { x: 0, z: 0 };
 export function useInput(interact: () => void) {
   useEffect(() => {
     const closeGame = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || e.isComposing || !useGameMode.getState().active)
+      if (e.key !== "Escape" || e.isComposing || !escapeGameMode())
         return;
       e.preventDefault();
       e.stopImmediatePropagation();
-      window.dispatchEvent(new Event("interior-game-close"));
-      endGameMode();
     };
     const down = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement).matches("input,textarea,select")) return;

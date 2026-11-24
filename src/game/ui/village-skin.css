@@ -472,6 +472,7 @@
   box-shadow: var(--hud-shadow);
 }
 .game-shell .time-of-day-control select {
+  min-height: 44px;
   color: var(--hud-ink);
   background: var(--hud-face);
 }

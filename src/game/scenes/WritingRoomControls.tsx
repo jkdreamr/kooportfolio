@@ -44,7 +44,11 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
     });
     const data = await response.json();
     if (!response.ok)
-      throw new Error(data.error ?? "Couldn’t load the writing room.");
+      throw new Error(
+        response.status === 503
+          ? "Public writing unavailable."
+          : (data.error ?? "Couldn’t load the writing room."),
+      );
     return data as T;
   } catch (error) {
     if (
@@ -53,7 +57,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
       !(error instanceof TypeError)
     )
       throw error;
-    throw new Error("Connection lost. Your draft is still here. Try again.");
+    throw new Error("Connection lost. Draft kept.");
   } finally {
     clearTimeout(timeout);
   }
@@ -114,10 +118,29 @@ function WritingDialog({
     touch.z = 0;
     runtime.path = [];
     runtime.target = null;
+    // Removing the focused post/button can leave focus on the document body.
+    // Catch Escape before the game's window listener, regardless of focus;
+    // a modal's other keys must never become movement or interaction inputs.
+    const escape = (event: KeyboardEvent) => {
+      // Escape cancels an IME candidate before it dismisses the dialog.
+      // Some browsers report composition only through the legacy 229 code.
+      if (event.key !== "Escape" || event.isComposing || event.keyCode === 229)
+        return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      close();
+    };
+    const contain = (event: KeyboardEvent) => event.stopPropagation();
+    window.addEventListener("keydown", escape, true);
+    document.addEventListener("keydown", contain);
+    document.addEventListener("keyup", contain);
     void load();
     return () => {
       alive.current = false;
       keys.clear();
+      window.removeEventListener("keydown", escape, true);
+      document.removeEventListener("keydown", contain);
+      document.removeEventListener("keyup", contain);
     };
   }, []);
   function change(key: keyof WritingDraft, value: string) {
@@ -157,7 +180,7 @@ function WritingDialog({
       setMode("read");
       setDraft({ ...blank, author: draft.author });
       pending.current = null;
-      setStatus("Published. Everyone can read it.");
+      setStatus("Published.");
     } catch (error) {
       if (alive.current) setError((error as Error).message);
     } finally {
@@ -183,6 +206,12 @@ function WritingDialog({
       if (alive.current) setBusy(false);
     }
   }
+  const notice = [
+    error || status,
+    !stored || !draftStored ? "Draft lasts until reload." : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
   return (
     <dialog
       ref={dialog}
@@ -227,20 +256,9 @@ function WritingDialog({
             Refresh
           </button>
         </nav>
-        {error && (
-          <p className="writing-error" role="alert">
-            {error}
-          </p>
-        )}
-        {status && (
-          <p className="writing-status" role="status">
-            {status}
-          </p>
-        )}
-        {(!stored || !draftStored) && (
-          <p className="writing-error">
-            Browser storage is off. Keep this room open to keep your draft and
-            remove your posts.
+        {notice && (
+          <p className="writing-notice" role={error ? "alert" : "status"}>
+            {notice}
           </p>
         )}
         {mode === "read" ? (
@@ -312,10 +330,6 @@ function WritingDialog({
           </div>
         ) : (
           <form className="writing-compose" onSubmit={publish}>
-            <p>
-              Public posts. Names aren’t verified. Don’t share private
-              information.
-            </p>
             <div className="writing-fields">
               <label>
                 Name
@@ -367,14 +381,17 @@ export function WritingRoomControls() {
   const [open, setOpen] = useState(false);
   // This owner stays mounted when pause hides GameControls' separate Html root.
   const [draft, setDraft] = useState(writingDraftSession.read);
-  const [draftStored, setDraftStored] = useState(true);
+  const [draftStored, setDraftStored] = useState(writingDraftSession.isStored);
   const updateDraft = (next: WritingDraft) => {
     setDraftStored(writingDraftSession.write(next));
     setDraft(next);
   };
   useEffect(() => {
     const refresh = () => {
-      if (!document.hidden) setDraft(writingDraftSession.read());
+      if (!document.hidden) {
+        setDraft(writingDraftSession.read());
+        setDraftStored(writingDraftSession.isStored());
+      }
     };
     document.addEventListener("visibilitychange", refresh);
     return () => document.removeEventListener("visibilitychange", refresh);
@@ -391,6 +408,7 @@ export function WritingRoomControls() {
         ref={trigger}
         onClick={() => {
           setDraft(writingDraftSession.read());
+          setDraftStored(writingDraftSession.isStored());
           setOpen(true);
         }}
       >

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Html } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
 import { create } from "zustand";
@@ -106,14 +106,21 @@ function TheaterSeat({ x, z }: { x: number; z: number }) {
 function TheaterViewer({
   program,
   title,
+  onClose,
 }: {
   program: readonly TheaterFilm[];
   title: string;
+  onClose: () => void;
 }) {
   const filmId = useTheater((s) => s.filmId);
   const hidden = useGame((s) => s.paused || s.build || s.panel !== "none");
   const selected = program.find((film) => film.id === filmId);
   const close = useRef<HTMLButtonElement>(null);
+  // Html owns a separate DOM root; focus when its button actually mounts.
+  const focusClose = useCallback((button: HTMLButtonElement | null) => {
+    close.current = button;
+    button?.focus();
+  }, []);
   const dialog = useRef<HTMLElement>(null);
   const gl = useThree((s) => s.gl);
   const setFrameloop = useThree((s) => s.setFrameloop);
@@ -127,13 +134,12 @@ function TheaterViewer({
     return () => setFrameloop(useGame.getState().paused ? "demand" : "always");
   }, [setFrameloop, hidden]);
   useEffect(() => {
-    const previous = document.activeElement;
-    close.current?.focus();
+    if (hidden) return;
     const keydown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopImmediatePropagation();
-        useTheater.getState().stand();
+        onClose();
       }
       if (event.key === "Tab") {
         const controls = dialog.current?.querySelectorAll<HTMLElement>(
@@ -142,6 +148,11 @@ function TheaterViewer({
         if (!controls?.length) return;
         const first = controls[0],
           last = controls[controls.length - 1];
+        if (!dialog.current?.contains(document.activeElement)) {
+          (event.shiftKey ? last : first).focus();
+          event.preventDefault();
+          return;
+        }
         if (event.shiftKey && document.activeElement === first) {
           last.focus();
           event.preventDefault();
@@ -155,10 +166,9 @@ function TheaterViewer({
     window.addEventListener("keydown", keydown, true);
     return () => {
       window.removeEventListener("keydown", keydown, true);
-      if (previous instanceof HTMLElement && previous.isConnected)
-        previous.focus();
     };
-  }, []);
+  }, [hidden, onClose]);
+  if (hidden) return null;
   return (
     <Html
       fullscreen
@@ -181,7 +191,7 @@ function TheaterViewer({
       >
         <header>
           <h2>{title}</h2>
-          <button ref={close} onClick={() => useTheater.getState().stand()}>
+          <button ref={focusClose} onClick={onClose}>
             Leave seat
           </button>
         </header>
@@ -214,7 +224,12 @@ function TheaterViewer({
             >
               Open on YouTube ↗
             </a>
-            <button onClick={() => useTheater.setState({ filmId: null })}>
+            <button
+              onClick={() => {
+                useTheater.setState({ filmId: null });
+                close.current?.focus();
+              }}
+            >
               Stop
             </button>
           </div>
@@ -227,9 +242,6 @@ function TheaterViewer({
               aria-pressed={filmId === film.id}
               onClick={() => useTheater.setState({ filmId: film.id })}
             >
-              <small>
-                {film.kind} · {film.channel}
-              </small>
               <strong>{film.title}</strong>
               <span>{film.episode}</span>
             </button>
@@ -245,6 +257,17 @@ export function MovieTheaterInterior({
   title = "The picture house",
 }: { program?: readonly TheaterFilm[]; title?: string } = {}) {
   const seated = useTheater((s) => s.seated);
+  const restoreSeatFocus = useRef(false);
+  const leaveSeat = useCallback(() => {
+    restoreSeatFocus.current = true;
+    useTheater.getState().stand();
+  }, []);
+  const seatButton = useCallback((button: HTMLButtonElement | null) => {
+    if (button && restoreSeatFocus.current) {
+      restoreSeatFocus.current = false;
+      button.focus();
+    }
+  }, []);
   useEffect(() => {
     const stopWhenHidden = () => {
       if (document.hidden) useTheater.setState({ filmId: null });
@@ -296,12 +319,14 @@ export function MovieTheaterInterior({
       {!seated && (
         <GameControls name="Picture house seating" position={[0, 1, 7]}>
           <h2>{title}</h2>
-          <button onClick={() => useTheater.getState().sit()}>
+          <button ref={seatButton} onClick={() => useTheater.getState().sit()}>
             Take a seat
           </button>
         </GameControls>
       )}
-      {seated && <TheaterViewer program={program} title={title} />}
+      {seated && (
+        <TheaterViewer program={program} title={title} onClose={leaveSeat} />
+      )}
     </group>
   );
 }

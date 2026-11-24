@@ -158,3 +158,140 @@
     min-height: 28px;
   }
 }
+
+/* The room stays walkable until Play; game controls frame the focused board. */
+.lab-controls.lab-game {
+  inset: 0;
+  width: auto;
+  max-height: none;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  overflow: hidden;
+  pointer-events: none;
+  outline: none;
+}
+.lab-game .lab-game-topbar {
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top));
+  left: max(16px, env(safe-area-inset-left));
+  right: max(16px, env(safe-area-inset-right));
+  padding: 10px 14px;
+  border: 2px solid #b48a44;
+  border-radius: 9px;
+  background: #203b33;
+  box-shadow: 0 4px 0 #10251e;
+  pointer-events: auto;
+}
+.lab-game-topbar strong,
+.lab-game-topbar span {
+  display: block;
+}
+.lab-game-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+.lab-game button {
+  min-height: 44px;
+}
+.lab-game .lab-close {
+  background: #713d31;
+  border-color: #c98761;
+}
+.lab-game .lab-game-bottom {
+  position: absolute;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  left: 0;
+  right: 0;
+  width: min(560px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 10px 12px 12px;
+  border: 2px solid #b48a44;
+  border-radius: 9px;
+  background: #203b33;
+  box-shadow: 0 4px 0 #10251e;
+  pointer-events: auto;
+}
+.lab-game .lab-feedback {
+  margin: 0 0 10px;
+  text-align: center;
+}
+.lab-game .beat-buttons button {
+  min-height: 64px;
+  font-size: 22px;
+}
+.lab-game .lights-buttons {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  gap: 0;
+  grid-template-rows: repeat(3, 1fr);
+  margin: 0;
+  pointer-events: none;
+}
+.lab-game .lights-buttons button {
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
+  color: #fff2c8;
+  font-size: clamp(18px, 2.5vw, 26px);
+  text-shadow: 0 2px 3px #10251e;
+  pointer-events: auto;
+}
+.lab-game .lights-buttons button:hover:not(:disabled),
+.lab-game .lights-buttons button:focus-visible {
+  border-color: #fff2c8;
+}
+.lab-game .lights-buttons button[aria-pressed="true"] {
+  color: #163b31;
+  text-shadow: none;
+}
+.lab-game .lights-buttons button:active {
+  transform: none;
+}
+.lab-game .lights-buttons button:disabled {
+  cursor: default;
+}
+.lab-game .lab-math-bottom {
+  width: min(480px, calc(100% - 32px));
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.lab-game .lab-math-bottom p {
+  margin: 0;
+}
+.lab-game footer button {
+  min-height: 44px;
+  padding: 8px 13px;
+  font-size: 14px;
+}
+.lab-game .lab-math-bottom .lab-primary {
+  width: auto;
+}
+@media (max-height: 520px) {
+  .lab-game .lab-game-topbar {
+    top: max(8px, env(safe-area-inset-top));
+    padding: 5px 10px;
+  }
+  .lab-game .lab-game-bottom {
+    bottom: max(8px, env(safe-area-inset-bottom));
+    padding: 6px 10px 8px;
+  }
+  .lab-game .beat-buttons button {
+    min-height: 44px;
+  }
+  .lab-game .beat-track {
+    margin-top: 6px;
+  }
+  .lab-game .lab-feedback {
+    margin-bottom: 6px;
+  }
+}

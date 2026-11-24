@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef, type ReactNode } from "react";
+import { useEffect, useReducer, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import {
   blackjackReducer,
@@ -10,6 +10,8 @@ import {
 } from "../core/blackjack";
 import { Box, Cylinder, Sign } from "../world/Models";
 import { BrassStud, CraftedBox } from "./CraftedDetails";
+import { startGameMode, useGameMode } from "../core/gameMode";
+import { GAME_STAGE_Y, InteriorGameStage } from "./InteriorGameStage";
 import {
   GameControls,
   Stool,
@@ -48,16 +50,11 @@ function PlayingCard({
     </group>
   );
 }
-export function BlackjackTable({
-  active,
-  onSelect,
-  navigation,
-  onReward,
-}: InteriorGameProps & {
-  active: boolean;
-  onSelect: () => void;
-  navigation: ReactNode;
-}) {
+export function BlackjackTable({ onReward }: InteriorGameProps) {
+  const active = useGameMode((s) => s.active?.id === "blackjack");
+  const otherMode = useGameMode(
+    (s) => !!s.active && s.active.id !== "blackjack",
+  );
   const [game, dispatch] = useReducer(
     blackjackReducer,
     undefined,
@@ -91,12 +88,14 @@ export function BlackjackTable({
   const between = game.phase === "bet" || game.phase === "over";
   return (
     <>
+      {active && <InteriorGameStage kind="blackjack" />}
       <group
-        position={[-1.2, 0, -3.2]}
+        visible={!otherMode}
+        position={active ? [0, GAME_STAGE_Y, 0] : [-1.2, 0, -3.2]}
         scale={1.4}
         onClick={(event) => {
           event.stopPropagation();
-          if (gameIsActive()) onSelect();
+          if (!active && gameIsActive()) startGameMode("blackjack");
         }}
       >
         <CraftedBox p={[0, 0.12, 0]} s={[4.8, 0.1, 3.8]} c="#214d3a" />
@@ -147,92 +146,87 @@ export function BlackjackTable({
         <Stool p={[-1.05, 0, 2]} />
         <Stool p={[1.05, 0, -1.9]} color="#356248" />
       </group>
-      {active && (
-        <GameControls
-          name="Blackjack game"
-          position={[7.5, 0.6, 5]}
-          mobileSheet
-          dock="left"
-          gameOpen
-          collapsible="Blackjack"
-        >
-          <div className="house-game-header">
-            {navigation}
-            <div className="blackjack-bank">
-              <span>
-                Play chips <b>{game.bank}</b>
-              </span>
-              <span>
-                Bet <b>{game.bet}</b>
-              </span>
+      <GameControls
+        name="Blackjack game"
+        position={[7.5, 0.6, 5]}
+        mobileSheet
+        dock="left"
+        gameOpen
+        collapsible="Blackjack"
+        mode="blackjack"
+      >
+        <div className="house-game-header">
+          <h2>Blackjack</h2>
+          <div className="blackjack-bank">
+            <span>
+              Play chips <b>{game.bank}</b>
+            </span>
+            <span>
+              Bet <b>{game.bet}</b>
+            </span>
+          </div>
+        </div>
+        {game.player.length > 0 && (
+          <div className="blackjack-hands">
+            <div>
+              <span>Dealer {hidden ? "?" : handValue(game.dealer)}</span>
+              <b>
+                {game.dealer
+                  .map((card, i) => (hidden && i === 1 ? "?" : cardLabel(card)))
+                  .join("  ")}
+              </b>
+            </div>
+            <div>
+              <span>You {handValue(game.player)}</span>
+              <b>{game.player.map(cardLabel).join("  ")}</b>
             </div>
           </div>
-          {game.player.length > 0 && (
-            <div className="blackjack-hands">
-              <div>
-                <span>Dealer {hidden ? "?" : handValue(game.dealer)}</span>
-                <b>
-                  {game.dealer
-                    .map((card, i) =>
-                      hidden && i === 1 ? "?" : cardLabel(card),
-                    )
-                    .join("  ")}
-                </b>
-              </div>
-              <div>
-                <span>You {handValue(game.player)}</span>
-                <b>{game.player.map(cardLabel).join("  ")}</b>
-              </div>
-            </div>
-          )}
-          {between ? (
-            game.bank < 10 ? (
-              <button onClick={() => dispatch({ type: "refill" })}>
-                Refill play chips
-              </button>
-            ) : (
-              <div className="interior-actions blackjack-bets">
-                {[10, 20, 50].map((amount) => (
-                  <button
-                    key={amount}
-                    aria-label={`Bet ${amount} chips`}
-                    aria-pressed={game.bet === amount}
-                    disabled={game.bank < amount}
-                    onClick={() => dispatch({ type: "wager", amount })}
-                  >
-                    {amount}
-                  </button>
-                ))}
-                <button
-                  className="blackjack-deal"
-                  disabled={game.bank < game.bet}
-                  onClick={() =>
-                    dispatch({ type: "deal", deck: shuffledDeck() })
-                  }
-                >
-                  Deal
-                </button>
-              </div>
-            )
+        )}
+        {between ? (
+          game.bank < 10 ? (
+            <button onClick={() => dispatch({ type: "refill" })}>
+              Refill play chips
+            </button>
           ) : (
-            <div className="interior-actions">
+            <div className="interior-actions blackjack-bets">
+              {[10, 20, 50].map((amount) => (
+                <button
+                  key={amount}
+                  aria-label={`Bet ${amount} chips`}
+                  aria-pressed={game.bet === amount}
+                  disabled={game.bank < amount}
+                  onClick={() => dispatch({ type: "wager", amount })}
+                >
+                  {amount}
+                </button>
+              ))}
               <button
-                disabled={game.phase !== "player"}
-                onClick={() => dispatch({ type: "hit" })}
+                className="blackjack-deal"
+                disabled={game.bank < game.bet}
+                onClick={() => dispatch({ type: "deal", deck: shuffledDeck() })}
               >
-                Hit
-              </button>
-              <button
-                disabled={game.phase !== "player"}
-                onClick={() => dispatch({ type: "stand" })}
-              >
-                Stand
+                Deal
               </button>
             </div>
-          )}
-          <p role="status">{game.message}</p>
-        </GameControls>
-      )}
+          )
+        ) : (
+          <div className="interior-actions">
+            <button
+              disabled={game.phase !== "player"}
+              onClick={() => dispatch({ type: "hit" })}
+            >
+              Hit
+            </button>
+            <button
+              disabled={game.phase !== "player"}
+              onClick={() => dispatch({ type: "stand" })}
+            >
+              Stand
+            </button>
+          </div>
+        )}
+        <p role="status">{game.message}</p>
+      </GameControls>
     </>
   );
 }

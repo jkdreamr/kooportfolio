@@ -1,28 +1,215 @@
-import { useRef } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Html, OrthographicCamera } from "@react-three/drei";
+import { useFrame, useThree } from "@react-three/fiber";
 import { create } from "zustand";
 import * as THREE from "three";
 import { Box, Cylinder, Ball, Bench, Flowers, Ring } from "../world/Models";
-import { useGame } from "../core/store";
+import { runtime, useGame } from "../core/store";
+import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
+import { gameIsActive } from "./InteriorProps";
+import "./gym-room.css";
 
 export const useGym = create<{
   reps: number;
   liftedAt: number;
+  earned: number;
+  startSession: () => boolean;
+  cancelSession: () => void;
   lift: () => void;
 }>((set, get) => ({
   reps: 0,
   liftedAt: -Infinity,
+  earned: 0,
+  startSession() {
+    if (
+      !gameIsActive() ||
+      Math.hypot(runtime.x, runtime.z + 2) > 6 ||
+      !startGameMode("gym")
+    )
+      return false;
+    set({ reps: 0, liftedAt: -Infinity, earned: 0 });
+    return true;
+  },
+  cancelSession() {
+    set({ reps: 0, liftedAt: -Infinity, earned: 0 });
+    if (useGameMode.getState().active?.id === "gym") endGameMode();
+  },
   lift() {
+    if (
+      useGameMode.getState().active?.id !== "gym" ||
+      useGame.getState().scene !== "gym" ||
+      !gameIsActive() ||
+      !runtime.active ||
+      get().reps >= 8
+    )
+      return;
     const now = performance.now();
     if (now - get().liftedAt < 900) return;
     const reps = get().reps + 1;
     set({ reps, liftedAt: now });
-    if (reps === 8)
-      useGame
-        .getState()
-        .award(`gym-${new Date().toISOString().slice(0, 10)}`, 15, 10);
+    if (reps === 8) {
+      const id = `gym-${new Date().toISOString().slice(0, 10)}`;
+      const earned = useGame.getState().save.rewards.includes(id) ? 0 : 15;
+      set({ earned });
+      useGame.getState().award(id, 15, 10);
+    }
   },
 }));
+
+function GymCamera() {
+  const size = useThree((s) => s.size);
+  return (
+    <OrthographicCamera
+      makeDefault
+      position={[8, 8, 11]}
+      zoom={Math.max(
+        6,
+        Math.min(82, (size.width - 32) / 9, (size.height - 200) / 7),
+      )}
+      near={0.1}
+      far={100}
+      onUpdate={(camera) => {
+        camera.lookAt(0, 1.4, -2.5);
+        camera.updateProjectionMatrix();
+      }}
+    />
+  );
+}
+
+function GymControls() {
+  const active = useGameMode((s) => s.active?.id === "gym");
+  const reps = useGym((s) => s.reps),
+    earned = useGym((s) => s.earned);
+  const hidden = useGame((s) => s.paused || s.panel !== "none" || s.build);
+  const [near, setNear] = useState(false),
+    [ready, setReady] = useState(true);
+  const gl = useThree((s) => s.gl);
+  const portal = useMemo(
+    () => ({ current: gl.domElement.parentElement! }),
+    [gl],
+  );
+  const focusGame = useCallback(
+    (node: HTMLElement | null) => {
+      if (active) node?.focus({ preventScroll: true });
+    },
+    [active],
+  );
+  useEffect(() => {
+    const close = () => useGym.getState().cancelSession();
+    const key = (e: KeyboardEvent) => {
+      if (
+        e.repeat ||
+        useGameMode.getState().active?.id !== "gym" ||
+        (e.target as HTMLElement).closest("input,textarea,select,a") ||
+        (e.key === " " && (e.target as HTMLElement).closest("button"))
+      )
+        return;
+      if (e.key === " " || e.key.toLowerCase() === "e") {
+        e.preventDefault();
+        useGym.getState().lift();
+      }
+    };
+    window.addEventListener("interior-game-close", close);
+    window.addEventListener("keydown", key);
+    return () => {
+      window.removeEventListener("interior-game-close", close);
+      window.removeEventListener("keydown", key);
+      close();
+    };
+  }, []);
+  useFrame(() => {
+    if (!gameIsActive()) return;
+    if (!active) {
+      const nearby = Math.hypot(runtime.x, runtime.z + 2) <= 6;
+      if (nearby !== near) setNear(nearby);
+    }
+    const recovered = performance.now() - useGym.getState().liftedAt >= 900;
+    if (recovered !== ready) setReady(recovered);
+  });
+  if (hidden) return null;
+  return (
+    <Html
+      fullscreen
+      portal={portal}
+      zIndexRange={active ? [70, 70] : [25, 25]}
+      style={{ pointerEvents: "none" }}
+      calculatePosition={(_, __, size) => [size.width / 2, size.height / 2]}
+    >
+      <section
+        key={active ? "game" : "room"}
+        className={active ? "gym-game" : "gym-room-card"}
+        aria-label="Gym controls"
+        tabIndex={-1}
+        ref={focusGame}
+        onPointerDown={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === " " && (e.target as HTMLElement).closest("button"))
+            e.stopPropagation();
+        }}
+      >
+        {active ? (
+          <>
+            <header className="gym-game-topbar">
+              <div>
+                <strong>Bench press</strong>
+                <span>8 reps</span>
+              </div>
+              <button
+                className="gym-close"
+                onClick={() => useGym.getState().cancelSession()}
+              >
+                Close
+              </button>
+            </header>
+            <div className="gym-game-bottom">
+              <div
+                className="gym-reps"
+                role="progressbar"
+                aria-label="Completed reps"
+                aria-valuemin={0}
+                aria-valuemax={8}
+                aria-valuenow={reps}
+              >
+                {Array.from({ length: 8 }, (_, i) => (
+                  <i key={i} data-done={i < reps} />
+                ))}
+              </div>
+              <p role="status">
+                {reps === 8
+                  ? `Set complete${earned ? ` · +${earned} coins` : " · Daily reward claimed"}`
+                  : `${reps}/8 · ${ready ? "Space or E to lift" : "Lowering…"}`}
+              </p>
+              <button
+                className="gym-primary"
+                disabled={reps < 8 && !ready}
+                onClick={() =>
+                  reps === 8
+                    ? useGym.getState().startSession()
+                    : useGym.getState().lift()
+                }
+              >
+                {reps === 8 ? "Again" : "Lift"}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <strong>Bench press</strong>
+            <p>{near ? "8 reps" : "Walk up to the bench."}</p>
+            {near && (
+              <button
+                className="gym-primary"
+                onClick={() => useGym.getState().startSession()}
+              >
+                Play
+              </button>
+            )}
+          </>
+        )}
+      </section>
+    </Html>
+  );
+}
 
 export function CognitionFurnishings() {
   return (
@@ -62,6 +249,7 @@ export function CognitionFurnishings() {
 }
 
 export function GymFurnishings() {
+  const active = useGameMode((s) => s.active?.id === "gym");
   const bar = useRef<THREE.Group>(null);
   useFrame(() => {
     if (!bar.current) return;
@@ -71,6 +259,8 @@ export function GymFurnishings() {
   });
   return (
     <group>
+      {active && <GymCamera />}
+      <GymControls />
       <Box p={[0, 0.1, -2]} s={[5.8, 0.14, 5.3]} c="#354c46" />
       <Box p={[0, 0.7, -2]} s={[1.1, 0.28, 3.6]} c="#a9563e" />
       <Box p={[0, 0.35, -2]} s={[0.7, 0.7, 2.8]} c="#52665c" />

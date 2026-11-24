@@ -1,11 +1,12 @@
-import { useMemo, useRef } from "react";
-import { Line } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Html, Line } from "@react-three/drei";
+import { useFrame, useThree } from "@react-three/fiber";
 import { create } from "zustand";
 import * as THREE from "three";
 import { Ball, Cylinder, Flowers, Ring, Sign, Tree } from "../world/Models";
 import { runtime, useGame } from "../core/store";
-import { keys, movement } from "../core/input";
+import { keys, movement, touch } from "../core/input";
+import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import {
   BACKBOARD,
   COURT_SPOTS,
@@ -41,7 +42,8 @@ export const useBasketOptions = create<{
   mode: BasketMode;
   style: ShotStyle;
   assist: boolean;
-}>(() => ({ mode: "warmup", style: "arc", assist: true }));
+  round: number;
+}>(() => ({ mode: "warmup", style: "arc", assist: true, round: 0 }));
 export const useBasketHud = create<{
   time: number;
   score: number;
@@ -53,6 +55,8 @@ export const useBasketHud = create<{
   challenge: number;
   target: number;
   made: number;
+  finished: boolean;
+  coins: number;
 }>(() => ({
   time: 30,
   score: 0,
@@ -64,18 +68,45 @@ export const useBasketHud = create<{
   challenge: 0,
   target: 0,
   made: 0,
+  finished: false,
+  coins: 0,
 }));
 
-export function CourtControls() {
+function beginRound(mode = useBasketOptions.getState().mode) {
+  if (!startGameMode("basketball")) return;
+  keys.clear();
+  touch.x = touch.z = 0;
+  runtime.x = 0;
+  runtime.z = 5;
+  runtime.aim = 0;
+  runtime.shoot = runtime.shooting = runtime.moving = false;
+  useBasketHud.setState({
+    time: MODES[mode].duration,
+    score: 0,
+    charge: 0,
+    feedback: "",
+    shots: 0,
+    combo: 0,
+    holding: true,
+    challenge: 0,
+    target: 0,
+    made: 0,
+    finished: false,
+    coins: 0,
+  });
+  useBasketOptions.setState((s) => ({ mode, round: s.round + 1 }));
+}
+
+export function CourtControls({ focused = false }: { focused?: boolean } = {}) {
+  const playing = useGameMode((s) => s.active?.id === "basketball");
   const { mode, style, assist } = useBasketOptions();
   const { challenge, target } = useBasketHud();
+  if (playing !== focused) return null;
   return (
     <div
       className="basketball-controls"
       data-mode={mode}
       onClick={(event) => {
-        // Pointer-selected controls must give Space back to shooting. Keep
-        // keyboard-activated controls focused for native Tab/Space navigation.
         if (event.detail > 0 && event.target instanceof HTMLButtonElement)
           event.target.blur();
       }}
@@ -91,8 +122,9 @@ export function CourtControls() {
         aria-label="Court mode"
         value={mode}
         onChange={(event) => {
-          useBasketOptions.setState({ mode: event.target.value as BasketMode });
-          useGame.getState().go("basketball");
+          const next = event.target.value as BasketMode;
+          if (playing) beginRound(next);
+          else useBasketOptions.setState({ mode: next });
         }}
       >
         {(Object.keys(MODES) as BasketMode[]).map((m) => (
@@ -107,42 +139,303 @@ export function CourtControls() {
             key={m}
             aria-pressed={m === mode}
             onClick={() => {
-              useBasketOptions.setState({ mode: m });
-              useGame.getState().go("basketball");
+              if (playing) beginRound(m);
+              else useBasketOptions.setState({ mode: m });
             }}
           >
             {MODES[m].label}
           </button>
         ))}
       </nav>
-      <div className="basketball-switches">
-        <button
-          aria-pressed={style === "lob"}
-          onClick={() =>
-            useBasketOptions.setState({
-              style: style === "arc" ? "lob" : "arc",
-            })
-          }
-        >
-          {style === "arc" ? "Arc" : "Lob"} ↗
-        </button>
-        <button
-          aria-pressed={assist}
-          onClick={() => useBasketOptions.setState({ assist: !assist })}
-        >
-          Guide {assist ? "on" : "off"}
-        </button>
-      </div>
-      <p>
-        <span>{String(challenge + 1).padStart(2, "0")}</span>{" "}
-        {COURT_SPOTS[target].label} <b>+3</b>
-      </p>
-      {mode === "daily" && <small>UTC · local, unranked</small>}
+      {!playing ? (
+        <div className="basketball-lobby-actions">
+          <button className="basketball-play" onClick={() => beginRound()}>
+            Play
+          </button>
+          <button onClick={() => useGame.getState().go("hub")}>
+            ← Village
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="basketball-switches">
+            <button
+              aria-pressed={style === "lob"}
+              onClick={() =>
+                useBasketOptions.setState({
+                  style: style === "arc" ? "lob" : "arc",
+                })
+              }
+            >
+              {style === "arc" ? "Arc" : "Lob"} ↗
+            </button>
+            <button
+              aria-pressed={assist}
+              onClick={() => useBasketOptions.setState({ assist: !assist })}
+            >
+              Guide {assist ? "on" : "off"}
+            </button>
+          </div>
+          <p>
+            <span>{String(challenge + 1).padStart(2, "0")}</span>{" "}
+            {COURT_SPOTS[target].label} <b>+3</b>
+          </p>
+          {mode === "daily" && <small>UTC · local, unranked</small>}
+        </>
+      )}
     </div>
   );
 }
 
+function CourtSessionHud({ close }: { close: () => void }) {
+  const hud = useBasketHud();
+  const mode = useBasketOptions((s) => s.mode);
+  const [pad, setPad] = useState([0, 0]);
+  const shotPointer = useRef<number | null>(null);
+  const focusCourt = useCallback((node: HTMLElement | null) => {
+    node?.focus({ preventScroll: true });
+  }, []);
+  const resetPad = () => {
+    touch.x = touch.z = 0;
+    setPad([0, 0]);
+  };
+  const ready = () =>
+    useGameMode.getState().active?.id === "basketball" &&
+    !useGame.getState().paused &&
+    !useBasketHud.getState().finished;
+  const releaseShot = () => {
+    if (ready() && runtime.shooting) runtime.shoot = true;
+    runtime.shooting = false;
+  };
+  useEffect(
+    () => () => {
+      touch.x = touch.z = 0;
+      runtime.shooting = runtime.shoot = false;
+    },
+    [],
+  );
+  return (
+    <section
+      className="court-session"
+      aria-label="Basketball game"
+      tabIndex={-1}
+      ref={focusCourt}
+      onPointerDown={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        if (e.key === " " && (e.target as HTMLElement).closest("button"))
+          e.stopPropagation();
+        if (e.key === "Tab") {
+          const controls = Array.from(
+            e.currentTarget.querySelectorAll<HTMLElement>(
+              "button:not(:disabled), select, input",
+            ),
+          ).filter((node) => node.getClientRects().length);
+          const first = controls[0],
+            last = controls.at(-1);
+          if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last?.focus();
+          } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first?.focus();
+          }
+        }
+      }}
+      onKeyUp={(e) => {
+        if (e.key === " " && (e.target as HTMLElement).closest("button"))
+          e.stopPropagation();
+      }}
+    >
+      <header className="court-session-header">
+        <div>
+          <span>COURT 01</span>
+          <strong>{MODES[mode].label}</strong>
+        </div>
+        <div className="court-session-score" aria-label="Score and time">
+          <strong>
+            {String(hud.score).padStart(2, "0")}
+            <small>PTS</small>
+          </strong>
+          {mode !== "practice" && (
+            <span>
+              {Math.ceil(hud.time)}
+              <small>SEC</small>
+            </span>
+          )}
+        </div>
+        <div className="court-session-actions">
+          <button onClick={() => useGame.setState({ paused: true })}>
+            Pause
+          </button>
+          <button onClick={close} aria-label="Close basketball game">
+            Close
+          </button>
+        </div>
+      </header>
+      {!hud.finished && (
+        <>
+          <CourtControls focused />
+          <div className="court-feedback" role="status">
+            {hud.feedback}
+          </div>
+          <div className="court-shot">
+            <div
+              className="court-power"
+              role="meter"
+              aria-label="Shot power"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(hud.charge * 100)}
+            >
+              <i style={{ width: `${hud.charge * 100}%` }} />
+              <b />
+            </div>
+            <label>
+              Aim{" "}
+              <input
+                type="range"
+                aria-label="Shot aim"
+                min={-0.7}
+                max={0.7}
+                step={0.01}
+                value={runtime.aim}
+                onChange={(e) => {
+                  runtime.aim = Number(e.target.value);
+                }}
+              />
+            </label>
+            <button
+              className="court-shoot"
+              disabled={!hud.holding}
+              onPointerDown={(e) => {
+                if (!ready()) return;
+                e.currentTarget.setPointerCapture(e.pointerId);
+                shotPointer.current = e.pointerId;
+                runtime.shooting = true;
+              }}
+              onPointerUp={(e) => {
+                if (shotPointer.current !== e.pointerId) return;
+                shotPointer.current = null;
+                releaseShot();
+              }}
+              onPointerCancel={() => {
+                shotPointer.current = null;
+                runtime.shooting = runtime.shoot = false;
+              }}
+              onLostPointerCapture={(e) => {
+                if (shotPointer.current === e.pointerId) {
+                  shotPointer.current = null;
+                  runtime.shooting = runtime.shoot = false;
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (!e.repeat && ready()) runtime.shooting = true;
+                }
+              }}
+              onKeyUp={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  releaseShot();
+                }
+              }}
+            >
+              {hud.holding ? "Hold · Release" : "Rebound"}
+            </button>
+          </div>
+          <div
+            className="court-pad"
+            aria-label="Move player"
+            role="group"
+            onPointerDown={(e) => {
+              e.currentTarget.setPointerCapture(e.pointerId);
+            }}
+            onPointerMove={(e) => {
+              if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+              const r = e.currentTarget.getBoundingClientRect();
+              const x = (e.clientX - r.left - r.width / 2) / 35,
+                z = (e.clientY - r.top - r.height / 2) / 35;
+              const length = Math.max(1, Math.hypot(x, z));
+              touch.x = x / length;
+              touch.z = z / length;
+              setPad([touch.x * 25, touch.z * 25]);
+            }}
+            onPointerUp={resetPad}
+            onPointerCancel={resetPad}
+            onLostPointerCapture={resetPad}
+          >
+            <span
+              style={{ transform: `translate(${pad[0]}px, ${pad[1]}px)` }}
+            />
+          </div>
+          <p className="court-keys">
+            WASD move · Q / E aim · Hold Space, release in gold
+          </p>
+        </>
+      )}
+      {hud.finished && (
+        <div className="court-finished" role="status">
+          <span>TIME</span>
+          <h2>
+            {hud.score} <small>PTS</small>
+          </h2>
+          <p>
+            {hud.made}/{hud.shots} made · +{hud.coins} coins
+          </p>
+          <button onClick={() => beginRound()}>Play again</button>
+          <button onClick={close}>Close</button>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export function Basketball() {
+  const playing = useGameMode((s) => s.active?.id === "basketball");
+  const round = useBasketOptions((s) => s.round);
+  const hidden = useGame((s) => s.paused || s.panel !== "none");
+  const gl = useThree((s) => s.gl);
+  const portal = useMemo(
+    () => ({ current: gl.domElement.parentElement! }),
+    [gl],
+  );
+  const close = useCallback(() => {
+    if (useGameMode.getState().active?.id !== "basketball") return;
+    endGameMode();
+    runtime.aim = 0;
+    requestAnimationFrame(() =>
+      document.querySelector<HTMLButtonElement>(".basketball-play")?.focus(),
+    );
+  }, []);
+  useEffect(() => {
+    window.addEventListener("interior-game-close", close);
+    return () => {
+      window.removeEventListener("interior-game-close", close);
+      if (useGameMode.getState().active?.id === "basketball") endGameMode();
+    };
+  }, [close]);
+  return (
+    <>
+      <BasketballCourt key={`${playing}-${round}`} playing={playing} />
+      {playing && !hidden && (
+        <Html
+          fullscreen
+          portal={portal}
+          zIndexRange={[70, 70]}
+          style={{ pointerEvents: "none" }}
+          calculatePosition={(_, __, size) => [size.width / 2, size.height / 2]}
+        >
+          <CourtSessionHud close={close} />
+        </Html>
+      )}
+    </>
+  );
+}
+
+function BasketballCourt({ playing }: { playing: boolean }) {
   const player = useRef<THREE.Group>(null),
     ballMesh = useRef<THREE.Group>(null),
     hoopMesh = useRef<THREE.Group>(null),
@@ -191,6 +484,48 @@ export function Basketball() {
   useFrame(({ camera }, delta) => {
     const g = useGame.getState();
     if (g.paused || g.result || g.panel !== "none" || !runtime.active) return;
+    const sessionActive = useGameMode.getState().active?.id === "basketball";
+    // Walking never advances a round or consumes a release queued by the shared input.
+    if (!playing || !sessionActive) {
+      if (playing) return;
+      const dt = Math.min(delta, 0.04);
+      let [x, z] = movement();
+      if (x || z) runtime.target = null;
+      else if (runtime.target) {
+        const dx = runtime.target[0] - runtime.x,
+          dz = runtime.target[1] - runtime.z;
+        const d = Math.hypot(dx, dz);
+        if (d < 0.15) runtime.target = null;
+        else {
+          x = dx / d;
+          z = dz / d;
+        }
+      }
+      // Match the screen-relative court controls while keeping walking free of inertia.
+      const vx = runtime.target ? x : x * 0.914 + z * 0.406;
+      const vz = runtime.target ? z : z * 0.914 - x * 0.406;
+      runtime.x = THREE.MathUtils.clamp(runtime.x + vx * dt * 4.8, -6, 6);
+      runtime.z = THREE.MathUtils.clamp(runtime.z + vz * dt * 4.8, -3.8, 7.7);
+      runtime.moving = Math.hypot(vx, vz) > 0.1;
+      if (runtime.moving) runtime.heading = Math.atan2(vx, vz);
+      runtime.shoot = runtime.shooting = false;
+      player.current?.position.set(runtime.x, 0, runtime.z);
+      if (player.current) player.current.rotation.y = runtime.heading;
+      if (ballMesh.current) ballMesh.current.position.set(-1.8, 0.35, 4);
+      if (ballShadow.current) ballShadow.current.visible = false;
+      if (line.current) line.current.visible = false;
+      if (marker.current) marker.current.visible = false;
+      if (aimArrow.current) aimArrow.current.visible = false;
+      desiredCamera.set(7, 12.5, 18);
+      camera.position.lerp(desiredCamera, 1 - Math.exp(-dt * 5));
+      camera.lookAt(0, 1.2, -0.8);
+      if (camera instanceof THREE.PerspectiveCamera) {
+        camera.fov = window.innerWidth < 700 ? 70 : 55;
+        camera.updateProjectionMatrix();
+      }
+      return;
+    }
+    if (done.current) return;
     const dt = Math.min(delta, 0.04),
       options = useBasketOptions.getState();
     elapsed.current += dt;
@@ -227,6 +562,7 @@ export function Basketball() {
     const hoop = hoopAt(physicsTime.current),
       heading =
         Math.atan2(hoop.x - runtime.x, hoop.z - runtime.z) + runtime.aim;
+    runtime.heading = heading;
     if (player.current) {
       player.current.position.set(runtime.x, 0, runtime.z);
       player.current.rotation.y = heading;
@@ -381,11 +717,11 @@ export function Basketball() {
       marker.current.position.set(spot.x, 0.17, spot.z);
       marker.current.scale.setScalar(1 + Math.sin(elapsed.current * 3) * 0.035);
     }
-    desiredCamera.set(runtime.x * 0.13 + 7, 12.5, 18 + runtime.z * 0.06);
+    desiredCamera.set(runtime.x * 0.22 + 4.8, 7.8, 12.5 + runtime.z * 0.12);
     camera.position.lerp(desiredCamera, 1 - Math.exp(-dt * 3));
     camera.lookAt(0, 1.2, -0.8);
     if (camera instanceof THREE.PerspectiveCamera) {
-      const fov = window.innerWidth < 700 ? 65 : 51;
+      const fov = window.innerWidth < 700 ? 72 : 52;
       if (camera.fov !== fov) {
         camera.fov = fov;
         camera.updateProjectionMatrix();
@@ -426,14 +762,12 @@ export function Basketball() {
       g.award(id.current, coins, 25, {
         bestBasket: Math.max(g.save.bestBasket, score.current),
       });
-      useGame.setState({
-        result: {
-          game: "basketball",
-          title: "Time",
-          score: `${score.current} PTS`,
-          coins,
-          detail: `${made.current}/${shots.current} made · ${challenge.current} spots · Local, unranked`,
-        },
+      useBasketHud.setState({
+        finished: true,
+        coins,
+        score: score.current,
+        made: made.current,
+        shots: shots.current,
       });
       sound("win");
     }
@@ -452,6 +786,22 @@ export function Basketball() {
   );
   return (
     <group>
+      {!playing && (
+        <mesh
+          position={[0, 0.2, 0]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          onPointerDown={(event) => {
+            event.stopPropagation();
+            runtime.target = [
+              THREE.MathUtils.clamp(event.point.x, -6, 6),
+              THREE.MathUtils.clamp(event.point.z, -3.8, 7.7),
+            ];
+          }}
+        >
+          <planeGeometry args={[12, 16]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        </mesh>
+      )}
       <CourtDeck />
       <CourtSidelines />
       <Box p={[0, 0.125, -3.5]} s={[5, 0.012, 7]} c="#2e655b" sharp />

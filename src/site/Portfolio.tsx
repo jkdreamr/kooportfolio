@@ -97,12 +97,6 @@ export function Portfolio() {
         <nav className="portfolio-nav" aria-label="Portfolio">
           <a
             href="/about"
-            onClick={(e) => {
-              if (path === "/") {
-                e.preventDefault();
-                setLoose(true);
-              }
-            }}
             className={path === "/about" ? "active" : ""}
           >
             About <span>01</span>
@@ -112,6 +106,9 @@ export function Portfolio() {
           </a>
           <a href="/contact" className={path === "/contact" ? "active" : ""}>
             Contact <span>03</span>
+          </a>
+          <a href="/play">
+            Play <span>04</span>
           </a>
         </nav>
         <div className="paper-divider">
