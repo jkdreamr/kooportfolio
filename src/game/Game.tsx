@@ -33,7 +33,6 @@ import { useGym } from "./scenes/CognitionGym";
 import { interactWithNpc } from "./core/npcState";
 import { NpcDialog } from "./ui/NpcConversation";
 import { WorldAmbience } from "./world/WorldAmbience";
-import { PhotoBoothCamera } from "./world/PhotoBooth";
 import { PhotoBoothDialog, openPhotoBooth } from "./ui/PhotoBoothDialog";
 import { TelescopeView } from "./ui/TelescopeView";
 import { SkateParkInterior } from "./scenes/SkatePark";
@@ -223,7 +222,6 @@ function World() {
       <Sun />
       <TimeOfDayLighting dimmed={scene === "theater" && filmPlaying} />
       <WorldAmbience />
-      <PhotoBoothCamera />
       <WorldZoomInput />
       {scene !== "rowing" && (
         <mesh
@@ -251,7 +249,8 @@ export default function Game() {
   useEffect(
     () =>
       useGame.subscribe((state, previous) => {
-        if (state.scene !== previous.scene) endGameMode();
+        if (state.scene !== previous.scene || state.world !== previous.world)
+          endGameMode();
       }),
     [],
   );
@@ -269,6 +268,7 @@ export default function Game() {
     paused = useGame((s) => s.paused),
     panel = useGame((s) => s.panel);
   const gameMode = useGameMode((s) => s.active);
+  const photoBooth = gameMode?.id === "photo-booth";
   const interact = useCallback(() => {
     const g = useGame.getState();
     if (interactWithNpc()) return;
@@ -344,7 +344,7 @@ export default function Game() {
             antialias: true,
             powerPreference: "high-performance",
           }}
-          frameloop={paused || panel === "photo" ? "demand" : "always"}
+          frameloop={paused || photoBooth ? "demand" : "always"}
           onCreated={({ gl }) => {
             gl.toneMapping = THREE.ACESFilmicToneMapping;
             gl.toneMappingExposure = 0.98;
@@ -355,7 +355,7 @@ export default function Game() {
           }}
           fallback={<WorldFallback />}
         >
-          {!paused && !traveling && panel !== "photo" && (
+          {!paused && !traveling && !photoBooth && (
             <PerformanceMonitor
               onDecline={() => useGame.setState({ quality: "low" })}
               flipflops={1}
