@@ -9,7 +9,8 @@ import {
   Window,
 } from "../world/Models";
 import { Walker } from "../world/Hub";
-import { useGame } from "../core/store";
+import { runtime, useGame } from "../core/store";
+import { useGameMode } from "../core/gameMode";
 import { doors } from "../core/world";
 import { CognitionFurnishings, GymFurnishings } from "./CognitionGym";
 import { HouseInterior } from "./HouseInterior";
@@ -53,6 +54,28 @@ export function Interior() {
   if (scene === "stadium") return <StadiumInterior />;
   return (
     <group>
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, 0.2, 0]}
+        onPointerDown={(event) => {
+          const state = useGame.getState();
+          if (
+            useGameMode.getState().active ||
+            (theater && theaterSeated) ||
+            state.paused || state.build || state.traveling ||
+            state.overlayLocked || state.panel !== "none"
+          ) return;
+          event.stopPropagation();
+          runtime.path = [];
+          runtime.target = [
+            Math.max(-room.walkX, Math.min(room.walkX, event.point.x)),
+            Math.max(room.minZ, Math.min(room.maxZ, event.point.z)),
+          ];
+        }}
+      >
+        <planeGeometry args={[room.width, room.depth]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
       <Box
         p={[0, -0.4, 0]}
         s={[room.width + 0.6, 0.8, room.depth + 0.6]}
