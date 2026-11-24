@@ -3,16 +3,19 @@ import {
   advanceBeat,
   beatCue,
   beatPadLane,
+  beatRewardCoins,
   beatRoundEnd,
   BEAT_COUNT_IN,
   BEAT_INTERVAL,
   newBeatGame,
+  queueBeatPad,
   hitBeat,
   HIT_WINDOW,
   flipLights,
   newLightsBoard,
   LIGHTS_TARGET,
   lightsHint,
+  type BeatGame,
 } from "../src/game/core/labGames";
 
 describe("Beat Lab", () => {
@@ -116,6 +119,53 @@ describe("Beat Lab", () => {
     expect(expired.combo).toBe(1);
     expect(hitBeat(hitNext, skipped.lane).combo).toBe(3);
   });
+  it("rejects a four-pad burst on every note regardless of pad order", () => {
+    let game: BeatGame = { ...newBeatGame(), phase: "playing" };
+    for (const [index, note] of game.notes.entries()) {
+      for (let i = 0; i < 4; i++) {
+        const at = note.at + i * 0.015;
+        game = queueBeatPad(advanceBeat(game, at - game.time), (index + i) % 4);
+      }
+    }
+    game = advanceBeat(game, 1);
+    expect(game.phase).toBe("done");
+    expect(game.notes.every((note) => !note.hit)).toBe(true);
+    expect(game.points).toBe(0);
+    expect(beatRewardCoins(game)).toBe(0);
+  });
+  it("scores a single press at its original time even while the hit window closes", () => {
+    const start = { ...newBeatGame(), phase: "playing" as const };
+    const late = advanceBeat(start, BEAT_COUNT_IN + HIT_WINDOW - 0.01);
+    const queued = queueBeatPad(late, 0);
+    const waiting = advanceBeat(queued, 0.03);
+    expect(waiting.notes[0].missed).toBe(false);
+    const judged = advanceBeat(waiting, 0.04);
+    expect(judged.notes[0].hit).toBe(true);
+    expect(judged.points).toBe(60);
+  });
+  it.each([
+    { cleanHits: 20, delay: 0.1, mistakes: 0, coins: 12 },
+    { cleanHits: 20, delay: 0.1, mistakes: 1, coins: 0 },
+    { cleanHits: 32, delay: 0, mistakes: 0, coins: 20 },
+    { cleanHits: 32, delay: 0, mistakes: 17, coins: 0 },
+  ])(
+    "awards $coins coins for $cleanHits hits, $delay timing error and $mistakes wrong taps",
+    ({ cleanHits, delay, mistakes, coins }) => {
+      let game: BeatGame = { ...newBeatGame(), phase: "playing" };
+      for (const [index, note] of game.notes.slice(0, cleanHits).entries()) {
+        game = queueBeatPad(
+          advanceBeat(game, note.at + delay - game.time),
+          note.lane,
+        );
+        if (index < mistakes)
+          game = queueBeatPad(advanceBeat(game, 0.1), (note.lane + 1) % 4);
+      }
+      expect(beatRewardCoins(game)).toBe(0);
+      game = advanceBeat(game, beatRoundEnd(game) - game.time + 0.01);
+      expect(game.notes.filter((note) => note.hit)).toHaveLength(cleanHits);
+      expect(beatRewardCoins(game)).toBe(coins);
+    },
+  );
 });
 
 describe("Math Lab", () => {

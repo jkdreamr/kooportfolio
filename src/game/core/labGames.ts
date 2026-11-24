@@ -1,6 +1,7 @@
 export const BEAT_INTERVAL = 0.6;
 export const BEAT_COUNT_IN = 4 * BEAT_INTERVAL;
 export const HIT_WINDOW = 0.21;
+const PAD_BURST_WINDOW = 0.065;
 export const BEAT_PAD_KEYS = ["F", "G", "H", "J"] as const;
 
 export function beatPadLane({
@@ -31,6 +32,8 @@ export type BeatGame = {
   time: number;
   notes: BeatNote[];
   points: number;
+  offBeatPresses: number;
+  pendingPress: { at: number; lane: number | null } | null;
   combo: number;
   comboHits: number[];
   best: number;
@@ -42,6 +45,8 @@ export function newBeatGame(): BeatGame {
     phase: "ready",
     time: 0,
     points: 0,
+    offBeatPresses: 0,
+    pendingPress: null,
     combo: 0,
     comboHits: [],
     best: 0,
@@ -64,6 +69,13 @@ export function newBeatGame(): BeatGame {
 }
 export function beatRoundEnd(game: BeatGame): number {
   return game.notes[game.notes.length - 1].at + BEAT_INTERVAL;
+}
+
+export function beatRewardCoins(game: BeatGame): number {
+  if (game.phase !== "done" || game.points < 1200) return 0;
+  const hits = game.notes.filter((note) => note.hit).length;
+  if (hits < 20 || 2 * game.offBeatPresses > hits) return 0;
+  return game.points >= 2600 ? 20 : 12;
 }
 
 export function beatCue(game: BeatGame, lane: number): boolean {
@@ -91,9 +103,16 @@ function consecutiveHits(notes: BeatNote[], hits: number[]): number {
 export function advanceBeat(game: BeatGame, dt: number): BeatGame {
   if (game.phase !== "playing" || !Number.isFinite(dt) || dt <= 0) return game;
   const time = game.time + dt;
+  const done = time >= beatRoundEnd(game);
+  const press = game.pendingPress;
+  if (press && (done || time >= press.at + PAD_BURST_WINDOW)) {
+    const atPress = { ...game, time: press.at, pendingPress: null };
+    game = press.lane === null ? offBeat(atPress) : hitBeat(atPress, press.lane);
+  }
+  const expireAt = game.pendingPress?.at ?? time;
   let missed = false;
   const notes = game.notes.map((note) => {
-    if (!note.hit && !note.missed && time - note.at > HIT_WINDOW) {
+    if (!note.hit && !note.missed && expireAt - note.at > HIT_WINDOW) {
       missed = true;
       return { ...note, missed: true };
     }
@@ -103,21 +122,48 @@ export function advanceBeat(game: BeatGame, dt: number): BeatGame {
     ...game,
     time,
     notes,
-    phase: time >= beatRoundEnd(game) ? "done" : "playing",
+    phase: done ? "done" : "playing",
     combo: missed ? consecutiveHits(notes, game.comboHits) : game.combo,
     feedback: missed ? "Miss" : game.feedback,
     feedbackAt: missed ? time : game.feedbackAt,
   };
 }
+
+function canPressBeat(game: BeatGame, lane: number): boolean {
+  return (
+    game.phase === "playing" &&
+    Number.isInteger(lane) &&
+    lane >= 0 &&
+    lane < 4 &&
+    game.time >= BEAT_COUNT_IN - HIT_WINDOW
+  );
+}
+
+export function queueBeatPad(game: BeatGame, lane: number): BeatGame {
+  if (!canPressBeat(game, lane)) return game;
+  const press = game.pendingPress;
+  if (press?.lane === null) return game;
+  return {
+    ...game,
+    pendingPress: press ? { ...press, lane: null } : { at: game.time, lane },
+  };
+}
+
+function offBeat(game: BeatGame): BeatGame {
+  if (game.time < BEAT_COUNT_IN) return game;
+  return {
+    ...game,
+    combo: 0,
+    comboHits: [],
+    points: Math.max(0, game.points - 35),
+    offBeatPresses: game.offBeatPresses + 1,
+    feedback: "Off beat",
+    feedbackAt: game.time,
+  };
+}
+
 export function hitBeat(game: BeatGame, lane: number): BeatGame {
-  if (
-    game.phase !== "playing" ||
-    !Number.isInteger(lane) ||
-    lane < 0 ||
-    lane > 3 ||
-    game.time < BEAT_COUNT_IN - HIT_WINDOW
-  )
-    return game;
+  if (!canPressBeat(game, lane)) return game;
   const candidates = game.notes.filter(
     (n) => n.lane === lane && !n.hit && !n.missed,
   );
@@ -125,17 +171,7 @@ export function hitBeat(game: BeatGame, lane: number): BeatGame {
     (a, b) => Math.abs(a.at - game.time) - Math.abs(b.at - game.time),
   )[0];
   const error = note ? Math.abs(note.at - game.time) : Infinity;
-  if (error > HIT_WINDOW) {
-    if (game.time < BEAT_COUNT_IN) return game;
-    return {
-      ...game,
-      combo: 0,
-      comboHits: [],
-      points: Math.max(0, game.points - 35),
-      feedback: "Off beat",
-      feedbackAt: game.time,
-    };
-  }
+  if (error > HIT_WINDOW) return offBeat(game);
   const comboHits = [...game.comboHits, game.notes.indexOf(note)];
   const combo = consecutiveHits(game.notes, comboHits);
   return {
