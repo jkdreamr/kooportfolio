@@ -154,7 +154,9 @@ export function PhotoBoothCamera() {
     const previousTarget = gl.getRenderTarget();
     const previousColorSpace = gl.outputColorSpace;
     const linear = new THREE.WebGLRenderTarget(PHOTO_WIDTH, PHOTO_HEIGHT, {
-      type: THREE.HalfFloatType,
+      type: gl.extensions.has("EXT_color_buffer_float")
+        ? THREE.HalfFloatType
+        : THREE.UnsignedByteType,
     });
     const output = new THREE.WebGLRenderTarget(PHOTO_WIDTH, PHOTO_HEIGHT, {
       depthBuffer: false,
@@ -168,7 +170,7 @@ export function PhotoBoothCamera() {
       // Offscreen world passes are linear/HDR. Apply the same tone mapping and
       // display transfer as the live canvas before reading ordinary PNG bytes.
       gl.outputColorSpace = THREE.SRGBColorSpace;
-      outputPass.render(gl, output, linear);
+      outputPass.render(gl, output, linear, 0, false);
       const pixels = new Uint8Array(PHOTO_WIDTH * PHOTO_HEIGHT * 4);
       gl.readRenderTargetPixels(
         output,
