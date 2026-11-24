@@ -27,14 +27,14 @@ export function InteriorGameStage({
         : [0, 7, 5.8]
       : kind === "pong"
         ? portrait
-          ? [0, 8.8, 8.5]
-          : [0, 6.5, 7.5]
+          ? [0, 5.4, 7.4]
+          : [0, 3.9, 5.6]
         : portrait
           ? [0, 13.8, 14.5]
           : [8, 10, 12];
   const look: [number, number, number] =
     kind === "pong"
-      ? [0, 1.1, -0.8]
+      ? [0, 1.4, -1.3]
       : kind === "blackjack"
         ? [0, 0.5, 0.5]
         : [0, 0.7, 0.6];
