@@ -482,7 +482,7 @@ function BasketballCourt({ playing }: { playing: boolean }) {
     ballShadow = useRef<THREE.Mesh>(null);
   const desiredCamera = useMemo(() => new THREE.Vector3(), []);
   const cameraForward = useMemo(() => new THREE.Vector3(), []);
-  useFrame(({ camera }, delta) => {
+  useFrame(({ camera, size }, delta) => {
     const g = useGame.getState();
     if (g.paused || g.result || g.panel !== "none" || !runtime.active) return;
     const sessionActive = useGameMode.getState().active?.id === "basketball";
@@ -737,9 +737,10 @@ function BasketballCourt({ playing }: { playing: boolean }) {
       focusZ + distance,
     );
     camera.position.lerp(desiredCamera, 1 - Math.exp(-dt * 7));
-    camera.lookAt(focusX, 1.5, focusZ);
+    // Leave headroom for the lob apex beneath the session header.
+    camera.lookAt(focusX, portrait ? 1.5 : 3.5, focusZ);
     if (camera instanceof THREE.PerspectiveCamera) {
-      const fov = portrait ? 72 : 52;
+      const fov = portrait || size.height < 640 ? 72 : 60;
       if (camera.fov !== fov) {
         camera.fov = fov;
         camera.updateProjectionMatrix();
