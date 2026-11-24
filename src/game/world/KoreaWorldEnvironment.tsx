@@ -32,10 +32,11 @@ slab(14, 47, 60, 3.2);
 slab(14, 50, 60, 1.9, "#a27d72");
 slab(-15, 33, 3, 30);
 slab(65, 30, 3, 25);
-// East bank dog-leg stays outside the airport footprint x49..67,z45..59.
-slab(69.5, 40.8, 12, 3);
-slab(74, 51, 3.4, 24);
-slab(67, 61, 17, 3.4);
+// A narrow bank lane fits between the airport and the island's curved edge.
+// Its outermost corner [70, 62] remains inside the ellipse; x74 did not.
+slab(67.5, 34, 7, 2.4);
+slab(69, 47.5, 2, 27);
+slab(63.5, 61, 13, 2);
 for (let x = -13; x < 63; x += 2) {
   paving.push({
     p: [x, 0.216, 15.8],
