@@ -1,0 +1,41 @@
+.island-rail-controls {
+  position: absolute;
+  bottom: max(110px, calc(env(safe-area-inset-bottom) + 100px));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  padding: 10px 12px;
+  border: 2px solid #b39b66;
+  border-radius: 9px;
+  background: #304650;
+  box-shadow: 0 4px 0 #152630;
+  color: #f5f4e9;
+  font:
+    bold 14px Trebuchet MS,
+    Arial,
+    sans-serif;
+  pointer-events: auto;
+}
+.island-rail-controls button {
+  min-height: 44px;
+  padding: 9px 12px;
+  border: 1px solid #8ba275;
+  border-bottom-width: 3px;
+  border-radius: 5px;
+  background: #486832;
+  color: #fff8e3;
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.island-rail-controls button:hover {
+  background: #5a7a40;
+}
+.island-rail-controls button:focus-visible {
+  outline: 3px solid #f0c56b;
+  outline-offset: 3px;
+}
