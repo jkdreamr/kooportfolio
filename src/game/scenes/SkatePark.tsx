@@ -11,7 +11,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { runtime, useGame } from "../core/store";
 import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
-import { keys, movement, touch } from "../core/input";
+import { keys, movement, movementSpeed, touch } from "../core/input";
 import { newRunId } from "../../shared/run-id";
 import { Box, Ball, Character, Cylinder } from "../world/Models";
 import { gameIsActive } from "./InteriorProps";
@@ -337,8 +337,17 @@ export function SkateParkInterior() {
           }
         }
         runtime.moving = Math.hypot(dx, dz) > 0.1;
-        runtime.x = THREE.MathUtils.clamp(runtime.x + dx * 5 * dt, -20.5, 20.5);
-        runtime.z = THREE.MathUtils.clamp(runtime.z + dz * 5 * dt, -24.5, 25);
+        const walking = movementSpeed(5);
+        runtime.x = THREE.MathUtils.clamp(
+          runtime.x + dx * walking * dt,
+          -20.5,
+          20.5,
+        );
+        runtime.z = THREE.MathUtils.clamp(
+          runtime.z + dz * walking * dt,
+          -24.5,
+          25,
+        );
         if (runtime.moving) runtime.heading = Math.atan2(dx, dz);
         if (walker.current) {
           walker.current.position.set(

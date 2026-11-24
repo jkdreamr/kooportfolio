@@ -168,22 +168,30 @@ function World() {
   useEffect(() => {
     useTimeOfDay.getState().setTimeZone(WORLDS[world].timeZone);
   }, [world]);
-  const paperToss = useGameMode((s) => scene === "office" && s.active?.id === "paper-toss");
+  const paperToss = useGameMode(
+    (s) => scene === "office" && s.active?.id === "paper-toss",
+  );
   const flat = !paperToss && (scene === "hub" || isInterior(scene));
   return (
     <>
       {flat ? (
         <OrthographicCamera
           makeDefault
-          position={[28, 34, 38]}
+          position={[70, 85, 95]}
           zoom={29}
           near={0.1}
-          far={220}
+          far={350}
         />
       ) : (
         <PerspectiveCamera
           makeDefault
-          position={scene === "rowing" ? [3, 9.5, 17] : paperToss ? [0, 9, 16] : [7, 12, 18]}
+          position={
+            scene === "rowing"
+              ? [3, 9.5, 17]
+              : paperToss
+                ? [0, 9, 16]
+                : [7, 12, 18]
+          }
           fov={55}
           near={0.1}
           far={130}
@@ -197,8 +205,8 @@ function World() {
         attach="fog"
         args={[
           scene === "rowing" ? "#d5e0ce" : "#dce5c7",
-          scene === "rowing" ? 65 : 65,
-          scene === "rowing" ? 120 : 160,
+          scene === "hub" ? 300 : 65,
+          scene === "hub" ? 500 : scene === "rowing" ? 120 : 160,
         ]}
       />
       <hemisphereLight
@@ -227,8 +235,10 @@ function World() {
           <shadowMaterial transparent opacity={0.12} />
         </mesh>
       )}
-      {scene === "hub" && <Hub key={world} />}
-      {isInterior(scene) && scene !== "skate" && !paperToss && <Interior key={scene} />}
+      {scene === "hub" && <Hub />}
+      {isInterior(scene) && scene !== "skate" && !paperToss && (
+        <Interior key={scene} />
+      )}
       {scene === "office" && <StudyPaperToss playing={paperToss} />}
       {scene === "skate" && <SkateParkInterior key={`skate-${run}`} />}
       {scene === "rowing" && <Rowing key={`race-${run}`} />}
@@ -334,9 +344,7 @@ export default function Game() {
             antialias: true,
             powerPreference: "high-performance",
           }}
-          frameloop={
-            paused || traveling || panel === "photo" ? "demand" : "always"
-          }
+          frameloop={paused || panel === "photo" ? "demand" : "always"}
           onCreated={({ gl }) => {
             gl.toneMapping = THREE.ACESFilmicToneMapping;
             gl.toneMappingExposure = 0.98;
@@ -358,7 +366,7 @@ export default function Game() {
         </Canvas>
       </WorldBoundary>
       <Hud interact={interact} />
-      {!gameMode && <TimeOfDayControls />}
+      {!gameMode && !traveling && <TimeOfDayControls />}
       {!gameMode && <WorldZoomControls />}
       <NpcDialog />
       <PhotoBoothDialog />
