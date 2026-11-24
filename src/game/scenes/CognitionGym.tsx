@@ -304,7 +304,7 @@ function GymControls() {
     if (marker.current) {
       const state = useGym.getState();
       const position =
-        ready && reps < 8
+        motion.phase === "ready" && reps < 8
           ? gymMarker(state.readyAt, performance.now(), reps)
           : state.strike;
       marker.current.style.left = `${position * 100}%`;
