@@ -7,6 +7,8 @@ import { canTalkToNpc, nearestNpc, stepNpc, villagers } from "../core/npcs";
 import {
   closeConversation,
   npcActors,
+  npcInWorld,
+  activeNpcActors,
   talkToNpc,
   useNpcs,
 } from "../core/npcState";
@@ -97,7 +99,9 @@ function CrowdPart({ part }: { part: Part }) {
       );
       transform.scale
         .set(...part.s)
-        .multiplyScalar(part.hat && !villagers[i].hat ? 0 : 0.67);
+        .multiplyScalar(
+          !npcInWorld(actor.id) || (part.hat && !villagers[i].hat) ? 0 : 0.67,
+        );
       transform.updateMatrix();
       mesh.current!.setMatrixAt(i, transform.matrix);
     });
@@ -128,10 +132,11 @@ function TalkRings() {
       selected = useNpcs.getState().pending;
     const nearest =
       game.near === "npc"
-        ? nearestNpc(npcActors, runtime.x, runtime.z)?.id
+        ? nearestNpc(activeNpcActors(), runtime.x, runtime.z)?.id
         : null;
     npcActors.forEach((actor, i) => {
       const show =
+        npcInWorld(actor.id) &&
         game.panel === "none" &&
         !game.paused &&
         !game.build &&
@@ -172,6 +177,7 @@ export function NpcCrowd() {
       game.paused || game.build || !runtime.active || game.panel !== "none";
     for (let i = 0; i < npcActors.length; i++) {
       const actor = npcActors[i];
+      if (!npcInWorld(actor.id)) continue;
       stepNpc(
         actor,
         villagers[i],

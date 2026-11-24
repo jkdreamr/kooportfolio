@@ -21,6 +21,8 @@ import { Basketball } from "./scenes/Basketball";
 import { Hud } from "./ui/Hud";
 import { TimeOfDayLighting } from "./world/TimeOfDayLighting";
 import { TimeOfDayControls } from "./ui/TimeOfDayControls";
+import { useTimeOfDay } from "./core/timeOfDay";
+import { WORLDS } from "./core/worlds";
 import { runtime, useGame, type Scene } from "./core/store";
 import { useInput } from "./core/input";
 import { doors, isInterior } from "./core/world";
@@ -146,7 +148,11 @@ function Sun() {
 }
 function World() {
   const scene = useGame((s) => s.scene),
+    world = useGame((s) => s.world),
     run = useGame((s) => s.run);
+  useEffect(() => {
+    useTimeOfDay.getState().setTimeZone(WORLDS[world].timeZone);
+  }, [world]);
   const flat = scene === "hub" || isInterior(scene);
   return (
     <>
@@ -204,7 +210,7 @@ function World() {
           <shadowMaterial transparent opacity={0.12} />
         </mesh>
       )}
-      {scene === "hub" && <Hub />}
+      {scene === "hub" && <Hub key={world} />}
       {isInterior(scene) && scene !== "skate" && <Interior key={scene} />}
       {scene === "skate" && <SkateParkInterior key={`skate-${run}`} />}
       {scene === "rowing" && <Rowing key={`race-${run}`} />}
@@ -224,12 +230,20 @@ export default function Game() {
       }
     });
   const quality = useGame((s) => s.quality),
+    traveling = useGame((s) => s.traveling),
     paused = useGame((s) => s.paused),
     panel = useGame((s) => s.panel);
   const interact = useCallback(() => {
     const g = useGame.getState();
     if (interactWithNpc()) return;
-    if (g.paused || g.build || g.panel !== "none") return;
+    if (
+      g.paused ||
+      g.build ||
+      g.overlayLocked ||
+      g.traveling ||
+      g.panel !== "none"
+    )
+      return;
     if (g.scene === "hub" && doors.some((door) => door.id === g.near))
       g.go(g.near as Scene);
     else if (g.near === "exit") g.go("hub");
@@ -293,7 +307,9 @@ export default function Game() {
             antialias: quality === "high",
             powerPreference: "high-performance",
           }}
-          frameloop={paused ? "demand" : "always"}
+          frameloop={
+            paused || traveling || panel === "photo" ? "demand" : "always"
+          }
           onCreated={({ gl }) => {
             gl.toneMapping = THREE.ACESFilmicToneMapping;
             gl.toneMappingExposure = 0.98;
@@ -304,13 +320,14 @@ export default function Game() {
           }}
           fallback={<WorldFallback />}
         >
-          <PerformanceMonitor
-            onDecline={() => useGame.setState({ quality: "low" })}
-            flipflops={1}
-            onFallback={() => useGame.setState({ quality: "low" })}
-          >
-            <World />
-          </PerformanceMonitor>
+          {!paused && !traveling && panel !== "photo" && (
+            <PerformanceMonitor
+              onDecline={() => useGame.setState({ quality: "low" })}
+              flipflops={1}
+              onFallback={() => useGame.setState({ quality: "low" })}
+            />
+          )}
+          <World />
         </Canvas>
       </WorldBoundary>
       <Hud interact={interact} />
@@ -318,7 +335,10 @@ export default function Game() {
       <NpcDialog />
       <PhotoBoothDialog />
       {panel === "telescope" && !paused && (
-        <TelescopeView onClose={() => useGame.setState({ panel: "none" })} />
+        <TelescopeView
+          worldId={useGame.getState().world}
+          onClose={() => useGame.setState({ panel: "none" })}
+        />
       )}
     </div>
   );
