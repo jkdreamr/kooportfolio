@@ -122,8 +122,12 @@ function GymControls() {
   );
   useEffect(() => {
     const close = () => useGym.getState().cancelSession();
+    // Observe the launch key too, without treating that event as a lift.
+    const keyboard = () => setTouch(false);
+    window.addEventListener("keydown", keyboard, true);
     window.addEventListener("interior-game-close", close);
     return () => {
+      window.removeEventListener("keydown", keyboard, true);
       window.removeEventListener("interior-game-close", close);
       close();
     };
@@ -148,7 +152,6 @@ function GymControls() {
         return;
       if (e.key === " " || e.key.toLowerCase() === "e") {
         e.preventDefault();
-        setTouch(false);
         useGym.getState().lift();
       }
     };
@@ -185,7 +188,6 @@ function GymControls() {
           e.stopPropagation();
           setTouch(e.pointerType === "touch" || e.pointerType === "pen");
         }}
-        onKeyDownCapture={() => setTouch(false)}
         onKeyDown={(e) => {
           if (e.key === " " && (e.target as HTMLElement).closest("button"))
             e.stopPropagation();
