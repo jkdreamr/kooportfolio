@@ -227,6 +227,11 @@ function GymControls() {
                 className="gym-primary"
                 aria-disabled={!ready}
                 data-ready={ready}
+                onKeyDown={(e) => {
+                  // Focus stays here during recovery; native Enter must not repeat.
+                  if (e.repeat && (e.key === "Enter" || e.key === " "))
+                    e.preventDefault();
+                }}
                 onClick={() => {
                   if (!ready) return;
                   if (complete) useGym.getState().startSession();
