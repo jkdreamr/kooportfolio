@@ -850,6 +850,31 @@
     left: max(24px, calc(env(safe-area-inset-left) + 16px));
   }
 }
+/* A short viewport cannot stack the hub prompt above the joystick and toolbar. */
+@media (max-width: 700px) and (max-height: 500px) and (orientation: landscape) {
+  .game-shell .scene-hub .context-action {
+    left: auto;
+    right: max(16px, env(safe-area-inset-right));
+    bottom: calc(112px + env(safe-area-inset-bottom));
+    transform: none;
+    min-width: 0;
+    width: min(230px, calc(100vw - 148px));
+  }
+}
+/* Labs already have an Exit link. Keep that single target clear of idle help. */
+@media (max-height: 650px) {
+  .game-shell
+    :is(.scene-math, .scene-music)
+    .context-action[data-action="exit"] {
+    display: none;
+  }
+  .game-shell :is(.scene-math, .scene-music) .back-link {
+    min-width: 44px;
+    min-height: 44px;
+    margin-bottom: 4px;
+    font-size: 12px;
+  }
+}
 .game-shell .scene-rowing .stamina-label {
   font-size: 11px;
   opacity: 1;

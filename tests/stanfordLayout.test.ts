@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canWalk,
+  destinationsInWorld,
   doorsInWorld,
   findPath,
   moveWorld,
@@ -11,8 +12,49 @@ import { STANFORD_WALKS } from "../src/game/core/stanfordLayout";
 import { villageGardenPlots } from "../src/game/core/villageGardens";
 import { createNpcActors, nearestNpc, villagers } from "../src/game/core/npcs";
 import { belongsToWorld } from "../src/game/core/worlds";
+import { runtime, useGame, walkTo } from "../src/game/core/store";
+import { ISLAND_RAIL } from "../src/game/core/islandRail";
 
 describe("compact Stanford village", () => {
+  it("gives Places a continuous Boathouse route from each relocated doorway", () => {
+    const boat = destinationsInWorld("stanford").find(
+      ({ id }) => id === "boathouse",
+    )!;
+    useGame.setState({ scene: "hub", world: "stanford" });
+    const starts = [
+      [0, 5],
+      [20, 21.6],
+      [-73, ISLAND_RAIL.station[1]],
+      [58, 61],
+      ...doorsInWorld("stanford")
+        .filter(({ id }) => id !== "boathouse")
+        .map(({ x, z }) => [x, z]),
+    ];
+    for (const [x, z] of starts) {
+      expect(canWalk(x, z, "stanford"), `${x},${z}`).toBe(true);
+      runtime.x = x;
+      runtime.z = z;
+      walkTo(boat.x, boat.z);
+      expect(runtime.target, `${x},${z}`).not.toBeNull();
+      let position: [number, number] = [x, z];
+      for (const waypoint of [runtime.target!, ...runtime.path]) {
+        const moved = moveWorld(
+          ...position,
+          waypoint[0] - position[0],
+          waypoint[1] - position[1],
+          "stanford",
+        );
+        expect(
+          Math.hypot(moved[0] - waypoint[0], moved[1] - waypoint[1]),
+          `${x},${z}`,
+        ).toBeLessThan(0.01);
+        position = moved;
+      }
+      expect(
+        Math.hypot(position[0] - boat.x, position[1] - boat.z),
+      ).toBeLessThan(1.2);
+    }
+  });
   it("keeps every resident individually reachable for a conversation", () => {
     const ids = new Set(
       villagers
