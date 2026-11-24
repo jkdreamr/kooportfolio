@@ -76,8 +76,8 @@
   filter: brightness(0.9);
 }
 .telescope-view :is(.quiet-button, .telescope-attribution a):focus-visible {
-  outline: 2px solid var(--hud-gold, #e7c27e);
-  outline-offset: 3px;
+  outline: 1px solid var(--hud-muted, #c3d0d0);
+  outline-offset: 2px;
 }
 .telescope-stage {
   display: grid;
