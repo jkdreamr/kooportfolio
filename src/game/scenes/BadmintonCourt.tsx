@@ -11,6 +11,7 @@ import {
   type BadmintonShot,
 } from "../core/badminton";
 import { runtime, useGame } from "../core/store";
+import { startGameMode, endGameMode, useGameMode } from "../core/gameMode";
 import { keys, touch } from "../core/input";
 import { newRunId } from "../../shared/run-id";
 import { Ball, Box, Cylinder, Ring } from "../world/Models";
@@ -320,7 +321,6 @@ const moveKeys = new Set([
   "1",
   "2",
   "3",
-  "escape",
 ]);
 
 /** Furnishings for the shared 34×40 hall; the host hides Walker while playing. */
@@ -333,8 +333,8 @@ export function BadmintonCourt({
   const input = useRef(noInput()),
     held = useRef(new Set<string>()),
     movement = useRef({ x: 0, z: 0 });
-  const [playing, setPlaying] = useState(false),
-    [snapshot, setSnapshot] = useState(() => view(game.current));
+  const playing = useGameMode((s) => s.active?.id === "badminton");
+  const [snapshot, setSnapshot] = useState(() => view(game.current));
   const [aim, setAim] = useState<-1 | 0 | 1>(0),
     [shot, setShot] = useState<BadmintonShot>("clear");
   const blocked = useGame((s) => s.paused || s.panel !== "none" || s.build);
@@ -383,12 +383,6 @@ export function BadmintonCourt({
       e.preventDefault();
       e.stopImmediatePropagation();
       const key = e.key.toLowerCase();
-      if (key === "escape") {
-        setPlaying(false);
-        runtime.target = null;
-        runtime.path = [];
-        return;
-      }
       held.current.add(key);
       if (e.repeat) return;
       if (key === " ") input.current.swing = true;
@@ -412,10 +406,12 @@ export function BadmintonCourt({
     window.addEventListener("keydown", down, true);
     window.addEventListener("keyup", up, true);
     window.addEventListener("blur", clear);
+    window.addEventListener("interior-game-close", clear);
     return () => {
       window.removeEventListener("keydown", down, true);
       window.removeEventListener("keyup", up, true);
       window.removeEventListener("blur", clear);
+      window.removeEventListener("interior-game-close", clear);
       clear();
     };
   }, [playing]);
@@ -485,8 +481,8 @@ export function BadmintonCourt({
         30,
         (size.width - (narrow ? 24 : 120)) / (narrow ? 15 : 29),
         portrait
-          ? (size.height - 250) / 20
-          : (size.height - (size.height < 500 ? 95 : 220)) / 22,
+          ? (size.height - 154) / 20
+          : (size.height - (size.height < 500 ? 84 : 160)) / 20,
       );
       camera.zoom = THREE.MathUtils.damp(
         camera.zoom,
@@ -494,12 +490,12 @@ export function BadmintonCourt({
         7,
         delta,
       );
-      if (portrait)
+      if (portrait || size.height < 500)
         camera.setViewOffset(
           size.width,
           size.height,
           0,
-          15,
+          portrait ? 15 : -20,
           size.width,
           size.height,
         );
@@ -508,6 +504,7 @@ export function BadmintonCourt({
     }
   });
   const begin = () => {
+    if (!playing && !startGameMode("badminton")) return;
     game.current = newBadmintonGame();
     rewarded.current = false;
     runId.current = newRunId();
@@ -515,12 +512,9 @@ export function BadmintonCourt({
     setAim(0);
     setShot("clear");
     setSnapshot(view(game.current));
-    setPlaying(true);
   };
   const end = () => {
-    setPlaying(false);
-    runtime.target = null;
-    runtime.path = [];
+    endGameMode();
   };
   return (
     <>
