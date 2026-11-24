@@ -163,9 +163,9 @@ export function RaceHud() {
         </div>
         <p>
           {race.bank
-            ? "Shallows — steer inside the buoys."
+            ? "Stay inside the buoys."
             : race.stamina < 20
-              ? "Low energy — settle the pace."
+              ? "Low energy. Settle."
               : "Stay in the pale current."}
         </p>
       </div>
