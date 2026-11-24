@@ -79,6 +79,12 @@ export function Walker({
     if (locked || useGameMode.getState().active) {
       runtime.moving = false;
       state.setNear("");
+      if (locked && !interior) {
+        // Travel owns the live view. Keep its last framing for a damped handoff,
+        // including the new world key so landing cannot trigger a camera cut.
+        follow.current.copy(camera.position).sub(offset.current.set(...ISLAND_CAMERA_OFFSET));
+        cameraScene.current = `${state.scene}:${state.world}`;
+      }
       return;
     }
     let [dx, dz] = state.overlayLocked ? [0, 0] : movement(),
@@ -217,7 +223,7 @@ export function Walker({
     if (interior) offset.current.set(15, 21, 25);
     else offset.current.set(...ISLAND_CAMERA_OFFSET);
     camera.position.copy(offset.current.add(follow.current));
-    camera.lookAt(follow.current.x, interior ? 0.5 : 0.7, follow.current.z);
+    camera.lookAt(follow.current.x, interior ? 0.5 : follow.current.y + 0.7, follow.current.z);
     if (camera instanceof THREE.OrthographicCamera) {
       const fitted = islandZoom(size.width, size.height);
       const targetZoom = interior

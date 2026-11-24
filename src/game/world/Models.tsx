@@ -170,17 +170,20 @@ export function Character({
   color = "#6f8670",
   hat = true,
   scale = 1,
+  walking,
 }: {
   npc?: boolean;
   color?: string;
   hat?: boolean;
   scale?: number;
+  walking?: React.RefObject<boolean>;
 }) {
   const legs = useRef<THREE.Group>(null),
     arms = useRef<THREE.Group>(null),
     body = useRef<THREE.Group>(null);
   useFrame(({ clock }) => {
-    const active = npc || runtime.moving,
+    if (walking && (document.hidden || useGame.getState().paused)) return;
+    const active = walking?.current ?? (npc || runtime.moving),
       t = clock.elapsedTime * (active ? 9 : 2);
     if (legs.current) {
       legs.current.children[0].rotation.x = active ? Math.sin(t) * 0.65 : 0;

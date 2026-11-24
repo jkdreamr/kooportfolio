@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { journeyGate, journeyPose } from "../src/game/core/journey";
+import {
+  boardingPose,
+  journeyEase,
+  journeyGate,
+  journeyPose,
+} from "../src/game/core/journey";
 import { canWalk, findPath } from "../src/game/core/world";
 import { WORLD_ELLIPSE } from "../src/shared/world-bounds";
 
@@ -37,5 +42,60 @@ describe("world-space transport", () => {
       b = journeyPose("train", 1);
     expect(b.x).toBeCloseTo(a.x);
     expect(b.z).toBeCloseTo(a.z);
+  });
+
+  it("starts and stops at rest without a last-frame tilt or altitude jump", () => {
+    for (const mode of ["plane", "train", "car"] as const) {
+      for (const end of [0, 1]) {
+        const parked = journeyPose(mode, end);
+        const near = journeyPose(mode, end === 0 ? 0.0001 : 0.9999);
+        expect(
+          Math.hypot(near.x - parked.x, near.y - parked.y, near.z - parked.z),
+        ).toBeLessThan(0.00001);
+        expect(near.pitch).toBeCloseTo(0, 5);
+        expect(near.roll).toBeCloseTo(0, 5);
+      }
+    }
+  });
+
+  it("pitches with the flight path and banks only after takeoff", () => {
+    const climb = journeyPose("plane", 0.3);
+    const descent = journeyPose("plane", 0.7);
+    expect(climb.pitch).toBeLessThan(0);
+    expect(descent.pitch).toBeGreaterThan(0);
+    expect(climb.pitch).toBeCloseTo(-descent.pitch);
+    expect(journeyPose("plane", 0.04).y).toBeCloseTo(1.2);
+    expect(journeyPose("plane", 0.04).roll).toBeCloseTo(0);
+    expect(climb.roll).toBeLessThan(0);
+    const before = journeyPose("plane", 0.3 - 0.0001);
+    const after = journeyPose("plane", 0.3 + 0.0001);
+    const tangentPitch = -Math.atan2(
+      after.y - before.y,
+      Math.hypot(after.x - before.x, after.z - before.z),
+    );
+    expect(climb.pitch).toBeCloseTo(tangentPitch, 4);
+  });
+
+  it("walks a reversible boarding path from ground level into the cabin", () => {
+    for (const mode of ["plane", "train", "car"] as const) {
+      const start = boardingPose(mode, 0),
+        end = boardingPose(mode, 1);
+      expect([start.x, start.z]).toEqual([...journeyGate(mode)]);
+      expect(start.y).toBe(0.18);
+      expect(start.visible).toBe(true);
+      expect(end.visible).toBe(false);
+      for (let step = 0; step <= 100; step++) {
+        const pose = boardingPose(mode, step / 100);
+        expect(Number.isFinite(pose.heading)).toBe(true);
+        expect(pose.y).toBeGreaterThanOrEqual(0.18);
+        if (mode === "plane") {
+          expect(pose.y).toBeLessThanOrEqual(0.72);
+          for (const world of ["home", "stanford", "korea"] as const)
+            expect(canWalk(pose.x, pose.z, world)).toBe(true);
+        }
+      }
+      expect(journeyEase(0.0001)).toBeLessThan(0.00000001);
+      expect(1 - journeyEase(0.9999)).toBeLessThan(0.00000001);
+    }
   });
 });
