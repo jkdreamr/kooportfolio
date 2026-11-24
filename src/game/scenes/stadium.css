@@ -50,6 +50,9 @@
   color: #c2cfcf;
   font-size: 12px;
 }
+.stadium-game-score > span {
+  font-weight: 700;
+}
 .stadium-game-stage button {
   min-height: 44px;
   color: #fff0d1;
@@ -74,51 +77,91 @@
   pointer-events: auto;
 }
 .stadium-game-dock p {
-  min-height: 20px;
-  margin: 0 0 8px;
+  width: max-content;
+  max-width: 100%;
+  min-height: 18px;
+  margin: 0 auto 8px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: #17262b;
   text-align: center;
   font-size: 13px;
-  text-shadow: 0 2px 3px #102028;
+}
+.stadium-game-dock p[data-result] {
+  color: #ffd6aa;
+}
+.stadium-game-dock p[data-result="Good"] {
+  color: #c8eda9;
 }
 .stadium-game-controls {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 120px;
-  gap: 0 18px;
+  gap: 8px 16px;
   padding: 10px 14px;
 }
-.stadium-game-aim,
-.stadium-game-power {
+.stadium-game-info {
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
-.stadium-game-aim input {
-  flex: 1;
-  min-width: 0;
-  min-height: 44px;
-  margin: 0;
-  accent-color: #d2b26f;
-  cursor: pointer;
+.stadium-game-info strong {
+  color: #edcc83;
 }
-.stadium-game-power meter {
-  flex: 1;
-  width: 100%;
-  min-width: 0;
-  height: 18px;
-  accent-color: #88b46c;
+.stadium-game-bars {
+  display: grid;
+  gap: 6px;
+}
+.stadium-game-bar {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  color: #c2cfcf;
+  font-size: 12px;
+}
+.stadium-game-bar[data-active="true"] {
+  color: #fff0d1;
+  font-weight: 700;
+}
+.stadium-game-track {
+  position: relative;
+  height: 14px;
+  margin: 0 3px;
+  border-radius: 2px;
+  background: #11242e;
+}
+.stadium-game-bar[data-active="true"] .stadium-game-track {
+  box-shadow: 0 0 0 1px #b39b66;
+}
+.stadium-game-zone {
+  position: absolute;
+  inset-block: 0;
+  border-radius: inherit;
+  background: repeating-linear-gradient(135deg, #79ad75 0 4px, #689963 4px 8px);
+}
+.stadium-game-cursor {
+  position: absolute;
+  inset-block: -2px;
+  left: 0;
+  width: 4px;
+  border-radius: 1px;
+  background: #fff0d1;
+  box-shadow: 0 0 0 1px #11242e;
+  transform: translateX(-50%);
 }
 .stadium-game-controls button {
-  grid-column: 2;
-  grid-row: 1 / 3;
   border: 1px solid #d2ad67;
   border-radius: 3px;
   background: #9a2937;
 }
-.stadium-game-controls button:disabled {
+.stadium-game-controls button[aria-disabled="true"] {
   opacity: 0.65;
   cursor: default;
 }
-.stadium-game-stage button:hover:not(:disabled) {
+.stadium-game-stage button:hover:not([aria-disabled="true"]) {
   filter: brightness(1.15);
 }
 .stadium-game-stage :focus-visible {
@@ -162,9 +205,8 @@
     gap: 10px;
     padding: 8px 10px;
   }
-  .stadium-game-aim,
-  .stadium-game-power {
-    gap: 8px;
+  .stadium-game-score strong {
+    letter-spacing: 0;
   }
   .game-shell .scene-stadium .context-action {
     right: 18px;
@@ -180,13 +222,6 @@
 @media (max-height: 500px) {
   .stadium-game-dock {
     bottom: 14px;
-  }
-  .stadium-game-controls {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 120px;
-  }
-  .stadium-game-controls button {
-    grid-row: 1;
-    grid-column: 3;
   }
 }
 
@@ -221,12 +256,14 @@
     gap: 6px;
     padding: 8px 10px;
   }
-  .stadium-game-controls button {
-    grid-row: auto;
-    grid-column: auto;
+  .stadium-game-info {
+    flex-wrap: wrap;
   }
-  .stadium-game-aim,
-  .stadium-game-power {
-    gap: 8px;
+  .stadium-game-info strong {
+    order: 1;
+  }
+  .stadium-game-dock p {
+    box-sizing: border-box;
+    margin-bottom: 5px;
   }
 }
