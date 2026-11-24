@@ -6,7 +6,7 @@ export const touch = { x: 0, z: 0 };
 export function useInput(interact: () => void) {
   useEffect(() => {
     const closeGame = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || e.isComposing || !escapeGameMode())
+      if (e.key !== "Escape" || e.isComposing || !escapeGameMode(e.repeat))
         return;
       e.preventDefault();
       e.stopImmediatePropagation();

@@ -63,6 +63,10 @@ describe("optional immersive games", () => {
     expect(useGameMode.getState().active?.id).toBe("pong");
     expect(runtime.x).toBe(9);
     useGame.setState({ paused: false });
+    // Holding the resume key is not a second deliberate press to leave.
+    expect(escapeGameMode(true)).toBe(false);
+    expect(useGameMode.getState().active?.id).toBe("pong");
+    expect(runtime.x).toBe(9);
     expect(escapeGameMode()).toBe(true);
     expect(useGameMode.getState().active).toBeNull();
     expect([runtime.x, runtime.z, runtime.heading]).toEqual([4, 7, 0.8]);
