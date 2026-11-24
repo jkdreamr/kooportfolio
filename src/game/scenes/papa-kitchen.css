@@ -1,0 +1,603 @@
+.papa-html {
+  color-scheme: dark;
+  overflow: visible !important;
+}
+.papa-game {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  color: #ede5cc;
+  font: 14px/1.25 var(--font-ui, system-ui);
+  pointer-events: none;
+}
+.papa-game button,
+.papa-play {
+  min-height: 44px;
+  padding: 9px 16px;
+  border: 1px solid #b5a76b;
+  border-radius: 6px;
+  background: #31564d;
+  box-shadow:
+    inset 0 1px #d7c78c44,
+    0 3px 0 #162d2c;
+  color: #f3e9cd;
+  font: 600 14px/1.2 var(--font-ui, system-ui);
+  cursor: pointer;
+  touch-action: none;
+  pointer-events: auto;
+}
+.papa-game button:hover,
+.papa-play:hover {
+  background: #426b5c;
+}
+.papa-game button:focus-visible,
+.papa-play:focus-visible {
+  outline: 3px solid #efd787;
+  outline-offset: 3px;
+}
+.papa-game button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.papa-game button[aria-pressed="true"] {
+  border-color: #e1c06e;
+  background: #68734b;
+}
+.papa-game .papa-secondary {
+  background: #213d3e;
+  color: #c6ccb8;
+}
+.papa-top {
+  position: absolute;
+  top: max(14px, env(safe-area-inset-top));
+  right: 18px;
+  left: 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.papa-top > div {
+  display: flex;
+  gap: 14px;
+  align-items: baseline;
+  padding: 10px 14px;
+  border-radius: 5px;
+  background: #193638ed;
+  box-shadow: 0 3px 10px #0c222a22;
+}
+.papa-top > div:nth-child(2) {
+  margin-left: auto;
+}
+.papa-top time {
+  font-variant-numeric: tabular-nums;
+  font-size: 18px;
+  font-weight: 700;
+}
+.papa-top span {
+  color: #c0c8ad;
+  font-size: 12px;
+}
+.papa-game .papa-close {
+  width: 46px;
+  height: 46px;
+  min-width: 46px;
+  padding: 0;
+  border-radius: 50%;
+  background: #193638;
+  font-size: 24px;
+}
+.papa-open-tickets {
+  position: absolute;
+  top: 78px;
+  left: 18px;
+  right: 18px;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+.papa-open-tickets button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 7px 13px;
+}
+.papa-open-tickets small {
+  font-size: 10px;
+  color: #ced1b7;
+}
+.papa-hot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #e58b51;
+  box-shadow: 0 0 9px #e58b51;
+}
+.papa-ticket {
+  position: absolute;
+  left: 20px;
+  top: 140px;
+  width: 174px;
+  padding: 13px 15px;
+  border-left: 3px solid #c9a461;
+  border-radius: 4px;
+  background: #203f3fe8;
+  box-shadow: 0 5px 16px #0c232522;
+}
+.papa-ticket header,
+.papa-order header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.papa-ticket header span,
+.papa-order small {
+  font-size: 11px;
+  text-transform: capitalize;
+  color: #cbc8a8;
+}
+.papa-recipe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 12px;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}
+.papa-ticket .papa-recipe {
+  flex-direction: column;
+  gap: 8px;
+}
+.papa-recipe li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #e0ddc3;
+}
+.papa-food {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 19px;
+  height: 12px;
+  border-radius: 45%;
+  background: #80a44d;
+  box-shadow:
+    inset 0 -3px #0002,
+    0 1px 2px #102c3566;
+}
+.papa-food--tomato {
+  background: #d46443;
+  border: 2px solid #b9472c;
+}
+.papa-food--cheese {
+  background: #e6b849;
+  border-radius: 2px;
+  transform: rotate(-8deg);
+}
+.papa-food--onion {
+  background: transparent;
+  border: 3px solid #b695ae;
+  box-shadow: none;
+}
+.papa-food--pickle {
+  background: #8aa55b;
+  border: 2px solid #607e3e;
+}
+.papa-food--sauce {
+  height: 7px;
+  background: #be5d3e;
+}
+.papa-food--top {
+  height: 15px;
+  background: #d7a354;
+  border-radius: 70% 70% 25% 25%;
+}
+.papa-dock {
+  position: absolute;
+  right: 20px;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  left: 20px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 24px;
+}
+.papa-stations {
+  display: flex;
+  gap: 7px;
+}
+.papa-stations button {
+  position: relative;
+  display: grid;
+  gap: 5px;
+  min-width: 82px;
+  min-height: 68px;
+  text-align: left;
+  background: #203e3d;
+}
+.papa-stations small {
+  color: #b2b596;
+  font-size: 9px;
+  letter-spacing: 1px;
+}
+.papa-stations span {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  color: #d4c58c;
+  font-size: 10px;
+}
+.papa-actions {
+  width: min(510px, 45vw);
+  padding: 14px 16px;
+  border: 1px solid #63817088;
+  border-radius: 7px;
+  background: #1b383bf2;
+  box-shadow: 0 6px 20px #0c222633;
+  pointer-events: auto;
+}
+.papa-actions p {
+  margin: 4px 0;
+  color: #c8ceb6;
+}
+.papa-actions--orders {
+  width: min(620px, 58vw);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.papa-queue {
+  display: flex;
+  justify-content: center;
+  gap: 9px;
+}
+.papa-order {
+  flex: 1;
+  max-width: 210px;
+  min-width: 136px;
+  padding: 12px;
+  border-top: 3px solid #ad9b5d;
+  border-radius: 6px;
+  background: #203e3ff0;
+  box-shadow: 0 5px 15px #11262e44;
+}
+.papa-order .papa-recipe {
+  min-height: 36px;
+}
+.papa-order progress {
+  display: block;
+  width: 100%;
+  height: 4px;
+  margin: 12px 0;
+  accent-color: #b4bc75;
+}
+.papa-order button {
+  width: 100%;
+}
+.papa-cook-status {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.papa-cook-status span {
+  color: #acbca5;
+}
+.papa-heat,
+.papa-aim {
+  position: relative;
+  height: 15px;
+  margin: 12px 0;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #7e9b87, #cba95b 66%, #a9553d);
+}
+.papa-heat-window {
+  position: absolute;
+  left: 45%;
+  top: 0;
+  bottom: 0;
+  width: 15%;
+  background: #efd68b;
+  border-right: 2px solid #fff1ba;
+  border-left: 2px solid #fff1ba;
+}
+.papa-heat > i,
+.papa-aim > span {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 3px;
+  background: #f4ecd2;
+  box-shadow: 0 1px 5px #13292f;
+}
+.papa-action-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.papa-action-row > button:not(.papa-secondary) {
+  flex: 1;
+}
+.papa-hint {
+  display: block;
+  margin-top: 10px;
+  font-size: 10px;
+  color: #a8b7a6;
+}
+.papa-toppings {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.papa-toppings button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 51px;
+  padding: 7px 4px;
+  font-size: 10px;
+  background: #294a45;
+}
+.papa-toppings button:last-child {
+  grid-column: span 2;
+}
+.papa-placement {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 9px;
+}
+.papa-aim {
+  flex: 1;
+  height: 10px;
+  background: #546b56;
+}
+.papa-aim > i {
+  position: absolute;
+  left: 43%;
+  width: 14%;
+  top: 0;
+  bottom: 0;
+  background: #d6b86b;
+}
+.papa-placement button {
+  font-size: 12px;
+}
+.papa-drop-zone {
+  display: none;
+  position: absolute;
+  width: 165px;
+  height: 100px;
+  transform: translate(-50%, -50%);
+  border: 1px dashed #e9d49caa;
+  border-radius: 50%;
+  box-shadow: 0 0 0 12px #e9d49c0b;
+}
+.papa-drop-zone--active {
+  display: block;
+}
+.papa-result {
+  position: absolute;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  width: min(340px, calc(100vw - 40px));
+  padding: 22px;
+  border: 1px solid #b2a168;
+  border-radius: 7px;
+  background: #1a383cf7;
+  box-shadow: 0 10px 30px #13272955;
+  text-align: center;
+  pointer-events: auto;
+}
+.papa-result h2 {
+  margin: 0 0 18px;
+  font-size: 21px;
+  font-weight: 600;
+}
+.papa-grades {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.papa-grades > div {
+  display: grid;
+  gap: 8px;
+}
+.papa-grades span {
+  font-size: 11px;
+  color: #b5c1ab;
+}
+.papa-grades b {
+  font-size: 21px;
+  color: #e2ce8c;
+}
+.papa-result p {
+  margin: 18px 0;
+  color: #c1cbb3;
+  font-size: 12px;
+}
+.papa-result button {
+  margin: 3px;
+}
+.papa-drag {
+  position: absolute;
+  transform: translate(-50%, -50%) scale(2.8);
+  pointer-events: none;
+  z-index: 2;
+}
+@media (max-width: 650px) and (min-height: 501px) {
+  .papa-top {
+    left: 12px;
+    right: 12px;
+    gap: 7px;
+  }
+  .papa-top > div {
+    padding: 8px 10px;
+    gap: 7px;
+  }
+  .papa-top > div:first-child {
+    display: grid;
+    gap: 2px;
+  }
+  .papa-open-tickets {
+    top: 80px;
+    gap: 6px;
+    left: 12px;
+    right: 12px;
+  }
+  .papa-open-tickets button {
+    flex: 1;
+    justify-content: center;
+    padding: 7px;
+    gap: 6px;
+    font-size: 12px;
+  }
+  .papa-open-tickets small {
+    font-size: 9px;
+  }
+  .papa-ticket {
+    top: 133px;
+    left: 14px;
+    right: 14px;
+    width: auto;
+    padding: 9px 12px;
+  }
+  .papa-ticket .papa-recipe {
+    flex-direction: row;
+    margin: 8px 0 0;
+  }
+  .papa-dock {
+    left: 12px;
+    right: 12px;
+    bottom: max(14px, env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .papa-stations {
+    justify-content: stretch;
+  }
+  .papa-stations button {
+    flex: 1;
+    min-height: 48px;
+    display: block;
+    text-align: center;
+  }
+  .papa-stations small {
+    display: none;
+  }
+  .papa-stations span {
+    top: 3px;
+    right: 8px;
+  }
+  .papa-actions {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 11px 12px;
+  }
+  .papa-actions--orders {
+    padding: 0;
+  }
+  .papa-order {
+    min-width: 0;
+    padding: 10px;
+  }
+  .papa-order .papa-recipe li {
+    font-size: 9px;
+    gap: 4px;
+  }
+  .papa-order .papa-recipe {
+    gap: 6px;
+    min-height: 47px;
+  }
+  .papa-order header {
+    font-size: 12px;
+    gap: 5px;
+  }
+  .papa-order small {
+    font-size: 9px;
+  }
+  .papa-order button {
+    padding: 8px;
+    font-size: 12px;
+  }
+  .papa-toppings {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .papa-toppings button {
+    min-height: 44px;
+  }
+  .papa-hint {
+    margin-top: 8px;
+    font-size: 9px;
+  }
+  .papa-result {
+    bottom: 22px;
+  }
+}
+@media (max-height: 500px) {
+  .papa-top {
+    top: 10px;
+  }
+  .papa-open-tickets {
+    top: 62px;
+    justify-content: flex-start;
+    right: 50%;
+  }
+  .papa-ticket {
+    top: 112px;
+    width: 145px;
+    padding: 10px;
+  }
+  .papa-ticket .papa-recipe {
+    gap: 6px;
+  }
+  .papa-dock {
+    display: contents;
+  }
+  .papa-stations {
+    position: absolute;
+    left: 18px;
+    bottom: 16px;
+  }
+  .papa-stations button {
+    min-height: 48px;
+    min-width: 73px;
+    padding: 7px 10px;
+  }
+  .papa-stations small {
+    display: none;
+  }
+  .papa-actions {
+    position: absolute;
+    right: 16px;
+    bottom: 16px;
+    width: 274px;
+    padding: 11px;
+  }
+  .papa-actions--orders {
+    width: 410px;
+    padding: 0;
+  }
+  .papa-toppings button {
+    min-height: 43px;
+  }
+  .papa-hint {
+    font-size: 9px;
+  }
+  .papa-result {
+    left: auto;
+    right: 16px;
+    bottom: 16px;
+    transform: none;
+    width: 270px;
+    padding: 17px;
+  }
+}
