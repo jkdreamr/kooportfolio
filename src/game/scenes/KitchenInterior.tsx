@@ -547,6 +547,7 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
         position={[0, 0.4, 6]}
         mobileSheet
         gameOpen={shift.status === "open"}
+        onClose={() => shiftDispatch({ type: "end" })}
       >
         {shift.status === "closed" ? (
           <>

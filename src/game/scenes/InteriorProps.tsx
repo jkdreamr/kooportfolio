@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
@@ -26,6 +26,7 @@ export function GameControls({
   dock = "right",
   collapsible,
   gameOpen = false,
+  onClose,
 }: {
   children: ReactNode;
   name: string;
@@ -34,6 +35,7 @@ export function GameControls({
   dock?: "left" | "right";
   collapsible?: string;
   gameOpen?: boolean;
+  onClose?: () => void;
 }) {
   const [expanded, setExpanded] = useState(true);
   const focusPending = useRef(false);
@@ -62,6 +64,16 @@ export function GameControls({
   const hidden = useGame(
     (s) => s.paused || s.panel !== "none" || s.build || s.near === "exit",
   );
+  useEffect(() => {
+    const close = () => {
+      // Shared Exit retains focus and waits for its overlay lock to clear.
+      focusPending.current = false;
+      if (collapsible) setExpanded(false);
+      else onClose?.();
+    };
+    window.addEventListener("interior-game-close", close);
+    return () => window.removeEventListener("interior-game-close", close);
+  }, [collapsible, onClose]);
   return hidden ? null : (
     <Html
       portal={portal}
