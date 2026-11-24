@@ -58,10 +58,6 @@ function LabControls({
         className="lab-controls"
         aria-label={name}
         onPointerDown={(e) => e.stopPropagation()}
-        onKeyDown={(e) => {
-          // Number shortcuts still work after a pointer gives a button focus.
-          if (!/^[1-9]$/.test(e.key)) e.stopPropagation();
-        }}
       >
         {children}
       </section>
