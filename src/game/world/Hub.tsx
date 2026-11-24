@@ -17,12 +17,14 @@ import { movement } from "../core/input";
 import { canWalk, doorsInWorld, moveWorld } from "../core/world";
 import { LabelProjection } from "./Labels";
 import { Landscape } from "./Landscape";
+import { VillageGardens } from "./VillageGardens";
 import { HomeWorldEnvironment } from "./HomeWorldEnvironment";
 import { KoreaWorldEnvironment } from "./KoreaWorldEnvironment";
 import { Bulletin } from "./Bulletin";
 import { roomFor } from "../core/room";
 import { useGameMode } from "../core/gameMode";
 import { useWorldView } from "../core/worldView";
+import { islandZoom, islandFollow } from "../core/islandCamera";
 import { NpcCrowd } from "./VillageNpcs";
 import { nearbyNpcId } from "../core/npcState";
 import { BadmintonPavilion } from "../scenes/BadmintonCourt";
@@ -186,14 +188,24 @@ export function Walker({
     state.setNear(state.overlayLocked ? "" : near);
     if (!followCamera) return;
     const mobile = size.width < 700 || size.height < 500;
+    const worldZoom = useWorldView.getState().zoom;
+    const playerFollow = islandFollow(worldZoom);
     desired.current.set(
-      interior ? runtime.x * 0.9 : runtime.x * 0.92,
+      interior ? runtime.x * 0.9 : runtime.x * 0.92 * playerFollow,
       0,
-      interior ? runtime.z * 0.9 - 2 : runtime.z * 0.92,
+      interior
+        ? runtime.z * 0.9 - 2
+        : THREE.MathUtils.lerp(
+            WORLD_ELLIPSE.centerZ,
+            runtime.z * 0.92,
+            playerFollow,
+          ),
     );
-    if (interior && cameraScene.current !== state.scene) {
+    const cameraKey = `${state.scene}:${state.world}`;
+    const changedScene = cameraScene.current !== cameraKey;
+    if (changedScene) {
       follow.current.copy(desired.current);
-      cameraScene.current = state.scene;
+      cameraScene.current = cameraKey;
     }
     follow.current.lerp(desired.current, 1 - Math.exp(-dt * 3));
     if (interior) offset.current.set(15, 21, 25);
@@ -201,14 +213,7 @@ export function Walker({
     camera.position.copy(offset.current.add(follow.current));
     camera.lookAt(follow.current.x, interior ? 0.5 : 0.7, follow.current.z);
     if (camera instanceof THREE.OrthographicCamera) {
-      const fitted = Math.max(
-        0.9,
-        Math.min(
-          (size.width - 70) / (WORLD_ELLIPSE.radiusX * 2.1),
-          (size.height - (size.height < 500 ? 100 : 150)) /
-            (WORLD_ELLIPSE.radiusZ * 1.45),
-        ),
-      );
+      const fitted = islandZoom(size.width, size.height);
       const targetZoom = interior
         ? mobile
           ? Math.max(
@@ -221,11 +226,11 @@ export function Walker({
             )
         : state.build
           ? fitted * 0.9
-          : mobile
-            ? 24
-            : 28;
-      const zoom = !interior && !state.build ? useWorldView.getState().zoom : 1;
-      camera.zoom = THREE.MathUtils.damp(camera.zoom, targetZoom * zoom, 5, dt);
+          : fitted;
+      const zoom = !interior && !state.build ? worldZoom : 1;
+      camera.zoom = changedScene
+        ? targetZoom * zoom
+        : THREE.MathUtils.damp(camera.zoom, targetZoom * zoom, 5, dt);
       camera.updateProjectionMatrix();
     }
   });
@@ -322,6 +327,7 @@ export function Hub() {
   return (
     <group>
       <Landscape world={world} />
+      <VillageGardens world={world} />
       {world !== "stanford" && <RegionalActivities world={world} />}
       {world === "home" && <HomeWorldEnvironment />}
       {world === "korea" && <KoreaWorldEnvironment />}
@@ -352,7 +358,7 @@ export function Hub() {
       />
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, 0.24, 12]}
+        position={[0, 0.24, WORLD_ELLIPSE.centerZ]}
         onPointerDown={(e) => {
           e.stopPropagation();
           if (!build && canWalk(e.point.x, e.point.z, world))
@@ -365,6 +371,10 @@ export function Hub() {
       {doorsInWorld(world).map((door) => (
         <group
           key={door.id}
+          onPointerDown={(event) => {
+            event.stopPropagation();
+            if (!build && !traveling) walkTo(door.x, door.z);
+          }}
           position={[door.footprint[0], 0, door.footprint[1]]}
           scale={door.scale}
         >

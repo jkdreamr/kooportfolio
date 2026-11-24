@@ -1,5 +1,5 @@
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
-import { HomeNeighborhood } from "./HomeNeighborhood";
+import { HomeCommunity } from "./CommunityScenery";
 import { RegionalTerrain } from "./RegionalTerrain";
 
 const paths: SceneryPart[] = [];
@@ -103,7 +103,7 @@ export function HomeWorldEnvironment() {
       <WorldSceneryParts parts={gardens} />
       <WorldSceneryParts parts={paths} />
       <RegionalTerrain region="bay" />
-      <HomeNeighborhood />
+      <HomeCommunity />
     </group>
   );
 }

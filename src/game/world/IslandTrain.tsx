@@ -313,7 +313,7 @@ export function IslandTrain({
           );
         })}
       </group>
-      <group position={[-80.2, 0, 12]}>
+      <group position={[-80.2, 0, ISLAND_RAIL.centerZ]}>
         <Box p={[-0.5, 0.6, 0]} s={[12.4, 0.5, 4.5]} c="#9c7952" />
         <Box p={[4.6, 0.2, 0]} s={[2.2, 0.3, 4]} c="#b39a72" />
         {[-5, -1, 3].flatMap((x) =>

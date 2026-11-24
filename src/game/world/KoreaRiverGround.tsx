@@ -5,7 +5,7 @@ import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
 const land = new THREE.Shape();
 land.absellipse(
   0,
-  12,
+  WORLD_ELLIPSE.centerZ,
   WORLD_ELLIPSE.radiusX,
   WORLD_ELLIPSE.radiusZ,
   0,

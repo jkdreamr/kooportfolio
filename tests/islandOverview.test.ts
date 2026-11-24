@@ -1,0 +1,98 @@
+import { afterEach, describe, expect, it } from "vitest";
+import { OrthographicCamera, Vector3 } from "three";
+import { islandFollow, islandZoom } from "../src/game/core/islandCamera";
+import {
+  fitIsland,
+  MAX_WORLD_ZOOM,
+  MIN_WORLD_ZOOM,
+  useWorldView,
+  zoomWorld,
+} from "../src/game/core/worldView";
+import { WORLD_ELLIPSE } from "../src/shared/world-bounds";
+import { POND_SURFACE } from "../src/game/core/pond";
+import { villageGardenPlots } from "../src/game/core/villageGardens";
+import { WORLD_IDS } from "../src/game/core/worlds";
+
+afterEach(fitIsland);
+
+describe("whole-island camera", () => {
+  it.each([
+    [1280, 800],
+    [1440, 900],
+    [390, 844],
+    [844, 390],
+  ])(
+    "fits the coastline, railway and lake at %s × %s without walking",
+    (width, height) => {
+      const camera = new OrthographicCamera(
+        -width / 2,
+        width / 2,
+        height / 2,
+        -height / 2,
+        0.1,
+        220,
+      );
+      camera.position.set(28, 34, WORLD_ELLIPSE.centerZ + 38);
+      camera.lookAt(0, 0.7, WORLD_ELLIPSE.centerZ);
+      camera.zoom = islandZoom(width, height);
+      camera.updateProjectionMatrix();
+      camera.updateMatrixWorld();
+      for (let i = 0; i < 180; i++) {
+        const angle = (i / 180) * Math.PI * 2;
+        const point = new Vector3(
+          Math.cos(angle) * 88,
+          0,
+          WORLD_ELLIPSE.centerZ + Math.sin(angle) * 83,
+        ).project(camera);
+        expect(Math.abs(point.x)).toBeLessThan(0.98);
+        expect(Math.abs(point.y)).toBeLessThan(0.9);
+        expect(Math.abs(point.z)).toBeLessThan(1);
+      }
+      for (const p of [
+        [-9, 0, 112],
+        [-28, 28, -48],
+      ]) {
+        const projected = new Vector3(...p).project(camera);
+        expect(Math.abs(projected.x)).toBeLessThan(0.98);
+        expect(Math.abs(projected.y)).toBeLessThan(0.95);
+      }
+      expect(islandFollow(1)).toBe(0);
+      expect(islandFollow(5)).toBe(1);
+    },
+  );
+
+  it("zooms to walking scale and always returns to the overview", () => {
+    zoomWorld(1000);
+    expect(useWorldView.getState().zoom).toBe(MAX_WORLD_ZOOM);
+    zoomWorld(0.00001);
+    expect(useWorldView.getState().zoom).toBe(MIN_WORLD_ZOOM);
+    fitIsland();
+    expect(useWorldView.getState().zoom).toBe(1);
+    for (const factor of [NaN, Infinity, 0, -1]) zoomWorld(factor);
+    expect(useWorldView.getState().zoom).toBe(1);
+  });
+});
+
+describe("stable, planted island", () => {
+  it("keeps water above the entire pond bed rather than coplanar with it", () => {
+    const bedTop = POND_SURFACE.bedY + POND_SURFACE.bedDepth / 2;
+    const waterBottom = POND_SURFACE.waterY - POND_SURFACE.waterDepth / 2;
+    expect(waterBottom - bedTop).toBeGreaterThan(0.02);
+  });
+
+  it.each(WORLD_IDS)(
+    "roots every %s garden inside the smaller coastline and keeps water clear",
+    (world) => {
+      const plots = villageGardenPlots(world);
+      expect(plots.length).toBeGreaterThan(100);
+      for (const { x, z } of plots) {
+        expect(
+          (x / WORLD_ELLIPSE.radiusX) ** 2 +
+            ((z - WORLD_ELLIPSE.centerZ) / WORLD_ELLIPSE.radiusZ) ** 2,
+        ).toBeLessThan(1);
+        if (world === "korea")
+          expect(x > -14 && x < 64 && z > 20 && z < 46).toBe(false);
+      }
+    },
+  );
+});
