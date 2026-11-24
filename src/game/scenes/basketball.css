@@ -4,13 +4,14 @@
   left: 36px;
   width: 235px;
   color: #3e554b;
-  pointer-events: auto;
+  pointer-events: none;
   font:
     12px/1.4 system-ui,
     sans-serif;
 }
 .basketball-mode-select {
   display: none;
+  pointer-events: auto;
 }
 .basketball-controls nav {
   display: flex;
@@ -19,6 +20,7 @@
   max-width: 225px;
 }
 .basketball-controls button {
+  pointer-events: auto;
   border: 1px solid #bbbda2;
   border-radius: 5px;
   padding: 8px 10px;
@@ -67,6 +69,21 @@
   }
   .scene-basketball .basketball-controls {
     top: 280px;
+  }
+}
+@media (min-width: 701px) and (max-height: 500px) {
+  .basketball-controls nav {
+    display: none;
+  }
+  .basketball-mode-select {
+    display: block;
+    min-height: 44px;
+    border: 1px solid #bbbda2;
+    border-radius: 5px;
+    background: #f8f1dfed;
+    padding: 7px;
+    color: #304b3c;
+    font: 12px system-ui, sans-serif;
   }
 }
 .game-shell:has(.basketball-controls[data-mode="practice"])
