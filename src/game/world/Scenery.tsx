@@ -3,6 +3,8 @@ import * as THREE from "three";
 import { forest, grassSites, type GroundFootprint } from "../core/scenery";
 import { NaturalTrees } from "./TreeArt";
 import { sculptedMaterial } from "./Surface";
+import { isStanfordTownSpace } from "../core/stanfordLayout";
+import type { WorldId } from "../core/worlds";
 
 type Part = {
   p: [number, number, number];
@@ -72,11 +74,20 @@ export function GroundGrass({ avoid }: { avoid: readonly GroundFootprint[] }) {
   );
   return <Instances parts={parts} geometry={reed} />;
 }
-export function Scenery() {
+const stanfordTrees = trees.filter(
+  ({ p }) => !isStanfordTownSpace(p[0], p[2], 3),
+);
+const stanfordRocks = rocks.filter(
+  ({ p }) => !isStanfordTownSpace(p[0], p[2], 3),
+);
+export function Scenery({ world }: { world?: WorldId }) {
   return (
     <>
-      <NaturalTrees trees={trees} />
-      <Instances parts={rocks} geometry={crown} />
+      <NaturalTrees trees={world === "stanford" ? stanfordTrees : trees} />
+      <Instances
+        parts={world === "stanford" ? stanfordRocks : rocks}
+        geometry={crown}
+      />
     </>
   );
 }
