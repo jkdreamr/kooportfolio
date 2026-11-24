@@ -17,6 +17,7 @@ import { KitchenInterior } from "./KitchenInterior";
 import { newRunId } from "../../shared/run-id";
 import { ROOM } from "../core/room";
 import { RoomDressing } from "./RoomDressing";
+import { BeatLabInterior, MathLabInterior } from "./LabRooms";
 import type { PlaceId } from "../core/world";
 
 const rewardInterior = (game: "dice" | "cooking", coins: number) =>
@@ -112,6 +113,8 @@ export function Interior() {
       {scene === "kappa" && <HouseInterior onReward={rewardInterior} />}
       {scene === "kitchen" && <KitchenInterior onReward={rewardInterior} />}
       {scene === "gym" && <GymFurnishings />}
+      {scene === "music" && <BeatLabInterior />}
+      {scene === "math" && <MathLabInterior />}
       <RoomDressing scene={scene as PlaceId} />
       <Box p={[0, 0.1, ROOM.doorZ]} s={[3, 0.12, 2]} c="#4f7966" />
       <Box p={[-1.7, 1.6, 12.3]} s={[0.35, 3.2, 0.4]} c="#8c6947" />
