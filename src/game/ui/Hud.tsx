@@ -16,6 +16,7 @@ import { RoomStory } from "./RoomStory";
 import type { PlaceId } from "../core/world";
 import { npcName } from "../core/npcState";
 import { Leaderboard } from "./Leaderboard";
+import { TravelMap } from "./TravelMap";
 
 export function Joystick() {
   const pad = useRef<HTMLDivElement>(null),
@@ -325,6 +326,9 @@ function Modal({
         aria-label={title}
         tabIndex={-1}
         ref={ref}
+        onKeyDown={(event) => {
+          if (event.key === " ") event.stopPropagation();
+        }}
       >
         <button
           className="close-button"
@@ -380,7 +384,8 @@ export function Hud({ interact }: { interact: () => void }) {
       pendingExit.current = null;
     if (!g.overlayLocked && pendingExit.current === g.scene) {
       const frame = requestAnimationFrame(() => {
-        const exit = g.scene === "skate" ? SKATE_EXIT : [0, roomFor(g.scene).doorZ];
+        const exit =
+          g.scene === "skate" ? SKATE_EXIT : [0, roomFor(g.scene).doorZ];
         walkTo(exit[0], exit[1]);
         pendingExit.current = null;
       });
@@ -404,7 +409,7 @@ export function Hud({ interact }: { interact: () => void }) {
   }, [g.notice]);
   return (
     <div
-      className={`game-ui scene-${g.scene} world-${g.world}`}
+      className={`game-ui scene-${g.scene} world-${g.world}${g.traveling ? " is-traveling" : ""}${g.paused ? " is-paused" : ""}`}
       data-game-mode={gameMode}
     >
       <header className="game-header">
@@ -455,7 +460,10 @@ export function Hud({ interact }: { interact: () => void }) {
               pendingExit.current = g.scene;
               window.dispatchEvent(new Event("interior-game-close"));
               if (!useGame.getState().overlayLocked) {
-                const exit = g.scene === "skate" ? SKATE_EXIT : [0, roomFor(g.scene).doorZ];
+                const exit =
+                  g.scene === "skate"
+                    ? SKATE_EXIT
+                    : [0, roomFor(g.scene).doorZ];
                 walkTo(exit[0], exit[1]);
                 pendingExit.current = null;
               }
@@ -669,6 +677,11 @@ export function Hud({ interact }: { interact: () => void }) {
       {hub && (
         <nav className="world-toolbar" aria-label="World tools">
           {[
+            [
+              "travel",
+              "Travel",
+              () => useGame.setState({ build: false, panel: "travel" }),
+            ],
             [
               "home",
               "Places",
@@ -886,7 +899,7 @@ export function Hud({ interact }: { interact: () => void }) {
             <b>Wander</b>
             <p>
               <span className="keyboard-hint">
-                WASD / arrows or click the ground.
+                WASD / arrows or click the ground. Hold Shift to sprint.
               </span>
               <span className="touch-hint">
                 Drag the round joystick or tap the ground.
@@ -925,6 +938,20 @@ export function Hud({ interact }: { interact: () => void }) {
               never paid advantages.
             </p>
           </div>
+        </Modal>
+      )}
+      {g.panel === "travel" && (
+        <Modal title="Travel" close={closePanel}>
+          <TravelMap
+            world={g.world}
+            onChoose={(destination) => {
+              keys.clear();
+              touch.x = touch.z = 0;
+              runtime.path = [];
+              runtime.target = null;
+              useGame.setState({ panel: "none", travelRequest: destination });
+            }}
+          />
         </Modal>
       )}
       {g.panel === "places" && (

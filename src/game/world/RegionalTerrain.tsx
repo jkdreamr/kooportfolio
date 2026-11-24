@@ -18,31 +18,27 @@ function ridgeGeometry(korea: boolean) {
       // A tapered crescent attached to the northern ellipse: no rectangular
       // sheets, cliff-like skirts, detached islands or constant-Z straight ends.
       const taper = Math.sin(u * Math.PI) ** 0.45;
-      const radius = 0.995 + v * 1.35 * taper;
+      // A narrow planted rim, not another enormous empty island behind town.
+      const radius = 0.99 + v * 0.12 * taper;
       const x = Math.sin(angle) * WORLD_ELLIPSE.radiusX * radius;
       const z =
         WORLD_ELLIPSE.centerZ -
         Math.cos(angle) * WORLD_ELLIPSE.radiusZ * radius;
       const first =
         Math.exp(-Math.pow((v - 0.22) / 0.16, 2)) *
-        (9 + Math.sin(angle * 5 + 0.3) * 3);
+        (3 + Math.sin(angle * 5 + 0.3));
       const second =
         Math.exp(-Math.pow((v - 0.51) / 0.15, 2)) *
-        (15 + Math.sin(angle * 4 - 1.5) * 4);
+        (4 + Math.sin(angle * 4 - 1.5));
       const third =
         Math.exp(-Math.pow((v - 0.77) / 0.13, 2)) *
-        (20 + Math.sin(angle * 3 + 0.6) * 5);
+        (5 + Math.sin(angle * 3 + 0.6));
       const fold =
-        Math.sin(angle * 15 + v * 6) * 0.85 +
-        Math.sin(angle * 29 - v * 14) * 0.35;
-      const namsan = korea
-        ? 11 * Math.exp(-(((x + 33) / 22) ** 2 + ((z + 109) / 17) ** 2))
-        : 0;
+        Math.sin(angle * 15 + v * 6) * 0.25 +
+        Math.sin(angle * 29 - v * 14) * 0.15;
       const envelope = Math.sin(v * Math.PI) ** 0.5;
       const height =
-        0.06 -
-        v +
-        (Math.max(first, second, third) + fold + namsan) * envelope * taper;
+        0.06 - v + (Math.max(first, second, third) + fold) * envelope * taper;
       vertices.push(x, height, z);
       color
         .copy(near)
