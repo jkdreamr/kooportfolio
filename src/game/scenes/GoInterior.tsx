@@ -196,6 +196,9 @@ export function GoInterior() {
   const boardKey = (event: KeyboardEvent<HTMLButtonElement>, point: number) => {
     aimKind.current = "keyboard";
     setAim(point);
+    if (event.key === "Enter" || event.key === " ") {
+      event.currentTarget.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }
     const row = Math.floor(point / GO_SIZE), col = point % GO_SIZE;
     const next = ({ ArrowLeft: row * GO_SIZE + Math.max(0, col - 1),
       ArrowRight: row * GO_SIZE + Math.min(GO_SIZE - 1, col + 1),
@@ -205,6 +208,8 @@ export function GoInterior() {
       End: event.ctrlKey ? GO_SIZE * GO_SIZE - 1 : row * GO_SIZE + GO_SIZE - 1 } as Record<string, number>)[event.key];
     if (next !== undefined) {
       event.preventDefault(); setAim(next); setFocus(next); buttons.current[next]?.focus();
+      // Focus alone does not scroll an already-focused point back into view.
+      buttons.current[next]?.scrollIntoView({ block: "nearest", inline: "nearest" });
     }
   };
   const panelKey = (event: KeyboardEvent<HTMLElement>) => {
