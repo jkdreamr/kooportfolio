@@ -11,6 +11,8 @@ import { useGym } from "../scenes/CognitionGym";
 import { profile } from "../../content/profile";
 import { WorldLabels } from "../world/Labels";
 import { roomFor } from "../core/room";
+import { useGameMode } from "../core/gameMode";
+import { SKATE_EXIT } from "../core/skate";
 import { RoomStory } from "./RoomStory";
 import type { PlaceId } from "../core/world";
 import { npcName } from "../core/npcState";
@@ -341,6 +343,7 @@ function Modal({
 }
 export function Hud({ interact }: { interact: () => void }) {
   const pendingExit = useRef<Scene | null>(null);
+  const gameMode = useGameMode((s) => s.active?.id);
   useEffect(() => {
     const shell = document.querySelector(".game-shell");
     if (!shell) return;
@@ -379,7 +382,8 @@ export function Hud({ interact }: { interact: () => void }) {
     if (!g.overlayLocked && pendingExit.current === g.scene) {
       const frame = requestAnimationFrame(() => {
         runtime.path = [];
-        runtime.target = [0, roomFor(g.scene).doorZ];
+        runtime.target =
+          g.scene === "skate" ? [...SKATE_EXIT] : [0, roomFor(g.scene).doorZ];
         pendingExit.current = null;
       });
       return () => cancelAnimationFrame(frame);
@@ -402,7 +406,10 @@ export function Hud({ interact }: { interact: () => void }) {
     return () => clearTimeout(t);
   }, [g.notice]);
   return (
-    <div className={`game-ui scene-${g.scene} world-${g.world}`}>
+    <div
+      className={`game-ui scene-${g.scene} world-${g.world}`}
+      data-game-mode={gameMode}
+    >
       <header className="game-header">
         <a className="game-brand" href="/">
           <div>
@@ -452,7 +459,10 @@ export function Hud({ interact }: { interact: () => void }) {
               window.dispatchEvent(new Event("interior-game-close"));
               if (!useGame.getState().overlayLocked) {
                 runtime.path = [];
-                runtime.target = [0, roomFor(g.scene).doorZ];
+                runtime.target =
+                  g.scene === "skate"
+                    ? [...SKATE_EXIT]
+                    : [0, roomFor(g.scene).doorZ];
                 pendingExit.current = null;
               }
             }}
