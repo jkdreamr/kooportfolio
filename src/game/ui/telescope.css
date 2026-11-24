@@ -63,7 +63,7 @@
   opacity: 0.4;
   cursor: default;
 }
-.telescope-view button[aria-pressed="true"] {
+.telescope-view .quiet-button[aria-pressed="true"] {
   color: #fff;
   background: #3a525b;
   border-color: #91a3ab;
@@ -75,7 +75,7 @@
 .telescope-view .quiet-button:active:not(:disabled) {
   filter: brightness(0.9);
 }
-.telescope-view :is(button, select, a):focus-visible {
+.telescope-view :is(.quiet-button, .telescope-attribution a):focus-visible {
   outline: 2px solid var(--hud-gold, #e7c27e);
   outline-offset: 3px;
 }
