@@ -223,6 +223,22 @@ describe("optional gym sessions", () => {
     expect(useGym.getState().reps).toBe(1);
   });
 
+  it("does not replace a newer record from another tab with a stale lower score", () => {
+    const values = new Map([[GYM_BEST_KEY, "2000"]]);
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => values.set(key, value),
+      },
+    });
+    useGym.getState().startSession();
+    expect(useGym.getState().best).toBe(0);
+    finishSet();
+    expect(useGym.getState().score).toBeLessThan(2000);
+    expect(useGym.getState()).toMatchObject({ best: 2000, newBest: false });
+    expect(readGymBest()).toBe(2000);
+  });
+
   it("still completes and rewards a set when local best storage is blocked", () => {
     vi.stubGlobal("window", {
       localStorage: {

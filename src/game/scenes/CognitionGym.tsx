@@ -166,9 +166,8 @@ export const useGym = create<{
     if (reps === 8) {
       const id = `gym-${new Date().toISOString().slice(0, 10)}`;
       const earned = useGame.getState().save.rewards.includes(id) ? 0 : 15;
-      const best = Math.max(state.best, score);
-      set({ earned, best, newBest: score > state.best });
-      saveGymBest(best);
+      const record = saveGymBest(score, state.best);
+      set({ earned, ...record });
       useGame.getState().award(id, 15, 10);
     }
   },

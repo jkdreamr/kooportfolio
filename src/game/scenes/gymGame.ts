@@ -42,10 +42,14 @@ export function readGymBest() {
   }
 }
 
-export function saveGymBest(best: number) {
+export function saveGymBest(score: number, cachedBest: number) {
+  // Another tab may have finished a better set since this tab loaded.
+  const previousBest = Math.max(cachedBest, readGymBest());
+  const best = Math.max(score, previousBest);
   try {
     window.localStorage.setItem(GYM_BEST_KEY, String(best));
   } catch {
     // A blocked local store must not interrupt the set or daily reward.
   }
+  return { best, newBest: score > previousBest };
 }
