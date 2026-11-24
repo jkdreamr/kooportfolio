@@ -19,7 +19,8 @@ import { Landscape } from "./Landscape";
 import { HomeWorldEnvironment } from "./HomeWorldEnvironment";
 import { KoreaWorldEnvironment } from "./KoreaWorldEnvironment";
 import { Bulletin } from "./Bulletin";
-import { ROOM } from "../core/room";
+import { roomFor } from "../core/room";
+import { useGameMode } from "../core/gameMode";
 import { NpcCrowd } from "./VillageNpcs";
 import { nearbyNpcId } from "../core/npcState";
 import { BadmintonPavilion } from "../scenes/BadmintonCourt";
@@ -59,16 +60,17 @@ export function Walker({
   const { camera, size } = useThree();
   const follow = useRef(new THREE.Vector3()),
     desired = useRef(new THREE.Vector3()),
-    offset = useRef(new THREE.Vector3());
+    offset = useRef(new THREE.Vector3()),
+    cameraScene = useRef("");
   useFrame((_, delta) => {
     const state = useGame.getState(),
       dt = Math.min(delta, 0.04);
-    if (locked || state.overlayLocked) {
+    if (locked || useGameMode.getState().active) {
       runtime.moving = false;
       state.setNear("");
       return;
     }
-    let [dx, dz] = movement(),
+    let [dx, dz] = state.overlayLocked ? [0, 0] : movement(),
       remaining = Infinity;
     if (Math.hypot(dx, dz) > 0.1) {
       runtime.target = null;
@@ -92,6 +94,7 @@ export function Walker({
     runtime.moving =
       !state.paused &&
       !state.build &&
+      !state.overlayLocked &&
       state.panel === "none" &&
       Math.hypot(dx, dz) > 0.1;
     if (runtime.moving) {
@@ -125,7 +128,10 @@ export function Walker({
     }
     let near = "";
     if (interior) {
-      if (runtime.z > ROOM.doorZ - 1.3 && Math.abs(runtime.x) < 2.2)
+      if (
+        runtime.z > roomFor(state.scene).doorZ - 1.3 &&
+        Math.abs(runtime.x) < 2.2
+      )
         near = "exit";
       if (Math.hypot(runtime.x, runtime.z + 2) < 2.5) {
         near =
@@ -174,17 +180,20 @@ export function Walker({
         near = "hoover-door";
       if (!near) near = nearbyNpcId(runtime.x, runtime.z);
     }
-    state.setNear(near);
+    state.setNear(state.overlayLocked ? "" : near);
     if (!followCamera) return;
     const mobile = size.width < 700 || size.height < 500;
-    const closeInterior = interior && (mobile || size.height < 500);
     desired.current.set(
-      interior ? (closeInterior ? runtime.x * 0.8 : 0) : runtime.x * 0.92,
+      interior ? runtime.x * 0.9 : runtime.x * 0.92,
       0,
-      interior ? (closeInterior ? runtime.z * 0.8 : 0) : runtime.z * 0.92,
+      interior ? runtime.z * 0.9 - 2 : runtime.z * 0.92,
     );
+    if (interior && cameraScene.current !== state.scene) {
+      follow.current.copy(desired.current);
+      cameraScene.current = state.scene;
+    }
     follow.current.lerp(desired.current, 1 - Math.exp(-dt * 3));
-    if (interior) offset.current.set(18, 23, 29);
+    if (interior) offset.current.set(15, 21, 25);
     else offset.current.set(28, 34, 38);
     camera.position.copy(offset.current.add(follow.current));
     camera.lookAt(follow.current.x, interior ? 0.5 : 0.7, follow.current.z);
@@ -198,9 +207,15 @@ export function Walker({
         ),
       );
       const targetZoom = interior
-        ? closeInterior
-          ? 24
-          : Math.min(38, (size.width - 35) / 35, (size.height - 170) / 29)
+        ? mobile
+          ? Math.max(
+              20,
+              Math.min(34, size.width / 12, (size.height - 90) / 11.5),
+            )
+          : Math.max(
+              26,
+              Math.min(52, size.width / 23, (size.height - 100) / 14),
+            )
         : state.build
           ? fitted * 0.9
           : mobile

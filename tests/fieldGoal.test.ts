@@ -31,7 +31,7 @@ describe("stadium field goals", () => {
   });
 
   it("rejects a descending ball that clips after its center crosses the bar", () => {
-    const kick = { angle: 0, power: 0.52206 };
+    const kick = { angle: 0, power: 0.45979 };
     const [, y] = kickPosition(kick, goalCrossingTime(kick));
     expect(y - FIELD_GOAL.ballRadius - FIELD_GOAL.postRadius).toBeGreaterThan(
       FIELD_GOAL.crossbar,
@@ -41,7 +41,7 @@ describe("stadium field goals", () => {
     expect(kickPosition(kick, goalClearanceTime(kick))[2]).toBeCloseTo(
       FIELD_GOAL.goalZ - FIELD_GOAL.ballRadius - FIELD_GOAL.postRadius,
     );
-    expect(judgeKick({ angle: 0, power: 0.53 })).toBe("Good");
+    expect(judgeKick({ angle: 0, power: 0.47 })).toBe("Good");
   });
   it("allows a high kick above the tops of the uprights", () => {
     expect(judgeKick({ angle: 0, power: 1 })).toBe("Good");

@@ -13,7 +13,7 @@ import type { Group } from "three";
 import { Ball, Box, Cylinder, Ring, Sign } from "../world/Models";
 import { Plant, Stool, Table, gameIsActive } from "./InteriorProps";
 import { runtime, useGame } from "../core/store";
-import { ROOM } from "../core/room";
+import { roomFor } from "../core/room";
 import {
   advanceBeat,
   BEAT_INTERVAL,
@@ -71,6 +71,8 @@ function LabControls({
 }
 
 function WalkFloor() {
+  const scene = useGame((s) => s.scene);
+  const room = roomFor(scene);
   return (
     <mesh
       rotation={[-Math.PI / 2, 0, 0]}
@@ -80,12 +82,12 @@ function WalkFloor() {
         if (!gameIsActive()) return;
         runtime.path = [];
         runtime.target = [
-          Math.max(-ROOM.walkX, Math.min(ROOM.walkX, e.point.x)),
-          Math.max(ROOM.minZ, Math.min(ROOM.maxZ, e.point.z)),
+          Math.max(-room.walkX, Math.min(room.walkX, e.point.x)),
+          Math.max(room.minZ, Math.min(room.maxZ, e.point.z)),
         ];
       }}
     >
-      <planeGeometry args={[ROOM.width, ROOM.depth]} />
+      <planeGeometry args={[room.width, room.depth]} />
       <meshBasicMaterial transparent opacity={0} depthWrite={false} />
     </mesh>
   );

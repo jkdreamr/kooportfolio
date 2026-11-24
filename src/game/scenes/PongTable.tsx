@@ -117,14 +117,18 @@ export function PongTable({
           position={[7.5, 0.6, 5]}
           mobileSheet
           dock="left"
+          gameOpen
+          collapsible="Pong"
         >
-          {navigation}
-          <div className="pong-score">
-            <b>{6 - game.cups.length}/6 cups</b>
-            <span>{game.shots}/10 throws</span>
+          <div className="house-game-header">
+            {navigation}
+            <div className="pong-score">
+              <b>{6 - game.cups.length}/6 cups</b>
+              <span>{game.shots}/10 throws</span>
+            </div>
           </div>
           {game.phase !== "over" ? (
-            <>
+            <div className="pong-throw-controls">
               <input
                 className="pong-aim"
                 type="range"
@@ -150,7 +154,7 @@ export function PongTable({
               >
                 Throw
               </button>
-            </>
+            </div>
           ) : (
             <button onClick={() => dispatch({ type: "reset" })}>
               New rack

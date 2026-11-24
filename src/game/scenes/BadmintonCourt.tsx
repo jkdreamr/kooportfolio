@@ -327,6 +327,14 @@ export function BadmintonCourt({
     rewarded = useRef(false),
     runId = useRef("");
   const direction = useMemo(() => new THREE.Vector3(), []);
+  const matchCamera = useThree((s) => s.camera);
+  useEffect(
+    () => () => {
+      if (matchCamera instanceof THREE.OrthographicCamera)
+        matchCamera.clearViewOffset();
+    },
+    [playing, matchCamera],
+  );
   useEffect(() => {
     onPlayingChange?.(playing);
     return () => onPlayingChange?.(false);
@@ -431,10 +439,14 @@ export function BadmintonCourt({
     camera.lookAt(0, 0, -1.5);
     if (camera instanceof THREE.OrthographicCamera) {
       const narrow = size.width < 700;
+      // Portrait gets a dedicated court viewport between the score and dock.
+      const portrait = size.width < 600 && size.height >= 500;
       const zoom = Math.min(
         35,
         (size.width - (narrow ? 24 : 120)) / (narrow ? 11 : 23),
-        (size.height - (size.height < 500 ? 140 : 250)) / 17,
+        portrait
+          ? (size.height - 379) / 14
+          : (size.height - (size.height < 500 ? 140 : 250)) / 17,
       );
       camera.zoom = THREE.MathUtils.damp(
         camera.zoom,
@@ -442,6 +454,16 @@ export function BadmintonCourt({
         7,
         delta,
       );
+      if (portrait)
+        camera.setViewOffset(
+          size.width,
+          size.height,
+          0,
+          35,
+          size.width,
+          size.height,
+        );
+      else if (camera.view?.enabled) camera.clearViewOffset();
       camera.updateProjectionMatrix();
     }
   });
@@ -497,6 +519,10 @@ export function BadmintonCourt({
         <Html
           portal={portal}
           fullscreen
+          calculatePosition={(_object, _camera, size) => [
+            size.width / 2,
+            size.height / 2,
+          ]}
           zIndexRange={[30, 0]}
           style={{ pointerEvents: "none" }}
         >

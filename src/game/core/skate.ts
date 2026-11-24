@@ -9,6 +9,9 @@ export const SKATE = {
   comboWindow: 2.4,
   duration: 60,
 } as const;
+/** World-space gate target for the host's Exit button; z > 23 shows the exit prompt. */
+export const SKATE_EXIT: [number, number] = [0, 24];
+
 export const SKATE_RAILS = [
   { x: -3.6, from: -7, to: 2, height: 0.7 },
   { x: 5.5, from: 2, to: 7, height: 0.55 },

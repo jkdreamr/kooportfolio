@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { moveInterior } from "../src/game/core/houseRooms";
-import { ROOM } from "../src/game/core/room";
+import { ROOM, roomFor } from "../src/game/core/room";
 
 describe("connected house movement", () => {
   it("stops a long step at partitions rather than tunneling", () => {
@@ -10,7 +10,7 @@ describe("connected house movement", () => {
     expect(x).toBeLessThan(-5.9);
   });
   it("connects all three Kappa rooms with clear doors and entry", () => {
-    expect(moveInterior("kappa", 0, ROOM.spawnZ, 0, -12)).toEqual([
+    expect(moveInterior("kappa", 0, roomFor("kappa").spawnZ, 0, -19)).toEqual([
       0,
       expect.closeTo(-2.5),
     ]);
@@ -27,8 +27,23 @@ describe("connected house movement", () => {
     expect(x).toBeCloseTo(-4);
     expect(z).toBeGreaterThan(1.7);
     expect(moveInterior("office", 0, 0, 30, -30)).toEqual([
-      ROOM.walkX,
-      ROOM.minZ,
+      roomFor("office").walkX,
+      roomFor("office").minZ,
     ]);
+  });
+  it("keeps the vault compact and expands the stadium without scaling avatars", () => {
+    expect(roomFor("secret")).toEqual(ROOM);
+    expect(roomFor("office")).toMatchObject({
+      width: 34,
+      depth: 40,
+      spawnZ: 16.5,
+    });
+    expect(roomFor("stadium")).toMatchObject({
+      width: 40,
+      depth: 60,
+      spawnZ: 26.5,
+      doorZ: 28.3,
+    });
+    expect(moveInterior("stadium", 0, 0, 100, 100)).toEqual([19, 28.8]);
   });
 });

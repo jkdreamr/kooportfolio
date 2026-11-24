@@ -15,7 +15,7 @@ import { CognitionFurnishings, GymFurnishings } from "./CognitionGym";
 import { HouseInterior } from "./HouseInterior";
 import { KitchenInterior } from "./KitchenInterior";
 import { newRunId } from "../../shared/run-id";
-import { ROOM } from "../core/room";
+import { roomFor } from "../core/room";
 import { RoomDressing } from "./RoomDressing";
 import { BeatLabInterior, MathLabInterior } from "./LabRooms";
 import type { PlaceId } from "../core/world";
@@ -46,51 +46,71 @@ export function Interior() {
     scene === "secret"
       ? "Hoover vault"
       : (doors.find((door) => door.id === scene)?.name ?? "");
+  const room = roomFor(scene);
+  const back = -room.depth / 2 + 0.2;
+  const left = -room.width / 2 + 0.2;
+  const planks = Math.floor(room.width / 0.78);
   if (scene === "stadium") return <StadiumInterior />;
   return (
     <group>
       <Box
         p={[0, -0.4, 0]}
-        s={[ROOM.width + 0.6, 0.8, ROOM.depth + 0.6]}
+        s={[room.width + 0.6, 0.8, room.depth + 0.6]}
         c="#6f624c"
       />
-      <Box p={[0, -0.13, 0]} s={[ROOM.width, 0.3, ROOM.depth]} c="#9d7851" />
-      {Array.from({ length: 28 }, (_, i) => (
+      <Box p={[0, -0.13, 0]} s={[room.width, 0.3, room.depth]} c="#9d7851" />
+      {Array.from({ length: planks }, (_, i) => (
         <Box
           key={i}
-          p={[(i - 13.5) * 0.78, 0.02, 0]}
-          s={[0.75, 0.09, 25.7]}
+          p={[(i - (planks - 1) / 2) * 0.78, 0.02, 0]}
+          s={[0.75, 0.09, room.depth - 0.3]}
           c={i % 3 ? "#c8ab80" : "#bd9b70"}
         />
       ))}
-      <Box p={[0, 2.8, -12.8]} s={[22, 5.6, 0.4]} c="#e6d4b3" />
-      <Box p={[-10.8, 2.4, 0]} s={[0.4, 4.8, 26]} c="#d8c4a1" />
-      {[-10.5, -5.25, 0, 5.25, 10.5].map((x) => (
-        <group key={x}>
-          <Box p={[x, 2.8, -12.5]} s={[0.36, 5.6, 0.38]} c="#8f6b43" />
-          <Box p={[x, 0.35, -12.3]} s={[0.65, 0.7, 0.6]} c="#a99874" />
-          <Box p={[x, 5.35, -12.3]} s={[0.7, 0.45, 0.6]} c="#c4a36b" />
-        </group>
-      ))}
-      <Box p={[0, 5.6, -12.5]} s={[22.5, 0.38, 0.65]} c="#785a39" />
-      <Box p={[0, 0.35, -12.5]} s={[22, 0.45, 0.4]} c="#967347" />
-      <Box p={[-10.5, 0.35, 0]} s={[0.4, 0.45, 26]} c="#967347" />
+      <Box p={[0, 2.8, back]} s={[room.width, 5.6, 0.4]} c="#e6d4b3" />
+      <Box p={[left, 2.4, 0]} s={[0.4, 4.8, room.depth]} c="#d8c4a1" />
+      {[-1, -0.5, 0, 0.5, 1].map((fraction) => {
+        const x = fraction * (room.width / 2 - 0.5);
+        return (
+          <group key={x}>
+            <Box p={[x, 2.8, back + 0.3]} s={[0.36, 5.6, 0.38]} c="#8f6b43" />
+            <Box p={[x, 0.35, back + 0.5]} s={[0.65, 0.7, 0.6]} c="#a99874" />
+            <Box p={[x, 5.35, back + 0.5]} s={[0.7, 0.45, 0.6]} c="#c4a36b" />
+          </group>
+        );
+      })}
+      <Box
+        p={[0, 5.6, back + 0.3]}
+        s={[room.width + 0.5, 0.38, 0.65]}
+        c="#785a39"
+      />
+      <Box p={[0, 0.35, back + 0.3]} s={[room.width, 0.45, 0.4]} c="#967347" />
+      <Box p={[left + 0.3, 0.35, 0]} s={[0.4, 0.45, room.depth]} c="#967347" />
       {!theater &&
-        [-7.8, -2.6, 2.6, 7.8].map((x) => (
-          <Window key={x} p={[x, 3.5, -12.5]} width={2.4} />
+        [-0.75, -0.25, 0.25, 0.75].map((fraction) => (
+          <Window
+            key={fraction}
+            p={[(fraction * room.width) / 2, 3.5, back + 0.3]}
+            width={2.4}
+          />
         ))}
       {!theater && (
         <Sign
           text={name.toUpperCase()}
-          p={[0, 4.4, -12.25]}
+          p={[0, 4.4, back + 0.55]}
           size={[4.5, 0.65]}
         />
       )}
       {!theater &&
-        [-7.5, 7.5].map((x) => (
-          <group key={x}>
-            <Bench p={[x, 0, 7.8]} />
-            <Flowers p={[x, 0, 10.5]} />
+        [-1, 1].map((side) => (
+          <group key={side}>
+            <Bench
+              p={[side * (room.width / 2 - 4.5), 0, room.depth / 2 - 5.2]}
+            />
+            <Flowers
+              p={[side * (room.width / 2 - 2.5), 0, room.depth / 2 - 2.5]}
+            />
+            {scene !== "secret" && <Bench p={[side * 9, 0, back + 3.5]} />}
           </group>
         ))}
       {scene !== "badminton" && scene !== "go" && !theater && (
@@ -160,11 +180,11 @@ export function Interior() {
       {!theater && scene !== "secret" && (
         <RoomDressing scene={scene as PlaceId} />
       )}
-      <Box p={[0, 0.1, ROOM.doorZ]} s={[3, 0.12, 2]} c="#4f7966" />
-      <Box p={[-1.7, 1.6, 12.3]} s={[0.35, 3.2, 0.4]} c="#8c6947" />
-      <Box p={[1.7, 1.6, 12.3]} s={[0.35, 3.2, 0.4]} c="#8c6947" />
-      <Box p={[0, 3.2, 12.3]} s={[3.8, 0.38, 0.5]} c="#8c6947" />
-      <Sign text="← VILLAGE" p={[0, 3.55, 12.35]} size={[2.8, 0.55]} />
+      <Box p={[0, 0.1, room.doorZ]} s={[3, 0.12, 2]} c="#4f7966" />
+      <Box p={[-1.7, 1.6, room.doorZ + 1]} s={[0.35, 3.2, 0.4]} c="#8c6947" />
+      <Box p={[1.7, 1.6, room.doorZ + 1]} s={[0.35, 3.2, 0.4]} c="#8c6947" />
+      <Box p={[0, 3.2, room.doorZ + 1]} s={[3.8, 0.38, 0.5]} c="#8c6947" />
+      <Sign text="EXIT" p={[0, 3.55, room.doorZ + 1.05]} size={[2.8, 0.55]} />
       {!badmintonActive && (
         <Walker interior locked={theater && theaterSeated} />
       )}
