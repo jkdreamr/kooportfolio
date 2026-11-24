@@ -3,9 +3,10 @@ import { Html, OrthographicCamera } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { create } from "zustand";
 import * as THREE from "three";
-import { Box, Cylinder, Ball, Bench, Flowers, Ring } from "../world/Models";
+import { Box, Cylinder, Ball, Bench, Flowers, Ring, Sign } from "../world/Models";
 import { runtime, useGame } from "../core/store";
 import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
+import { roomFor } from "../core/room";
 import { gameIsActive } from "./InteriorProps";
 import "./gym-room.css";
 
@@ -215,9 +216,45 @@ function GymControls() {
   );
 }
 
+const cognitionSlate = "#314553";
+
+function CognitionBadge({
+  p,
+  r,
+  size,
+}: {
+  p: [number, number, number];
+  r?: [number, number, number];
+  size: [number, number];
+}) {
+  return (
+    <group position={p} rotation={r}>
+      <Sign
+        text="cognition"
+        p={[0, 0, 0]}
+        size={size}
+        frameColor="#52616c"
+        color={cognitionSlate}
+        ink="#f3f6f8"
+      />
+    </group>
+  );
+}
+
 export function CognitionFurnishings() {
+  const room = roomFor("cognition");
   return (
     <group>
+      <CognitionBadge
+        p={[0, 0.08, room.spawnZ - 2.6]}
+        r={[-Math.PI / 2, 0, 0]}
+        size={[2.2, 0.54]}
+      />
+      <CognitionBadge
+        p={[-room.width / 2 + 0.46, 2.85, -5.4]}
+        r={[0, Math.PI / 2, 0]}
+        size={[2.8, 0.68]}
+      />
       <Box p={[0, 0.08, -1.8]} s={[7.4, 0.08, 5.2]} c="#3c5f56" />
       {[-2.4, 2.4].map((x) => (
         <group key={x} position={[x, 0, -3.4]}>
@@ -236,6 +273,23 @@ export function CognitionFurnishings() {
             />
           ))}
           <Box p={[0, 1.39, 0.35]} s={[1.1, 0.06, 0.35]} c="#46554c" />
+          <CognitionBadge p={[1.03, 1.49, 0.48]} size={[0.84, 0.23]} />
+          <group position={[-1.02, 1.36, 0.14]}>
+            {[-1, 1].map((side) => (
+              <Box
+                key={side}
+                p={[side * 0.11, 0.01, -0.08]}
+                s={[0.04, 0.025, 0.37]}
+                r={[0, side * -0.64, 0]}
+                c={cognitionSlate}
+              />
+            ))}
+            <CognitionBadge
+              p={[0, 0, 0.22]}
+              r={[-Math.PI / 2, 0, 0]}
+              size={[0.42, 0.2]}
+            />
+          </group>
           <Bench p={[0, 0, 1.1]} />
         </group>
       ))}

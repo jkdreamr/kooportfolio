@@ -434,9 +434,9 @@
   display: none;
 }
 .game-shell .story-read {
-  color: #fff8e1;
-  background: #506c43;
-  border: 1px solid #a1b978;
+  color: var(--hud-ink);
+  background: var(--hud-low);
+  border: 1px solid var(--hud-edge);
   border-bottom-width: 1px;
   border-radius: 4px;
 }
@@ -447,6 +447,12 @@
 }
 .game-shell .interior-game button {
   border-radius: 4px;
+}
+.game-shell .interior-game[aria-label="Picture house seating"] button {
+  color: var(--hud-ink);
+  background: var(--hud-low);
+  border-width: 1px;
+  border-color: var(--hud-edge);
 }
 .game-shell .result-score {
   color: #fff3c9;
@@ -761,6 +767,11 @@
   .game-shell .room-story {
     max-height: max(78px, calc(100dvh - 338px - env(safe-area-inset-bottom)));
     overflow: auto;
+  }
+}
+@media (max-width: 700px) and (min-height: 651px) {
+  .game-shell .room-story {
+    top: 170px;
   }
 }
 @media (max-height: 650px) and (orientation: landscape) {
