@@ -90,7 +90,9 @@
   }
 
   .game-shell .game-ui.scene-rowing .last-split {
-    top: 264px;
+    top: 112px;
+    right: auto;
+    left: 16px;
   }
 }
 
