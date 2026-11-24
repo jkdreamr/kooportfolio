@@ -188,7 +188,10 @@ export const landmarks = [
 export const destinations = [...doors, ...landmarks];
 export type PlaceId = (typeof doors)[number]["id"];
 export function isInterior(scene: string) {
-  return doors.some((door) => door.id === scene && scene !== "basketball");
+  return (
+    scene === "secret" ||
+    doors.some((door) => door.id === scene && scene !== "basketball")
+  );
 }
 const obstacles: ReadonlyArray<readonly number[]> = [
   ...doors.map((door) => door.footprint),

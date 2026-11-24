@@ -31,6 +31,10 @@ import { PhotoBooth } from "./PhotoBooth";
 import { StargazingHill } from "./StargazingHill";
 import { SkateParkBuilding } from "../scenes/SkatePark";
 import { BeatLabShell, MathLabShell } from "./LabBuildings";
+import { GoShell } from "./GoShell";
+import { HooverKey } from "./HooverTowerDoor";
+import { HOOVER, HOOVER_KEY, HOOVER_STASH } from "../core/hoover";
+import { moveInterior } from "../core/houseRooms";
 import {
   KappaShell,
   CognitionShell,
@@ -88,15 +92,12 @@ export function Walker({
     if (runtime.moving) {
       const step = Math.min(dt * (interior ? 4 : 4.6), remaining);
       if (interior) {
-        runtime.x = THREE.MathUtils.clamp(
-          runtime.x + dx * step,
-          -ROOM.walkX,
-          ROOM.walkX,
-        );
-        runtime.z = THREE.MathUtils.clamp(
-          runtime.z + dz * step,
-          ROOM.minZ,
-          ROOM.maxZ,
+        [runtime.x, runtime.z] = moveInterior(
+          state.scene,
+          runtime.x,
+          runtime.z,
+          dx * step,
+          dz * step,
         );
       } else
         [runtime.x, runtime.z] = moveWorld(
@@ -131,6 +132,12 @@ export function Walker({
             } as Record<string, string>
           )[state.scene] ?? "";
       }
+      if (
+        state.scene === "secret" &&
+        !state.save.memories.includes(HOOVER_STASH) &&
+        Math.hypot(runtime.x - HOOVER.chest[0], runtime.z - HOOVER.chest[1]) < 3
+      )
+        near = "stash";
     } else {
       near =
         doors.find((d) => Math.hypot(d.x - runtime.x, d.z - runtime.z) < 1.9)
@@ -140,6 +147,18 @@ export function Walker({
         near = "photo";
       if (!near && Math.hypot(runtime.x + 19, runtime.z + 30) < 1.9)
         near = "stargazing";
+      if (
+        !near &&
+        !state.save.memories.includes(HOOVER_KEY) &&
+        Math.hypot(runtime.x - HOOVER.key[0], runtime.z - HOOVER.key[1]) < 1.2
+      )
+        near = "hoover-key";
+      if (
+        !near &&
+        state.save.memories.includes(HOOVER_KEY) &&
+        Math.hypot(runtime.x - HOOVER.door[0], runtime.z - HOOVER.door[1]) < 1.5
+      )
+        near = "hoover-door";
       if (!near) near = nearbyNpcId(runtime.x, runtime.z);
     }
     state.setNear(near);
@@ -268,6 +287,11 @@ export function Hub() {
       <Landscape />
       <Bulletin />
       <Wildlife />
+      {!save.memories.includes(HOOVER_KEY) && (
+        <group position={[HOOVER.key[0], 0.2, HOOVER.key[1]]}>
+          <HooverKey />
+        </group>
+      )}
       <SkateParkBuilding />
       <group position={[-6, 0, -6.2]}>
         <PhotoBooth />
@@ -296,7 +320,7 @@ export function Hub() {
             <House p={[0, 0, 0]} level={save.upgrades.boathouse} />
           )}
           {door.id === "office" && <House p={[0, 0, 0]} kind="study" />}
-          {door.id === "go" && <House p={[0, 0, 0]} kind="study" />}
+          {door.id === "go" && <GoShell />}
           {door.id === "theater" && <MovieTheaterBuilding p={[0, 0, 0]} />}
           {door.id === "writing" && <WritingShell p={[0, 0, 0]} />}
           {door.id === "stadium" && <StadiumBuilding />}

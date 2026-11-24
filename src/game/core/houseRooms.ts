@@ -12,6 +12,7 @@ export type RoomDoor = {
 // Furnishings and collision share these exact footprints. Door openings are
 // deliberately wide enough for both touch steering and the avatar's radius.
 export const HOUSE_PARTITIONS: Record<string, readonly Partition[]> = {
+  secret: [{ x: 0, z: -3, width: 4.8, depth: 3.1 }],
   kappa: [
     { x: -6.4, z: 1.2, width: 8.8, depth: 0.4 },
     { x: 6.4, z: 1.2, width: 8.8, depth: 0.4 },

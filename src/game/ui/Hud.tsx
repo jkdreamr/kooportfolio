@@ -408,7 +408,11 @@ export function Hud({ interact }: { interact: () => void }) {
           >
             ← Exit
           </button>
-          <h1>{doors.find((door) => door.id === g.scene)?.name}</h1>
+          <h1>
+            {g.scene === "secret"
+              ? "Hoover vault"
+              : doors.find((door) => door.id === g.scene)?.name}
+          </h1>
         </div>
       )}
       {interior && (
@@ -433,48 +437,61 @@ export function Hud({ interact }: { interact: () => void }) {
           >
             <div>
               <strong>
-                {g.near === "photo"
-                  ? "Photo booth"
-                  : g.near === "stargazing"
-                    ? "Telescope"
-                    : g.near === "exit"
-                      ? "Village door"
-                      : g.near === "race"
-                        ? "Coxswain Regatta"
-                        : g.near === "read"
-                          ? "Meet Joshua"
-                          : g.near === "desk"
-                            ? "Desk"
-                            : g.near === "lift"
-                              ? `${reps} reps`
-                              : g.near === "npc"
-                                ? npcName()
-                                : doors.find((d) => d.id === g.near)?.name}
+                {g.near === "hoover-key"
+                  ? "Small key"
+                  : g.near === "hoover-door"
+                    ? "Hoover Tower"
+                    : g.near === "stash"
+                      ? "Coin stash"
+                      : g.near === "photo"
+                        ? "Photo booth"
+                        : g.near === "stargazing"
+                          ? "Telescope"
+                          : g.near === "exit"
+                            ? "Village door"
+                            : g.near === "race"
+                              ? "Coxswain Regatta"
+                              : g.near === "read"
+                                ? "Meet Joshua"
+                                : g.near === "desk"
+                                  ? "Desk"
+                                  : g.near === "lift"
+                                    ? `${reps} reps`
+                                    : g.near === "npc"
+                                      ? npcName()
+                                      : doors.find((d) => d.id === g.near)
+                                          ?.name}
               </strong>
             </div>
             <button onClick={interact}>
               <kbd>E</kbd>
-              {g.near === "photo"
-                ? "Photo"
-                : g.near === "stargazing"
-                  ? "Look"
-                  : g.near === "exit"
-                    ? "Exit"
-                    : g.near === "race"
-                      ? "Race"
-                      : g.near === "read"
-                        ? "Read"
-                        : g.near === "desk"
-                          ? "Open"
-                          : g.near === "lift"
-                            ? "Lift"
-                            : g.near === "npc"
-                              ? "Talk"
-                              : "Enter"}{" "}
+              {g.near === "hoover-key"
+                ? "Take"
+                : g.near === "hoover-door"
+                  ? "Unlock"
+                  : g.near === "stash"
+                    ? "Collect"
+                    : g.near === "photo"
+                      ? "Photo"
+                      : g.near === "stargazing"
+                        ? "Look"
+                        : g.near === "exit"
+                          ? "Exit"
+                          : g.near === "race"
+                            ? "Race"
+                            : g.near === "read"
+                              ? "Read"
+                              : g.near === "desk"
+                                ? "Open"
+                                : g.near === "lift"
+                                  ? "Lift"
+                                  : g.near === "npc"
+                                    ? "Talk"
+                                    : "Enter"}{" "}
               <Icon name="arrow" size={17} />
             </button>
           </div>
-          <Joystick />
+          {g.panel === "none" && <Joystick />}
         </>
       )}
       {interior && g.scene === "boathouse" && g.near === "race" && (
