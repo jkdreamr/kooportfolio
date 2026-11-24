@@ -228,8 +228,15 @@ function SeatingBowl() {
   );
 }
 
-export function GoalPosts({ miniature = false }: { miniature?: boolean }) {
+export function GoalPosts({
+  miniature = false,
+  made = false,
+}: {
+  miniature?: boolean;
+  made?: boolean;
+}) {
   const width = FIELD_GOAL.halfWidth;
+  const paint = made ? "#b3ee8b" : "#f8d45c";
   return (
     <group scale={miniature ? 0.35 : 1}>
       <Cylinder p={[0, 1.45, 0]} s={[0.095, 2.9, 0.095]} c="#edc342" />
@@ -238,15 +245,10 @@ export function GoalPosts({ miniature = false }: { miniature?: boolean }) {
         p={[0, 2.9, 0]}
         s={[0.085, width * 2, 0.085]}
         r={[0, 0, Math.PI / 2]}
-        c="#f8d45c"
+        c={paint}
       />
       {[-width, width].map((x) => (
-        <Cylinder
-          key={x}
-          p={[x, 4.45, 0]}
-          s={[0.075, 3.1, 0.075]}
-          c="#f8d45c"
-        />
+        <Cylinder key={x} p={[x, 4.45, 0]} s={[0.075, 3.1, 0.075]} c={paint} />
       ))}
     </group>
   );
@@ -268,9 +270,11 @@ function Floodlight({ p }: { p: [number, number, number] }) {
 export function StadiumArchitecture({
   score = 0,
   attempt = 0,
+  made = false,
 }: {
   score?: number;
   attempt?: number;
+  made?: boolean;
 }) {
   return (
     <>
@@ -300,7 +304,7 @@ export function StadiumArchitecture({
       <Box p={[-17.05, 6.55, -1]} s={[3.25, 0.34, 46.8]} c={RED} />
       <Box p={[-17.05, 6.78, -1]} s={[3.4, 0.15, 47]} c={GOLD} />
       <group position={[0, 0, FIELD_GOAL.goalZ]}>
-        <GoalPosts />
+        <GoalPosts made={made} />
       </group>
       <Box p={[0, 4.5, -28.85]} s={[8.4, 3.1, 0.72]} c="#393d35" />
       <Box p={[0, 6.12, -28.85]} s={[8.6, 0.2, 0.8]} c={GOLD} />
