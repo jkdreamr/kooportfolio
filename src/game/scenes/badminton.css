@@ -52,8 +52,12 @@
   margin: 8px 0 14px;
   font-size: 13px;
 }
-.badminton-tap-hint {
+.badminton-tap-hint,
+.badminton-touch-selection {
   display: none;
+}
+.badminton-touch-selection {
+  color: var(--hud-ink, #f5f4e9);
 }
 .badminton-start,
 .badminton-result {
@@ -255,7 +259,8 @@
   display: none;
 }
 @media (max-width: 700px), (pointer: coarse) {
-  .badminton-tap-hint {
+  .badminton-tap-hint,
+  .badminton-touch-selection {
     display: inline;
   }
   .badminton-start {
@@ -280,6 +285,7 @@
     gap: 5px;
   }
   .badminton-shots,
+  .badminton-selection,
   .badminton-hint {
     display: none;
   }
@@ -309,7 +315,8 @@
   }
 }
 @media (max-height: 500px) and (min-width: 600px) {
-  .badminton-tap-hint {
+  .badminton-tap-hint,
+  .badminton-touch-selection {
     display: inline;
   }
   .badminton-score {
@@ -325,6 +332,7 @@
     gap: 4px;
   }
   .badminton-shots,
+  .badminton-selection,
   .badminton-hint {
     display: none;
   }

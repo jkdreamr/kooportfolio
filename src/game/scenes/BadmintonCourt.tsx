@@ -516,6 +516,7 @@ export function BadmintonCourt({
   const serving =
     snapshot.phase === "ready" && game.current.server === "player";
   const receiving = snapshot.phase === "ready" && !serving;
+  const aimArrow = aim === -1 ? "↖" : aim === 1 ? "↗" : "↑";
   return (
     <>
       <BadmintonGym score={snapshot.score} />
@@ -615,9 +616,7 @@ export function BadmintonCourt({
                         }
                       >
                         {serving ? "High serve" : receiving ? "Receive" : shot}{" "}
-                        <span>
-                          {aim === -1 ? "↖" : aim === 1 ? "↗" : "↑"}
-                        </span>
+                        <span>{aimArrow}</span>
                       </output>
                       <div
                         className="badminton-shots"
@@ -656,7 +655,7 @@ export function BadmintonCourt({
                       <small className="badminton-gesture-hint">
                         {serving ? (
                           <>
-                            High serve · ← / → aim
+                            High serve {aimArrow} · ← / → aim
                             <br />
                             Shots on returns
                           </>
@@ -667,7 +666,14 @@ export function BadmintonCourt({
                               tap drop ·{" "}
                             </span>
                             ↓ smash
-                            <br />← / → aim
+                            <br />
+                            <output
+                              className="badminton-touch-selection"
+                              aria-label="Selected return shot"
+                            >
+                              {shot} {aimArrow} ·{" "}
+                            </output>
+                            ← / → aim
                           </>
                         )}
                       </small>
