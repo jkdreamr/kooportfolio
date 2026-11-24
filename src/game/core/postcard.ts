@@ -55,10 +55,9 @@ export function composePostcard(
   context.fillRect(0, 0, card.width, card.height);
   context.drawImage(photo, 64, 64);
   context.fillStyle = frame === "pine" ? "#f4ebd7" : "#203c32";
-  context.font = "italic 38px Georgia, serif";
-  context.fillText("A little hello from the village.", 66, 1083);
-  context.font = "19px monospace";
-  context.fillText("JOSHUA.EXE", 68, 1119);
+  context.font = '700 25px "Trebuchet MS", Arial, sans-serif';
+  context.fillText("JOSHUA.EXE", 68, 1097);
+  context.font = '22px "Trebuchet MS", Arial, sans-serif';
   context.textAlign = "right";
   context.fillText(
     date.toLocaleDateString("en-US", {
@@ -67,7 +66,7 @@ export function composePostcard(
       year: "numeric",
     }),
     CARD_WIDTH - 68,
-    1119,
+    1097,
   );
   return card;
 }

@@ -1,5 +1,5 @@
-import { useRef } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useEffect, useRef } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { Ball, Box, Cylinder, Sign } from "./Models";
@@ -128,7 +128,30 @@ export function PhotoBoothCamera() {
   const avatar = useRef<THREE.Group>(null);
   const handled = useRef(0);
   const pose = usePhotoBooth((state) => state.pose);
+  const active = useGame(
+    (state) =>
+      state.scene === "hub" && state.panel === "photo" && !state.paused,
+  );
+  const { get, invalidate, setFrameloop } = useThree();
+  useEffect(() => {
+    if (!active) return;
+    const previous = get().frameloop;
+    // The opaque postcard preview does not need a full village rendered behind
+    // it at 60fps. Keep controls/timers responsive even on software GPUs.
+    setFrameloop("demand");
+    invalidate();
+    const unsubscribe = usePhotoBooth.subscribe((state, before) => {
+      if (state.request?.id !== before.request?.id) invalidate();
+    });
+    return () => {
+      unsubscribe();
+      setFrameloop(useGame.getState().paused ? "demand" : previous);
+      invalidate();
+    };
+  }, [active, get, invalidate, setFrameloop]);
   useFrame(({ gl, scene }) => {
+    // Canvas can be reconfigured by a resize or automatic quality adjustment.
+    if (active && get().frameloop !== "demand") setFrameloop("demand");
     const request = usePhotoBooth.getState().request;
     const game = useGame.getState();
     if (
