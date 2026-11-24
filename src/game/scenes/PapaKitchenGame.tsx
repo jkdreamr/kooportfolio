@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useReducer,
   useRef,
@@ -97,6 +98,37 @@ function KitchenControls({
     x: number;
     y: number;
   } | null>(null);
+  const panel = useRef<HTMLElement>(null);
+  const lastFocused = useRef<HTMLButtonElement | null>(null);
+  // Cooking steps replace buttons. Keep focus at the next useful action,
+  // rather than leaving keyboard players on the document body.
+  useLayoutEffect(() => {
+    const previous = lastFocused.current;
+    const root = panel.current;
+    if (!root || !previous || !gameIsActive()) return;
+    if (previous.isConnected && !previous.disabled) return;
+    if (
+      document.activeElement !== document.body &&
+      document.activeElement !== previous
+    )
+      return;
+    const nextIngredient = current?.ticket.toppings[current.layers.length];
+    const selector =
+      game.phase === "grade" || game.phase === "results"
+        ? ".papa-result button:not(:disabled)"
+        : game.station === "build" && current?.stage === "build"
+          ? current.layers.at(-1)?.ingredient === "top"
+            ? '[data-kitchen-action="serve"]'
+            : `[data-ingredient="${nextIngredient ?? "top"}"]:not(:disabled)`
+          : ".papa-actions button:not(:disabled)";
+    const next =
+      root.querySelector<HTMLButtonElement>(selector) ??
+      root.querySelector<HTMLButtonElement>(
+        '.papa-stations button[aria-pressed="true"]',
+      ) ??
+      root.querySelector<HTMLButtonElement>("button");
+    next?.focus({ preventScroll: true });
+  });
   const act: Dispatch<PapaAction> = (action) => {
     dispatch(action);
     if (action.type === "flip" || action.type === "lift") sound("bounce");
@@ -132,12 +164,29 @@ function KitchenControls({
   const passed = shiftPassed(game);
   return (
     <section
+      ref={panel}
       className="papa-game"
       aria-label="Kitchen service"
       data-interior-game-open="true"
       onPointerDown={(event) => event.stopPropagation()}
+      onFocusCapture={(event) => {
+        if (event.target instanceof HTMLButtonElement)
+          lastFocused.current = event.target;
+      }}
       onKeyDown={(event) => {
         if (event.key !== "Escape") event.stopPropagation();
+        if (event.key === "Tab") {
+          const buttons = Array.from(
+            event.currentTarget.querySelectorAll<HTMLButtonElement>(
+              "button:not(:disabled)",
+            ),
+          ).filter((button) => button.getClientRects().length > 0);
+          const edge = event.shiftKey ? buttons[0] : buttons.at(-1);
+          if (document.activeElement === edge) {
+            event.preventDefault();
+            (event.shiftKey ? buttons.at(-1) : buttons[0])?.focus();
+          }
+        }
       }}
       onKeyUp={(event) => {
         if (event.key !== "Escape") event.stopPropagation();
@@ -347,7 +396,7 @@ function KitchenControls({
                           </button>
                         </div>
                         <small className="papa-hint">
-                          Flip and lift in the gold zone. Two patties fit.
+                          Flip and lift in the marked zone.
                         </small>
                       </>
                     )}
@@ -366,6 +415,7 @@ function KitchenControls({
                           {[...TOPPINGS, "top" as const].map((ingredient) => (
                             <button
                               key={ingredient}
+                              data-ingredient={ingredient}
                               disabled={
                                 current.layers.at(-1)?.ingredient === "top"
                               }
@@ -435,6 +485,7 @@ function KitchenControls({
                             Undo
                           </button>
                           <button
+                            data-kitchen-action="serve"
                             disabled={
                               current.layers.at(-1)?.ingredient !== "top"
                             }

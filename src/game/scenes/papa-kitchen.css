@@ -1,4 +1,9 @@
 .papa-html {
+  --hud-face: #334155;
+  --hud-low: #1e293b;
+  --hud-edge: #64748b;
+  --hud-ink: #f8fafc;
+  --hud-muted: #cbd5e1;
   color-scheme: dark;
   overflow: visible !important;
 }
@@ -6,7 +11,7 @@
   position: relative;
   width: 100%;
   height: 100%;
-  color: #ede5cc;
+  color: var(--hud-ink);
   font: 14px/1.25 var(--font-ui, system-ui);
   pointer-events: none;
 }
@@ -26,7 +31,7 @@
 }
 .papa-game button:hover,
 .papa-play:hover {
-  background: #3c5663;
+  background: #475569;
 }
 .papa-game button:focus-visible,
 .papa-play:focus-visible {
@@ -39,11 +44,11 @@
 }
 .papa-game button[aria-pressed="true"] {
   border-color: var(--hud-muted);
-  background: #3c5663;
+  background: #475569;
 }
 .papa-game .papa-secondary {
-  background: #213d3e;
-  color: #c6ccb8;
+  background: #1e293b;
+  color: #cbd5e1;
 }
 .papa-top {
   position: absolute;
@@ -60,8 +65,8 @@
   align-items: baseline;
   padding: 10px 14px;
   border-radius: 5px;
-  background: #193638ed;
-  box-shadow: 0 3px 10px #0c222a22;
+  border: 1px solid var(--hud-edge);
+  background: #1e293bed;
 }
 .papa-top > div:nth-child(2) {
   margin-left: auto;
@@ -72,7 +77,7 @@
   font-weight: 700;
 }
 .papa-top span {
-  color: #c0c8ad;
+  color: #cbd5e1;
   font-size: 12px;
 }
 .papa-game .papa-close {
@@ -81,7 +86,7 @@
   min-width: 46px;
   padding: 0;
   border-radius: 50%;
-  background: #193638;
+  background: #1e293b;
   font-size: 24px;
 }
 .papa-open-tickets {
@@ -98,12 +103,12 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 38px;
+  min-height: 44px;
   padding: 7px 13px;
 }
 .papa-open-tickets small {
   font-size: 10px;
-  color: #ced1b7;
+  color: #cbd5e1;
 }
 .papa-hot {
   width: 7px;
@@ -118,9 +123,9 @@
   top: 140px;
   width: 174px;
   padding: 13px 15px;
-  border-left: 3px solid #c9a461;
+  border: 1px solid var(--hud-edge);
   border-radius: 4px;
-  background: #203f3fe8;
+  background: #1e293be8;
   box-shadow: 0 5px 16px #0c232522;
 }
 .papa-ticket header,
@@ -134,7 +139,7 @@
 .papa-order small {
   font-size: 11px;
   text-transform: capitalize;
-  color: #cbc8a8;
+  color: #cbd5e1;
 }
 .papa-recipe {
   display: flex;
@@ -153,7 +158,7 @@
   align-items: center;
   gap: 6px;
   font-size: 11px;
-  color: #e0ddc3;
+  color: #f1f5f9;
 }
 .papa-food {
   display: inline-block;
@@ -217,10 +222,10 @@
   min-width: 82px;
   min-height: 68px;
   text-align: left;
-  background: #203e3d;
+  background: #1e293b;
 }
 .papa-stations small {
-  color: #b2b596;
+  color: #cbd5e1;
   font-size: 9px;
   letter-spacing: 1px;
 }
@@ -228,21 +233,21 @@
   position: absolute;
   top: 8px;
   right: 8px;
-  color: #d4c58c;
+  color: #cbd5e1;
   font-size: 10px;
 }
 .papa-actions {
   width: min(510px, 45vw);
   padding: 14px 16px;
-  border: 1px solid #63817088;
+  border: 1px solid var(--hud-edge);
   border-radius: 7px;
-  background: #1b383bf2;
+  background: #1e293bf2;
   box-shadow: 0 6px 20px #0c222633;
   pointer-events: auto;
 }
 .papa-actions p {
   margin: 4px 0;
-  color: #c8ceb6;
+  color: #cbd5e1;
 }
 .papa-actions--orders {
   width: min(620px, 58vw);
@@ -274,7 +279,7 @@
   width: 100%;
   height: 4px;
   margin: 12px 0;
-  accent-color: #b4bc75;
+  accent-color: #cbd5e1;
 }
 .papa-order button {
   width: 100%;
@@ -285,7 +290,7 @@
   margin-bottom: 12px;
 }
 .papa-cook-status span {
-  color: #acbca5;
+  color: #cbd5e1;
 }
 .papa-heat,
 .papa-aim {
@@ -293,7 +298,7 @@
   height: 15px;
   margin: 12px 0;
   border-radius: 4px;
-  background: linear-gradient(90deg, #7e9b87, #cba95b 66%, #a9553d);
+  background: linear-gradient(90deg, #475569, #64748b 66%, #a9553d);
 }
 .papa-heat-window {
   position: absolute;
@@ -301,9 +306,9 @@
   top: 0;
   bottom: 0;
   width: 15%;
-  background: #efd68b;
-  border-right: 2px solid #fff1ba;
-  border-left: 2px solid #fff1ba;
+  background: #cbd5e1;
+  border-right: 2px solid #fff;
+  border-left: 2px solid #fff;
 }
 .papa-heat > i,
 .papa-aim > span {
@@ -311,7 +316,7 @@
   top: -3px;
   bottom: -3px;
   width: 3px;
-  background: #f4ecd2;
+  background: #fff;
   box-shadow: 0 1px 5px #13292f;
 }
 .papa-action-row {
@@ -326,7 +331,7 @@
   display: block;
   margin-top: 10px;
   font-size: 10px;
-  color: #a8b7a6;
+  color: #cbd5e1;
 }
 .papa-toppings {
   display: grid;
@@ -343,7 +348,7 @@
   min-height: 51px;
   padding: 7px 4px;
   font-size: 10px;
-  background: #294a45;
+  background: #334155;
 }
 .papa-toppings button:last-child {
   grid-column: span 2;
@@ -357,7 +362,7 @@
 .papa-aim {
   flex: 1;
   height: 10px;
-  background: #546b56;
+  background: #475569;
 }
 .papa-aim > i {
   position: absolute;
@@ -365,7 +370,7 @@
   width: 14%;
   top: 0;
   bottom: 0;
-  background: #d6b86b;
+  background: #cbd5e1;
 }
 .papa-placement button {
   font-size: 12px;
@@ -376,9 +381,9 @@
   width: 165px;
   height: 100px;
   transform: translate(-50%, -50%);
-  border: 1px dashed #e9d49caa;
+  border: 1px dashed #f1f5f9aa;
   border-radius: 50%;
-  box-shadow: 0 0 0 12px #e9d49c0b;
+  box-shadow: 0 0 0 12px #f1f5f90b;
 }
 .papa-drop-zone--active {
   display: block;
@@ -390,9 +395,9 @@
   transform: translateX(-50%);
   width: min(340px, calc(100vw - 40px));
   padding: 22px;
-  border: 1px solid #b2a168;
+  border: 1px solid var(--hud-edge);
   border-radius: 7px;
-  background: #1a383cf7;
+  background: #1e293bf7;
   box-shadow: 0 10px 30px #13272955;
   text-align: center;
   pointer-events: auto;
@@ -413,15 +418,15 @@
 }
 .papa-grades span {
   font-size: 11px;
-  color: #b5c1ab;
+  color: #cbd5e1;
 }
 .papa-grades b {
   font-size: 21px;
-  color: #e2ce8c;
+  color: #fff;
 }
 .papa-result p {
   margin: 18px 0;
-  color: #c1cbb3;
+  color: #cbd5e1;
   font-size: 12px;
 }
 .papa-result button {
@@ -577,7 +582,7 @@
     gap: 6px;
     overflow-x: auto;
     scrollbar-width: thin;
-    scrollbar-color: #78836b #1b383b;
+    scrollbar-color: #94a3b8 #1e293b;
   }
   .papa-open-tickets button {
     flex: 0 0 auto;
@@ -601,7 +606,7 @@
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-width: thin;
-    scrollbar-color: #78836b #1b383b;
+    scrollbar-color: #94a3b8 #1e293b;
     pointer-events: auto;
   }
   .papa-dock {
@@ -614,7 +619,7 @@
     z-index: 2;
     flex: 0 0 auto;
     border-radius: 6px;
-    background: #1b383b;
+    background: #1e293b;
   }
   .papa-stations button {
     flex: 1;
@@ -691,7 +696,7 @@
     padding: 17px;
     overflow-y: auto;
     scrollbar-width: thin;
-    scrollbar-color: #78836b #1b383b;
+    scrollbar-color: #94a3b8 #1e293b;
   }
 }
 @media (max-height: 240px) {
