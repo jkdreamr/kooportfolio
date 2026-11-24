@@ -13,7 +13,7 @@ import {
   Ring,
 } from "./Models";
 import { runtime, useGame, walkTo } from "../core/store";
-import { movement } from "../core/input";
+import { movement, movementSpeed } from "../core/input";
 import { canWalk, doorsInWorld, moveWorld } from "../core/world";
 import { LabelProjection } from "./Labels";
 import { Landscape } from "./Landscape";
@@ -107,7 +107,7 @@ export function Walker({
       state.panel === "none" &&
       Math.hypot(dx, dz) > 0.1;
     if (runtime.moving) {
-      const step = Math.min(dt * (interior ? 4 : 4.6), remaining);
+      const step = Math.min(dt * movementSpeed(interior ? 4 : 4.6), remaining);
       if (interior) {
         [runtime.x, runtime.z] = moveInterior(
           state.scene,

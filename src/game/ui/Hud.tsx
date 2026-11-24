@@ -380,7 +380,8 @@ export function Hud({ interact }: { interact: () => void }) {
       pendingExit.current = null;
     if (!g.overlayLocked && pendingExit.current === g.scene) {
       const frame = requestAnimationFrame(() => {
-        const exit = g.scene === "skate" ? SKATE_EXIT : [0, roomFor(g.scene).doorZ];
+        const exit =
+          g.scene === "skate" ? SKATE_EXIT : [0, roomFor(g.scene).doorZ];
         walkTo(exit[0], exit[1]);
         pendingExit.current = null;
       });
@@ -455,7 +456,10 @@ export function Hud({ interact }: { interact: () => void }) {
               pendingExit.current = g.scene;
               window.dispatchEvent(new Event("interior-game-close"));
               if (!useGame.getState().overlayLocked) {
-                const exit = g.scene === "skate" ? SKATE_EXIT : [0, roomFor(g.scene).doorZ];
+                const exit =
+                  g.scene === "skate"
+                    ? SKATE_EXIT
+                    : [0, roomFor(g.scene).doorZ];
                 walkTo(exit[0], exit[1]);
                 pendingExit.current = null;
               }
@@ -880,7 +884,7 @@ export function Hud({ interact }: { interact: () => void }) {
             <b>Wander</b>
             <p>
               <span className="keyboard-hint">
-                WASD / arrows or click the ground.
+                WASD / arrows or click the ground. Hold Shift to sprint.
               </span>
               <span className="touch-hint">
                 Drag the round joystick or tap the ground.
