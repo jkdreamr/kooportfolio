@@ -1,4 +1,5 @@
 import type { WorldId } from "./worlds";
+import { HOME_DESTINATION_CENTERS } from "./homeLayout";
 
 export const GARDEN_REGROW_SECONDS = 35;
 export const PICNIC_MEAL_SECONDS = 30;
@@ -13,8 +14,19 @@ export const COINS = {
   fish: 8,
 } as const;
 export const PARCEL_DOORS = [
-  { id: "go", name: "Go", p: [-42, 23.2] },
-  { id: "writing", name: "Writing", p: [0, -42.5] },
+  {
+    id: "go",
+    name: "Go",
+    p: [HOME_DESTINATION_CENTERS.go[0], HOME_DESTINATION_CENTERS.go[1] + 4.2],
+  },
+  {
+    id: "writing",
+    name: "Writing",
+    p: [
+      HOME_DESTINATION_CENTERS.writing[0],
+      HOME_DESTINATION_CENTERS.writing[1] + 3.5,
+    ],
+  },
   { id: "music", name: "Beat Lab", p: [-11, -20.5] },
   { id: "kitchen", name: "Kitchen", p: [-8, 16.4] },
 ] as const;

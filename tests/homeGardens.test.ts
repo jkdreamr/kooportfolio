@@ -2,8 +2,17 @@ import { describe, expect, it } from "vitest";
 import { HOME_GARDEN_WALKS } from "../src/game/core/homeGardens";
 import { canWalk, doors, doorsInWorld, findPath } from "../src/game/core/world";
 import { AIRPORT_GATE, STATION_GATE } from "../src/game/core/journey";
+import { PARCEL_DOORS } from "../src/game/core/regionalActivities";
 
 describe("Home planted districts", () => {
+  it("keeps parcel deliveries at their actual Home entrances", () => {
+    for (const parcel of PARCEL_DOORS) {
+      const door = doorsInWorld("home").find((item) => item.id === parcel.id)!;
+      expect(parcel.p[0], parcel.id).toBeCloseTo(door.x);
+      expect(parcel.p[1], parcel.id).toBeCloseTo(door.z);
+    }
+  });
+
   it("keeps the centerline of every authored garden walk traversable", () => {
     for (const [x, z, width, depth] of HOME_GARDEN_WALKS) {
       const horizontal = width > depth;
