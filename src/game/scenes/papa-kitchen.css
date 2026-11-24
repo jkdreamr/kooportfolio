@@ -205,6 +205,9 @@
   justify-content: center;
   gap: 24px;
 }
+.papa-workspace {
+  display: contents;
+}
 .papa-stations {
   display: flex;
   gap: 7px;
@@ -568,9 +571,10 @@
     font-size: 16px;
   }
   .papa-open-tickets {
-    top: 62px;
-    left: 18px;
-    right: calc(var(--papa-rail) + 28px);
+    position: static;
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 0;
     justify-content: flex-start;
     gap: 6px;
     overflow-x: auto;
@@ -584,7 +588,7 @@
   .papa-ticket--wide {
     display: none;
   }
-  .papa-dock {
+  .papa-workspace {
     top: 62px;
     right: 16px;
     bottom: 16px;
@@ -600,6 +604,10 @@
     scrollbar-width: thin;
     scrollbar-color: #78836b #1b383b;
     pointer-events: auto;
+  }
+  .papa-dock {
+    display: contents;
+    position: static;
   }
   .papa-stations {
     position: sticky;
@@ -690,5 +698,24 @@
 @media (max-height: 240px) {
   .papa-stations {
     position: static;
+  }
+}
+@media (max-height: 500px) and (max-width: 330px) {
+  .papa-top {
+    gap: 6px;
+  }
+  .papa-top > div {
+    flex: 1;
+    min-width: 0;
+    gap: 4px;
+    padding: 6px;
+  }
+  .papa-top > div:first-child span {
+    max-width: 3ch;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .papa-top > div:nth-child(2) > b {
+    display: none;
   }
 }
