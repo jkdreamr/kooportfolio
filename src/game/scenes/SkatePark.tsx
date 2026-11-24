@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   type PointerEvent,
+  type MouseEvent,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { Html } from "@react-three/drei";
@@ -452,8 +453,25 @@ export function SkateParkInterior() {
       uiKeys.current.delete(control);
     },
   });
-  const trick = (kind: SkateTrick) => {
-    if (active()) input.current.trick = kind;
+  const tap = (kind: "ollie" | SkateTrick) => {
+    const fire = () => {
+      if (!active()) return;
+      if (kind === "ollie") input.current.jump = true;
+      else input.current.trick = kind;
+    };
+    return {
+      // Secondary touch pointers don't synthesize a click. Act on contact so
+      // one thumb can push/steer while the other performs a trick.
+      onPointerDown: (e: PointerEvent<HTMLButtonElement>) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        fire();
+      },
+      onClick: (e: MouseEvent<HTMLButtonElement>) => {
+        // Keep native keyboard/assistive activation without double-firing a tap.
+        if (e.detail === 0) fire();
+      },
+    };
   };
   return (
     <>
@@ -579,18 +597,13 @@ export function SkateParkInterior() {
                       </button>
                     </div>
                     <div className="skate-tricks" aria-label="Skate tricks">
-                      <button
-                        className="skate-ollie"
-                        onClick={() => {
-                          if (active()) input.current.jump = true;
-                        }}
-                      >
+                      <button className="skate-ollie" {...tap("ollie")}>
                         Ollie <kbd>Space</kbd>
                       </button>
-                      <button onClick={() => trick("kickflip")}>
+                      <button {...tap("kickflip")}>
                         Kickflip <kbd>Q</kbd>
                       </button>
-                      <button onClick={() => trick("shove-it")}>
+                      <button {...tap("shove-it")}>
                         Shove-it <kbd>E</kbd>
                       </button>
                       <button
