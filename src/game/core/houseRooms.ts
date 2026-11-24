@@ -1,4 +1,5 @@
 import { roomFor } from "./room";
+import { STADIUM_SOLIDS } from "./stadiumLayout";
 
 const hall = roomFor("kappa");
 const innerEdge = hall.width / 2 - 0.2;
@@ -15,6 +16,7 @@ export type RoomDoor = {
 // Furnishings and collision share these exact footprints. Door openings are
 // deliberately wide enough for both touch steering and the avatar's radius.
 export const HOUSE_PARTITIONS: Record<string, readonly Partition[]> = {
+  stadium: STADIUM_SOLIDS,
   secret: [{ x: 0, z: -3, width: 4.8, depth: 3.1 }],
   kappa: [
     { x: -(innerEdge + 2) / 2, z: 1.2, width: innerEdge - 2, depth: 0.4 },

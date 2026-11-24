@@ -766,7 +766,7 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
                 Tips <strong>{shift.tips}</strong>
               </span>
             </div>
-            <p className="kitchen-missed">{shift.missed} customers left</p>
+            <p className="kitchen-missed">{shift.missed} {shift.missed === 1 ? "customer" : "customers"} left</p>
             <button onClick={start}>Next shift</button>
           </>
         ) : (

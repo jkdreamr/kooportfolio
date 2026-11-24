@@ -7,7 +7,6 @@ import { CourtControls, useBasketHud } from "../scenes/Basketball";
 import { Icon } from "./Icon";
 import { destinationsInWorld, doors, isInterior } from "../core/world";
 import { WORLDS } from "../core/worlds";
-import { useGym } from "../scenes/CognitionGym";
 import { profile } from "../../content/profile";
 import { WorldLabels } from "../world/Labels";
 import { roomFor } from "../core/room";
@@ -392,7 +391,6 @@ export function Hud({ interact }: { interact: () => void }) {
   const hub = g.scene === "hub",
     interior = isInterior(g.scene),
     game = g.scene === "rowing" || g.scene === "basketball";
-  const reps = useGym((s) => s.reps);
   const closePanel = () => useGame.setState({ panel: "none" });
   useEffect(() => {
     if (
@@ -520,7 +518,7 @@ export function Hud({ interact }: { interact: () => void }) {
                                   : g.near === "desk"
                                     ? "Desk"
                                     : g.near === "lift"
-                                      ? `${reps} reps`
+                                      ? "Bench press"
                                       : g.near === "npc"
                                         ? npcName()
                                         : doors.find((d) => d.id === g.near)
@@ -548,7 +546,7 @@ export function Hud({ interact }: { interact: () => void }) {
                                 : g.near === "desk"
                                   ? "Open"
                                   : g.near === "lift"
-                                    ? "Lift"
+                                    ? "Play"
                                     : g.near === "npc"
                                       ? "Talk"
                                       : "Enter"}{" "}

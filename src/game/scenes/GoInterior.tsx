@@ -162,7 +162,12 @@ export function GoInterior() {
     }
   };
   const panelKey = (event: KeyboardEvent<HTMLElement>) => {
-    if (!started) return;
+    if (!started) {
+      // Native button Space must not be cancelled by walking input; movement
+      // keys still reach the walker while Play Go has focus after closing.
+      if (event.key === " ") event.stopPropagation();
+      return;
+    }
     // Keep game keys away from walking input, including Escape from a select.
     event.stopPropagation();
     if (event.key === "Escape") { event.preventDefault(); close(); return; }
