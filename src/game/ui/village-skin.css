@@ -516,7 +516,7 @@
   }
 }
 @media (max-height: 500px), (max-width: 700px) and (max-height: 600px) {
-  .game-shell:has(.context-action.visible):has(.world-zoom)
+  .game-shell:has(.context-action.visible, .world-travel-stop, .island-rail-controls):has(.world-zoom)
     :is(.time-of-day-control, .world-zoom) {
     visibility: hidden;
   }
