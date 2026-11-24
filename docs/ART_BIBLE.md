@@ -16,7 +16,38 @@ Joshua asked us to study [Supercell's Clash of Clans](https://supercell.com/en/g
 
 The expanded map uses seven distinct silhouettes: the oar-framed Boathouse, open Court, Study tower, red-roofed Kappa Sigma portico, stepped Cognition workshop, green-awning Kitchen and barrel-roofed Gym with a dumbbell. A windmill, growing beds, dock and music corner fill the edges without extra HUD copy. Lawn, roads and wall blocks are instanced to avoid one draw call per tile. The mobile camera follows the player rather than shrinking the entire village into unreadable miniatures; Places provides keyboard/touch access to every route.
 - Original rounded modular geometry: low poly canopies, tiled pitched roofs, visible timber framing, ceramic pots, a brick-colored court, timber docks and animated shell crews. Model source is `src/game/world/Models.tsx`; no visual reference images are used in production.
-- One world unit is approximately one metre; avatar height 1.6 units, doors 2.1. Orthographic three-quarter hub camera, chase race camera, wider court camera. Warm directional sun, ambient sky and low-contrast shadows.
+- One world unit is approximately one metre; avatar height 1.6 units, doors 2.1. Orthographic three-quarter hub camera, chase race camera, wider court camera. Directional sun, cool sky fill and readable grounded shadows; shared surface shading retains the lighting rig's time-of-day colors.
 - Keep the world legible: boathouse gable and oars, open court silhouette, quiet green study roof. Upgrade geometry must be visible: balcony then tower, pergola then garden seating.
 - Gentle character bob, alternating walking limbs and synchronized oar recovery. No flashing, camera shake or compulsory sound. Respect reduced motion in the editorial reveal; gameplay remains manually controlled.
-- Art references in Joshua’s handoff are direction only and are not redistributed as authored assets. All shipped geometry, UI, favicon and WebAudio sounds are original in this repository. System fonts only.
+- Art references in Joshua’s handoff are direction only and are not redistributed as authored assets. Shipped geometry, UI and WebAudio effects are original. Nature ambience uses locally bundled CC0 recordings documented in `public/audio/LICENSES.md`. System fonts only; no logo or favicon monogram.
+
+## Solid-material and interface standard
+
+Reviewed Supercell's own material process in [Adobe's Creature Shop interview](https://www.adobe.com/products/substance3d/magazine/supercell-helsinki-creating-stylized-content-for-clash-of-clans-and-clash-royale.html) and Clash artist [Jonathan Bacheter's production notes](https://jonathanbacheter.com/work/clash-of-clans). The useful principles are boxy, readable massing; restrained albedo variation; rough, stylized PBR materials; and local detail rather than noisy sculpting. The [Anthropic frontend-design skill](https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md) supplies the critique/copy discipline, not a template. No third-party code or game assets were installed.
+
+- World: rounded solid edges, overlapping ceramic tiles, staggered footing blocks, thick framed signs. `Surface.ts` adds broad cool-under/warm-top painted variation to the shared helpers, including instanced roof and foundation pieces. No grain, paper overlays, global postprocessing or extra texture downloads.
+- HUD palette: slate `#293f49`, recessed slate `#21353e`, edge `#536971`, text `#f5f4e9`, action green `#506c43`, coin gold `#e7c27e`. Solid faces, hairline edges and quiet shadows; no embossed card rims.
+- Type: Arial/Helvetica for the game; sentence-case control labels and tabular scores. The existing white editorial landing stays separate.
+- Layout: quiet corner controls, a recessed bottom tool rail, dark building-name plaques, opt-in room stories. Keep the middle of the world clear. Court keyboard guidance sits apart from mode buttons.
+- Copy: name the action or measurement; remove repeated public-source stamps, decorative result eyebrows, tiny uppercase label stacks and aspirational filler. Preserve verified room facts and story entry behavior.
+- Other builders should use the shared `Box`/`Sign`/architecture helpers and HUD tokens rather than adding pale cards or per-room font systems. Preserve mobile safe areas, touch controls and pointer-event pass-through.
+
+## National flags
+
+`NationalFlag.tsx` draws original canvas textures and folded cloth geometry. United States flags use 13 stripes and 50 stars (alternating six/five across nine rows), following the [National Archives construction order](https://www.archives.gov/federal-register/codification/executive-order/10834.html). South Korean flags use a 3:2 white field, red/blue taegeuk and geon/gon/gam/ri trigrams, following the [Korean National Archives construction guide](https://theme.archives.go.kr/next/symbolKorea/makeNationalFlag.do). No external image or emoji font is loaded. These are requested scenery, not claims about Josh's nationality, affiliation or endorsement.
+
+## Grounded nature and room detail
+
+Reviewed [SpeedTree's modeling fundamentals](https://docs.speedtree.com/doku.php?id=gettingstarted) and [generation guide](https://docs8.speedtree.com/modeler/doku.php?id=generation_properties) for taper, bifurcation, branch-length variance, irregular pine whorls and foliage attached to actual branch tips. The implementation is original procedural Three.js geometry, not SpeedTree code, models or textures. Closed leaf volumes retain the solid game-art direction; no transparent leaf cards or photo assets.
+
+`TreeArt.tsx` supplies rooted, bent trunks, forked limbs, irregular broadleaf crowns and separate pine branch fans. Position-derived seeds keep variations stable. `NaturalTrees` batches a whole grove into three opaque meshes, plus one when palms are present; `Models.Tree({ p, size, variant })` stays compatible. Forest positions and collision/pathfinding data are untouched.
+
+Room dressing uses practical edge zones and keeps the middle/entrance clear: boathouse lockers, repair tools, life vests, rope and footlockers; office workstations/reading furniture; gym weights and towels. New details are instanced in at most three additional batches per furnished room, with no decorative labels or invented biographical claims. Secret rooms, theater, kitchen and partition/game logic remain owned by their builders.
+
+## Sleek-control and foliage refinement
+
+Reviewed [Apple's button guidance](https://developer.apple.com/design/human-interface-guidelines/buttons) for recognizable controls, clear hierarchy, press states and full-size touch regions. The dock uses 44px controls inside a lighter rail. Building plaques have a compact visible face over a 44px interaction target. Slate cards use one thin border and little shadow; green denotes the primary action. The white editorial landing is untouched.
+
+Foliage uses closed, ridged leaf sprays with multiple depth layers, never translucent cards or smooth sphere crowns. Palms have curved segmented trunks and individually modeled pinnate leaflets on arching fronds. Optional `TreePlacement.species` accepts `oak`, `pine`, `redwood` or `palm`; the mature redwood is tall and narrow at its normal scale. Campus nature generators consume the same batched trees rather than retaining their older sphere/fan models. All meshes are original procedural geometry.
+
+Room dressing reads `roomFor(scene)` to anchor bookshelves, storage and racks to the expanded hall edges while keeping each object at its original scale. New forward wings contain practical rowing storage, workstations, a bench-press station and stretching mats; the central entrance and walking lane stay clear.

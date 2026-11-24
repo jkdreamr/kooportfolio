@@ -72,6 +72,63 @@ describe("badminton quick singles", () => {
     expect(game.score).toEqual([0, 0]);
   });
 
+  it("does not let a player's missed swing suppress the opponent's reachable return", () => {
+    const game = newBadmintonGame();
+    game.phase = "rally";
+    game.lastHit = "player";
+    game.flightTime = 0.5;
+    Object.assign(game.shuttle, {
+      x: 0,
+      z: -5.7,
+      y: 1.8,
+      vx: 0,
+      vy: -1,
+      vz: -1,
+    });
+    stepBadminton(game, { ...idle, swing: true }, 1 / 120);
+    expect(game.lastHit).toBe("opponent");
+    expect(game.shuttle.vz).toBeGreaterThan(0);
+    expect(game.playerCooldown).toBeGreaterThan(0);
+  });
+
+  it("lets reachable corner drops win a real match rather than an endless perfect-opponent rally", () => {
+    const game = newBadmintonGame();
+    // Only use normal controls: serve, move under an incoming shot, drop away.
+    for (let frame = 0; frame < 60 * 60 && !game.winner; frame++) {
+      const s = game.shuttle,
+        p = game.player;
+      const incoming = game.lastHit === "opponent";
+      const contact = Math.max(
+        0,
+        (s.vy +
+          Math.sqrt(Math.max(0, s.vy ** 2 + 2 * BADMINTON.gravity * (s.y - 1.8)))) /
+          BADMINTON.gravity,
+      );
+      const tx = Math.max(-3.8, Math.min(3.8, s.x + s.vx * contact));
+      const tz = Math.max(0.8, Math.min(8.2, s.z + s.vz * contact));
+      stepBadminton(
+        game,
+        {
+          x: incoming && Math.abs(tx - p.x) > 0.09 ? Math.sign(tx - p.x) : 0,
+          z: incoming && Math.abs(tz - p.z) > 0.09 ? Math.sign(tz - p.z) : 0,
+          swing:
+            game.phase === "ready" ||
+            (incoming &&
+              s.z > 0.25 &&
+              s.y >= 0.5 &&
+              s.y <= 1.8 &&
+              Math.hypot(s.x - p.x, s.z - p.z) < 1.6),
+          aim: game.opponent.x >= 0 ? -1 : 1,
+          shot: "drop",
+        },
+        1 / 60,
+      );
+    }
+    expect(game.winner).toBe("player");
+    expect(game.score[0]).toBe(BADMINTON.winningScore);
+    expect(game.longestRally).toBeGreaterThanOrEqual(3);
+  });
+
   it("awards an in-bounds landing to the hitter, and an out or net to the receiver", () => {
     const inside = newBadmintonGame();
     falling(inside, 2, -7);

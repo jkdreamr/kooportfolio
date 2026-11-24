@@ -1,9 +1,11 @@
-import { useMemo, useRef, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { Box, Ball, Cylinder, Ring } from "../world/Models";
 import { useGame } from "../core/store";
+import { startGameMode, endGameMode, useGameMode } from "../core/gameMode";
+import { GAME_STAGE_Y } from "./InteriorGameStage";
 import "./interior-games.css";
 
 export type InteriorGameProps = {
@@ -11,17 +13,69 @@ export type InteriorGameProps = {
 };
 export function gameIsActive() {
   const state = useGame.getState();
-  return !state.paused && !state.build && state.panel === "none";
+  return (
+    !state.paused &&
+    !state.build &&
+    state.panel === "none" &&
+    state.near !== "exit"
+  );
 }
 export function GameControls({
   children,
   name,
   position = [0, 0.6, 3.5],
+  mobileSheet = false,
+  dock = "right",
+  collapsible,
+  gameOpen = false,
+  onClose,
+  onStart,
+  mode,
+  launcherIndex = 0,
 }: {
   children: ReactNode;
   name: string;
   position?: [number, number, number];
+  mobileSheet?: boolean;
+  dock?: "left" | "right";
+  collapsible?: string;
+  gameOpen?: boolean;
+  onClose?: () => void;
+  onStart?: () => void;
+  mode?: "blackjack" | "pong" | "kitchen";
+  launcherIndex?: number;
 }) {
+  const [expanded, setExpanded] = useState(true);
+  const modeActive = useGameMode((s) => !!mode && s.active?.id === mode);
+  const otherMode = useGameMode(
+    (s) => !!mode && !!s.active && s.active.id !== mode,
+  );
+  const focusPending = useRef(false);
+  const toggle = (next: boolean) => {
+    focusPending.current = true;
+    if (mode) {
+      if (next) {
+        if (!startGameMode(mode)) {
+          focusPending.current = false;
+          return;
+        }
+        onStart?.();
+      } else {
+        onClose?.();
+        endGameMode();
+      }
+    }
+    setExpanded(next);
+  };
+  // Html commits in its own React root. Focus the replacement button when it
+  // actually mounts, not in a parent layout effect before that portal commits.
+  const focusToggle = (button: HTMLButtonElement | null) => {
+    if (button && focusPending.current) {
+      button.focus({ preventScroll: true });
+      focusPending.current = false;
+    }
+  };
+  const open = mode ? modeActive : !collapsible || expanded;
   const gl = useThree((s) => s.gl);
   // Drei otherwise changes targets when R3F connects its event source on the
   // first frame, tearing down its React root during another root's commit.
@@ -31,19 +85,71 @@ export function GameControls({
   );
   const projected = useMemo(() => new THREE.Vector3(), []);
   const panel = useRef<HTMLElement>(null);
-  const hidden = useGame((s) => s.paused || s.panel !== "none" || s.build);
-  return hidden ? null : (
+  const hidden = useGame(
+    (s) => s.paused || s.panel !== "none" || s.build || s.near === "exit",
+  );
+  useEffect(() => {
+    const close = () => {
+      if (mode && !modeActive) return;
+      // Shared Exit retains focus and waits for its overlay lock to clear.
+      focusPending.current = !!mode;
+      if (mode) {
+        onClose?.();
+        endGameMode();
+      } else if (!collapsible) onClose?.();
+      if (collapsible) setExpanded(false);
+    };
+    window.addEventListener("interior-game-close", close);
+    return () => window.removeEventListener("interior-game-close", close);
+  }, [collapsible, onClose, mode, modeActive]);
+  return hidden || otherMode ? null : (
     <Html
       portal={portal}
-      position={position}
-      center
+      wrapperClass="interior-game-root"
+      position={mode && open ? [0, GAME_STAGE_Y + 2, 0] : position}
+      center={!mode || !open}
+      fullscreen={!!mode && open}
       zIndexRange={[20, 0]}
       calculatePosition={(object, camera, size) => {
+        if (mode && open) return [size.width / 2, size.height / 2];
         object.getWorldPosition(projected).project(camera);
         const halfWidth =
           (panel.current?.offsetWidth ?? Math.min(320, size.width - 36)) / 2;
         const x = ((projected.x + 1) * size.width) / 2;
         const halfHeight = (panel.current?.offsetHeight ?? 160) / 2;
+        const joystick = gl.domElement
+          .closest(".game-shell")
+          ?.querySelector<HTMLElement>(".joystick")
+          ?.getBoundingClientRect();
+        const canvas = gl.domElement.getBoundingClientRect();
+        if (!open)
+          return [
+            size.width - halfWidth - 16,
+            size.height - halfHeight - 52 - launcherIndex * 58,
+          ];
+        if (mobileSheet && size.width <= 700 && size.height >= 600) {
+          const bottom = gameOpen
+            ? size.height - 48
+            : joystick?.height
+              ? joystick.top - canvas.top - 12
+              : size.height - 48;
+          return [
+            size.width / 2,
+            Math.max(halfHeight + 76, bottom - halfHeight),
+          ];
+        }
+        // The pong rack is on the right; use the opposite side even on a
+        // landscape phone, without occupying its movement joystick.
+        if (dock === "left" && size.width >= 700)
+          return [
+            halfWidth +
+              (joystick?.height ? joystick.right - canvas.left + 16 : 24),
+            THREE.MathUtils.clamp(
+              size.height - halfHeight - (size.height < 600 ? 48 : 96),
+              halfHeight + 124,
+              size.height - halfHeight - 12,
+            ),
+          ];
         // Wide screens have room for a side card; keep the customers/table clear.
         if (size.width >= 900)
           return [
@@ -67,12 +173,41 @@ export function GameControls({
     >
       <section
         ref={panel}
-        className="interior-game"
+        className={`interior-game${mobileSheet ? " interior-game--sheet" : ""}${dock === "left" ? " interior-game--left" : ""}${collapsible ? " interior-game--house" : ""}${!open ? " interior-game--collapsed" : ""}${mode && open ? " interior-game--viewport" : ""}`}
         aria-label={name}
+        data-interior-game-open={
+          open && (mode || gameOpen) ? "true" : undefined
+        }
         onPointerDown={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          // The launcher is not an open game: WASD/arrows and Escape still
+          // belong to the world, while Enter/Space only activate its button.
+          if (!open && e.key !== "Enter" && e.key !== " ") return;
+          e.stopPropagation();
+          if (e.key === "Escape" && collapsible) toggle(false);
+        }}
       >
-        {children}
+        {open ? (
+          <>
+            {collapsible && (
+              <button
+                className="house-game-close"
+                ref={focusToggle}
+                aria-label={`Close ${collapsible}`}
+                onClick={() => toggle(false)}
+              >
+                ×
+              </button>
+            )}
+            <div className={mode ? "interior-game-content" : undefined}>
+              {children}
+            </div>
+          </>
+        ) : (
+          <button ref={focusToggle} onClick={() => toggle(true)}>
+            Play {collapsible}
+          </button>
+        )}
       </section>
     </Html>
   );

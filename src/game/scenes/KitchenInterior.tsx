@@ -1,5 +1,7 @@
-import { useEffect, useReducer, useRef } from "react";
+import { useEffect, useReducer, useRef, type RefObject } from "react";
 import { useFrame } from "@react-three/fiber";
+import { roomFor } from "../core/room";
+import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import * as THREE from "three";
 import { Box, Ball, Cylinder, Ring } from "../world/Models";
 import {
@@ -9,8 +11,15 @@ import {
   type CookingGame,
   type Ingredient,
 } from "../core/interiorGames";
-import { newRestaurant, restaurantReducer } from "../core/restaurant";
+import {
+  newRestaurant,
+  restaurantReducer,
+  type Restaurant,
+} from "../core/restaurant";
 import { CraftedBox, Customer, WallSconce } from "./CraftedDetails";
+import { HouseRooms } from "./HouseRooms";
+import { DiningSet, SupplyRack } from "./HouseWingFurniture";
+import { GAME_STAGE_Y, InteriorGameStage } from "./InteriorGameStage";
 import {
   Barrel,
   Bottle,
@@ -23,6 +32,11 @@ import {
   gameIsActive,
   type InteriorGameProps,
 } from "./InteriorProps";
+
+const hall = roomFor("kitchen"),
+  backWall = 0.5 - hall.depth / 2,
+  leftWall = 0.5 - hall.width / 2,
+  tileColumns = Math.floor((hall.width - 1) / 0.83);
 
 function Produce({
   kind,
@@ -178,9 +192,13 @@ function HangingPan({
 function Stove({
   stage,
   onFinish,
+  position = [5.8, 0, backWall + 1.2],
+  scale = 1.3,
 }: {
   stage: CookingGame["stage"];
   onFinish: () => void;
+  position?: [number, number, number];
+  scale?: number;
 }) {
   const steam = useRef<THREE.Group>(null);
   const cooking = stage === "cook" || stage === "serve";
@@ -194,7 +212,7 @@ function Stove({
     });
   });
   return (
-    <group position={[5.8, 0, -10.3]} scale={1.3}>
+    <group position={position} scale={scale}>
       <CraftedBox p={[0, 0.65, 0]} s={[2.5, 1.3, 1.6]} c="#a77e51" />
       <Box p={[0, 0.66, 0.84]} s={[1.75, 0.95, 0.09]} c="#3e453d" />
       <Box p={[0, 0.53, 0.91]} s={[1.3, 0.48, 0.05]} c="#252f2c" />
@@ -265,8 +283,112 @@ function Stove({
   );
 }
 
-/** Furnishings/game only. Mount inside the shared 22×26 room shell. */
+function KitchenPlayStage({
+  shift,
+  knife,
+  onTake,
+  onIngredient,
+  onChop,
+  onFinish,
+}: {
+  shift: Restaurant;
+  knife: RefObject<THREE.Group | null>;
+  onTake: (id: number) => void;
+  onIngredient: (ingredient: Ingredient) => void;
+  onChop: () => void;
+  onFinish: () => void;
+}) {
+  const game = shift.batch;
+  return (
+    <>
+      <InteriorGameStage kind="kitchen" />
+      <group position={[0, GAME_STAGE_Y, 0]}>
+        <Cabinet p={[-2, 0, -3.6]} width={3.2} />
+        {SOUP_INGREDIENTS.map((kind, i) => (
+          <Crate
+            key={kind}
+            p={[-2.9 + i * 0.9, 1.35, -3.6]}
+            kind={kind}
+            taken={game.ingredients.includes(kind)}
+            onTake={() => onIngredient(kind)}
+          />
+        ))}
+        <Stove
+          stage={game.stage}
+          onFinish={onFinish}
+          position={[2.3, 0, -3.6]}
+          scale={1}
+        />
+        <group
+          onClick={(event) => {
+            event.stopPropagation();
+            if (gameIsActive()) onChop();
+          }}
+        >
+          <Table size={[3.8, 1.8]} />
+          <CraftedBox p={[0, 1.27, 0]} s={[3.9, 0.18, 1.95]} c="#d0ac6d" />
+          <CraftedBox p={[-0.3, 1.4, 0]} s={[1.65, 0.09, 1.15]} c="#936637" />
+          {game.stage === "chop" &&
+            game.ingredients.map((kind, i) => (
+              <Produce key={kind} kind={kind} p={[-0.8 + i * 0.45, 1.58, 0]} />
+            ))}
+          {Array.from({ length: game.chops * 3 }, (_, i) => (
+            <Box
+              key={i}
+              p={[
+                -0.85 + (i % 4) * 0.3,
+                1.52,
+                -0.28 + Math.floor(i / 4) * 0.25,
+              ]}
+              s={[0.15, 0.13, 0.12]}
+              c={["#cd5438", "#e69a37", "#5c8c3d"][i % 3]}
+              r={[0, i * 0.7, 0]}
+            />
+          ))}
+          <group ref={knife} position={[-0.9, 1.64, -0.42]}>
+            <Box p={[0.28, 0, 0]} s={[0.62, 0.26, 0.035]} c="#d7d8bf" />
+            <Box p={[-0.18, 0.04, 0]} s={[0.3, 0.11, 0.1]} c="#513c28" />
+          </group>
+          <Cylinder p={[1.2, 1.5, 0]} s={[0.3, 0.35, 0.3]} c="#d9c38b" />
+        </group>
+        <CraftedBox p={[0, 0.6, 3]} s={[6.8, 1.2, 1.1]} c="#365e50" />
+        <CraftedBox p={[0, 1.27, 3]} s={[7, 0.18, 1.25]} c="#c49d61" />
+        {shift.orders.map((order) => (
+          <group key={order.id} position={[-2.25 + order.seat * 2.25, 0, 0]}>
+            <group position={[0, 0, 4.8]} rotation={[0, Math.PI, 0]}>
+              <Customer
+                p={[0, 0, 0]}
+                color={["#8e4535", "#3e6d7f", "#7b7242"][order.seat]}
+                index={order.seat}
+              />
+            </group>
+            <group
+              position={[0, 2.6, 4.8]}
+              onClick={(event) => {
+                event.stopPropagation();
+                if (gameIsActive()) onTake(order.id);
+              }}
+            >
+              <CraftedBox
+                s={[0.94, 0.68, 0.16]}
+                c={order.id === shift.active ? "#c59b4c" : "#31564b"}
+              />
+              <Ball
+                p={[0, 0, 0.15]}
+                s={[0.24, 0.2, 0.09]}
+                c={RECIPES[order.recipe].color}
+              />
+            </group>
+          </group>
+        ))}
+      </group>
+    </>
+  );
+}
+
+/** Furnishings/game only, inside the shared expanded house shell. */
 export function KitchenInterior({ onReward }: InteriorGameProps) {
+  const playing = useGameMode((s) => s.active?.id === "kitchen");
   const [shift, shiftDispatch] = useReducer(
     restaurantReducer,
     undefined,
@@ -283,7 +405,7 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
     knife = useRef<THREE.Group>(null);
   const finish = () => dispatch({ type: "finish", heat: heat.current });
   useFrame((_, dt) => {
-    if (!gameIsActive()) return;
+    if (!gameIsActive() || !playing) return;
     if (shift.status === "open") {
       tick.current += dt;
       if (tick.current >= 0.25) {
@@ -313,234 +435,321 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
     }
   }, [shift.tips, onReward]);
   const start = () => {
+    if (shift.status === "open") return;
     heat.current = 0;
     paidTips.current = 0;
     tick.current = 0;
     shiftDispatch({ type: "open" });
   };
   const chop = () => dispatch({ type: "chop" });
+  const take = (id: number) => {
+    if (shift.active !== null) return;
+    heat.current = 0;
+    shiftDispatch({ type: "take", id });
+  };
   return (
     <group>
-      {/* A ceramic backsplash, not another room shell. */}
-      {Array.from({ length: 48 }, (_, i) => (
-        <Box
-          key={i}
-          p={[-9.8 + (i % 24) * 0.84, 1.9 + Math.floor(i / 24) * 0.57, -11.55]}
-          s={[0.78, 0.51, 0.14]}
-          c={i % 3 === 0 ? "#7d9d8a" : "#e7d6aa"}
-        />
-      ))}
-      <group position={[-5.8, 0, -10.5]} scale={1.35}>
-        <Cabinet p={[0, 0, 0]} width={4.1} />
-        {SOUP_INGREDIENTS.map((kind, i) => (
-          <Crate
-            key={kind}
-            p={[-1.3 + i * 1.3, 1.35, 0]}
-            kind={kind}
-            taken={game.ingredients.includes(kind)}
-            onTake={() => dispatch({ type: "ingredient", ingredient: kind })}
+      <group visible={!playing}>
+        {/* A ceramic backsplash, not another room shell. */}
+        <HouseRooms scene="kitchen" />
+        {Array.from({ length: tileColumns * 2 }, (_, i) => (
+          <CraftedBox
+            key={i}
+            p={[
+              ((i % tileColumns) - (tileColumns - 1) / 2) * 0.83,
+              1.9 + Math.floor(i / tileColumns) * 0.57,
+              backWall - 0.05,
+            ]}
+            s={[0.78, 0.51, 0.14]}
+            c={i % 3 === 0 ? "#7d9d8a" : "#e7d6aa"}
           />
         ))}
-        <Shelf p={[0, 3.2, -0.65]} width={4.2} />
-        {[-1.5, -1.1, -0.7].map((x) => (
-          <Bottle key={x} p={[x, 3.3, -0.65]} color="#8e984e" />
-        ))}
-        {[-0.1, 0.6, 1.3].map((x, i) => (
-          <group key={x}>
-            <Cylinder
-              p={[x, 3.58, -0.65]}
-              s={[0.24, 0.6, 0.24]}
-              c={["#d6b877", "#b6804b", "#c4cb9b"][i]}
+        <group position={[leftWall + 4.5, 0, backWall + 1]}>
+          <Cabinet p={[0, 0, 0]} width={4.1} />
+          {SOUP_INGREDIENTS.map((kind, i) => (
+            <Crate
+              key={kind}
+              p={[-1.3 + i * 1.3, 1.35, 0]}
+              kind={kind}
+              taken={game.ingredients.includes(kind)}
+              onTake={() => dispatch({ type: "ingredient", ingredient: kind })}
             />
-            <Cylinder p={[x, 3.9, -0.65]} s={[0.26, 0.08, 0.26]} c="#83512e" />
-            <Box p={[x, 3.55, -0.4]} s={[0.22, 0.2, 0.025]} c="#f3e3b5" />
-          </group>
-        ))}
-      </group>
-      <group
-        position={[-9.6, 0, -4.7]}
-        scale={1.3}
-        rotation={[0, Math.PI / 2, 0]}
-      >
-        <Cabinet p={[0, 0, 0]} width={3.4} />
-        <Box p={[0, 1.35, 0]} s={[1.5, 0.11, 0.9]} c="#577f78" />
-        <Box p={[0, 1.4, 0]} s={[1.22, 0.08, 0.68]} c="#a3b9a2" />
-        <Ring
-          p={[0, 1.65, -0.45]}
-          radius={0.24}
-          tube={0.045}
-          r={[0, 0, 0]}
-          c="#b99b53"
-        />
-        <Box p={[0, 1.62, -0.3]} s={[0.08, 0.12, 0.3]} c="#b99b53" />
-        <Box p={[1.15, 1.4, 0]} s={[0.5, 0.08, 0.6]} c="#d3d5b6" />
-        <Box p={[1.15, 1.45, 0]} s={[0.36, 0.02, 0.5]} c="#8aa695" />
-      </group>
-      <CraftedBox p={[-10.5, 3.5, -4.7]} s={[0.18, 0.18, 5.5]} c="#674a32" />
-      {[-6.4, -4.7, -3].map((z, i) => (
-        <HangingPan key={z} p={[-10.4, 2.65, z]} radius={0.38 + i * 0.055} />
-      ))}
-      <Stove stage={game.stage} onFinish={finish} />
-      <group position={[-1.8, 0, -4]} scale={1.45}>
-        <Table size={[3.8, 1.8]} />
-        <CraftedBox p={[0, 1.27, 0]} s={[3.9, 0.25, 1.95]} c="#dfbb75" />
-        {[-1.3, -0.65, 0, 0.65, 1.3].map((x) => (
-          <Box key={x} p={[x, 1.355, 0]} s={[0.017, 0.012, 1.83]} c="#b88b47" />
-        ))}
+          ))}
+          <Shelf p={[0, 3.2, -0.65]} width={4.2} />
+          {[-1.5, -1.1, -0.7].map((x) => (
+            <Bottle key={x} p={[x, 3.3, -0.65]} color="#8e984e" />
+          ))}
+          {[-0.1, 0.6, 1.3].map((x, i) => (
+            <group key={x}>
+              <Cylinder
+                p={[x, 3.58, -0.65]}
+                s={[0.24, 0.6, 0.24]}
+                c={["#d6b877", "#b6804b", "#c4cb9b"][i]}
+              />
+              <Cylinder
+                p={[x, 3.9, -0.65]}
+                s={[0.26, 0.08, 0.26]}
+                c="#83512e"
+              />
+              <Box p={[x, 3.55, -0.4]} s={[0.22, 0.2, 0.025]} c="#f3e3b5" />
+            </group>
+          ))}
+        </group>
         <group
-          onClick={(e) => {
-            e.stopPropagation();
-            if (gameIsActive()) chop();
+          position={[leftWall + 0.9, 0, -4.7]}
+          scale={1.3}
+          rotation={[0, Math.PI / 2, 0]}
+        >
+          <Cabinet p={[0, 0, 0]} width={3.4} />
+          <Box p={[0, 1.35, 0]} s={[1.5, 0.11, 0.9]} c="#577f78" />
+          <Box p={[0, 1.4, 0]} s={[1.22, 0.08, 0.68]} c="#a3b9a2" />
+          <Ring
+            p={[0, 1.65, -0.45]}
+            radius={0.24}
+            tube={0.045}
+            r={[0, 0, 0]}
+            c="#b99b53"
+          />
+          <Box p={[0, 1.62, -0.3]} s={[0.08, 0.12, 0.3]} c="#b99b53" />
+          <Box p={[1.15, 1.4, 0]} s={[0.5, 0.08, 0.6]} c="#d3d5b6" />
+          <Box p={[1.15, 1.45, 0]} s={[0.36, 0.02, 0.5]} c="#8aa695" />
+        </group>
+        <CraftedBox
+          p={[leftWall, 3.5, -4.7]}
+          s={[0.18, 0.18, 5.5]}
+          c="#674a32"
+        />
+        {[-6.4, -4.7, -3].map((z, i) => (
+          <HangingPan
+            key={z}
+            p={[leftWall + 0.1, 2.65, z]}
+            radius={0.38 + i * 0.055}
+          />
+        ))}
+        <Stove stage={game.stage} onFinish={finish} />
+        <group position={[-1.8, 0, -4]} scale={1.45}>
+          <Table size={[3.8, 1.8]} />
+          <CraftedBox p={[0, 1.27, 0]} s={[3.9, 0.25, 1.95]} c="#dfbb75" />
+          {[-1.3, -0.65, 0, 0.65, 1.3].map((x) => (
+            <Box
+              key={x}
+              p={[x, 1.355, 0]}
+              s={[0.017, 0.012, 1.83]}
+              c="#b88b47"
+            />
+          ))}
+          <group
+            onClick={(e) => {
+              e.stopPropagation();
+              if (gameIsActive()) chop();
+            }}
+          >
+            <Box p={[-0.35, 1.4, 0]} s={[1.65, 0.09, 1.15]} c="#a7763e" />
+            <Cylinder p={[0.58, 1.4, 0]} s={[0.2, 0.07, 0.2]} c="#a7763e" />
+            {game.stage === "chop" &&
+              game.ingredients.map((kind, i) => (
+                <Produce
+                  key={kind}
+                  kind={kind}
+                  p={[-0.8 + i * 0.45, 1.58, 0]}
+                />
+              ))}
+            {game.chops > 0 &&
+              Array.from({ length: game.chops * 3 }, (_, i) => (
+                <Box
+                  key={i}
+                  p={[
+                    -0.85 + (i % 4) * 0.3,
+                    1.52,
+                    -0.28 + Math.floor(i / 4) * 0.25,
+                  ]}
+                  s={[0.15, 0.13, 0.12]}
+                  c={["#cd5438", "#e69a37", "#5c8c3d"][i % 3]}
+                  r={[0, i * 0.7, 0]}
+                />
+              ))}
+            <group
+              ref={playing ? undefined : knife}
+              position={[-0.9, 1.64, -0.42]}
+            >
+              <Box p={[0.28, 0, 0]} s={[0.62, 0.26, 0.035]} c="#d7d8bf" />
+              <Box p={[-0.18, 0.04, 0]} s={[0.3, 0.11, 0.1]} c="#513c28" />
+            </group>
+          </group>
+          <Cylinder p={[1.25, 1.51, 0]} s={[0.28, 0.35, 0.28]} c="#d9c38b" />
+          {[0, 1, 2].map((i) => (
+            <Box
+              key={i}
+              p={[1.12 + i * 0.13, 1.9, 0]}
+              s={[0.05, 0.65, 0.05]}
+              c="#81603c"
+              r={[0, 0, (i - 1) * 0.2]}
+            />
+          ))}
+          <Shelf p={[0, 0.3, 0]} width={3.3} />
+          {[-0.9, 0, 0.9].map((x) => (
+            <Cylinder
+              key={x}
+              p={[x, 0.56, 0]}
+              s={[0.33, 0.4, 0.33]}
+              c="#bd8c4c"
+            />
+          ))}
+        </group>
+        <group position={[8.8, 0, -3.5]} scale={1.2}>
+          <Table size={[1.65, 2.4]} />
+          <Box p={[0, 1.26, 0]} s={[1.7, 0.05, 2.45]} c="#c3d1b1" />
+          {[-0.65, 0.15, 0.85].map((z, i) => (
+            <group key={z}>
+              <Cylinder p={[0, 1.32, z]} s={[0.42, 0.05, 0.42]} c="#eee0b9" />
+              <Cylinder p={[0, 1.46, z]} s={[0.29, 0.22, 0.29]} c="#dfc98f" />
+              <Cylinder
+                p={[0, 1.58, z]}
+                s={[0.24, 0.015, 0.24]}
+                c={
+                  game.stage === "done" || (game.stage === "serve" && i === 0)
+                    ? game.quality === "burnt"
+                      ? "#5c4533"
+                      : "#d77a35"
+                    : "#c6b782"
+                }
+              />
+            </group>
+          ))}
+          <Stool p={[0, 0, 2]} color="#598074" />
+        </group>
+        <Barrel p={[-9.1, 0, 0.5]} />
+        <Plant p={[9.2, 0, 9]} />
+        <WallSconce p={[-1.6, 3.3, backWall]} />
+        <WallSconce p={[9, 3.3, backWall]} />
+        <SupplyRack p={[leftWall + 0.5, 0, -12.5]} rotation={Math.PI / 2} />
+        <SupplyRack p={[-leftWall - 0.5, 0, -7.5]} rotation={-Math.PI / 2} />
+        <group position={[-leftWall - 4, 0, backWall + 1]}>
+          <Cabinet p={[0, 0, 0]} width={4} />
+          <Cylinder p={[-0.9, 1.7, 0]} s={[0.34, 0.65, 0.34]} c="#657d70" />
+          <Cylinder p={[-0.9, 2.04, 0]} s={[0.38, 0.09, 0.38]} c="#c3a367" />
+          {[0, 1, 2].map((i) => (
+            <Cylinder
+              key={i}
+              p={[0.25 + i * 0.5, 1.5, 0.1]}
+              s={[0.16, 0.28, 0.16]}
+              c="#ded5b4"
+            />
+          ))}
+        </group>
+        <DiningSet p={[-12.4, 0, 12]} />
+        <DiningSet p={[12.4, 0, 12]} />
+        <Plant p={[-15.3, 0, 17.4]} />
+        <Plant p={[15.3, 0, 17.4]} />
+        <group
+          position={[0, 0, 2.4]}
+          onClick={(event) => {
+            event.stopPropagation();
+            if (!playing && gameIsActive() && startGameMode("kitchen")) start();
           }}
         >
-          <Box p={[-0.35, 1.4, 0]} s={[1.65, 0.09, 1.15]} c="#a7763e" />
-          <Cylinder p={[0.58, 1.4, 0]} s={[0.2, 0.07, 0.2]} c="#a7763e" />
-          {game.stage === "chop" &&
-            game.ingredients.map((kind, i) => (
-              <Produce key={kind} kind={kind} p={[-0.8 + i * 0.45, 1.58, 0]} />
-            ))}
-          {game.chops > 0 &&
-            Array.from({ length: game.chops * 3 }, (_, i) => (
-              <Box
-                key={i}
-                p={[
-                  -0.85 + (i % 4) * 0.3,
-                  1.52,
-                  -0.28 + Math.floor(i / 4) * 0.25,
-                ]}
-                s={[0.15, 0.13, 0.12]}
-                c={["#cd5438", "#e69a37", "#5c8c3d"][i % 3]}
-                r={[0, i * 0.7, 0]}
+          <CraftedBox p={[0, 0.76, 0]} s={[14.8, 1.5, 1.35]} c="#365e50" />
+          <CraftedBox p={[0, 1.58, 0]} s={[15.2, 0.3, 1.65]} c="#bd914f" />
+          <CraftedBox p={[0, 1.77, 0]} s={[14.6, 0.12, 1.38]} c="#ecd3a0" />
+          {[-6, -3, 0, 3, 6].map((x) => (
+            <group key={x}>
+              <CraftedBox
+                p={[x, 0.83, 0.69]}
+                s={[2.5, 1.1, 0.12]}
+                c="#4b7b65"
               />
-            ))}
-          <group ref={knife} position={[-0.9, 1.64, -0.42]}>
-            <Box p={[0.28, 0, 0]} s={[0.62, 0.26, 0.035]} c="#d7d8bf" />
-            <Box p={[-0.18, 0.04, 0]} s={[0.3, 0.11, 0.1]} c="#513c28" />
-          </group>
-        </group>
-        <Cylinder p={[1.25, 1.51, 0]} s={[0.28, 0.35, 0.28]} c="#d9c38b" />
-        {[0, 1, 2].map((i) => (
-          <Box
-            key={i}
-            p={[1.12 + i * 0.13, 1.9, 0]}
-            s={[0.05, 0.65, 0.05]}
-            c="#81603c"
-            r={[0, 0, (i - 1) * 0.2]}
-          />
-        ))}
-        <Shelf p={[0, 0.3, 0]} width={3.3} />
-        {[-0.9, 0, 0.9].map((x) => (
-          <Cylinder
-            key={x}
-            p={[x, 0.56, 0]}
-            s={[0.33, 0.4, 0.33]}
-            c="#bd8c4c"
-          />
-        ))}
-      </group>
-      <group position={[8.8, 0, -3.5]} scale={1.2}>
-        <Table size={[1.65, 2.4]} />
-        <Box p={[0, 1.26, 0]} s={[1.7, 0.05, 2.45]} c="#c3d1b1" />
-        {[-0.65, 0.15, 0.85].map((z, i) => (
-          <group key={z}>
-            <Cylinder p={[0, 1.32, z]} s={[0.42, 0.05, 0.42]} c="#eee0b9" />
-            <Cylinder p={[0, 1.46, z]} s={[0.29, 0.22, 0.29]} c="#dfc98f" />
-            <Cylinder
-              p={[0, 1.58, z]}
-              s={[0.24, 0.015, 0.24]}
-              c={
-                game.stage === "done" || (game.stage === "serve" && i === 0)
-                  ? game.quality === "burnt"
-                    ? "#5c4533"
-                    : "#d77a35"
-                  : "#c6b782"
-              }
-            />
-          </group>
-        ))}
-        <Stool p={[0, 0, 2]} color="#598074" />
-      </group>
-      <Barrel p={[-9.1, 0, 0.5]} />
-      <Plant p={[9.2, 0, 9]} />
-      <WallSconce p={[-1.6, 3.3, -11.5]} />
-      <WallSconce p={[9, 3.3, -11.5]} />
-      <group position={[0, 0, 2.4]}>
-        <CraftedBox p={[0, 0.76, 0]} s={[14.8, 1.5, 1.35]} c="#365e50" />
-        <CraftedBox p={[0, 1.58, 0]} s={[15.2, 0.3, 1.65]} c="#bd914f" />
-        <CraftedBox p={[0, 1.77, 0]} s={[14.6, 0.12, 1.38]} c="#ecd3a0" />
-        {[-6, -3, 0, 3, 6].map((x) => (
-          <group key={x}>
-            <CraftedBox p={[x, 0.83, 0.69]} s={[2.5, 1.1, 0.12]} c="#4b7b65" />
-            <CraftedBox
-              p={[x, 0.3, 0.78]}
-              s={[2.3, 0.09, 0.1]}
-              c="#d1ab5b"
-              metal
-            />
-          </group>
-        ))}
-        {shift.orders.map((order) => (
-          <group key={order.id} position={[-4.8 + order.seat * 4.8, 0, 0]}>
-            <group
-              position={[0, 0, 1.9]}
-              rotation={[0, Math.PI, 0]}
-              scale={1.3}
-            >
-              <Customer
-                p={[0, 0, 0]}
-                color={["#8e4535", "#3e6d7f", "#7b7242"][order.seat]}
-                index={order.seat}
+              <CraftedBox
+                p={[x, 0.3, 0.78]}
+                s={[2.3, 0.09, 0.1]}
+                c="#d1ab5b"
+                metal
               />
             </group>
-            <group
-              position={[0, 2.9, 1.9]}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (gameIsActive() && shift.active === null) {
-                  heat.current = 0;
-                  shiftDispatch({ type: "take", id: order.id });
-                }
-              }}
-            >
-              <CraftedBox
-                s={[1.25, 0.75, 0.14]}
-                c={order.id === shift.active ? "#f4d277" : "#f6e3ba"}
-              />
-              <Ball
-                p={[0, 0, 0.13]}
-                s={[0.24, 0.2, 0.06]}
-                c={RECIPES[order.recipe].color}
-              />
-              <Box p={[0, -0.46, 0]} s={[1.2, 0.1, 0.08]} c="#6a4c30" />
+          ))}
+          {shift.orders.map((order) => (
+            <group key={order.id} position={[-4.8 + order.seat * 4.8, 0, 0]}>
               <group
-                position={[-0.6, -0.46, 0.06]}
-                scale={[
-                  Math.max(0.01, order.patience / order.maxPatience),
-                  1,
-                  1,
-                ]}
+                position={[0, 0, 1.9]}
+                rotation={[0, Math.PI, 0]}
+                scale={1.3}
               >
-                <Box
-                  p={[0.6, 0, 0]}
-                  s={[1.2, 0.1, 0.06]}
-                  c={order.patience > 12 ? "#6c9a50" : "#b75835"}
+                <Customer
+                  p={[0, 0, 0]}
+                  color={["#8e4535", "#3e6d7f", "#7b7242"][order.seat]}
+                  index={order.seat}
                 />
               </group>
+              <group
+                position={[0, 2.9, 1.9]}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (gameIsActive() && shift.active === null) {
+                    heat.current = 0;
+                    shiftDispatch({ type: "take", id: order.id });
+                  }
+                }}
+              >
+                <CraftedBox
+                  s={[1.25, 0.75, 0.14]}
+                  c={order.id === shift.active ? "#f4d277" : "#f6e3ba"}
+                />
+                <Ball
+                  p={[0, 0, 0.13]}
+                  s={[0.24, 0.2, 0.06]}
+                  c={RECIPES[order.recipe].color}
+                />
+                <Box p={[0, -0.46, 0]} s={[1.2, 0.1, 0.08]} c="#6a4c30" />
+                <group
+                  position={[-0.6, -0.46, 0.06]}
+                  scale={[
+                    Math.max(0.01, order.patience / order.maxPatience),
+                    1,
+                    1,
+                  ]}
+                >
+                  <Box
+                    p={[0.6, 0, 0]}
+                    s={[1.2, 0.1, 0.06]}
+                    c={order.patience > 12 ? "#6c9a50" : "#b75835"}
+                  />
+                </group>
+              </group>
             </group>
+          ))}
+        </group>
+        {[-6, 6].map((x) => (
+          <group key={x} position={[x, 0, 14.4]}>
+            <Table size={[3, 2]} />
+            <CraftedBox p={[0, 1.26, 0]} s={[3.2, 0.18, 2.2]} c="#cba268" />
+            {[-1, 1].map((side) => (
+              <Stool key={side} p={[side * 1.8, 0, 0]} color="#9e4f36" />
+            ))}
+            <Bottle p={[0, 1.4, 0]} color="#608255" />
           </group>
         ))}
       </group>
-      {[-6, 6].map((x) => (
-        <group key={x} position={[x, 0, 8.1]}>
-          <Table size={[3, 2]} />
-          <CraftedBox p={[0, 1.26, 0]} s={[3.2, 0.18, 2.2]} c="#cba268" />
-          {[-1, 1].map((side) => (
-            <Stool key={side} p={[side * 1.8, 0, 0]} color="#9e4f36" />
-          ))}
-          <Bottle p={[0, 1.4, 0]} color="#608255" />
-        </group>
-      ))}
-      <GameControls name="Cooking game" position={[0, 0.4, 6]}>
+      {playing && (
+        <KitchenPlayStage
+          shift={shift}
+          knife={knife}
+          onTake={take}
+          onIngredient={(ingredient) =>
+            dispatch({ type: "ingredient", ingredient })
+          }
+          onChop={chop}
+          onFinish={finish}
+        />
+      )}
+      <GameControls
+        name="Cooking game"
+        position={[0, 0.4, 6]}
+        mobileSheet
+        gameOpen={shift.status === "open"}
+        onClose={() => shiftDispatch({ type: "end" })}
+        onStart={start}
+        collapsible="Kitchen"
+        mode="kitchen"
+      >
         {shift.status === "closed" ? (
           <>
             <button onClick={start}>Open kitchen</button>
@@ -557,7 +766,7 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
                 Tips <strong>{shift.tips}</strong>
               </span>
             </div>
-            <p>{shift.missed} customers left</p>
+            <p className="kitchen-missed">{shift.missed} customers left</p>
             <button onClick={start}>Next shift</button>
           </>
         ) : (
@@ -566,6 +775,14 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
               <b>{Math.ceil(shift.remaining)}s</b>
               <span>{shift.served} served</span>
               <b>{shift.tips} tips</b>
+              <button
+                onClick={() => {
+                  window.dispatchEvent(new Event("interior-game-close"));
+                  endGameMode();
+                }}
+              >
+                End shift
+              </button>
             </div>
             <div className="kitchen-orders" aria-label="Customer orders">
               {shift.orders.map((order) => (
@@ -589,7 +806,19 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
                 </button>
               ))}
             </div>
-            {active && <h2>{RECIPES[active.recipe].name}</h2>}
+            {active && (
+              <div className="kitchen-active">
+                <h2>
+                  {active.name} · {RECIPES[active.recipe].name}
+                </h2>
+                <meter
+                  aria-label={`${active.name} patience`}
+                  min={0}
+                  max={active.maxPatience}
+                  value={active.patience}
+                />
+              </div>
+            )}
             {shift.active === null && <p role="status">{shift.feedback}</p>}
             {game.stage === "gather" && (
               <>
@@ -644,12 +873,6 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
                 </p>
               </>
             )}
-            <button
-              className="kitchen-end"
-              onClick={() => shiftDispatch({ type: "end" })}
-            >
-              Close kitchen
-            </button>
           </>
         )}
       </GameControls>

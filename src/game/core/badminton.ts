@@ -35,7 +35,7 @@ export type BadmintonGame = {
   rally: number;
   longestRally: number;
   pointTime: number;
-  cooldown: number;
+  playerCooldown: number;
   flightTime: number;
   message: string;
 };
@@ -52,7 +52,7 @@ export function newBadmintonGame(): BadmintonGame {
     rally: 0,
     longestRally: 0,
     pointTime: 0,
-    cooldown: 0,
+    playerCooldown: 0,
     flightTime: 0,
     message: "Your serve",
   };
@@ -79,7 +79,7 @@ function launch(
   s.vy = (0.9 - s.y + 0.5 * BADMINTON.gravity * time * time) / time;
   game.lastHit = side;
   game[side].swing = 0.28;
-  game.cooldown = 0.27;
+  if (side === "player") game.playerCooldown = 0.27;
   game.flightTime = 0;
   game.rally++;
   game.longestRally = Math.max(game.longestRally, game.rally);
@@ -132,7 +132,7 @@ export function stepBadminton(
       }
       continue;
     }
-    game.cooldown = Math.max(0, game.cooldown - dt);
+    game.playerCooldown = Math.max(0, game.playerCooldown - dt);
     game.player.swing = Math.max(0, game.player.swing - dt);
     game.opponent.swing = Math.max(0, game.opponent.swing - dt);
     if (game.phase === "ready") {
@@ -169,9 +169,9 @@ export function stepBadminton(
       8.3,
     );
     const s = game.shuttle;
-    if (swing && game.cooldown === 0) {
+    if (swing && game.playerCooldown === 0) {
       game.player.swing = 0.28;
-      game.cooldown = 0.27;
+      game.playerCooldown = 0.27;
       if (
         game.lastHit === "opponent" &&
         s.z > 0.25 &&
@@ -193,25 +193,26 @@ export function stepBadminton(
         )) /
         BADMINTON.gravity,
     );
-    const attacking = game.lastHit === "player" && game.flightTime > 0.18;
+    const attacking = game.lastHit === "player" && game.flightTime > 0.3;
+    const recovering = game.lastHit === "opponent" && game.flightTime > 0.65;
     const tx = attacking ? clamp(s.x + s.vx * contactTime, -3.5, 3.5) : 0;
     const tz = attacking ? clamp(s.z + s.vz * contactTime, -8, -1.1) : -5.5;
     const ax = tx - game.opponent.x,
       az = tz - game.opponent.z;
     const distance = Math.hypot(ax, az);
-    const step = Math.min(distance, dt * 3.55);
+    // Slow recovery leaves space to attack; the guest cannot cover every corner.
+    const step = Math.min(distance, dt * (attacking ? 3.2 : recovering ? 1.3 : 0));
     if (distance > 0) {
       game.opponent.x += (ax / distance) * step;
       game.opponent.z += (az / distance) * step;
     }
     if (
       attacking &&
-      game.cooldown === 0 &&
       s.z < -0.3 &&
       s.vy < 0 &&
       s.y < 2.8 &&
       s.y > 0.6 &&
-      Math.hypot(s.x - game.opponent.x, s.z - game.opponent.z) < 1.25
+      Math.hypot(s.x - game.opponent.x, s.z - game.opponent.z) < 1.05
     ) {
       const aim =
         game.player.x > 0.5

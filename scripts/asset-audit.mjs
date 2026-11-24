@@ -17,5 +17,5 @@ async function walk(path) {
 await walk("dist/client");
 if (count > 20000) throw new Error("More than 20,000 assets");
 console.log(
-  `${count} static files, ${(bytes / 1024 / 1024).toFixed(2)} MiB. All below 25 MiB; original procedural 3D and synthesized sound only.`,
+  `${count} static files, ${(bytes / 1024 / 1024).toFixed(2)} MiB. All below 25 MiB; procedural 3D, synthesized effects and locally bundled CC0 nature recordings. See public/audio/LICENSES.md.`,
 );

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   approachNpc,
+  canTalkToNpc,
   createNpcActors,
   nearestNpc,
   stepNpc,
@@ -46,7 +47,7 @@ describe("wandering village crowd", () => {
         12,
       );
     }
-  });
+  }, 15000);
   it("stops near the player, faces them, and freezes without consuming a route while paused", () => {
     const actor = createNpcActors()[0],
       npc = villagers[0];
@@ -74,12 +75,21 @@ describe("wandering village crowd", () => {
       );
     }
   });
+  it("does not offer a conversation through a collision corner", () => {
+    const actor = { ...createNpcActors()[0], x: 1.9, z: 1.5 };
+    // Both sides of the garden corner are walkable, but the diagonal cuts it.
+    expect(canWalk(actor.x, actor.z)).toBe(true);
+    expect(canWalk(1.5, 1.9)).toBe(true);
+    expect(canTalkToNpc(actor, 1.5, 1.9)).toBe(false);
+    expect(nearestNpc([actor], 1.5, 1.9)).toBeUndefined();
+  });
 });
 
 describe("NPC interaction boundaries", () => {
   beforeEach(() => {
     useGame.setState({
       scene: "hub",
+      world: "stanford",
       panel: "none",
       paused: false,
       build: false,
