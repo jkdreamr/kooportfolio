@@ -69,10 +69,10 @@
 .writing-dialog :is(h2, h3) {
   font-family: inherit;
 }
-.writing-dialog button:focus-visible,
-.writing-dialog summary:focus-visible,
-.writing-dialog input:focus-visible,
-.writing-dialog textarea:focus-visible {
+.game-shell .writing-dialog button:focus-visible,
+.game-shell .writing-dialog summary:focus-visible,
+.game-shell .writing-dialog input:focus-visible,
+.game-shell .writing-dialog textarea:focus-visible {
   outline: 2px solid #b3d0de;
   outline-offset: 2px;
 }

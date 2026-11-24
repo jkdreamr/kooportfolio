@@ -52,6 +52,9 @@
   margin: 8px 0 14px;
   font-size: 13px;
 }
+.badminton-tap-hint {
+  display: none;
+}
 .badminton-start,
 .badminton-result {
   position: absolute;
@@ -246,6 +249,9 @@
   display: none;
 }
 @media (max-width: 700px), (pointer: coarse) {
+  .badminton-tap-hint {
+    display: inline;
+  }
   .badminton-start {
     right: 16px;
     bottom: 75px;
@@ -297,6 +303,9 @@
   }
 }
 @media (max-height: 500px) and (min-width: 600px) {
+  .badminton-tap-hint {
+    display: inline;
+  }
   .badminton-score {
     top: 12px;
     min-width: 180px;

@@ -380,9 +380,8 @@ export function Hud({ interact }: { interact: () => void }) {
       pendingExit.current = null;
     if (!g.overlayLocked && pendingExit.current === g.scene) {
       const frame = requestAnimationFrame(() => {
-        runtime.path = [];
-        runtime.target =
-          g.scene === "skate" ? [...SKATE_EXIT] : [0, roomFor(g.scene).doorZ];
+        const exit = g.scene === "skate" ? SKATE_EXIT : [0, roomFor(g.scene).doorZ];
+        walkTo(exit[0], exit[1]);
         pendingExit.current = null;
       });
       return () => cancelAnimationFrame(frame);
@@ -456,11 +455,8 @@ export function Hud({ interact }: { interact: () => void }) {
               pendingExit.current = g.scene;
               window.dispatchEvent(new Event("interior-game-close"));
               if (!useGame.getState().overlayLocked) {
-                runtime.path = [];
-                runtime.target =
-                  g.scene === "skate"
-                    ? [...SKATE_EXIT]
-                    : [0, roomFor(g.scene).doorZ];
+                const exit = g.scene === "skate" ? SKATE_EXIT : [0, roomFor(g.scene).doorZ];
+                walkTo(exit[0], exit[1]);
                 pendingExit.current = null;
               }
             }}
