@@ -1,5 +1,6 @@
 import { WORLD_BOUNDS } from "../../shared/world-bounds";
 import { forest } from "./scenery";
+import { campusObstacles } from "./campus";
 
 export const doors = [
   {
@@ -75,6 +76,16 @@ export const doors = [
     footprint: [11, -25, 3.1, 2.1] as const,
   },
 ] as const;
+export const landmarks = [
+  {
+    id: "campus",
+    name: "Stanford",
+    x: 23,
+    z: 27.5,
+    anchor: [23, 10, 20] as const,
+  },
+] as const;
+export const destinations = [...doors, ...landmarks];
 export type PlaceId = (typeof doors)[number]["id"];
 export function isInterior(scene: string) {
   return doors.some((door) => door.id === scene && scene !== "basketball");
@@ -82,6 +93,7 @@ export function isInterior(scene: string) {
 const obstacles: ReadonlyArray<readonly number[]> = [
   ...doors.map((door) => door.footprint),
   ...forest.map((tree) => [tree.x, tree.z, 0.4, 0.4]),
+  ...campusObstacles,
   [0, 0, 1.5, 1.5],
 ];
 export function canWalk(x: number, z: number) {

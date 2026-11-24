@@ -19,6 +19,8 @@ import { Interior } from "./scenes/Interior";
 import { Rowing } from "./scenes/Rowing";
 import { Basketball } from "./scenes/Basketball";
 import { Hud } from "./ui/Hud";
+import { TimeOfDayLighting } from "./world/TimeOfDayLighting";
+import { TimeOfDayControls } from "./ui/TimeOfDayControls";
 import { runtime, useGame, type Scene } from "./core/store";
 import { useInput } from "./core/input";
 import { doors, isInterior } from "./core/world";
@@ -176,6 +178,7 @@ function World() {
         color="#c7e6ff"
       />
       <Sun />
+      <TimeOfDayLighting />
       {scene !== "rowing" && (
         <mesh
           rotation={[-Math.PI / 2, 0, 0]}
@@ -279,6 +282,7 @@ export default function Game() {
         </Canvas>
       </WorldBoundary>
       <Hud interact={interact} />
+      <TimeOfDayControls />
     </div>
   );
 }

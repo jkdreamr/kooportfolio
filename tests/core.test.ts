@@ -7,7 +7,13 @@ import {
   writeGuestSave,
   SAVE_KEY,
 } from "../src/shared/save";
-import { canWalk, doors, findPath, moveWorld } from "../src/game/core/world";
+import {
+  canWalk,
+  destinations,
+  doors,
+  findPath,
+  moveWorld,
+} from "../src/game/core/world";
 import {
   dailySeed,
   newRace,
@@ -90,7 +96,7 @@ describe("walkable physical world", () => {
     expect(canWalk(...p)).toBe(true);
   });
   it("finds collision-free paths to every door", () => {
-    for (const door of doors) {
+    for (const door of destinations) {
       const path = findPath([0, 5], [door.x, door.z]);
       expect(path.length).toBeGreaterThan(0);
       expect(path.every((p) => canWalk(...p))).toBe(true);
@@ -98,6 +104,14 @@ describe("walkable physical world", () => {
         Math.hypot(path.at(-1)![0] - door.x, path.at(-1)![1] - door.z),
       ).toBeLessThan(1.2);
     }
+  });
+  it("walks through the miniature quad while respecting its wings and fountain", () => {
+    expect(canWalk(23, 24)).toBe(true);
+    expect(canWalk(23, 20.3)).toBe(false);
+    expect(canWalk(14.5, 19.5)).toBe(false);
+    const path = findPath([23, 27.5], [23, 17]);
+    expect(path.length).toBeGreaterThan(0);
+    expect(path.every((p) => canWalk(...p))).toBe(true);
   });
   it("can navigate between distant districts and keeps every destination reachable", () => {
     for (const start of doors)
