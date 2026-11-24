@@ -339,7 +339,7 @@ export const villagers: Villager[] = [
   ...extraLocals,
   ...islandLocals,
 ].map((npc, i) => {
-  const walk = STANFORD_NPC_WALKS[npc.place];
+  const walk = STANFORD_NPC_WALKS[npc.id] ?? STANFORD_NPC_WALKS[npc.place];
   if (!walk) return npc;
   const offset = i % walk.length;
   return { ...npc, route: [...walk.slice(offset), ...walk.slice(0, offset)] };

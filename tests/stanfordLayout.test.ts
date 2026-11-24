@@ -8,8 +8,29 @@ import {
 import { campusStops } from "../src/game/core/campus";
 import { HOOVER } from "../src/game/core/hoover";
 import { STANFORD_WALKS } from "../src/game/core/stanfordLayout";
+import { villageGardenPlots } from "../src/game/core/villageGardens";
 
 describe("compact Stanford village", () => {
+  it("keeps retained gardens out of the storefronts and new walking streets", () => {
+    const plots = villageGardenPlots("stanford");
+    expect(plots.length).toBeGreaterThan(0);
+    for (const { x, z, orchard } of plots) {
+      const halfX = orchard ? 0.35 : 0.85,
+        halfZ = orchard ? 0.35 : 1.5;
+      for (const {
+        footprint: [cx, cz, hx, hz],
+      } of doorsInWorld("stanford"))
+        expect(
+          Math.abs(x - cx) < hx + halfX + 0.3 &&
+            Math.abs(z - cz) < hz + halfZ + 0.3,
+        ).toBe(false);
+      for (const [cx, cz, width, depth] of STANFORD_WALKS)
+        expect(
+          Math.abs(x - cx) < width / 2 + halfX &&
+            Math.abs(z - cz) < depth / 2 + halfZ,
+        ).toBe(false);
+    }
+  });
   it("keeps neighboring, full-size storefronts a short walk apart", () => {
     const row = ["gym", "kappa", "math", "badminton"].map(
       (id) => doorsInWorld("stanford").find((door) => door.id === id)!,

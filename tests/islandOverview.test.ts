@@ -109,7 +109,9 @@ describe("stable, planted island", () => {
     "roots every %s garden inside the smaller coastline and keeps water clear",
     (world) => {
       const plots = villageGardenPlots(world);
-      expect(plots.length).toBeGreaterThan(100);
+      // Stanford trades filler plots for adjacent playable destinations.
+      // Its clear-street invariant is covered by stanfordLayout.test.ts.
+      expect(plots.length).toBeGreaterThan(world === "stanford" ? 0 : 100);
       for (const { x, z } of plots) {
         expect(
           (x / WORLD_ELLIPSE.radiusX) ** 2 +

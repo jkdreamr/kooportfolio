@@ -51,6 +51,13 @@ export function isStanfordTownSpace(x: number, z: number, margin = 0) {
 
 // Residents stay by the moved destinations; other islands keep their authored routines.
 export const STANFORD_NPC_WALKS: Record<string, [number, number][]> = {
+  mapmaker: [
+    [11, 21.4],
+    [20, 21.4],
+    [25, 25.5],
+    [20, 28],
+    [14, 25],
+  ],
   boathouse: [
     [-8, 47],
     [-3, 47],
