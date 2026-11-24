@@ -1,4 +1,7 @@
-import { ROOM } from "./room";
+import { roomFor } from "./room";
+
+const hall = roomFor("kappa");
+const innerEdge = hall.width / 2 - 0.2;
 
 export type Partition = { x: number; z: number; width: number; depth: number };
 export type RoomDoor = {
@@ -14,16 +17,26 @@ export type RoomDoor = {
 export const HOUSE_PARTITIONS: Record<string, readonly Partition[]> = {
   secret: [{ x: 0, z: -3, width: 4.8, depth: 3.1 }],
   kappa: [
-    { x: -6.4, z: 1.2, width: 8.8, depth: 0.4 },
-    { x: 6.4, z: 1.2, width: 8.8, depth: 0.4 },
+    { x: -(innerEdge + 2) / 2, z: 1.2, width: innerEdge - 2, depth: 0.4 },
+    { x: (innerEdge + 2) / 2, z: 1.2, width: innerEdge - 2, depth: 0.4 },
     { x: 1.2, z: 2.6, width: 0.4, depth: 2.8 },
-    { x: 1.2, z: 8.5, width: 0.4, depth: 3 },
+    {
+      x: 1.2,
+      z: (7 + hall.depth / 2) / 2,
+      width: 0.4,
+      depth: hall.depth / 2 - 7,
+    },
   ],
   kitchen: [
-    { x: -10.45, z: 0.5, width: 0.7, depth: 0.4 },
+    { x: -(innerEdge + 10.1) / 2, z: 0.5, width: innerEdge - 10.1, depth: 0.4 },
     { x: 0, z: 0.5, width: 14.4, depth: 0.4 },
-    { x: 10.45, z: 0.5, width: 0.7, depth: 0.4 },
-    { x: -5.4, z: -10.2, width: 0.4, depth: 4.6 },
+    { x: (innerEdge + 10.1) / 2, z: 0.5, width: innerEdge - 10.1, depth: 0.4 },
+    {
+      x: -5.4,
+      z: -(hall.depth / 2 + 7.9) / 2,
+      width: 0.4,
+      depth: hall.depth / 2 - 7.9,
+    },
     { x: -5.4, z: -2.3, width: 0.4, depth: 5.6 },
   ],
 };
@@ -48,6 +61,7 @@ export function moveInterior(
   dx: number,
   dz: number,
 ): [number, number] {
+  const room = roomFor(scene);
   const walls = HOUSE_PARTITIONS[scene] ?? [];
   const blocked = (nextX: number, nextZ: number) =>
     walls.some(
@@ -61,8 +75,8 @@ export function moveInterior(
     Math.ceil(Math.max(Math.abs(dx), Math.abs(dz)) / 0.12),
   );
   for (let step = 0; step < steps; step++) {
-    const nextX = clamp(x + dx / steps, -ROOM.walkX, ROOM.walkX);
-    const nextZ = clamp(z + dz / steps, ROOM.minZ, ROOM.maxZ);
+    const nextX = clamp(x + dx / steps, -room.walkX, room.walkX);
+    const nextZ = clamp(z + dz / steps, room.minZ, room.maxZ);
     if (!blocked(nextX, z)) x = nextX;
     if (!blocked(x, nextZ)) z = nextZ;
   }

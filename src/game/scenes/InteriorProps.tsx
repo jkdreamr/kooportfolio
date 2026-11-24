@@ -1,4 +1,4 @@
-import { useMemo, useRef, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
@@ -24,13 +24,34 @@ export function GameControls({
   position = [0, 0.6, 3.5],
   mobileSheet = false,
   dock = "right",
+  collapsible,
+  gameOpen = false,
+  onClose,
 }: {
   children: ReactNode;
   name: string;
   position?: [number, number, number];
   mobileSheet?: boolean;
   dock?: "left" | "right";
+  collapsible?: string;
+  gameOpen?: boolean;
+  onClose?: () => void;
 }) {
+  const [expanded, setExpanded] = useState(true);
+  const focusPending = useRef(false);
+  const toggle = (next: boolean) => {
+    focusPending.current = true;
+    setExpanded(next);
+  };
+  // Html commits in its own React root. Focus the replacement button when it
+  // actually mounts, not in a parent layout effect before that portal commits.
+  const focusToggle = (button: HTMLButtonElement | null) => {
+    if (button && focusPending.current) {
+      button.focus({ preventScroll: true });
+      focusPending.current = false;
+    }
+  };
+  const open = !collapsible || expanded;
   const gl = useThree((s) => s.gl);
   // Drei otherwise changes targets when R3F connects its event source on the
   // first frame, tearing down its React root during another root's commit.
@@ -43,9 +64,20 @@ export function GameControls({
   const hidden = useGame(
     (s) => s.paused || s.panel !== "none" || s.build || s.near === "exit",
   );
+  useEffect(() => {
+    const close = () => {
+      // Shared Exit retains focus and waits for its overlay lock to clear.
+      focusPending.current = false;
+      if (collapsible) setExpanded(false);
+      else onClose?.();
+    };
+    window.addEventListener("interior-game-close", close);
+    return () => window.removeEventListener("interior-game-close", close);
+  }, [collapsible, onClose]);
   return hidden ? null : (
     <Html
       portal={portal}
+      wrapperClass="interior-game-root"
       position={position}
       center
       zIndexRange={[20, 0]}
@@ -60,10 +92,14 @@ export function GameControls({
           ?.querySelector<HTMLElement>(".joystick")
           ?.getBoundingClientRect();
         const canvas = gl.domElement.getBoundingClientRect();
+        if (!open)
+          return [size.width - halfWidth - 16, size.height - halfHeight - 52];
         if (mobileSheet && size.width <= 700 && size.height >= 600) {
-          const bottom = joystick?.height
-            ? joystick.top - canvas.top - 12
-            : size.height - 235;
+          const bottom = gameOpen
+            ? size.height - 48
+            : joystick?.height
+              ? joystick.top - canvas.top - 12
+              : size.height - 48;
           return [
             size.width / 2,
             Math.max(halfHeight + 76, bottom - halfHeight),
@@ -77,7 +113,7 @@ export function GameControls({
               (joystick?.height ? joystick.right - canvas.left + 16 : 24),
             THREE.MathUtils.clamp(
               size.height - halfHeight - (size.height < 600 ? 48 : 96),
-              halfHeight + 76,
+              halfHeight + 124,
               size.height - halfHeight - 12,
             ),
           ];
@@ -104,12 +140,34 @@ export function GameControls({
     >
       <section
         ref={panel}
-        className={`interior-game${mobileSheet ? " interior-game--sheet" : ""}${dock === "left" ? " interior-game--left" : ""}`}
+        className={`interior-game${mobileSheet ? " interior-game--sheet" : ""}${dock === "left" ? " interior-game--left" : ""}${collapsible ? " interior-game--house" : ""}${!open ? " interior-game--collapsed" : ""}`}
         aria-label={name}
+        data-interior-game-open={open && gameOpen ? "true" : undefined}
         onPointerDown={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          if (e.key === "Escape" && collapsible) toggle(false);
+        }}
       >
-        {children}
+        {open ? (
+          <>
+            {collapsible && (
+              <button
+                className="house-game-close"
+                ref={focusToggle}
+                aria-label={`Close ${collapsible}`}
+                onClick={() => toggle(false)}
+              >
+                ×
+              </button>
+            )}
+            {children}
+          </>
+        ) : (
+          <button ref={focusToggle} onClick={() => toggle(true)}>
+            Play {collapsible}
+          </button>
+        )}
       </section>
     </Html>
   );

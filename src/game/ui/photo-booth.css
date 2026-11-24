@@ -13,6 +13,21 @@
     0 20px 70px #12252b70;
   overflow: auto;
   overscroll-behavior: contain;
+  color-scheme: dark;
+  scrollbar-width: thin;
+  scrollbar-color: #536873 #21353f;
+}
+.photo-booth-dialog::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.photo-booth-dialog::-webkit-scrollbar-track {
+  background: #21353f;
+}
+.photo-booth-dialog::-webkit-scrollbar-thumb {
+  background: #536873;
+  border: 2px solid #21353f;
+  border-radius: 4px;
 }
 .photo-booth-dialog::backdrop {
   background: #102329b8;
