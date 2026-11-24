@@ -1,38 +1,116 @@
-import { useMemo, type RefObject } from "react";
+import { useCallback, useMemo, type RefObject } from "react";
 import { Html } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
-import { FIELD_GOAL } from "../core/fieldGoal";
+import type { KickResult } from "../core/fieldGoal";
+import {
+  STADIUM_KICKS,
+  STADIUM_TARGET,
+  type StadiumScore,
+} from "../core/stadiumChallenge";
 import { useGame } from "../core/store";
 
+export type StadiumPhase = "power" | "aim" | "flight" | "result";
+
+function TimingBar({
+  label,
+  window,
+  cursor,
+  locked,
+  active = false,
+}: {
+  label: string;
+  window?: readonly [number, number];
+  cursor?: RefObject<HTMLSpanElement | null>;
+  locked?: number;
+  active?: boolean;
+}) {
+  return (
+    <div className="stadium-game-bar" data-active={active}>
+      <span>{label}</span>
+      <div className="stadium-game-track" aria-hidden="true">
+        {window && (
+          <span
+            className="stadium-game-zone"
+            style={{
+              left: `${window[0] * 100}%`,
+              width: `${(window[1] - window[0]) * 100}%`,
+            }}
+          />
+        )}
+        {(cursor || locked !== undefined) && (
+          <span
+            className="stadium-game-cursor"
+            ref={cursor}
+            style={
+              locked === undefined ? undefined : { left: `${locked * 100}%` }
+            }
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function StadiumGameHud({
-  aim,
-  onAim,
   score,
+  best,
   attempt,
-  flying,
+  wind,
+  phase,
   finished,
-  message,
-  meter,
-  onKick,
+  result,
+  lockedPower,
+  powerTarget,
+  aimWindow,
+  cursor,
+  onAction,
   onClose,
 }: {
-  aim: number;
-  onAim: (aim: number) => void;
-  score: number;
+  score: StadiumScore;
+  best: number;
   attempt: number;
-  flying: boolean;
+  wind: number;
+  phase: StadiumPhase;
   finished: boolean;
-  message: string;
-  meter: RefObject<HTMLMeterElement | null>;
-  onKick: () => void;
+  result: KickResult | null;
+  lockedPower: number;
+  powerTarget: number;
+  aimWindow: readonly [number, number];
+  cursor: RefObject<HTMLSpanElement | null>;
+  onAction: () => void;
   onClose: () => void;
 }) {
   const gl = useThree((s) => s.gl);
-  const hidden = useGame((s) => s.paused || s.panel !== "none");
+  const hidden = useGame((s) => s.paused || s.panel !== "none" || s.build);
   const portal = useMemo(
     () => ({ current: gl.domElement.parentElement! }),
     [gl],
   );
+  const focusAction = useCallback(
+    (button: HTMLButtonElement | null) =>
+      button?.focus({ preventScroll: true }),
+    [],
+  );
+  const win = score.points >= STADIUM_TARGET;
+  const outcome = result === "Good" ? `Good! +${2 + score.streak}` : result;
+  const status =
+    phase === "power"
+      ? "Tap or press Space in the green."
+      : phase === "aim"
+        ? "Time the aim."
+        : phase === "flight"
+          ? "In flight"
+          : finished
+            ? `${outcome} · ${win ? "Target hit" : "Target missed"}`
+            : outcome;
+  const action =
+    phase === "power"
+      ? "Set power"
+      : phase === "aim" || phase === "flight"
+        ? "Kick"
+        : finished
+          ? "Play again"
+          : "Next kick";
   return hidden ? null : (
     <Html
       fullscreen
@@ -46,21 +124,22 @@ export function StadiumGameHud({
       <section
         className="stadium-game-stage"
         aria-label="49ers field goals"
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
         onKeyDown={(event) => {
           if (
-            event.key === " " &&
-            event.target instanceof HTMLElement &&
-            event.target.closest("button")
+            event.code === "Space" &&
+            event.target instanceof HTMLButtonElement
           )
             event.stopPropagation();
         }}
       >
         <div className="stadium-game-score">
           <strong>49ERS</strong>
-          <span>{score * 3} PTS</span>
-          <small>
-            {attempt}/{FIELD_GOAL.attempts}
-          </small>
+          <span>
+            {score.points} / {STADIUM_TARGET} <small>PTS</small>
+          </span>
+          <small>BEST {best}</small>
         </div>
         <button
           className="stadium-game-close"
@@ -70,50 +149,47 @@ export function StadiumGameHud({
         >
           Close
         </button>
-        <div
-          className="stadium-game-dock"
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          <p role="status" aria-live="polite">
-            {finished
-              ? `${message}. ${score} of ${FIELD_GOAL.attempts} made.`
-              : message}
+        <div className="stadium-game-dock">
+          <p
+            role="status"
+            data-result={phase === "result" ? result : undefined}
+          >
+            {status}
           </p>
           <div className="stadium-game-controls">
-            <label className="stadium-game-aim">
-              Aim
-              <input
-                aria-label="Kick aim"
-                type="range"
-                min={-18}
-                max={18}
-                step={0.5}
-                value={aim}
-                disabled={flying || finished}
-                onChange={(event) => onAim(Number(event.target.value))}
+            <div className="stadium-game-info">
+              <span>
+                Kick {attempt + 1}/{STADIUM_KICKS.length}
+              </span>
+              {score.streak > 1 && <strong>{score.streak} in a row</strong>}
+              <span>
+                {wind
+                  ? `Wind ${Math.round(Math.abs(wind) * 10)} ${wind > 0 ? "→" : "←"}`
+                  : "Wind calm"}
+              </span>
+            </div>
+            <div className="stadium-game-bars">
+              <TimingBar
+                label="Power"
+                active={phase === "power"}
+                window={[powerTarget, 1]}
+                cursor={phase === "power" ? cursor : undefined}
+                locked={phase === "power" ? undefined : lockedPower}
               />
-            </label>
-            <div className="stadium-game-power">
-              <span>Power</span>
-              <meter
-                ref={meter}
-                aria-label="Kick power"
-                min={0}
-                max={1}
-                low={0.55}
-                high={0.9}
-                optimum={0.7}
-                defaultValue={0.575}
+              <TimingBar
+                label="Aim"
+                active={phase === "aim"}
+                window={phase !== "power" ? aimWindow : undefined}
+                cursor={phase !== "power" ? cursor : undefined}
               />
             </div>
-            <button type="button" disabled={flying} onClick={onKick}>
-              {flying
-                ? "In flight"
-                : finished
-                  ? "Play again"
-                  : attempt === 0
-                    ? "Kick"
-                    : "Next kick"}
+            <button
+              type="button"
+              aria-disabled={phase === "flight"}
+              ref={focusAction}
+              onClick={onAction}
+            >
+              {action}
             </button>
           </div>
         </div>
