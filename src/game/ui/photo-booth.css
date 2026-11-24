@@ -1,15 +1,18 @@
 .photo-booth-dialog {
-  width: min(44rem, calc(100% - 2rem));
+  width: min(41rem, calc(52% - 1.5rem));
   max-height: calc(100dvh - 2rem);
+  margin: auto max(1rem, 3vw) auto auto;
   padding: 0;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  color: #1e293b;
-  background: #fff;
+  border: 1px solid var(--hud-edge, #536971);
+  border-radius: 10px;
+  color: #f4f7fa;
+  background: var(--hud-face, #293f49);
+  box-shadow: var(--hud-shadow, 0 4px 12px #071b2824);
   overscroll-behavior: contain;
+  color-scheme: dark;
 }
 .photo-booth-dialog::backdrop {
-  background: #0f172ab8;
+  background: #0f172a26;
 }
 .photo-booth-card {
   padding: 1rem;
@@ -27,10 +30,10 @@
 }
 .photo-booth-card button,
 .photo-booth-card input {
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--hud-edge, #536971);
   border-radius: 4px;
-  background: #fff;
-  color: #1e293b;
+  background: var(--hud-low, #21353e);
+  color: inherit;
   font: inherit;
   padding: 0.35rem 0.65rem;
   min-height: 2rem;
@@ -40,15 +43,15 @@
 }
 .photo-booth-card button:hover:not(:disabled),
 .photo-booth-card button[aria-pressed="true"] {
-  background: #e2e8f0;
-  border-color: #64748b;
+  background: #48616d;
+  border-color: #82959b;
 }
 .photo-booth-card button:disabled {
   cursor: default;
   opacity: 0.55;
 }
 .photo-booth-card :focus-visible {
-  outline: 2px solid #475569;
+  outline: 2px solid #d2dee0;
   outline-offset: 2px;
 }
 .photo-booth-card .photo-booth-close {
@@ -60,11 +63,12 @@
   position: relative;
   display: grid;
   place-items: center;
-  width: min(100%, 27rem, 72dvh);
+  width: min(100%, 27rem, 68dvh);
   aspect-ratio: 4 / 3;
   margin: 0 auto 1rem;
   color: #fff;
-  background: #334155;
+  background: var(--hud-low, #21353e);
+  box-shadow: inset 0 0 0 1px var(--hud-edge, #536971);
   overflow: hidden;
 }
 .photo-booth-preview video {
@@ -93,12 +97,12 @@
   gap: 0.5rem;
 }
 .photo-booth-card .photo-booth-primary {
-  background: #334155;
-  color: #fff;
-  border-color: #334155;
+  background: #48616d;
+  color: #f4f7fa;
+  border-color: #82959b;
 }
 .photo-booth-card .photo-booth-primary:hover:not(:disabled) {
-  background: #1e293b;
+  background: #53717e;
 }
 .photo-booth-editor {
   display: grid;
@@ -125,7 +129,7 @@
   min-width: 0;
   margin: 0;
   padding: 0.5rem;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--hud-edge, #536971);
 }
 .photo-booth-tools label {
   display: grid;
@@ -138,14 +142,14 @@
 }
 .photo-booth-card p {
   margin: 0.25rem 0;
-  color: #475569;
+  color: var(--hud-muted, #c3d0d0);
   font-size: 0.88rem;
 }
 .photo-booth-tools fieldset p {
   flex-basis: 100%;
 }
 .photo-booth-card .photo-booth-error {
-  color: #991b1b;
+  color: #fecaca;
   margin-bottom: 0.5rem;
 }
 .photo-booth-wall {
@@ -158,6 +162,19 @@
 .photo-booth-wall img {
   width: 100%;
   height: auto;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--hud-edge, #536971);
   box-sizing: border-box;
+}
+@media (max-width: 760px) {
+  .photo-booth-dialog {
+    width: min(41rem, calc(100% - 1.25rem));
+    max-height: 62dvh;
+    margin: auto auto max(0.65rem, env(safe-area-inset-bottom));
+  }
+  .photo-booth-preview {
+    width: min(100%, 27rem, 50dvh);
+  }
+  .photo-booth-strip {
+    width: clamp(5rem, 14dvh, 10rem);
+  }
 }

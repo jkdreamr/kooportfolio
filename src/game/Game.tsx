@@ -239,7 +239,8 @@ export default function Game() {
   useEffect(
     () =>
       useGame.subscribe((state, previous) => {
-        if (state.scene !== previous.scene) endGameMode();
+        if (state.scene !== previous.scene || state.world !== previous.world)
+          endGameMode();
       }),
     [],
   );
@@ -257,6 +258,7 @@ export default function Game() {
     paused = useGame((s) => s.paused),
     panel = useGame((s) => s.panel);
   const gameMode = useGameMode((s) => s.active);
+  const photoBooth = gameMode?.id === "photo-booth";
   const interact = useCallback(() => {
     const g = useGame.getState();
     if (interactWithNpc()) return;
@@ -333,7 +335,7 @@ export default function Game() {
             powerPreference: "high-performance",
           }}
           frameloop={
-            paused || traveling || panel === "photo" ? "demand" : "always"
+            paused || traveling || photoBooth ? "demand" : "always"
           }
           onCreated={({ gl }) => {
             gl.toneMapping = THREE.ACESFilmicToneMapping;
@@ -345,7 +347,7 @@ export default function Game() {
           }}
           fallback={<WorldFallback />}
         >
-          {!paused && !traveling && panel !== "photo" && (
+          {!paused && !traveling && !photoBooth && (
             <PerformanceMonitor
               onDecline={() => useGame.setState({ quality: "low" })}
               flipflops={1}

@@ -34,6 +34,8 @@ import { IslandTrain } from "./IslandTrain";
 import { WorldTravel } from "./WorldTravel";
 import { WORLD_ELLIPSE } from "../../shared/world-bounds";
 import { PhotoBooth } from "./PhotoBooth";
+import { PhotoBoothView } from "./PhotoBoothView";
+import { isNearPhotoBooth } from "../core/photoBoothLayout";
 import { StargazingHill } from "./StargazingHill";
 import { SkateParkBuilding } from "../scenes/SkatePark";
 import { BeatLabShell, MathLabShell } from "./LabBuildings";
@@ -162,7 +164,7 @@ export function Walker({
       if (
         !near &&
         state.world === "korea" &&
-        Math.hypot(runtime.x + 6, runtime.z + 4.4) < 1.9
+        isNearPhotoBooth(runtime.x, runtime.z)
       )
         near = "photo";
       if (!near && Math.hypot(runtime.x + 19, runtime.z + 30) < 1.9)
@@ -334,9 +336,10 @@ export function Hub() {
       )}
       {world === "stanford" && <SkateParkBuilding />}
       {world === "korea" && (
-        <group position={[-6, 0, -6.2]}>
+        <>
           <PhotoBooth />
-        </group>
+          <PhotoBoothView />
+        </>
       )}
       <StargazingHill position={[-19, 0, -38]} />
       {world !== "korea" && (

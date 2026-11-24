@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { keys, touch } from "./input";
 import { runtime, useGame, type Scene } from "./store";
+import { isNearPhotoBooth } from "./photoBoothLayout";
 
 export type GameModeId =
   | "badminton"
@@ -15,10 +16,12 @@ export type GameModeId =
   | "music"
   | "math"
   | "gym"
-  | "cognition";
+  | "cognition"
+  | "photo-booth";
 type ActiveGame = {
   id: GameModeId;
   scene: Scene;
+  world: ReturnType<typeof useGame.getState>["world"];
   position: [number, number];
   heading: number;
 };
@@ -40,6 +43,7 @@ const rooms: Record<GameModeId, Scene> = {
   math: "math",
   gym: "gym",
   cognition: "cognition",
+  "photo-booth": "hub",
 };
 function clearInput() {
   keys.clear();
@@ -62,13 +66,16 @@ export function startGameMode(id: GameModeId): boolean {
     state.scene !== rooms[id] ||
     state.paused ||
     state.traveling ||
-    state.panel !== "none"
+    state.panel !== "none" ||
+    (id === "photo-booth" &&
+      (state.world !== "korea" || state.build || state.overlayLocked ||
+        !isNearPhotoBooth(runtime.x, runtime.z)))
   )
     return false;
   const position: [number, number] = [runtime.x, runtime.z];
   clearInput();
   useGameMode.setState({
-    active: { id, scene: state.scene, position, heading: runtime.heading },
+    active: { id, scene: state.scene, world: state.world, position, heading: runtime.heading },
   });
   useGame.setState({ near: "" });
   return true;
@@ -80,7 +87,8 @@ export function endGameMode() {
   useGameMode.setState({ active: null });
   clearInput();
   // A scene transition has already chosen its own spawn. Never overwrite it.
-  if (useGame.getState().scene === active.scene) {
+  const state = useGame.getState();
+  if (state.scene === active.scene && state.world === active.world) {
     [runtime.x, runtime.z] = active.position;
     runtime.heading = active.heading;
   }

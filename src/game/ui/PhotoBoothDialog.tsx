@@ -6,8 +6,8 @@ import {
   useState,
 } from "react";
 import type { PointerEvent } from "react";
-import { runtime, useGame } from "../core/store";
-import { keys, touch } from "../core/input";
+import { useGame } from "../core/store";
+import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import {
   borders,
   CAPTION_LIMIT,
@@ -23,25 +23,15 @@ import { BOOTH_PATH, STRIP_HEIGHT, STRIP_WIDTH } from "../../shared/booth";
 import type { WallStrip } from "../../shared/booth";
 import "./photo-booth.css";
 
+let boothLauncher: HTMLElement | null = null;
+
 export function openPhotoBooth() {
-  const game = useGame.getState();
-  if (
-    game.scene !== "hub" ||
-    game.paused ||
-    game.build ||
-    game.panel !== "none"
-  )
-    return;
-  runtime.target = null;
-  runtime.path = [];
-  keys.clear();
-  touch.x = 0;
-  touch.z = 0;
-  useGame.setState({ panel: "photo" });
+  const launcher = document.activeElement as HTMLElement | null;
+  if (startGameMode("photo-booth")) boothLauncher = launcher;
 }
 
 function closePhotoBooth() {
-  useGame.setState({ panel: "none" });
+  endGameMode();
 }
 
 type Shoot = { shots: HTMLCanvasElement[]; date: Date };
@@ -528,12 +518,17 @@ function BoothSession() {
   const [posted, setPosted] = useState(false);
   const [retake, setRetake] = useState(false);
   useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
     const modal = dialog.current;
     modal?.showModal();
     return () => {
       modal?.close();
-      if (previous?.isConnected) previous.focus();
+      if (useGameMode.getState().active?.id === "photo-booth") return;
+      const launcher = boothLauncher;
+      boothLauncher = null;
+      requestAnimationFrame(() => {
+        if (launcher?.isConnected && !useGameMode.getState().active)
+          launcher.focus({ preventScroll: true });
+      });
     };
   }, []);
 
@@ -553,7 +548,10 @@ function BoothSession() {
         event.preventDefault();
         closePhotoBooth();
       }}
-      onKeyDown={(event) => event.stopPropagation()}
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && event.repeat) event.preventDefault();
+        event.stopPropagation();
+      }}
       onKeyUp={(event) => event.stopPropagation()}
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => {
@@ -601,8 +599,7 @@ function BoothSession() {
 }
 
 export function PhotoBoothDialog() {
-  const visible = useGame(
-    (game) => game.scene === "hub" && game.panel === "photo" && !game.paused,
-  );
-  return visible ? <BoothSession /> : null;
+  const playing = useGameMode((state) => state.active?.id === "photo-booth");
+  const paused = useGame((game) => game.paused);
+  return playing && !paused ? <BoothSession /> : null;
 }
