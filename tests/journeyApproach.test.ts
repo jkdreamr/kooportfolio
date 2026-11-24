@@ -31,3 +31,35 @@ describe("boarding walks around the compact Home allotments", () => {
     },
   );
 });
+
+it.each([1 / 60, 1 / 144, 0.1])(
+  "boards from beside Korea picnic corners at %ss frames",
+  (delta) => {
+    const gate = journeyGate("plane", "korea");
+    for (const start of [
+      [28.69, -8.39],
+      [40.69, -8.39],
+    ] as [number, number][]) {
+      expect(canWalk(...start, "korea")).toBe(true);
+      const route = findPath(start, [...gate], "korea");
+      expect(route.length, `path from ${start}`).toBeGreaterThan(0);
+      let [x, z] = start;
+      let stalled = 0;
+      for (
+        let frame = 0;
+        frame < 8000 && route.length && stalled < 10;
+        frame++
+      ) {
+        const [nextX, nextZ] = moveJourneyApproach(x, z, route, delta, "korea");
+        stalled = x === nextX && z === nextZ ? stalled + 1 : 0;
+        [x, z] = [nextX, nextZ];
+        expect(canWalk(x, z, "korea")).toBe(true);
+      }
+      expect(
+        route.length,
+        `${start} at ${delta}s; stranded at ${x},${z}; next ${route[0]}`,
+      ).toBe(0);
+      expect(canWalk(x, z, "korea")).toBe(true);
+    }
+  },
+);
