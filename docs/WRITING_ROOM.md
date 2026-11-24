@@ -1,6 +1,6 @@
 # Writing room
 
-Original chunky library with bound books, timber drawers, tufted chairs, green-shade lamps and a typewriter. No decorative in-world prose. Reading and composing open only on request in a keyboard-trapped native dialog. Public posts are plain text; author names are explicitly unverified. No seeded posts or local-only feed presented as public.
+Original chunky library with bound books, timber drawers, tufted chairs, green-shade lamps and a typewriter. No decorative in-world prose. Reading and composing open only on request in a keyboard-trapped native dialog. Public posts are plain text; author names are unverified. No seeded posts or local-only feed presented as public. The neutral slate editor uses a thin border and one muted line for any publication/error/session-only draft notice; no banners or disclaimer paragraph.
 
 ## Integration
 

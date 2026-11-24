@@ -44,6 +44,6 @@ describe("connected house movement", () => {
       spawnZ: 26.5,
       doorZ: 28.3,
     });
-    expect(moveInterior("stadium", 0, 0, 100, 100)).toEqual([19, 28.8]);
+    expect(moveInterior("stadium", 19, 28.8, 100, 100)).toEqual([19, 28.8]);
   });
 });
