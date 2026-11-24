@@ -14,7 +14,7 @@ export type Save = {
   rewards: string[];
 };
 import { WORLD_BOUNDS } from "./world-bounds";
-import { onStanfordLand } from "./stanford-ground";
+import { onStanfordLand, STANFORD_SHORE_CLEARANCE } from "./stanford-ground";
 import { isWorld, type WorldId } from "./worlds";
 
 export const SAVE_KEY = "joshua-exe-save-v1";
@@ -76,7 +76,8 @@ export function parseSave(raw: string | null): Save {
     throw new Error("Unrecognized save");
   if (
     s.position[1] < WORLD_BOUNDS.minZ ||
-    (s.world === "stanford" && !onStanfordLand(...s.position, 0.5))
+    (s.world === "stanford" &&
+      !onStanfordLand(...s.position, STANFORD_SHORE_CLEARANCE))
   )
     s.position = [0, 5];
   return s;

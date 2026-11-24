@@ -23,6 +23,15 @@ import { freshSave, parseSave } from "../src/shared/save";
 import { animalsInWorld, animalPose } from "../src/game/core/wildlife";
 
 describe("compact Stanford village", () => {
+  it("preserves a valid shoreline save at the movement clearance limit", () => {
+    const save = {
+      ...freshSave(),
+      world: "stanford" as const,
+      position: [-70, 14.47] as [number, number],
+    };
+    expect(canWalk(...save.position, "stanford")).toBe(true);
+    expect(parseSave(JSON.stringify(save)).position).toEqual(save.position);
+  });
   it("does not retain invisible trunk collisions where shore-edge trees were removed", () => {
     const clearings = forest.filter(
       ({ x, z }) =>

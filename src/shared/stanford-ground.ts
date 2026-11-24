@@ -28,6 +28,9 @@ export const STANFORD_SHORE = [
   [-84, 30],
 ] as const;
 
+/** The same avatar clearance applies to movement and persisted positions. */
+export const STANFORD_SHORE_CLEARANCE = 0.45;
+
 /** Rendering, movement and old-save migration share this coastline. */
 export function onStanfordLand(x: number, z: number, inset = 0) {
   let inside = false;
