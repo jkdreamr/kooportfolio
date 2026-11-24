@@ -155,9 +155,13 @@ export function BlackjackTable({ onReward }: InteriorGameProps) {
   useEffect(() => {
     if (!active) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.repeat || event.metaKey || event.ctrlKey || event.altKey)
-        return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
       if (!gameIsActive()) return;
+      if (event.repeat) {
+        // A held Enter from Play Blackjack must not also press Deal.
+        if (event.key === "Enter") event.preventDefault();
+        return;
+      }
       const key = event.key.toLowerCase();
       const action =
         key === "h"
