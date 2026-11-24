@@ -469,6 +469,7 @@
   pointer-events: auto;
 }
 @media (max-height: 500px) and (min-width: 700px) {
+  .game-shell .interior-game.interior-game--viewport,
   .interior-game.interior-game--viewport {
     justify-content: flex-start;
   }
