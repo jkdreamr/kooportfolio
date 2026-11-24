@@ -594,10 +594,7 @@ export function SkateParkInterior() {
                         Step off
                       </button>
                     </div>
-                    <p className="skate-hint">
-                      Ollie, then flip. Hold grind beside a rail. Land clean to
-                      bank.
-                    </p>
+                    <p className="skate-hint">Ollie, flip, land to bank.</p>
                   </>
                 )}
               </>
