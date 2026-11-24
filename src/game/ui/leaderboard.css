@@ -1,24 +1,19 @@
-.leaderboard {
+.game-shell .game-modal.leaderboard {
   box-sizing: border-box;
+  position: fixed;
+  inset: 0;
   width: min(440px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px);
+  margin: auto;
   padding: 22px;
-  background: #20353d;
-  color: #f5f4e9;
-  border: 2px solid #b39b66;
-  border-radius: 8px;
-  box-shadow:
-    inset 0 1px #7c919766,
-    0 5px #11252f,
-    0 15px 40px #11252f75;
-  font:
-    14px/1.4 ui-monospace,
-    Consolas,
-    monospace;
+  font: inherit;
+  line-height: 1.4;
+  pointer-events: auto;
 }
 
 .leaderboard::backdrop {
-  background: #101b24a8;
+  background: #10293980;
+  backdrop-filter: blur(5px);
 }
 
 .leaderboard-header,
@@ -35,42 +30,25 @@
   margin-bottom: 18px;
 }
 
-.leaderboard h2 {
+.game-shell .leaderboard .leaderboard-header h2 {
   margin: 0;
-  color: #f0c56b;
   font-size: 24px;
-  font-weight: 700;
 }
 
-.leaderboard :is(button, select, input) {
-  box-sizing: border-box;
+.leaderboard :is(select, input) {
   min-height: 40px;
   padding: 7px 10px;
-  color: inherit;
-  background: #2c444e;
-  border: 1px solid #647984;
-  border-radius: 4px;
+  color: var(--hud-ink);
+  background: var(--hud-low);
+  border: 1px solid var(--hud-edge);
+  border-radius: 8px;
   font: inherit;
 }
 
-.leaderboard button {
-  cursor: pointer;
-}
-
-.leaderboard button:disabled {
-  cursor: default;
-  opacity: 0.6;
-}
-
-.leaderboard :focus-visible {
-  outline: 2px solid #f0c56b;
-  outline-offset: 2px;
-}
-
-.leaderboard-header button {
-  min-width: 40px;
-  font-size: 21px;
-  line-height: 1;
+.leaderboard-header .close-button {
+  position: static;
+  width: 36px;
+  height: 36px;
 }
 
 .leaderboard-picker select {
@@ -81,28 +59,35 @@
 .leaderboard-caption {
   margin: 14px 0 8px;
   min-height: 40px;
-  color: #c3d0d0;
+  color: var(--hud-muted);
   font-size: 12px;
+}
+
+.leaderboard-caption .quiet-button {
+  width: auto;
+  padding: 8px 12px;
+  border: 1px solid var(--hud-edge);
+  border-radius: 8px;
 }
 
 .leaderboard table {
   width: 100%;
   table-layout: fixed;
   border-collapse: collapse;
-  background: #172a33;
+  background: var(--hud-low);
   font-variant-numeric: tabular-nums;
 }
 
 .leaderboard :is(th, td) {
   padding: 8px 9px;
-  border-bottom: 1px solid #39525d;
+  border-bottom: 1px solid var(--hud-edge);
   text-align: left;
   overflow-wrap: anywhere;
 }
 
 .leaderboard th,
 .leaderboard td:first-child:not(.leaderboard-empty) {
-  color: #f0c56b;
+  color: var(--hud-muted);
 }
 
 .leaderboard th:first-child {
@@ -123,14 +108,14 @@
 
 .leaderboard .leaderboard-empty {
   padding: 20px 9px;
-  color: #c3d0d0;
+  color: var(--hud-muted);
   text-align: center;
 }
 
 .leaderboard-submit,
-.leaderboard-instruction {
+.game-shell .leaderboard > .leaderboard-instruction {
   margin: 16px 0 0;
-  color: #c3d0d0;
+  color: var(--hud-muted);
 }
 
 .leaderboard-submit div {
@@ -149,14 +134,12 @@
 .leaderboard-submit input {
   flex: 1;
   min-width: 0;
-  background: #172a33;
   font-size: 16px;
 }
 
-.leaderboard-submit button {
+.leaderboard-submit .primary-button {
   flex-shrink: 0;
-  background: #e8c579;
-  color: #152830;
-  border-color: #f0d294;
-  font-weight: 700;
+  width: auto;
+  min-height: 40px;
+  padding: 8px 16px;
 }

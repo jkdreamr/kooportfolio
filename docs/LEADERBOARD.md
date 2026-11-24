@@ -7,7 +7,8 @@ display name or saves on their device.
 
 ## World integration
 
-- Mount `Leaderboard` from `src/game/ui/Leaderboard.tsx` in the DOM HUD when a
+- Mount `Leaderboard` from `src/game/ui/Leaderboard.tsx` in the DOM HUD
+  under `.game-shell` when a
   player opens it: `{boardOpen && <Leaderboard onClose={() => setBoardOpen(false)} />}`.
   The host should pause world simulation while the modal is open. Optionally pass
   `initialBoard` to open it from a specific game's results.
