@@ -2250,3 +2250,56 @@ body:has(.game-shell),
     flex-wrap: wrap;
   }
 }
+
+.side-quest-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  border: 1px solid rgba(203, 213, 225, 0.55);
+  border-radius: 8px;
+  padding: 8px 11px;
+  background: rgba(30, 41, 59, 0.92);
+  color: #f8fafc;
+  font: 600 13px system-ui, sans-serif;
+  cursor: pointer;
+}
+.side-quest-action:disabled {
+  cursor: default;
+  color: #cbd5e1;
+}
+.side-quest-action kbd {
+  border: 1px solid rgba(203, 213, 225, 0.45);
+  border-radius: 4px;
+  padding: 0 5px;
+  font: 600 11px system-ui, sans-serif;
+  color: #e2e8f0;
+}
+.side-quest-gain {
+  display: block;
+  padding: 3px 8px;
+  border: 1px solid rgba(203, 213, 225, 0.6);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #1e293b;
+  font: 700 13px system-ui, sans-serif;
+  animation: side-quest-rise 1.4s ease-out forwards;
+}
+@keyframes side-quest-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  15% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-22px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .side-quest-gain {
+    animation: none;
+  }
+}
