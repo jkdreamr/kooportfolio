@@ -90,8 +90,8 @@ function canSettle(game: GoGame, moves: Candidate[]) {
   if (!game.passes || game.moves <= 20 || moves.some((m) => m.tactical)) return false;
   const opponent = game.turn === 1 ? 2 : 1;
   if (!game.board.includes(opponent)) return true;
-  const score = scoreGo(game);
-  return score.winner === game.turn && moves.every(({ point }) => score.owners[point] === game.turn);
+  const { owners } = scoreGo(game);
+  return moves.every(({ point }) => owners[point] === game.turn);
 }
 
 type SearchEdge = { move: Candidate; prior: number; child?: SearchNode };

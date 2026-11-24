@@ -130,4 +130,17 @@ describe("Go opponent levels", () => {
     expect(point).not.toBeNull();
     if (point !== null) expect(playGo(game, point).ok).toBe(true);
   });
+
+  it.each(GO_LEVELS)("%s agrees to count when behind with only own-territory fills left", (level) => {
+    const eyes = new Set([10, 13, 25, 58, 59, 69, 73]);
+    const stones = Array.from({ length: 81 }, (_, point) => point).filter((point) => !eyes.has(point));
+    const game = passGo({ ...position(stones.filter((p) => p < 45), stones.filter((p) => p >= 45)), moves: 76 });
+    const score = scoreGo(game);
+    expect(score.winner).toBe(1);
+    const fill = playGo(game, 59);
+    expect(fill.ok).toBe(true);
+    if (fill.ok) expect(scoreGo(fill.game).white).toBe(score.white);
+    expect(chooseGoMove(game, level)).toBeNull();
+    expect(passGo(game).phase).toBe("scoring");
+  });
 });
