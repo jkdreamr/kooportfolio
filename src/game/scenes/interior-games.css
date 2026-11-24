@@ -196,10 +196,25 @@
   font-size: 12px;
   padding: 5px 10px;
 }
-.house-game-tabs button[aria-pressed="true"],
-.blackjack-bets button[aria-pressed="true"] {
+.house-game-tabs button[aria-pressed="true"] {
   background: #827344;
   border-color: #c5aa61;
+}
+.interior-game .blackjack-bets button[aria-pressed="true"] {
+  background: #e8ecef;
+  border-color: #ffffff;
+  color: #1d2c33;
+}
+.interior-game p.blackjack-result {
+  font-size: 13px;
+  font-weight: 700;
+}
+.blackjack-result--win,
+.blackjack-result--blackjack {
+  color: #b9e3c4;
+}
+.blackjack-result--lose {
+  color: #f0b6ab;
 }
 .blackjack-bank,
 .pong-score {
@@ -406,6 +421,7 @@
   max-width: calc(100vw - 32px);
   padding: 4px;
 }
+.game-shell .interior-game.interior-game--viewport,
 .interior-game.interior-game--viewport {
   position: relative;
   display: flex;

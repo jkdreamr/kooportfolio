@@ -1,14 +1,16 @@
 import { useEffect, useReducer, useRef } from "react";
+import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import {
   blackjackReducer,
+  canDouble,
   cardLabel,
   handValue,
   newBlackjack,
   shuffledDeck,
   type Card,
 } from "../core/blackjack";
-import { Box, Cylinder, Sign } from "../world/Models";
+import { Box, Cylinder } from "../world/Models";
 import { BrassStud, CraftedBox } from "./CraftedDetails";
 import { startGameMode, useGameMode } from "../core/gameMode";
 import { GAME_STAGE_Y, InteriorGameStage } from "./InteriorGameStage";
@@ -20,36 +22,91 @@ import {
   type InteriorGameProps,
 } from "./InteriorProps";
 
+const cardFaces = new Map<string, THREE.CanvasTexture>();
+function cardFace(key: string) {
+  let texture = cardFaces.get(key);
+  if (texture) return texture;
+  const el = document.createElement("canvas");
+  el.width = 256;
+  el.height = 356;
+  const ctx = el.getContext("2d")!;
+  ctx.fillStyle = key === "back" ? "#2f4a56" : "#f7f5ef";
+  ctx.fillRect(0, 0, 256, 356);
+  ctx.strokeStyle = key === "back" ? "#e8edf0" : "#c9ccc8";
+  ctx.lineWidth = key === "back" ? 10 : 4;
+  ctx.strokeRect(14, 14, 228, 328);
+  if (key !== "back") {
+    const suit = key.slice(-1),
+      rank = key.slice(0, -1);
+    ctx.fillStyle = suit === "♥" || suit === "♦" ? "#b23a2e" : "#1f2a30";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = '700 92px "Trebuchet MS", Arial, sans-serif';
+    ctx.fillText(rank, 80, 78);
+    ctx.font = '150px "Trebuchet MS", Arial, sans-serif';
+    ctx.fillText(suit, 150, 228);
+  }
+  texture = new THREE.CanvasTexture(el);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 4;
+  cardFaces.set(key, texture);
+  return texture;
+}
+const SHOE: [number, number, number] = [1.3, 1.42, 0.4];
 function PlayingCard({
   card,
   hidden,
   x,
   z,
+  order,
 }: {
   card: Card;
   hidden?: boolean;
   x: number;
   z: number;
+  order: number;
 }) {
+  const group = useRef<THREE.Group>(null),
+    flip = useRef<THREE.Group>(null),
+    age = useRef(-order * 0.16);
+  useFrame((_, dt) => {
+    if (!group.current || !flip.current) return;
+    age.current += dt;
+    const t = THREE.MathUtils.smoothstep(age.current, 0, 0.32);
+    group.current.position.set(
+      THREE.MathUtils.lerp(SHOE[0], x, t),
+      THREE.MathUtils.lerp(SHOE[1], 1.36 + order * 0.002, t) +
+        Math.sin(t * Math.PI) * 0.12,
+      THREE.MathUtils.lerp(SHOE[2], z, t),
+    );
+    const face = hidden || t < 1 ? Math.PI : 0;
+    flip.current.rotation.y = THREE.MathUtils.damp(
+      flip.current.rotation.y,
+      face,
+      14,
+      dt,
+    );
+  });
   return (
-    <group position={[x, 1.4, z]} rotation={[-Math.PI / 2, 0, 0]}>
-      <CraftedBox s={[0.6, 0.86, 0.05]} c={hidden ? "#7a3e36" : "#ead8ac"} />
-      <Sign
-        text={hidden ? "ΚΣ" : cardLabel(card)}
-        p={[0, 0, 0.03]}
-        size={[0.53, 0.66]}
-        color={hidden ? "#7a3e36" : "#ead8ac"}
-        ink={
-          hidden
-            ? "#d5b368"
-            : card.suit === "♥" || card.suit === "♦"
-              ? "#a34132"
-              : "#263f34"
-        }
-      />
+    <group ref={group} position={SHOE} rotation={[-Math.PI / 2, 0, 0]}>
+      <group ref={flip} rotation={[0, Math.PI, 0]}>
+        <mesh position={[0, 0, 0.004]} castShadow>
+          <planeGeometry args={[0.6, 0.84]} />
+          <meshStandardMaterial
+            map={cardFace(cardLabel(card))}
+            roughness={0.6}
+          />
+        </mesh>
+        <mesh position={[0, 0, -0.004]} rotation={[0, Math.PI, 0]}>
+          <planeGeometry args={[0.6, 0.84]} />
+          <meshStandardMaterial map={cardFace("back")} roughness={0.6} />
+        </mesh>
+      </group>
     </group>
   );
 }
+const cardX = (i: number, count: number) =>
+  (i - (count - 1) / 2) * Math.min(0.66, 2.5 / count);
 export function BlackjackTable({ onReward }: InteriorGameProps) {
   const active = useGameMode((s) => s.active?.id === "blackjack");
   const otherMode = useGameMode(
@@ -84,6 +141,33 @@ export function BlackjackTable({ onReward }: InteriorGameProps) {
       onReward?.("dice", 15);
     }
   }, [game.phase, game.result, game.round, onReward]);
+  useEffect(() => {
+    if (!active) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.repeat || event.metaKey || event.ctrlKey || event.altKey)
+        return;
+      if (!gameIsActive()) return;
+      const key = event.key.toLowerCase();
+      const action =
+        key === "h"
+          ? ({ type: "hit" } as const)
+          : key === "s"
+            ? ({ type: "stand" } as const)
+            : key === "d"
+              ? ({ type: "double" } as const)
+              : key === "enter" &&
+                  !(event.target instanceof HTMLButtonElement) &&
+                  (game.phase === "bet" || game.phase === "over")
+                ? ({ type: "deal", deck: shuffledDeck() } as const)
+                : null;
+      if (!action) return;
+      event.preventDefault();
+      event.stopPropagation();
+      dispatch(action);
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [active, game.phase]);
   const hidden = game.phase === "player";
   const between = game.phase === "bet" || game.phase === "over";
   return (
@@ -110,29 +194,40 @@ export function BlackjackTable({ onReward }: InteriorGameProps) {
             <BrassStud key={`${x}/${z}`} p={[x, 1.3, z]} radius={0.075} />
           )),
         )}
-        {(game.player.length
-          ? game.player
-          : ([
-              { rank: 1, suit: "♠" },
-              { rank: 13, suit: "♥" },
-            ] as Card[])
-        ).map((card, i, hand) => (
+        {game.player.map((card, i, hand) => (
           <PlayingCard
-            key={i}
+            key={`${game.round}/p${i}`}
             card={card}
-            x={(i - (hand.length - 1) / 2) * Math.min(0.53, 2.4 / hand.length)}
-            z={0.5}
+            order={i < 2 ? i * 2 : i - 2}
+            x={cardX(i, hand.length)}
+            z={0.45}
           />
         ))}
         {game.dealer.map((card, i, hand) => (
           <PlayingCard
-            key={i}
+            key={`${game.round}/d${i}`}
             card={card}
             hidden={hidden && i === 1}
-            x={(i - (hand.length - 1) / 2) * Math.min(0.53, 2.4 / hand.length)}
-            z={-0.55}
+            order={i < 2 ? i * 2 + 1 : 0}
+            x={cardX(i, hand.length)}
+            z={-0.5}
           />
         ))}
+        {game.stake > 0 &&
+          !between &&
+          Array.from({ length: Math.min(10, game.stake / 10) }, (_, i) => (
+            <Cylinder
+              key={`stake/${i}`}
+              p={[0, 1.37 + i * 0.05, 1.05]}
+              s={[0.16, 0.045, 0.16]}
+              c={i % 2 ? "#e8ecef" : "#3f6475"}
+            />
+          ))}
+        <CraftedBox
+          p={[SHOE[0], 1.4, SHOE[2]]}
+          s={[0.56, 0.14, 0.76]}
+          c="#2f4a56"
+        />
         {[-1, 1].flatMap((side) =>
           [0, 1, 2, 3].map((i) => (
             <Cylinder
@@ -143,8 +238,12 @@ export function BlackjackTable({ onReward }: InteriorGameProps) {
             />
           )),
         )}
-        <Stool p={[-1.05, 0, 2]} />
-        <Stool p={[1.05, 0, -1.9]} color="#356248" />
+        {!active && (
+          <>
+            <Stool p={[-1.05, 0, 2]} />
+            <Stool p={[1.05, 0, -1.9]} color="#356248" />
+          </>
+        )}
       </group>
       <GameControls
         name="Blackjack game"
@@ -223,9 +322,24 @@ export function BlackjackTable({ onReward }: InteriorGameProps) {
             >
               Stand
             </button>
+            <button
+              disabled={!canDouble(game)}
+              onClick={() => dispatch({ type: "double" })}
+            >
+              Double
+            </button>
           </div>
         )}
-        <p role="status">{game.message}</p>
+        <p
+          role="status"
+          className={
+            game.result
+              ? `blackjack-result blackjack-result--${game.result}`
+              : undefined
+          }
+        >
+          {game.message}
+        </p>
       </GameControls>
     </>
   );
