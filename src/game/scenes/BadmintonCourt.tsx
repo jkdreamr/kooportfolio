@@ -4,6 +4,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import {
   BADMINTON,
+  canReturnBadminton,
   newBadmintonGame,
   stepBadminton,
   type BadmintonGame,
@@ -282,6 +283,7 @@ function view(game: BadmintonGame) {
     rally: game.rally,
     longest: game.longestRally,
     winner: game.winner,
+    canReturn: canReturnBadminton(game),
   };
 }
 const noInput = (): BadmintonInput => ({
@@ -327,7 +329,8 @@ export function BadmintonCourt({
   const gl = useThree((s) => s.gl),
     portal = useMemo(() => ({ current: gl.domElement.parentElement! }), [gl]);
   const shuttle = useRef<THREE.Group>(null),
-    shadow = useRef<THREE.Mesh>(null);
+    shadow = useRef<THREE.Mesh>(null),
+    contactRing = useRef<THREE.Mesh>(null);
   const clock = useRef(0),
     rewarded = useRef(false),
     runId = useRef("");
@@ -432,6 +435,15 @@ export function BadmintonCourt({
       }
     }
     const s = game.current.shuttle;
+    if (contactRing.current) {
+      contactRing.current.visible =
+        gameIsActive() && runtime.active && canReturnBadminton(game.current);
+      contactRing.current.position.set(
+        s.x * COURT_SCALE,
+        0.27,
+        (s.z - 2) * COURT_SCALE,
+      );
+    }
     if (shuttle.current) {
       shuttle.current.position.set(
         s.x * COURT_SCALE,
@@ -501,6 +513,10 @@ export function BadmintonCourt({
   const end = () => {
     endGameMode();
   };
+  const serving =
+    snapshot.phase === "ready" && game.current.server === "player";
+  const receiving = snapshot.phase === "ready" && !serving;
+  const aimArrow = aim === -1 ? "↖" : aim === 1 ? "↗" : "↑";
   return (
     <>
       <BadmintonGym score={snapshot.score} />
@@ -520,6 +536,14 @@ export function BadmintonCourt({
               opacity={0.4}
               depthWrite={false}
             />
+          </mesh>
+          <mesh
+            ref={contactRing}
+            visible={false}
+            rotation={[-Math.PI / 2, 0, 0]}
+          >
+            <ringGeometry args={[0.55, 0.66, 32]} />
+            <meshBasicMaterial color="#e7c27e" depthWrite={false} />
           </mesh>
         </>
       )}
@@ -583,17 +607,21 @@ export function BadmintonCourt({
                     >
                       <output
                         className="badminton-selection"
-                        aria-label="Selected shot"
+                        aria-label={
+                          serving
+                            ? "Standard high serve"
+                            : receiving
+                              ? "Receiving serve"
+                              : "Selected return shot"
+                        }
                       >
-                        {shot}{" "}
-                        <span>
-                          {aim === -1 ? "↖" : aim === 1 ? "↗" : "↑"}
-                        </span>
+                        {serving ? "High serve" : receiving ? "Receive" : shot}{" "}
+                        <span>{aimArrow}</span>
                       </output>
                       <div
                         className="badminton-shots"
                         role="group"
-                        aria-label="Shot type"
+                        aria-label="Return shot"
                       >
                         {(["clear", "drop", "smash"] as const).map((v) => (
                           <button
@@ -614,11 +642,9 @@ export function BadmintonCourt({
                       </div>
                       <HitPad
                         input={input}
-                        disabled={snapshot.phase === "point"}
-                        serve={
-                          snapshot.phase === "ready" &&
-                          game.current.server === "player"
-                        }
+                        disabled={snapshot.phase === "point" || receiving}
+                        serve={serving}
+                        ready={snapshot.canReturn}
                         onShot={({ aim: nextAim, shot: nextShot }) => {
                           input.current.aim = nextAim;
                           input.current.shot = nextShot;
@@ -627,7 +653,29 @@ export function BadmintonCourt({
                         }}
                       />
                       <small className="badminton-gesture-hint">
-                        ↑ clear · <span className="badminton-tap-hint">tap drop · </span>↓ smash
+                        {serving ? (
+                          <>
+                            High serve {aimArrow} · ← / → aim
+                            <br />
+                            Shots on returns
+                          </>
+                        ) : (
+                          <>
+                            ↑ clear ·{" "}
+                            <span className="badminton-tap-hint">
+                              tap drop ·{" "}
+                            </span>
+                            ↓ smash
+                            <br />
+                            <output
+                              className="badminton-touch-selection"
+                              aria-label="Selected return shot"
+                            >
+                              {shot} {aimArrow} ·{" "}
+                            </output>
+                            ← / → aim
+                          </>
+                        )}
                       </small>
                     </section>
                     <p className="badminton-hint">

@@ -25,6 +25,7 @@ import { roomFor } from "../core/room";
 import { useGameMode } from "../core/gameMode";
 import { useWorldView } from "../core/worldView";
 import {
+  islandCenter,
   islandZoom,
   islandFollow,
   ISLAND_CAMERA_OFFSET,
@@ -196,20 +197,20 @@ export function Walker({
     const mobile = size.width < 700 || size.height < 500;
     const worldZoom = useWorldView.getState().zoom;
     const playerFollow = islandFollow(worldZoom);
+    const [centerX, centerZ] = islandCenter(state.world);
     desired.current.set(
-      interior ? runtime.x * 0.9 : runtime.x * 0.92 * playerFollow,
+      interior
+        ? runtime.x * 0.9
+        : THREE.MathUtils.lerp(centerX, runtime.x * 0.92, playerFollow),
       0,
       interior
         ? runtime.z * 0.9 - 2
-        : THREE.MathUtils.lerp(
-            WORLD_ELLIPSE.centerZ,
-            runtime.z * 0.92,
-            playerFollow,
-          ),
+        : THREE.MathUtils.lerp(centerZ, runtime.z * 0.92, playerFollow),
     );
     const cameraKey = `${state.scene}:${state.world}`;
     const changedScene = cameraScene.current !== cameraKey;
-    if (changedScene) {
+    const wholeIsland = !interior && worldZoom === 1 && !state.build;
+    if (changedScene || wholeIsland) {
       follow.current.copy(desired.current);
       cameraScene.current = cameraKey;
     }
@@ -219,7 +220,7 @@ export function Walker({
     camera.position.copy(offset.current.add(follow.current));
     camera.lookAt(follow.current.x, interior ? 0.5 : 0.7, follow.current.z);
     if (camera instanceof THREE.OrthographicCamera) {
-      const fitted = islandZoom(size.width, size.height);
+      const fitted = islandZoom(size.width, size.height, state.world);
       const targetZoom = interior
         ? mobile
           ? Math.max(
@@ -234,9 +235,10 @@ export function Walker({
           ? fitted * 0.9
           : fitted;
       const zoom = !interior && !state.build ? worldZoom : 1;
-      camera.zoom = changedScene
-        ? targetZoom * zoom
-        : THREE.MathUtils.damp(camera.zoom, targetZoom * zoom, 5, dt);
+      camera.zoom =
+        changedScene || wholeIsland
+          ? targetZoom * zoom
+          : THREE.MathUtils.damp(camera.zoom, targetZoom * zoom, 5, dt);
       camera.updateProjectionMatrix();
     }
   });
@@ -330,13 +332,20 @@ export function Hub() {
     build = useGame((s) => s.build),
     world = useGame((s) => s.world),
     traveling = useGame((s) => s.traveling);
+  const skate = doorsInWorld(world).find((door) => door.id === "skate");
   return (
     <group>
       <Landscape world={world} />
       <VillageGardens world={world} />
       <RegionalActivities world={world} />
       {world === "home" && <HomeWorldEnvironment />}
-      {world === "korea" && <KoreaWorldEnvironment />}
+      {world === "korea" && (
+        <KoreaWorldEnvironment
+          onVisitLandmark={(x, z) => {
+            if (!build && !traveling) walkTo(x, z);
+          }}
+        />
+      )}
       <Bulletin />
       <Wildlife />
       {world === "stanford" && !save.memories.includes(HOOVER_KEY) && (
@@ -344,7 +353,7 @@ export function Hub() {
           <HooverKey />
         </group>
       )}
-      {world === "stanford" && (
+      {world === "stanford" && skate && (
         <group
           onPointerDown={(event) => {
             event.stopPropagation();
@@ -354,7 +363,10 @@ export function Hub() {
             if (!build && !traveling) walkTo(door.x, door.z);
           }}
         >
-          <SkateParkBuilding />
+          <SkateParkBuilding
+            position={[skate.footprint[0], 0, skate.footprint[1]]}
+            rotation={skate.rotation}
+          />
         </group>
       )}
       {world === "korea" && (

@@ -1,6 +1,6 @@
 import { afterEach, expect, it } from "vitest";
 import { keys, movement, movementSpeed } from "../src/game/core/input";
-import { doors, moveWorld } from "../src/game/core/world";
+import { doorsInWorld, moveWorld } from "../src/game/core/world";
 
 afterEach(() => keys.clear());
 
@@ -22,7 +22,7 @@ it("only sprints while Shift is held, without changing movement direction", () =
 it("keeps indoor walking slower and cannot sprint through a building", () => {
   keys.add("shift");
   expect(movementSpeed(4)).toBeLessThan(movementSpeed());
-  const kitchen = doors.find((door) => door.id === "kitchen")!;
+  const kitchen = doorsInWorld("home").find((door) => door.id === "kitchen")!;
   const result = moveWorld(
     kitchen.x,
     kitchen.z + 2,

@@ -44,6 +44,7 @@
   font-variant-numeric: tabular-nums;
 }
 .stadium-game-score strong {
+  color: #efd18c;
   letter-spacing: 0.08em;
 }
 .stadium-game-score small {
@@ -51,7 +52,11 @@
   font-size: 12px;
 }
 .stadium-game-score > span {
+  display: inline-block;
   font-weight: 700;
+}
+.stadium-game-score > span[data-scored="true"] {
+  animation: stadium-score-pop 300ms ease-out;
 }
 .stadium-game-stage button {
   min-height: 44px;
@@ -88,10 +93,33 @@
   font-size: 13px;
 }
 .stadium-game-dock p[data-result] {
-  color: #ffd6aa;
+  color: #ffdbb3;
+  background: #583732;
 }
 .stadium-game-dock p[data-result="Good"] {
-  color: #c8eda9;
+  color: #d6f4b8;
+  background: #24472e;
+}
+.stadium-game-dock p[data-result] span {
+  display: inline-block;
+  animation: stadium-score-pop 300ms ease-out;
+}
+@keyframes stadium-score-pop {
+  from {
+    transform: scale(0.92);
+  }
+  45% {
+    transform: scale(1.12);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stadium-game-score > span[data-scored="true"],
+  .stadium-game-dock p[data-result] span {
+    animation: none;
+  }
 }
 .stadium-game-controls {
   display: grid;
@@ -107,6 +135,30 @@
   gap: 6px;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
+}
+.stadium-game-progress,
+.stadium-game-kicks {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.stadium-game-kicks {
+  gap: 4px;
+}
+.stadium-game-kicks i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #577079;
+}
+.stadium-game-kicks i[data-state="current"] {
+  background: #efd18c;
+}
+.stadium-game-kicks i[data-state="made"] {
+  background: #a5d88a;
+}
+.stadium-game-kicks i[data-state="missed"] {
+  background: #e29884;
 }
 .stadium-game-bars {
   display: grid;
@@ -150,9 +202,31 @@
   transform: translateX(-50%);
 }
 .stadium-game-controls button {
-  border: 1px solid var(--hud-edge);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid #c89066;
   border-radius: 6px;
-  background: var(--hud-face);
+  background: #962d3d;
+}
+.stadium-game-controls kbd {
+  display: none;
+  border: 1px solid #e8ac9e;
+  border-radius: 3px;
+  padding: 1px 3px;
+  color: #fff3dc;
+  font-size: 9px;
+}
+@media (pointer: fine) and (min-width: 700px) {
+  .stadium-game-controls kbd {
+    display: inline-block;
+  }
+}
+@media (pointer: coarse) {
+  .stadium-game-controls button {
+    min-height: 52px;
+  }
 }
 .stadium-game-controls button[aria-disabled="true"] {
   opacity: 0.65;
@@ -200,11 +274,14 @@
     padding: 10px 12px;
   }
   .stadium-game-score {
-    gap: 10px;
+    gap: 8px;
     padding: 8px 10px;
   }
   .stadium-game-score strong {
     letter-spacing: 0;
+  }
+  .stadium-game-score small {
+    font-size: 10px;
   }
   .game-shell .scene-stadium .context-action {
     right: 18px;
@@ -256,6 +333,9 @@
   }
   .stadium-game-info {
     flex-wrap: wrap;
+  }
+  .stadium-game-kicks {
+    display: none;
   }
   .stadium-game-info strong {
     order: 1;
