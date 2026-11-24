@@ -14,9 +14,10 @@
   user-select: none;
 }
 .interior-game h2 {
-  font:
-    700 16px/1.2 inherit,
-    sans-serif;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
   margin: 0 0 8px;
 }
 .interior-game p {
@@ -33,9 +34,10 @@
   min-height: 44px;
   background: #456547;
   color: #fff2ca;
-  font:
-    700 14px/1.2 inherit,
-    sans-serif;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
   cursor: pointer;
   touch-action: manipulation;
 }
