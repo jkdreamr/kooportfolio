@@ -118,10 +118,26 @@ function WritingDialog({
     touch.z = 0;
     runtime.path = [];
     runtime.target = null;
+    // Removing the focused post/button can leave focus on the document body.
+    // Catch Escape before the game's window listener, regardless of focus;
+    // a modal's other keys must never become movement or interaction inputs.
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      close();
+    };
+    const contain = (event: KeyboardEvent) => event.stopPropagation();
+    window.addEventListener("keydown", escape, true);
+    document.addEventListener("keydown", contain);
+    document.addEventListener("keyup", contain);
     void load();
     return () => {
       alive.current = false;
       keys.clear();
+      window.removeEventListener("keydown", escape, true);
+      document.removeEventListener("keydown", contain);
+      document.removeEventListener("keyup", contain);
     };
   }, []);
   function change(key: keyof WritingDraft, value: string) {
