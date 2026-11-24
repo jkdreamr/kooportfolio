@@ -58,6 +58,13 @@
   border: 0;
   background: #050407;
 }
+.cinema-focus-guard {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
 #cinema-program {
   width: 100%;
   max-height: min(52dvh, 360px);

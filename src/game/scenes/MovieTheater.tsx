@@ -135,6 +135,12 @@ function TheaterViewer({
     button?.focus();
   }, []);
   const dialog = useRef<HTMLElement>(null);
+  const getControls = useCallback(
+    () => dialog.current?.querySelectorAll<HTMLElement>(
+      ".cinema-controls button, .cinema-controls a[href], #cinema-program:not([hidden]) button",
+    ),
+    [],
+  );
   const gl = useThree((s) => s.gl);
   const portal = useMemo(
     () => ({ current: gl.domElement.parentElement! }),
@@ -149,9 +155,7 @@ function TheaterViewer({
         onClose();
       }
       if (event.key === "Tab") {
-        const controls = dialog.current?.querySelectorAll<HTMLElement>(
-          ".cinema-controls button, .cinema-controls a[href], #cinema-program:not([hidden]) button",
-        );
+        const controls = getControls();
         if (!controls?.length) return;
         const first = player.current ?? controls[0],
           last = controls[controls.length - 1];
@@ -177,7 +181,7 @@ function TheaterViewer({
       window.removeEventListener("keydown", keydown, true);
       window.removeEventListener("interior-game-close", onClose);
     };
-  }, [hidden, onClose]);
+  }, [getControls, hidden, onClose]);
   if (hidden) return null;
   return (
     <>
@@ -190,6 +194,14 @@ function TheaterViewer({
           portal={portal}
           zIndexRange={[20, 0]}
         >
+          <span
+            className="cinema-focus-guard"
+            tabIndex={0}
+            onFocus={() => {
+              const controls = getControls();
+              controls?.item(controls.length - 1)?.focus();
+            }}
+          />
           <iframe
             ref={player}
             id="cinema-player"
