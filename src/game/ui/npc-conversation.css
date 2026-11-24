@@ -4,20 +4,25 @@
   z-index: 48;
 }
 .npc-dialog {
+  --npc-dock-clearance: calc(150px + env(safe-area-inset-bottom));
   position: absolute;
   z-index: 48;
-  bottom: max(126px, calc(env(safe-area-inset-bottom) + 110px));
+  bottom: var(--npc-dock-clearance);
   left: 50%;
   transform: translateX(-50%);
   width: min(380px, calc(100% - 32px));
+  max-height: calc(100% - var(--npc-dock-clearance) - 80px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 19px 20px 15px;
-  color: #f3e8cf;
-  background: #20362ff5;
-  border: 1px solid #ab9367;
-  border-radius: 6px;
+  color: var(--hud-ink, #f5f4e9);
+  background: var(--hud-face, #304650);
+  border: 1px solid var(--hud-edge, #536873);
+  border-bottom: 3px solid #162e39;
+  border-radius: 10px;
   box-shadow:
-    0 4px 0 #12251f,
-    0 10px 26px #10251d40;
+    inset 0 1px #bbc7b82e,
+    0 5px 16px #102b3d33;
   font-family: inherit;
 }
 .npc-speaker {
@@ -48,11 +53,12 @@
   gap: 4px 8px;
 }
 .npc-dialog button {
+  min-width: 44px;
   min-height: 44px;
   padding: 8px 10px;
   border-radius: 3px;
-  border: 1px solid #d7be8c42;
-  background: #ffffff09;
+  border: 1px solid var(--hud-edge, #536873);
+  background: var(--hud-low, #21353f);
   color: inherit;
   font-family: inherit;
   font-size: 12px;
@@ -60,21 +66,20 @@
   cursor: pointer;
 }
 .npc-dialog button:first-child {
-  color: #24372b;
-  background: #dfc28a;
-  border-color: #dfc28a;
+  background: #48616d;
+  border-color: #82959b;
 }
 .npc-dialog button:hover {
   filter: brightness(1.12);
 }
 .npc-dialog button:focus-visible {
-  outline: 2px solid #fff3c9;
+  outline: 2px solid var(--hud-gold, #f0c56b);
   outline-offset: 3px;
 }
 .npc-dialog .npc-goodbye {
   margin-left: auto;
   border-color: transparent;
-  color: #c3c9b8;
+  color: var(--hud-muted, #c3d0d0);
 }
 .npc-dialog kbd {
   margin-left: 12px;
@@ -88,10 +93,14 @@
 }
 @media (max-height: 500px) {
   .npc-dialog {
-    bottom: 68px;
     padding: 12px 16px 10px;
   }
   .npc-dialog p {
     margin: 8px 0;
+  }
+}
+@media (max-height: 500px) and (min-width: 701px) {
+  .npc-dialog {
+    --npc-dock-clearance: calc(112px + env(safe-area-inset-bottom));
   }
 }
