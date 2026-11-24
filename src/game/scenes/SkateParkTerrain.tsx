@@ -2,9 +2,14 @@ import { useEffect, useMemo } from "react";
 import { Line } from "@react-three/drei";
 import * as THREE from "three";
 import { Box, Cylinder, Sign } from "../world/Models";
+import { sculptedMaterial } from "../world/Surface";
 import { SKATE, SKATE_RAILS, skateHeight } from "../core/skate";
 
 function PouredConcrete() {
+  const material = useMemo(
+    () => sculptedMaterial({ vertexColors: true, roughness: 0.94 }),
+    [],
+  );
   const geometry = useMemo(() => {
     const g = new THREE.PlaneGeometry(
       SKATE.halfWidth * 2,
@@ -35,11 +40,15 @@ function PouredConcrete() {
     g.computeVertexNormals();
     return g;
   }, []);
-  useEffect(() => () => geometry.dispose(), [geometry]);
+  useEffect(
+    () => () => {
+      geometry.dispose();
+      material.dispose();
+    },
+    [geometry, material],
+  );
   return (
-    <mesh geometry={geometry} receiveShadow castShadow>
-      <meshStandardMaterial vertexColors roughness={0.94} />
-    </mesh>
+    <mesh geometry={geometry} material={material} receiveShadow castShadow />
   );
 }
 
