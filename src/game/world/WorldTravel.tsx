@@ -163,11 +163,12 @@ export function WorldTravel({
     [hidden, traveling, world],
   );
   useEffect(() => {
-    if (!request) return;
+    // Keep the booking until the local loop has let the passenger off.
+    if (!request || hidden || traveling) return;
     useGame.setState({ travelRequest: null });
     const option = directJourney(world, request);
     if (option) depart(option);
-  }, [request, world, depart]);
+  }, [request, world, depart, hidden, traveling]);
   return (
     <group>
       <Airport traveling={traveling} />

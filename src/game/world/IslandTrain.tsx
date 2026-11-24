@@ -206,6 +206,7 @@ export function IslandTrain({
   disabled?: boolean;
 }) {
   const [riding, setRiding] = useState(false);
+  const travelRequest = useGame((s) => s.travelRequest);
   const [near, setNear] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(
     () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
@@ -233,6 +234,9 @@ export function IslandTrain({
     runtime.moving = false;
     setRiding(false);
   }, []);
+  useEffect(() => {
+    if (travelRequest && riding) leave();
+  }, [travelRequest, riding, leave]);
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
     const update = () => setReducedMotion(media.matches);
