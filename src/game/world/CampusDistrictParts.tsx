@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import { sculptedMaterial } from "./Surface";
 
 export type CampusShape =
   | "stone"
@@ -42,7 +43,7 @@ const shapes: Record<CampusShape, THREE.BufferGeometry> = {
   roof: wedge,
   dome: new THREE.SphereGeometry(1, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2),
 };
-const matte = new THREE.MeshStandardMaterial({ roughness: 0.86, metalness: 0 });
+const matte = sculptedMaterial({ roughness: 0.86, metalness: 0 });
 
 /** One draw call per shape, not per tile, arch, leaf or sandstone block. */
 function Batch({
