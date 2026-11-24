@@ -235,6 +235,9 @@ export function WorldTravel({
           <div
             className="world-travel-status"
             onPointerDown={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              if (event.key === " ") event.stopPropagation();
+            }}
           >
             <span role="status">
               {WORLD_NAMES[trip.from]} → {WORLD_NAMES[trip.destination]}

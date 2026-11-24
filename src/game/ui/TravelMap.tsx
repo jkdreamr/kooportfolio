@@ -51,7 +51,13 @@ export function TravelMap({
   onChoose: (destination: TravelWorld) => void;
 }) {
   return (
-    <nav className="island-map" aria-label="Choose an island">
+    <nav
+      className="island-map"
+      aria-label="Choose an island"
+      onKeyDown={(event) => {
+        if (event.key === " ") event.stopPropagation();
+      }}
+    >
       <svg
         className="island-map-routes"
         viewBox="0 0 400 350"
