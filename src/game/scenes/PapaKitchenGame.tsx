@@ -37,7 +37,7 @@ function Ingredients({ ticket }: { ticket: Ticket }) {
   return (
     <ol className="papa-recipe">
       {ticket.toppings.map((ingredient, i) => (
-        <li key={`${ingredient}:${i}`}>
+        <li key={`${ingredient}:${i}`} title={ingredientName(ingredient)}>
           <i className={`papa-food papa-food--${ingredient}`} />
           {ingredientName(ingredient)}
         </li>

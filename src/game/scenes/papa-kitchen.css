@@ -581,10 +581,23 @@
     bottom: 16px;
     width: 274px;
     padding: 11px;
+    max-height: calc(100% - 80px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #78836b #1b383b;
+    overscroll-behavior: contain;
   }
   .papa-actions--orders {
-    width: 410px;
+    width: min(410px, calc(100% - 36px));
     padding: 0;
+    bottom: 80px;
+    max-height: calc(100% - 192px);
+  }
+  .papa-order {
+    min-width: 0;
+  }
+  .papa-game:has(.papa-actions--orders) .papa-ticket {
+    display: none;
   }
   .papa-toppings button {
     min-height: 43px;
@@ -599,5 +612,33 @@
     transform: none;
     width: 270px;
     padding: 17px;
+  }
+}
+@media (max-height: 500px) and (max-width: 700px) {
+  .papa-order {
+    padding: 8px;
+  }
+  .papa-order header {
+    font-size: 12px;
+  }
+  .papa-order small {
+    font-size: 10px;
+  }
+  .papa-order .papa-recipe {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-height: 16px;
+    margin: 8px 0;
+  }
+  .papa-order .papa-recipe li {
+    font-size: 0;
+    gap: 0;
+  }
+  .papa-order progress {
+    margin: 8px 0;
+  }
+  .papa-order button {
+    padding: 8px;
   }
 }
