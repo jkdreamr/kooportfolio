@@ -481,10 +481,16 @@ function BasketballCourt({ playing }: { playing: boolean }) {
     aimArrow = useRef<THREE.Group>(null),
     ballShadow = useRef<THREE.Mesh>(null);
   const desiredCamera = useMemo(() => new THREE.Vector3(), []);
+  const cameraForward = useMemo(() => new THREE.Vector3(), []);
   useFrame(({ camera }, delta) => {
     const g = useGame.getState();
     if (g.paused || g.result || g.panel !== "none" || !runtime.active) return;
     const sessionActive = useGameMode.getState().active?.id === "basketball";
+    // Project screen axes onto the floor, including portrait and camera transitions.
+    camera.getWorldDirection(cameraForward);
+    const horizontal = Math.hypot(cameraForward.x, cameraForward.z) || 1;
+    const rightX = -cameraForward.z / horizontal;
+    const rightZ = cameraForward.x / horizontal;
     // Walking never advances a round or consumes a release queued by the shared input.
     if (!playing || !sessionActive) {
       if (playing) return;
@@ -502,8 +508,8 @@ function BasketballCourt({ playing }: { playing: boolean }) {
         }
       }
       // Match the screen-relative court controls while keeping walking free of inertia.
-      const vx = runtime.target ? x : x * 0.914 + z * 0.406;
-      const vz = runtime.target ? z : z * 0.914 - x * 0.406;
+      const vx = runtime.target ? x : x * rightX - z * rightZ;
+      const vz = runtime.target ? z : x * rightZ + z * rightX;
       runtime.x = THREE.MathUtils.clamp(runtime.x + vx * dt * 4.8, -6, 6);
       runtime.z = THREE.MathUtils.clamp(runtime.z + vz * dt * 4.8, -3.8, 7.7);
       runtime.moving = Math.hypot(vx, vz) > 0.1;
@@ -536,13 +542,13 @@ function BasketballCourt({ playing }: { playing: boolean }) {
     const speed = runtime.shooting && holding.current ? 2.2 : 4.8;
     velocity.current.x = THREE.MathUtils.damp(
       velocity.current.x,
-      (inputX * 0.914 + inputZ * 0.406) * speed,
+      (inputX * rightX - inputZ * rightZ) * speed,
       14,
       dt,
     );
     velocity.current.z = THREE.MathUtils.damp(
       velocity.current.z,
-      (inputZ * 0.914 - inputX * 0.406) * speed,
+      (inputX * rightZ + inputZ * rightX) * speed,
       14,
       dt,
     );
