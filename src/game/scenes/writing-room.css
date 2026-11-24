@@ -6,7 +6,7 @@
   max-height: none;
   margin: auto;
   padding: 0;
-  border: 3px solid var(--hud-rim, #b39b66);
+  border: 1px solid #657b86;
   border-radius: 9px;
   background: var(--hud-face, #304650);
   color: var(--hud-ink, #f5f4e9);
@@ -32,7 +32,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
-  border-bottom: 2px solid var(--hud-rim, #b39b66);
+  border-bottom: 1px solid #657b86;
   background: #3a515c;
 }
 .writing-dialog .writing-header h2 {
@@ -73,20 +73,14 @@
 .writing-dialog summary:focus-visible,
 .writing-dialog input:focus-visible,
 .writing-dialog textarea:focus-visible {
-  outline: 3px solid var(--hud-gold, #f0c56b);
+  outline: 2px solid #b3d0de;
   outline-offset: 2px;
 }
-.writing-dialog .writing-error,
-.writing-dialog .writing-status {
+.writing-dialog .writing-notice {
   margin: 0 16px 10px;
-  padding: 8px 10px;
-  border-left: 3px solid #d5a958;
-  background: #4b4335;
-  font-size: 13px;
-}
-.writing-dialog .writing-status {
-  background: #294c4c;
-  border-color: #94b877;
+  color: var(--hud-muted, #c3d0d0);
+  font-size: 12px;
+  line-height: 1.5;
 }
 .writing-reader {
   display: grid;
@@ -128,7 +122,7 @@
 }
 .game-shell .writing-dialog .writing-post-link[aria-current="true"] {
   background: #425f6c;
-  box-shadow: inset 3px 0 #d3b369;
+  box-shadow: inset 2px 0 #a6c2d0;
 }
 .writing-page {
   padding: 22px 28px;
@@ -180,11 +174,6 @@
   padding: 8px 22px 20px;
   min-height: 0;
   overflow-y: auto;
-}
-.writing-dialog .writing-compose > p {
-  margin: 0;
-  color: var(--hud-muted, #c3d0d0);
-  font-size: 12px;
 }
 .writing-fields {
   display: grid;
