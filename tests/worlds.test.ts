@@ -12,8 +12,16 @@ import { activitySpots } from "../src/game/core/regionalActivities";
 import { grassSites } from "../src/game/core/scenery";
 import { HOME_PATH_FOOTPRINTS } from "../src/game/world/HomeWorldEnvironment";
 import { KOREA_RIVER_FOOTPRINT } from "../src/game/world/KoreaRiverGround";
+import { labelsOverlap } from "../src/game/world/Labels";
 
 describe("separate worlds", () => {
+  it("reserves the mobile zoom area without blocking labels elsewhere", () => {
+    const zoom = { x: 292, y: 164, w: 184, h: 66 };
+    const booth = { x: 207, y: 194, w: 97, h: 58 };
+    expect(labelsOverlap(booth, zoom)).toBe(true);
+    expect(labelsOverlap({ ...booth, y: 237 }, zoom)).toBe(false);
+    expect(labelsOverlap({ ...booth, x: 55 }, zoom)).toBe(false);
+  });
   it.each([
     ["Home paths and sidewalks", HOME_PATH_FOOTPRINTS],
     ["the Han River", [KOREA_RIVER_FOOTPRINT]],

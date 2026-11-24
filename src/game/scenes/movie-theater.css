@@ -8,7 +8,7 @@
   flex-direction: column-reverse;
   align-items: center;
   gap: 8px;
-  color: #f4ead9;
+  color: var(--hud-ink);
   font: 14px system-ui, sans-serif;
   pointer-events: none;
   color-scheme: dark;
@@ -17,9 +17,9 @@
 #cinema-program {
   box-sizing: border-box;
   padding: 6px;
-  border: 1px solid #79634e;
+  border: 1px solid var(--hud-edge);
   border-radius: 8px;
-  background: #201918f5;
+  background: var(--hud-low);
   pointer-events: auto;
 }
 .cinema-controls {
@@ -34,9 +34,9 @@
   justify-content: center;
   min-height: 44px;
   padding: 6px 9px;
-  border: 1px solid transparent;
+  border: 1px solid var(--hud-edge);
   border-radius: 4px;
-  background: #382927;
+  background: var(--hud-face);
   color: inherit;
   font: 600 13px system-ui, sans-serif;
   text-decoration: none;
@@ -45,12 +45,12 @@
 }
 .cinema-viewer button:hover,
 .cinema-viewer a:hover {
-  background: #553d37;
+  background: #3c5663;
 }
 .cinema-viewer button:focus-visible,
 .cinema-viewer a:focus-visible,
 .cinema-screen:focus-visible {
-  outline: 2px solid #f0d099;
+  outline: 2px solid var(--hud-ink);
   outline-offset: 2px;
 }
 .cinema-screen {
@@ -84,7 +84,7 @@
   text-align: left;
 }
 .cinema-program button[aria-pressed="true"] {
-  border-color: #b09268;
+  border-color: var(--hud-muted);
 }
 .cinema-program span {
   font-weight: normal;

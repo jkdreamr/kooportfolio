@@ -11,11 +11,11 @@
   max-height: 100%;
   width: 160px;
   padding: 12px;
-  border: 2px solid var(--hud-rim, #b39b66);
+  border: 1px solid var(--hud-edge, #536873);
   border-radius: 9px;
   background: var(--hud-face, #304650);
   color: var(--hud-ink, #f5f4e9);
-  box-shadow: inset 0 0 0 3px #21353f, 0 6px 0 #13262f, 0 12px 28px #13262f55;
+  box-shadow: var(--hud-shadow);
   font-family: "Trebuchet MS", Arial, sans-serif;
   font-size: 13px;
   line-height: 1.4;
@@ -43,7 +43,7 @@
   padding: max(16px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
   border: 0;
   border-radius: 0;
-  box-shadow: inset 0 3px var(--hud-rim, #b39b66);
+  box-shadow: none;
 }
 .go-card-playing .go-heading {
   max-width: 1080px;
@@ -69,7 +69,6 @@
 .go-card button, .go-card select {
   min-height: 40px;
   border: 1px solid var(--hud-edge, #536873);
-  border-bottom-width: 3px;
   border-radius: 4px;
   background: #3c5663;
   color: var(--hud-ink, #f5f4e9);
@@ -79,9 +78,8 @@
   touch-action: manipulation;
 }
 .go-card button:hover:not(:disabled) { background: #4b6877; }
-.go-card button:focus-visible, .go-card summary:focus-visible, .go-card select:focus-visible { outline: 3px solid #e8b754; outline-offset: 2px; }
+.go-card button:focus-visible, .go-card summary:focus-visible, .go-card select:focus-visible { outline: 2px solid var(--hud-ink, #f5f4e9); outline-offset: 2px; }
 .go-card button:disabled { opacity: .45; cursor: default; }
-.go-card button.go-primary { background: #486a49; border-color: #819678; }
 .go-card > .go-primary { width: 100%; }
 .go-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 .go-heading h2 { font-size: 20px; line-height: 1; margin: 0; }

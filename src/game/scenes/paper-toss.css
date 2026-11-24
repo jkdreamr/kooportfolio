@@ -5,6 +5,14 @@
   transform: translateY(-50%);
 }
 
+@media (max-width: 700px) and (orientation: portrait) {
+  .game-shell:has(.scene-office .context-action.visible) .toss-launch {
+    top: auto;
+    bottom: calc(38px + env(safe-area-inset-bottom));
+    transform: none;
+  }
+}
+
 .toss-hud {
   position: absolute;
   inset: 0;
