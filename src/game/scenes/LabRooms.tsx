@@ -7,13 +7,14 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import { Html } from "@react-three/drei";
+import { Html, OrthographicCamera } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import type { Group } from "three";
 import { Ball, Box, Cylinder, Ring, Sign } from "../world/Models";
 import { Plant, Stool, Table, gameIsActive } from "./InteriorProps";
 import { runtime, useGame } from "../core/store";
 import { roomFor } from "../core/room";
+import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import {
   advanceBeat,
   BEAT_INTERVAL,
@@ -32,11 +33,66 @@ import "./lab-rooms.css";
 const colors = ["#ed9c43", "#5cb9a6", "#d26754", "#9c9ed1"];
 const laneX = [-3.3, -1.1, 1.1, 3.3];
 
+function labZoom(id: "music" | "math", width: number, height: number) {
+  return id === "math"
+    ? Math.max(6, Math.min(82, (width - 36) / 8.8, (height - 180) / 8.8))
+    : Math.max(6, Math.min(65, (width - 36) / 11.8, (height - 220) / 12.8));
+}
+
+function LabCamera({ id }: { id: "music" | "math" }) {
+  const size = useThree((s) => s.size);
+  return (
+    <OrthographicCamera
+      makeDefault
+      position={id === "math" ? [0, 22, -2] : [0, 18, 9]}
+      up={id === "math" ? [0, 0, -1] : [0, 1, 0]}
+      zoom={labZoom(id, size.width, size.height)}
+      near={0.1}
+      far={100}
+      onUpdate={(camera) => {
+        camera.lookAt(0, 0, id === "math" ? -2 : -4.8);
+        camera.updateProjectionMatrix();
+      }}
+    />
+  );
+}
+
+function LabGameActions({ onClose }: { onClose: () => void }) {
+  const muted = useGame((s) => s.muted);
+  return (
+    <div className="lab-game-actions">
+      <button onClick={() => useGame.setState({ muted: !muted })}>
+        Sound {muted ? "off" : "on"}
+      </button>
+      <button className="lab-close" onClick={onClose}>
+        Close
+      </button>
+    </div>
+  );
+}
+
+function useLabClose(id: "music" | "math", cancelRound: () => void) {
+  const close = useCallback(() => {
+    cancelRound();
+    if (useGameMode.getState().active?.id === id) endGameMode();
+  }, [id, cancelRound]);
+  useEffect(() => {
+    window.addEventListener("interior-game-close", close);
+    return () => {
+      window.removeEventListener("interior-game-close", close);
+      if (useGameMode.getState().active?.id === id) endGameMode();
+    };
+  }, [id, close]);
+  return close;
+}
+
 function LabControls({
   name,
+  active = false,
   children,
 }: {
   name: string;
+  active?: boolean;
   children: ReactNode;
 }) {
   const gl = useThree((s) => s.gl);
@@ -45,18 +101,27 @@ function LabControls({
     [gl],
   );
   const hidden = useGame((s) => s.paused || s.panel !== "none" || s.build);
+  const focusGame = useCallback(
+    (node: HTMLElement | null) => {
+      if (active) node?.focus({ preventScroll: true });
+    },
+    [active],
+  );
   if (hidden) return null;
   return (
     <Html
       fullscreen
       portal={portal}
-      zIndexRange={[25, 25]}
+      zIndexRange={active ? [70, 70] : [25, 25]}
       style={{ pointerEvents: "none" }}
       calculatePosition={(_, __, size) => [size.width / 2, size.height / 2]}
     >
       <section
-        className="lab-controls"
+        key={active ? "game" : "room"}
+        className={`lab-controls${active ? " lab-game" : ""}`}
         aria-label={name}
+        tabIndex={-1}
+        ref={focusGame}
         onPointerDown={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
           // Keep native button activation; movement and Escape still bubble.
@@ -79,7 +144,7 @@ function WalkFloor() {
       position={[0, 0.13, 0]}
       onPointerDown={(e) => {
         e.stopPropagation();
-        if (!gameIsActive()) return;
+        if (!gameIsActive() || useGameMode.getState().active) return;
         runtime.path = [];
         runtime.target = [
           Math.max(-room.walkX, Math.min(room.walkX, e.point.x)),
@@ -130,6 +195,7 @@ function Speaker({ x, z = -8 }: { x: number; z?: number }) {
 }
 
 function StudioDressing() {
+  const room = roomFor("music");
   return (
     <>
       <Box p={[0, 0.18, -4.6]} s={[11.2, 0.2, 14]} c="#493b35" />
@@ -139,8 +205,10 @@ function StudioDressing() {
       ))}
       <Speaker x={-7.7} />
       <Speaker x={7.7} />
+      <Speaker x={-room.width / 2 + 2} z={-room.depth / 2 + 3} />
+      <Speaker x={room.width / 2 - 2} z={-room.depth / 2 + 3} />
       {[-7.8, -2.6, 2.6, 7.8].map((x) => (
-        <group key={x} position={[x, 2.7, -12.1]}>
+        <group key={x} position={[x, 2.7, -room.depth / 2 + 0.8]}>
           <Box s={[2.6, 3.7, 0.35]} c="#63362f" />
           {[-0.8, -0.4, 0, 0.4, 0.8].map((slat) => (
             <Box
@@ -152,7 +220,10 @@ function StudioDressing() {
           ))}
         </group>
       ))}
-      <group position={[-7.8, 0, -0.4]} rotation={[0, Math.PI / 2, 0]}>
+      <group
+        position={[-room.width / 2 + 2.2, 0, -0.4]}
+        rotation={[0, Math.PI / 2, 0]}
+      >
         <Table size={[4.4, 1.7]} />
         <Box p={[0, 1.38, 0]} s={[4.2, 0.32, 1.55]} c="#35433e" />
         {Array.from({ length: 12 }, (_, i) => (
@@ -171,7 +242,7 @@ function StudioDressing() {
         ))}
         <Stool p={[0, 0, 2]} color="#466f60" />
       </group>
-      <group position={[7.6, 0, 0.8]}>
+      <group position={[room.width / 2 - 2.5, 0, 0.8]}>
         <Cylinder p={[0, 0.15, 0]} s={[0.9, 0.25, 0.9]} c="#4e5448" />
         <Cylinder p={[0, 1.8, 0]} s={[0.08, 3.5, 0.08]} c="#a69773" />
         <Cylinder p={[0, 3.7, 0]} s={[0.22, 0.65, 0.22]} c="#343c37" />
@@ -183,8 +254,8 @@ function StudioDressing() {
           r={[0, 0, 0]}
         />
       </group>
-      <Plant p={[-8, 0, 5.3]} />
-      <Plant p={[8, 0, 5.3]} />
+      <Plant p={[-room.width / 2 + 2, 0, 8]} />
+      <Plant p={[room.width / 2 - 2, 0, 8]} />
       <Sign
         text="1     2     3     4"
         p={[0, 1.8, -10.8]}
@@ -235,7 +306,7 @@ function BeatVisuals({
             onPointerDown={(e) => {
               if (
                 !gameIsActive() ||
-                Math.hypot(runtime.x, runtime.z + 2) > 8 ||
+                useGameMode.getState().active?.id !== "music" ||
                 game.current.phase !== "playing"
               )
                 return;
@@ -269,14 +340,27 @@ function BeatVisuals({
 }
 
 export function BeatLabInterior() {
+  const active = useGameMode((s) => s.active?.id === "music");
   const game = useRef(newBeatGame()),
     rewarded = useRef(false),
     lastPulse = useRef(-1);
   const [view, setView] = useState(game.current),
     [near, setNear] = useState(false);
   const refresh = useRef(0);
+  const cancelRound = useCallback(() => {
+    game.current = newBeatGame();
+    rewarded.current = false;
+    lastPulse.current = -1;
+    setView(game.current);
+  }, []);
+  const close = useLabClose("music", cancelRound);
   const play = useCallback((lane: number) => {
-    if (!gameIsActive() || Math.hypot(runtime.x, runtime.z + 2) > 8) return;
+    if (
+      !gameIsActive() ||
+      useGameMode.getState().active?.id !== "music" ||
+      game.current.phase !== "playing"
+    )
+      return;
     game.current = hitBeat(game.current, lane);
     labTone(lane);
     setView(game.current);
@@ -295,10 +379,12 @@ export function BeatLabInterior() {
   }, [play]);
   useFrame((_, dt) => {
     if (!gameIsActive() || !runtime.active) return;
-    const close = Math.hypot(runtime.x, runtime.z + 2) <= 8;
-    if (close !== near) setNear(close);
-    // Walking away suspends the phrase instead of silently losing notes.
-    if (close) game.current = advanceBeat(game.current, Math.min(dt, 0.05));
+    if (useGameMode.getState().active?.id !== "music") {
+      const nearby = Math.hypot(runtime.x, runtime.z + 2) <= 8;
+      if (nearby !== near) setNear(nearby);
+      return;
+    }
+    game.current = advanceBeat(game.current, Math.min(dt, 0.05));
     const g = game.current;
     const pulse = Math.floor(g.time / BEAT_INTERVAL);
     if (g.phase === "playing" && pulse !== lastPulse.current) {
@@ -320,7 +406,8 @@ export function BeatLabInterior() {
     }
   });
   const start = () => {
-    if (!gameIsActive() || !near) return;
+    if (!gameIsActive()) return;
+    if (!active && (!near || !startGameMode("music"))) return;
     rewarded.current = false;
     lastPulse.current = -1;
     game.current = { ...newBeatGame(), phase: "playing" };
@@ -329,72 +416,88 @@ export function BeatLabInterior() {
   };
   return (
     <>
+      {active && <LabCamera id="music" />}
       <WalkFloor />
       <StudioDressing />
       <BeatVisuals game={game} onHit={play} />
-      <LabControls name="Beat Lab controls">
-        <header>
-          <strong>Beat Lab</strong>
-          <span>
-            {view.phase === "playing"
-              ? `${view.points} · ${view.combo}×`
-              : "100 BPM"}
-          </span>
-        </header>
-        {!near ? (
-          <p>Walk up to the brass ring.</p>
-        ) : view.phase === "ready" ? (
+      <LabControls name="Beat Lab controls" active={active}>
+        {active ? (
           <>
-            <p>Hit 1–4 as notes reach the pads.</p>
-            <button className="lab-primary" onClick={start}>
-              Play
-            </button>
-          </>
-        ) : view.phase === "done" ? (
-          <>
-            <p role="status">
-              {view.notes.filter((n) => n.hit).length}/32 hits · best{" "}
-              {view.best}×
-            </p>
-            <p>
-              {view.notes.filter((n) => n.hit).length >= 20
-                ? `+${view.points >= 2600 ? 20 : 12} coins`
-                : "20 hits earns coins."}
-            </p>
-            <button className="lab-primary" onClick={start}>
-              Again
-            </button>
+            <header className="lab-game-topbar">
+              <div>
+                <strong>Beat Lab</strong>
+                <span>
+                  {view.points} points · {view.combo}×
+                </span>
+              </div>
+              <LabGameActions onClose={close} />
+            </header>
+            <div className="lab-game-bottom">
+              {view.phase === "done" ? (
+                <>
+                  <p role="status">
+                    {view.notes.filter((n) => n.hit).length}/32 hits · best{" "}
+                    {view.best}×
+                    {view.notes.filter((n) => n.hit).length >= 20
+                      ? ` · +${view.points >= 2600 ? 20 : 12} coins`
+                      : " · 20 hits earns coins"}
+                  </p>
+                  <button className="lab-primary" onClick={start}>
+                    Again
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className="lab-feedback" role="status">
+                    {view.time < 2.4
+                      ? `Ready · ${Math.ceil((2.4 - view.time) / BEAT_INTERVAL)}`
+                      : view.feedback || "Hit 1–4 as notes reach the pads"}
+                  </p>
+                  <div className="beat-buttons">
+                    {colors.map((c, lane) => (
+                      <button
+                        key={lane}
+                        style={{ borderColor: c }}
+                        onPointerDown={(e) => {
+                          e.preventDefault();
+                          play(lane);
+                        }}
+                        onClick={(e) => {
+                          if (e.detail === 0) play(lane);
+                        }}
+                        aria-label={`Play pad ${lane + 1}`}
+                      >
+                        {lane + 1}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="beat-track" aria-hidden="true">
+                    <i
+                      style={{
+                        width: `${Math.min(100, (view.time / 21.6) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
           </>
         ) : (
           <>
-            <div className="beat-track" aria-hidden="true">
-              <i
-                style={{ width: `${Math.min(100, (view.time / 21.6) * 100)}%` }}
-              />
-            </div>
-            <p className="lab-feedback" role="status">
-              {view.time < 2.4
-                ? `Ready · ${Math.ceil((2.4 - view.time) / BEAT_INTERVAL)}`
-                : view.feedback || "1–4 · follow the notes"}
-            </p>
-            <div className="beat-buttons">
-              {colors.map((c, lane) => (
-                <button
-                  key={lane}
-                  style={{ borderColor: c }}
-                  onPointerDown={(e) => {
-                    e.preventDefault();
-                    play(lane);
-                  }}
-                  onClick={(e) => {
-                    if (e.detail === 0) play(lane);
-                  }}
-                  aria-label={`Play pad ${lane + 1}`}
-                >
-                  {lane + 1}
+            <header>
+              <strong>Beat Lab</strong>
+              <span>100 BPM</span>
+            </header>
+            {near ? (
+              <>
+                <p>Hit 1–4 as notes reach the pads.</p>
+                <button className="lab-primary" onClick={start}>
+                  Play
                 </button>
-              ))}
-            </div>
+              </>
+            ) : (
+              <p>Walk up to the brass ring.</p>
+            )}
           </>
         )}
       </LabControls>
@@ -403,6 +506,8 @@ export function BeatLabInterior() {
 }
 
 function MathDressing() {
+  const room = roomFor("math");
+  const back = -room.depth / 2 + 0.8;
   const sculpture = useRef<Group>(null);
   useFrame((_, dt) => {
     if (sculpture.current && gameIsActive())
@@ -412,8 +517,8 @@ function MathDressing() {
     <>
       <Box p={[0, 0.19, -2]} s={[9, 0.28, 9]} c="#455b4e" />
       <Box p={[0, 0.37, -2]} s={[8.6, 0.12, 8.6]} c="#233e38" />
-      {[-7.8, 7.8].map((x) => (
-        <group key={x} position={[x, 0, -8.5]}>
+      {[-room.width / 2 + 3, room.width / 2 - 3].map((x) => (
+        <group key={x} position={[x, 0, back + 3]}>
           <Box p={[0, 0.25, 0]} s={[3.5, 0.5, 3.2]} c="#716b56" />
           <Box p={[0, 1.35, 0]} s={[2.7, 2.1, 2.4]} c="#426c5b" />
           <Box p={[0, 2.45, 0]} s={[3.2, 0.3, 2.9]} c="#b39151" />
@@ -429,16 +534,16 @@ function MathDressing() {
           ))}
         </group>
       ))}
-      <Box p={[0, 2.5, -11.95]} s={[7.3, 3.5, 0.5]} c="#805d36" />
-      <Box p={[0, 2.5, -11.64]} s={[6.8, 3, 0.15]} c="#264c40" />
+      <Box p={[0, 2.5, back]} s={[7.3, 3.5, 0.5]} c="#805d36" />
+      <Box p={[0, 2.5, back + 0.31]} s={[6.8, 3, 0.15]} c="#264c40" />
       <Sign
         text="0 ↔ 1"
-        p={[0, 2.7, -11.51]}
+        p={[0, 2.7, back + 0.44]}
         size={[4.2, 1]}
         color="#264c40"
         ink="#e2c587"
       />
-      <group position={[7.5, 0, 0.2]}>
+      <group position={[room.width / 2 - 2.7, 0, 0.2]}>
         <Cylinder p={[0, 0.2, 0]} s={[1.6, 0.35, 1.6]} c="#80745b" />
         <Cylinder p={[0, 1.2, 0]} s={[0.3, 2.2, 0.3]} c="#af8748" />
         <group ref={sculpture} position={[0, 3, 0]}>
@@ -447,7 +552,7 @@ function MathDressing() {
           <Ball s={[0.58, 0.58, 0.58]} c="#c79544" />
         </group>
       </group>
-      <group position={[-7.5, 0, 1]}>
+      <group position={[-room.width / 2 + 2.7, 0, 1]}>
         <Table size={[2.5, 3.6]} />
         {[0, 1, 2].map((i) => (
           <Box
@@ -459,27 +564,37 @@ function MathDressing() {
         ))}
         <Stool p={[0, 0, 2.7]} color="#406a57" />
       </group>
-      <Plant p={[-8.5, 0, 5]} />
-      <Plant p={[8.5, 0, 5]} />
+      <Plant p={[-room.width / 2 + 2, 0, 8]} />
+      <Plant p={[room.width / 2 - 2, 0, 8]} />
     </>
   );
 }
 
 export function MathLabInterior() {
+  const active = useGameMode((s) => s.active?.id === "math");
+  const size = useThree((s) => s.size);
+  const zoom = labZoom("math", size.width, size.height);
   const [round, setRound] = useState(0),
     [board, setBoard] = useState(() => newLightsBoard(0));
   const [moves, setMoves] = useState(0),
     [hint, setHint] = useState<number | null>(null);
-  const [near, setNear] = useState(false),
-    [started, setStarted] = useState(false);
+  const [near, setNear] = useState(false);
   const rewarded = useRef(false),
-    stepTile = useRef(-1),
     boardRef = useRef(board);
   const solved = board === LIGHTS_TARGET;
+  const cancelRound = useCallback(() => {
+    boardRef.current = newLightsBoard(0);
+    setBoard(boardRef.current);
+    setRound(0);
+    setMoves(0);
+    setHint(null);
+    rewarded.current = false;
+  }, []);
+  const close = useLabClose("math", cancelRound);
   const toggle = useCallback((tile: number) => {
     if (
       !gameIsActive() ||
-      Math.hypot(runtime.x, runtime.z + 2) > 8 ||
+      useGameMode.getState().active?.id !== "math" ||
       boardRef.current === LIGHTS_TARGET
     )
       return;
@@ -498,7 +613,6 @@ export function MathLabInterior() {
     const key = (e: KeyboardEvent) => {
       if (
         e.repeat ||
-        !started ||
         (e.target as HTMLElement).closest("input,textarea,select")
       )
         return;
@@ -506,30 +620,14 @@ export function MathLabInterior() {
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
-  }, [toggle, started]);
+  }, [toggle]);
   useFrame(() => {
-    if (!gameIsActive()) return;
-    const close = Math.hypot(runtime.x, runtime.z + 2) <= 8;
-    if (close !== near) setNear(close);
-    const col = Math.round(runtime.x / 2.5) + 1,
-      row = Math.round((runtime.z + 2) / 2.5) + 1;
-    const cx = (col - 1) * 2.5,
-      cz = (row - 1) * 2.5 - 2;
-    const tile =
-      col >= 0 &&
-      col < 3 &&
-      row >= 0 &&
-      row < 3 &&
-      Math.hypot(runtime.x - cx, runtime.z - cz) < 0.78
-        ? row * 3 + col
-        : -1;
-    if (tile !== stepTile.current) {
-      stepTile.current = tile;
-      if (tile >= 0 && started) toggle(tile);
-    }
+    if (!gameIsActive() || active) return;
+    const nearby = Math.hypot(runtime.x, runtime.z + 2) <= 8;
+    if (nearby !== near) setNear(nearby);
   });
   const reset = (nextRound = round) => {
-    if (!gameIsActive()) return;
+    if (!gameIsActive() || useGameMode.getState().active?.id !== "math") return;
     setRound(nextRound);
     setMoves(0);
     setHint(null);
@@ -537,8 +635,13 @@ export function MathLabInterior() {
     setBoard(boardRef.current);
     rewarded.current = false;
   };
+  const start = () => {
+    if (!near || !gameIsActive() || !startGameMode("math")) return;
+    cancelRound();
+  };
   return (
     <>
+      {active && <LabCamera id="math" />}
       <WalkFloor />
       <MathDressing />
       {Array.from({ length: 9 }, (_, tile) => {
@@ -553,9 +656,8 @@ export function MathLabInterior() {
             ]}
             onPointerDown={(e) => {
               if (
-                !started ||
                 !gameIsActive() ||
-                Math.hypot(runtime.x, runtime.z + 2) > 8 ||
+                useGameMode.getState().active?.id !== "math" ||
                 solved
               )
                 return;
@@ -583,58 +685,75 @@ export function MathLabInterior() {
           </group>
         );
       })}
-      <LabControls name="Math Lab controls">
-        <header>
-          <strong>Math Lab</strong>
-          <span>{moves} moves</span>
-        </header>
-        {!near ? (
-          <p>Walk up to the nine tiles.</p>
-        ) : !started ? (
+      <LabControls name="Math Lab controls" active={active}>
+        {active ? (
           <>
-            <p>Light all nine. A tile flips its neighbours too.</p>
-            <button
-              className="lab-primary"
-              onClick={() => {
-                if (gameIsActive()) setStarted(true);
-              }}
+            <header className="lab-game-topbar">
+              <div>
+                <strong>Math Lab</strong>
+                <span>{moves} moves</span>
+              </div>
+              <LabGameActions onClose={close} />
+            </header>
+            <div
+              className="lights-buttons"
+              aria-label="Light switches"
+              style={{ width: zoom * 7.5, height: zoom * 7.5 }}
             >
-              Play
-            </button>
-          </>
-        ) : solved ? (
-          <>
-            <p role="status">All lit · +15 coins</p>
-            <button className="lab-primary" onClick={() => reset(round + 1)}>
-              Next puzzle
-            </button>
-          </>
-        ) : (
-          <>
-            <p>Step on tiles, or use 1–9.</p>
-            <div className="lights-buttons" aria-label="Light switches">
               {Array.from({ length: 9 }, (_, tile) => (
                 <button
                   key={tile}
                   aria-label={`Toggle tile ${tile + 1}`}
                   aria-pressed={!!(board & (1 << tile))}
                   data-hint={hint === tile}
+                  disabled={solved}
+                  style={{ margin: zoom * 0.15 }}
                   onClick={() => toggle(tile)}
                 >
                   {tile + 1}
                 </button>
               ))}
             </div>
-            <footer>
-              <button
-                onClick={() => {
-                  if (gameIsActive()) setHint(lightsHint(board));
-                }}
-              >
-                Hint
-              </button>
-              <button onClick={() => reset()}>Reset</button>
+            <footer className="lab-game-bottom lab-math-bottom">
+              <p role="status">
+                {solved ? "All lit · +15 coins" : "Light all nine · 1–9"}
+              </p>
+              {solved ? (
+                <button
+                  className="lab-primary"
+                  onClick={() => reset(round + 1)}
+                >
+                  Next puzzle
+                </button>
+              ) : (
+                <div className="lab-game-actions">
+                  <button
+                    onClick={() => {
+                      if (gameIsActive()) setHint(lightsHint(board));
+                    }}
+                  >
+                    Hint
+                  </button>
+                  <button onClick={() => reset()}>Reset</button>
+                </div>
+              )}
             </footer>
+          </>
+        ) : (
+          <>
+            <header>
+              <strong>Math Lab</strong>
+            </header>
+            {near ? (
+              <>
+                <p>Light all nine. A tile flips its neighbours too.</p>
+                <button className="lab-primary" onClick={start}>
+                  Play
+                </button>
+              </>
+            ) : (
+              <p>Walk up to the nine tiles.</p>
+            )}
           </>
         )}
       </LabControls>

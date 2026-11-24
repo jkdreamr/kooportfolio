@@ -3,6 +3,18 @@ import { forest } from "./scenery";
 import { campusObstacles } from "./campus";
 import { POND } from "./pond";
 import { belongsToWorld, type WorldId } from "./worlds";
+import {
+  HOME_YARD_OBSTACLES,
+  HOME_SCENERY_TREES,
+} from "../world/HomeNeighborhood";
+import {
+  KOREA_WATER_OBSTACLES,
+  KOREA_BRIDGE_RAILS,
+} from "../world/HanRiverBridge";
+import {
+  KOREA_PARK_OBSTACLES,
+  KOREA_PARK_TREES,
+} from "../world/KoreaWorldEnvironment";
 
 const villageDoors = [
   {
@@ -227,10 +239,16 @@ const obstaclesFor = (world?: WorldId): ReadonlyArray<readonly number[]> => [
   ...(world === undefined || world === "korea" ? [[-6, -6.2, 1.2, 0.8]] : []),
   ...(world === "korea"
     ? [
-        [45, 26, 13, 4],
-        [45, 41, 13, 3],
-        [45, 30.38, 19, 0.18],
-        [45, 37.62, 19, 0.18],
+        ...KOREA_WATER_OBSTACLES,
+        ...KOREA_BRIDGE_RAILS,
+        ...KOREA_PARK_OBSTACLES,
+        ...KOREA_PARK_TREES.map(({ p }) => [p[0], p[2], 0.4, 0.4]),
+      ]
+    : []),
+  ...(world === "home"
+    ? [
+        ...HOME_YARD_OBSTACLES,
+        ...HOME_SCENERY_TREES.map(({ p }) => [p[0], p[2], 0.4, 0.4]),
       ]
     : []),
 ];
@@ -282,16 +300,50 @@ export function findPath(
     sz = Math.round(start[1] / grid),
     ex = Math.round(end[0] / grid),
     ez = Math.round(end[1] / grid);
-  const open = [{ x: sx, z: sz, cost: 0, f: 0 }],
+  type Node = { x: number; z: number; cost: number; f: number };
+  const open: Node[] = [],
     seen = new Map<string, number>(),
     parents = new Map<string, string>();
+  const before = (a: Node, b: Node) =>
+    a.f < b.f || (a.f === b.f && a.cost > b.cost);
+  const push = (node: Node) => {
+    let index = open.push(node) - 1;
+    while (index > 0) {
+      const parent = (index - 1) >> 1;
+      if (!before(open[index], open[parent])) break;
+      [open[index], open[parent]] = [open[parent], open[index]];
+      index = parent;
+    }
+  };
+  const pop = () => {
+    const node = open[0],
+      last = open.pop()!;
+    if (open.length) {
+      open[0] = last;
+      let index = 0;
+      for (;;) {
+        const left = index * 2 + 1,
+          right = left + 1;
+        if (left >= open.length) break;
+        const next =
+          right < open.length && before(open[right], open[left]) ? right : left;
+        if (!before(open[next], open[index])) break;
+        [open[next], open[index]] = [open[index], open[next]];
+        index = next;
+      }
+    }
+    return node;
+  };
+  push({ x: sx, z: sz, cost: 0, f: 0 });
   seen.set(key(sx, sz), 0);
-  for (let n = 0; n < 6000 && open.length; n++) {
+  for (let n = 0; n < 24000 && open.length; n++) {
     // Prefer progress toward the goal within the same A* contour. Otherwise
     // long district routes exhaust the search budget exploring a flat rectangle.
-    open.sort((a, b) => a.f - b.f || b.cost - a.cost);
-    const cur = open.shift()!,
+    // A heap keeps longer river/airport detours cheap instead of re-sorting
+    // the whole frontier on every step and freezing the main thread.
+    const cur = pop(),
       ck = key(cur.x, cur.z);
+    if (cur.cost !== seen.get(ck)) continue;
     if (Math.hypot(cur.x - ex, cur.z - ez) <= 1) {
       const out: [number, number][] = [[cur.x * grid, cur.z * grid]];
       let k = ck;
@@ -319,7 +371,7 @@ export function findPath(
         continue;
       seen.set(k, cost);
       parents.set(k, ck);
-      open.push({ x, z, cost, f: cost + Math.abs(x - ex) + Math.abs(z - ez) });
+      push({ x, z, cost, f: cost + Math.abs(x - ex) + Math.abs(z - ez) });
     }
   }
   return [];

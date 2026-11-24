@@ -1,20 +1,16 @@
-import { useReducer, useRef, type ReactNode } from "react";
+import { useReducer, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { newPong, PONG_CUPS, pongDepth, pongReducer } from "../core/pong";
 import { Ball, Cylinder, Ring } from "../world/Models";
 import { CraftedBox } from "./CraftedDetails";
 import { GameControls, gameIsActive } from "./InteriorProps";
+import { startGameMode, useGameMode } from "../core/gameMode";
+import { GAME_STAGE_Y, InteriorGameStage } from "./InteriorGameStage";
 
-export function PongTable({
-  active,
-  onSelect,
-  navigation,
-}: {
-  active: boolean;
-  onSelect: () => void;
-  navigation: ReactNode;
-}) {
+export function PongTable() {
+  const active = useGameMode((s) => s.active?.id === "pong");
+  const otherMode = useGameMode((s) => !!s.active && s.active.id !== "pong");
   const [game, dispatch] = useReducer(pongReducer, undefined, newPong);
   const ball = useRef<THREE.Group>(null),
     target = useRef<THREE.Group>(null),
@@ -46,11 +42,13 @@ export function PongTable({
   });
   return (
     <>
+      {active && <InteriorGameStage kind="pong" />}
       <group
-        position={[6, 0, 6]}
+        visible={!otherMode}
+        position={active ? [0, GAME_STAGE_Y, 0] : [6, 0, 6]}
         onClick={(event) => {
           event.stopPropagation();
-          if (gameIsActive()) onSelect();
+          if (!active && gameIsActive()) startGameMode("pong");
         }}
       >
         {[-1, 1].flatMap((x) =>
@@ -111,58 +109,56 @@ export function PongTable({
           <Ball s={[0.13, 0.13, 0.13]} c="#f6e8bd" />
         </group>
       </group>
-      {active && (
-        <GameControls
-          name="Cup pong game"
-          position={[7.5, 0.6, 5]}
-          mobileSheet
-          dock="left"
-          gameOpen
-          collapsible="Pong"
-        >
-          <div className="house-game-header">
-            {navigation}
-            <div className="pong-score">
-              <b>{6 - game.cups.length}/6 cups</b>
-              <span>{game.shots}/10 throws</span>
-            </div>
+      <GameControls
+        name="Cup pong game"
+        position={[7.5, 0.6, 5]}
+        mobileSheet
+        dock="left"
+        gameOpen
+        collapsible="Pong"
+        mode="pong"
+        launcherIndex={1}
+      >
+        <div className="house-game-header">
+          <h2>Cup pong</h2>
+          <div className="pong-score">
+            <b>{6 - game.cups.length}/6 cups</b>
+            <span>{game.shots}/10 throws</span>
           </div>
-          {game.phase !== "over" ? (
-            <div className="pong-throw-controls">
-              <input
-                className="pong-aim"
-                type="range"
-                aria-label="Aim"
-                min={-1.2}
-                max={1.2}
-                step={0.04}
-                value={game.aim}
-                disabled={game.phase !== "ready"}
-                onChange={(event) =>
-                  dispatch({ type: "aim", x: Number(event.target.value) })
-                }
-              />
-              <div className="pong-power" aria-label="Throw depth">
-                <i ref={meter} />
-              </div>
-              <button
-                disabled={game.phase !== "ready"}
-                onClick={() => {
-                  flight.current = 0;
-                  dispatch({ type: "throw", power: power.current });
-                }}
-              >
-                Throw
-              </button>
+        </div>
+        {game.phase !== "over" ? (
+          <div className="pong-throw-controls">
+            <input
+              className="pong-aim"
+              type="range"
+              aria-label="Aim"
+              min={-1.2}
+              max={1.2}
+              step={0.04}
+              value={game.aim}
+              disabled={game.phase !== "ready"}
+              onChange={(event) =>
+                dispatch({ type: "aim", x: Number(event.target.value) })
+              }
+            />
+            <div className="pong-power" aria-label="Throw depth">
+              <i ref={meter} />
             </div>
-          ) : (
-            <button onClick={() => dispatch({ type: "reset" })}>
-              New rack
+            <button
+              disabled={game.phase !== "ready"}
+              onClick={() => {
+                flight.current = 0;
+                dispatch({ type: "throw", power: power.current });
+              }}
+            >
+              Throw
             </button>
-          )}
-          <p role="status">{game.message || "Aim the ring at a cup."}</p>
-        </GameControls>
-      )}
+          </div>
+        ) : (
+          <button onClick={() => dispatch({ type: "reset" })}>New rack</button>
+        )}
+        <p role="status">{game.message || "Aim the ring at a cup."}</p>
+      </GameControls>
     </>
   );
 }

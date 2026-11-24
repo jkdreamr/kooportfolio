@@ -1,0 +1,29 @@
+import { FIELD_GOAL } from "./fieldGoal";
+
+type V3 = [number, number, number];
+
+export function stadiumCameraFrame(
+  player: { x: number; z: number },
+  playing: boolean,
+  ball: V3,
+  portrait: boolean,
+): { position: V3; target: V3 } {
+  if (!playing)
+    return {
+      position: [player.x + 5, 10, player.z + 6],
+      target: [player.x, 1, player.z - 3],
+    };
+  return {
+    position: [
+      portrait ? 0 : 6,
+      portrait ? 17 : 14,
+      FIELD_GOAL.startZ + (portrait ? 18 : 14),
+    ],
+    // Share the frame between the posts and the football, including wide kicks.
+    target: [
+      ball[0] * 0.45,
+      (portrait ? -2 : -4) + ball[1] * 0.4,
+      (FIELD_GOAL.startZ + FIELD_GOAL.goalZ) / 2,
+    ],
+  };
+}
