@@ -73,6 +73,8 @@ describe("outdoor sound mix", () => {
         birds: 0,
         crickets: 0,
         water: 0,
+        rain: 0,
+        wind: 0,
       });
   });
 });
