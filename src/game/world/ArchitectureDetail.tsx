@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { sculptedMaterial } from "./Surface";
@@ -15,13 +15,16 @@ const ceramic = sculptedMaterial({
   metalness: 0.02,
 });
 const stone = sculptedMaterial({ roughness: 0.9 });
+const timber = sculptedMaterial({ roughness: 0.85 });
 
 function Pieces({
   pieces,
   masonry = false,
+  wood = false,
 }: {
   pieces: Piece[];
   masonry?: boolean;
+  wood?: boolean;
 }) {
   const ref = useRef<THREE.InstancedMesh>(null);
   useLayoutEffect(() => {
@@ -43,7 +46,7 @@ function Pieces({
   return (
     <instancedMesh
       ref={ref}
-      args={[clay, masonry ? stone : ceramic, pieces.length]}
+      args={[clay, masonry ? stone : wood ? timber : ceramic, pieces.length]}
       castShadow
       receiveShadow
       dispose={null}
@@ -73,7 +76,7 @@ export function RoofShingles({
     const shade = (i: number) =>
       `#${base
         .clone()
-        .multiplyScalar(0.79 + ((i * 37) % 17) / 62)
+        .multiplyScalar(0.9 + ((i * 37) % 17) / 133)
         .getHexString()}`;
     const slope = Math.hypot(width / 2, rise),
       rows = Math.ceil(slope / 0.55),
@@ -83,17 +86,27 @@ export function RoofShingles({
         const t = (row + 0.5) / rows,
           span = depth * (hip ? 1 - 0.44 * t : 1),
           cols = Math.max(1, Math.ceil(span / 0.62));
-        for (let col = 0; col < cols; col++)
+        const unit = span / cols;
+        for (let col = 0; col < cols + (row % 2); col++) {
+          const start = Math.max(
+            -span / 2,
+            -span / 2 + (col - (row % 2) / 2) * unit,
+          );
+          const end = Math.min(
+            span / 2,
+            -span / 2 + (col + 1 - (row % 2) / 2) * unit,
+          );
           out.push({
             p: [
               ((side * width) / 2) * (1 - t),
               y + rise * t + 0.07,
-              -span / 2 + ((col + 0.5) * span) / cols,
+              (start + end) / 2,
             ],
-            s: [(slope / rows) * 1.14, 0.17, (span / cols) * 0.97],
+            s: [(slope / rows) * 1.14, 0.17, (end - start) * 0.97],
             r: [0, 0, -side * pitch],
             c: shade(out.length),
           });
+        }
       }
     if (hip) {
       const run = depth * 0.22,
@@ -116,6 +129,36 @@ export function RoofShingles({
               r: [side * endPitch, 0, 0],
               c: shade(out.length),
             });
+        }
+      // Raised hip caps close the diagonal seams between the roof planes.
+      const hipLength = Math.hypot(width / 2, run, rise);
+      const capCount = Math.ceil(hipLength / 0.5);
+      for (const x of [-1, 1])
+        for (const z of [-1, 1]) {
+          const direction = new THREE.Vector3(
+            (-x * width) / 2,
+            rise,
+            -z * run,
+          ).normalize();
+          const rotation = new THREE.Euler().setFromQuaternion(
+            new THREE.Quaternion().setFromUnitVectors(
+              new THREE.Vector3(0, 0, 1),
+              direction,
+            ),
+          );
+          for (let i = 0; i < capCount; i++) {
+            const t = (i + 0.5) / capCount;
+            out.push({
+              p: [
+                ((x * width) / 2) * (1 - t),
+                y + rise * t + 0.16,
+                z * (depth / 2 - run * t),
+              ],
+              s: [0.32, 0.25, (hipLength / capCount) * 1.1],
+              r: [rotation.x, rotation.y, rotation.z],
+              c: shade(i + 3),
+            });
+          }
         }
     }
     const ridge = depth * (hip ? 0.56 : 1),
@@ -141,34 +184,93 @@ export function StoneFooting({
 }) {
   const pieces = useMemo(() => {
     const out: Piece[] = [],
-      colors = ["#9c927c", "#b3a68c", "#c2b79a", "#a99c82"];
-    for (let row = 0; row < 2; row++)
-      for (const side of [-1, 1]) {
-        const n = Math.ceil(width / 0.8);
-        for (let i = 0; i < n; i++) {
-          const x = -width / 2 + ((i + 0.5) * width) / n;
-          if (side === 1 && Math.abs(x) < 0.85) continue;
-          out.push({
-            p: [x + (row ? 0.07 : -0.02), 0.3 + row * 0.31, (side * depth) / 2],
-            s: [width / n - 0.035, 0.29, 0.3],
-            c: colors[(i + row * 2) % 4],
-          });
-        }
-        const m = Math.ceil(depth / 0.8);
-        for (let i = 0; i < m; i++)
-          out.push({
-            p: [
-              (side * width) / 2,
-              0.3 + row * 0.31,
-              -depth / 2 + ((i + 0.5) * depth) / m,
-            ],
-            s: [0.3, 0.29, depth / m - 0.035],
-            c: colors[(i + row + 1) % 4],
-          });
+      colors = ["#9c927c", "#b3a68c", "#bbb094", "#a99c82"];
+    // Cut end stones rather than sliding entire rows past building corners.
+    const course = (
+      start: number,
+      end: number,
+      fixed: number,
+      alongX: boolean,
+      row: number,
+    ) => {
+      if (end <= start) return;
+      const n = Math.ceil((end - start) / 0.8);
+      const unit = (end - start) / n;
+      for (let i = 0; i < n + row; i++) {
+        const a = Math.max(start, start + (i - row / 2) * unit);
+        const b = Math.min(end, start + (i + 1 - row / 2) * unit);
+        const center = (a + b) / 2;
+        out.push({
+          p: alongX
+            ? [center, 0.3 + row * 0.31, fixed]
+            : [fixed, 0.3 + row * 0.31, center],
+          s: alongX ? [b - a - 0.03, 0.29, 0.34] : [0.34, 0.29, b - a - 0.03],
+          c: colors[(i + row * 2) % colors.length],
+        });
       }
+      if (row === 1)
+        out.push({
+          p: alongX
+            ? [(start + end) / 2, 0.83, fixed]
+            : [fixed, 0.83, (start + end) / 2],
+          s: alongX ? [end - start, 0.14, 0.43] : [0.43, 0.14, end - start],
+          c: "#c9bca0",
+        });
+    };
+    for (let row = 0; row < 2; row++) {
+      course(-width / 2, width / 2, -depth / 2, true, row);
+      // Leave the front threshold open; the footing never blocks the doorway.
+      course(-width / 2, -0.9, depth / 2, true, row);
+      course(0.9, width / 2, depth / 2, true, row);
+      for (const side of [-1, 1])
+        course(
+          -depth / 2 + 0.19,
+          depth / 2 - 0.19,
+          (side * width) / 2,
+          false,
+          row,
+        );
+    }
     return out;
   }, [width, depth]);
   return <Pieces pieces={pieces} masonry />;
+}
+
+/** Deep stone reveals and separate glazed panes, batched into one draw call. */
+export function WindowDetail({ width }: { width: number }) {
+  const pieces = useMemo(() => {
+    const out: Piece[] = [
+      { p: [0, 0, 0.015], s: [width + 0.24, 1.22, 0.17], c: "#3c4140" },
+      { p: [0, 0.64, 0.12], s: [width + 0.5, 0.18, 0.36], c: "#d6c29b" },
+      { p: [0, -0.63, 0.2], s: [width + 0.5, 0.18, 0.5], c: "#ddcca9" },
+      { p: [0, -0.76, 0.1], s: [width + 0.24, 0.08, 0.28], c: "#ab9675" },
+      { p: [0, 0, 0.21], s: [0.065, 1.07, 0.09], c: "#73573c" },
+      { p: [0, 0, 0.21], s: [width, 0.065, 0.09], c: "#73573c" },
+    ];
+    for (const side of [-1, 1]) {
+      out.push(
+        {
+          p: [side * (width / 2 + 0.08), 0, 0.12],
+          s: [0.14, 1.14, 0.32],
+          c: "#b9a480",
+        },
+        {
+          p: [side * (width / 2 - 0.025), 0, 0.18],
+          s: [0.055, 1.08, 0.1],
+          c: "#846443",
+        },
+        { p: [0, side * 0.51, 0.18], s: [width, 0.06, 0.1], c: "#846443" },
+      );
+      for (const vertical of [-1, 1])
+        out.push({
+          p: [(side * width) / 4, vertical * 0.25, 0.12],
+          s: [width / 2 - 0.06, 0.44, 0.06],
+          c: vertical === 1 ? "#b4c7bb" : "#e6bc74",
+        });
+    }
+    return out;
+  }, [width]);
+  return <Pieces pieces={pieces} />;
 }
 
 export function GableRoof({
@@ -203,11 +305,44 @@ export function GableRoof({
     solid.computeVertexNormals();
     return solid;
   }, [width, depth, rise]);
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  const fascia = useMemo(() => {
+    const out: Piece[] = [];
+    const slope = Math.hypot(width / 2, rise);
+    const pitch = Math.atan2(rise, width / 2);
+    for (const side of [-1, 1]) {
+      out.push({
+        p: [(side * width) / 2, y - 0.035, 0],
+        s: [0.24, 0.27, depth + 0.22],
+        c: "#735237",
+      });
+      for (const end of [-1, 1])
+        out.push({
+          p: [(side * width) / 4, y + rise / 2, end * (depth / 2 + 0.055)],
+          s: [slope + 0.15, 0.2, 0.24],
+          r: [0, 0, -side * pitch],
+          c: "#9b7149",
+        });
+      const brackets = Math.max(2, Math.floor(depth / 1.8));
+      for (let i = 0; i < brackets; i++)
+        out.push({
+          p: [
+            side * (width / 2 - 0.08),
+            y - 0.24,
+            -depth / 2 + ((i + 0.5) * depth) / brackets,
+          ],
+          s: [0.38, 0.23, 0.2],
+          c: "#af8557",
+        });
+    }
+    return out;
+  }, [width, depth, y, rise]);
   return (
     <group>
       <mesh position={[0, y, 0]} geometry={geometry} castShadow receiveShadow>
         <meshStandardMaterial color={color} roughness={0.82} />
       </mesh>
+      <Pieces pieces={fascia} wood />
       <RoofShingles {...{ width, depth, y, rise, color }} hip={false} />
     </group>
   );
