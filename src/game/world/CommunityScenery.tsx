@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { KOREA_MARKET, KOREA_PICNIC } from "../core/koreaDistrict";
 import { KOREA_EXERCISE_YARD } from "../core/regionalActivities";
 import { beam, WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
 
@@ -151,20 +152,19 @@ for (const dz of [-4.3, 4.3])
   part(home, 10, 4.5, 2 + dz, 12, 0.25, 0.22, "#806d52");
 picnic(home, homeSolids, 10, 2);
 
-// Hangang's social north bank: food tents on one side, continuous promenade
-// and cycle lane on the other. No counters or tables occupy either through-lane.
-for (const [i, x] of [27, 39, 51].entries()) {
-  koreaSolids.push([x, 6, 4.7, 3.2]);
-  part(korea, x, 0.22, 6, 9.6, 0.12, 6.6, "#b6ada0");
+const { z: marketZ } = KOREA_MARKET;
+for (const [i, x] of KOREA_MARKET.stalls.entries()) {
+  koreaSolids.push([x, marketZ, 4.7, 3.2]);
+  part(korea, x, 0.22, marketZ, 9.6, 0.12, 6.6, "#b6ada0");
   for (const dx of [-4.4, 4.4])
     for (const dz of [-2.8, 2.8])
-      part(korea, x + dx, 1.95, 6 + dz, 0.14, 3.5, 0.14, "#5e6e65");
+      part(korea, x + dx, 1.95, marketZ + dz, 0.14, 3.5, 0.14, "#5e6e65");
   for (const side of [-1, 1])
     part(
       korea,
       x,
       3.8,
-      6 + side * 1.65,
+      marketZ + side * 1.65,
       10,
       0.13,
       3.8,
@@ -172,15 +172,15 @@ for (const [i, x] of [27, 39, 51].entries()) {
       "block",
       [side * 0.22, 0, 0],
     );
-  part(korea, x, 1.2, 8.2, 8.5, 1.6, 1.25, "#a28c69");
-  part(korea, x, 2.03, 8.2, 8.8, 0.13, 1.5, "#c7bda6");
-  part(korea, x, 1.6, 3.7, 8.5, 0.18, 1.3, "#879389");
+  part(korea, x, 1.2, marketZ + 2.2, 8.5, 1.6, 1.25, "#a28c69");
+  part(korea, x, 2.03, marketZ + 2.2, 8.8, 0.13, 1.5, "#c7bda6");
+  part(korea, x, 1.6, marketZ - 2.3, 8.5, 0.18, 1.3, "#879389");
   for (let j = 0; j < 4; j++) {
     part(
       korea,
       x - 2.7 + j * 1.8,
       1.99,
-      3.7,
+      marketZ - 2.3,
       1.15,
       0.65,
       1.15,
@@ -191,7 +191,7 @@ for (const [i, x] of [27, 39, 51].entries()) {
       korea,
       x - 2.7 + j * 1.8,
       2.35,
-      3.7,
+      marketZ - 2.3,
       1.28,
       0.1,
       1.28,
@@ -202,7 +202,7 @@ for (const [i, x] of [27, 39, 51].entries()) {
       korea,
       x - 2.7 + j * 1.8,
       2.46,
-      3.7,
+      marketZ - 2.3,
       0.2,
       0.2,
       0.2,
@@ -213,7 +213,7 @@ for (const [i, x] of [27, 39, 51].entries()) {
       korea,
       x - 2.7 + j * 1.8,
       2.19,
-      8.2,
+      marketZ + 2.2,
       0.85,
       0.25,
       0.85,
@@ -224,18 +224,27 @@ for (const [i, x] of [27, 39, 51].entries()) {
       korea,
       x - 2.7 + j * 1.8,
       2.32,
-      8.2,
+      marketZ + 2.2,
       0.72,
       0.04,
       0.72,
       "#ba774e",
       "column",
     );
-    part(korea, x - 2.7 + j * 1.8, 2.38, 8.2, 0.6, 0.04, 0.08, "#d5b477");
+    part(
+      korea,
+      x - 2.7 + j * 1.8,
+      2.38,
+      marketZ + 2.2,
+      0.6,
+      0.04,
+      0.08,
+      "#d5b477",
+    );
   }
 }
-picnic(korea, koreaSolids, 33, -0.3);
-picnic(korea, koreaSolids, 45, -0.3);
+picnic(korea, koreaSolids, 31, -6.5);
+picnic(korea, koreaSolids, 43, -6.5);
 
 // A calisthenics yard faces the main east-west path. Only the actual apparatus
 // is solid: visitors can enter the exercise pad instead of hitting a large box.
@@ -265,16 +274,56 @@ for (const x of [-46, -40]) {
   koreaSolids.push([x, 6, 1.2, 1.35]);
 }
 
-// Picnic deck and bicycle hire form one connected western park node; the pond
-// remains untouched, and a link at z49 joins the existing southern promenade.
-part(korea, -28, 0.19, 49, 30, 0.05, 3, "#aaa99e");
-part(korea, -44, 0.22, 50, 14, 0.15, 15, "#a69371");
+const [deckX, deckZ] = KOREA_PICNIC;
+part(korea, deckX, 0.22, deckZ, 14, 0.15, 15, "#a69371");
+// The market's picnic shelter is open on all four sides.
+const shelterZ = deckZ + 3.25;
+for (const dx of [-5.45, 5.45]) {
+  for (const dz of [-2.65, 2.65]) {
+    part(korea, deckX + dx, 1.93, shelterZ + dz, 0.25, 3.22, 0.25, "#73563f");
+    part(korea, deckX + dx, 0.46, shelterZ + dz, 0.57, 0.26, 0.57, "#99958a");
+    koreaSolids.push([deckX + dx, shelterZ + dz, 0.29, 0.29]);
+  }
+  part(korea, deckX + dx, 3.35, shelterZ, 0.28, 0.24, 5.65, "#765b48");
+}
+for (const side of [-1, 1]) {
+  for (const [offset, y, depth, pitch, color] of [
+    [1.25, 4.1, 2.8, 0.42, "#4d6461"],
+    [3, 3.51, 1.25, 0.16, "#415755"],
+  ] as const) {
+    part(
+      korea,
+      deckX,
+      y,
+      shelterZ + side * offset,
+      12.5,
+      0.17,
+      depth,
+      color,
+      "block",
+      [side * pitch, 0, 0],
+    );
+  }
+  part(korea, deckX, 3.31, shelterZ + side * 2.65, 11.5, 0.29, 0.19, "#8e6150");
+}
+part(korea, deckX, 4.68, shelterZ, 12.6, 0.23, 0.37, "#3d5450");
 for (let i = 0; i < 19; i++)
-  part(korea, -50.5 + i * 0.72, 0.31, 50, 0.055, 0.015, 14.8, "#8b7c60");
-for (const [x, z] of [
-  [-46, 47],
-  [-41, 53],
+  part(
+    korea,
+    deckX - 6.5 + i * 0.72,
+    0.31,
+    deckZ,
+    0.055,
+    0.015,
+    14.8,
+    "#8b7c60",
+  );
+for (const [dx, dz] of [
+  [-2, -3],
+  [3, 3],
 ]) {
+  const x = deckX + dx,
+    z = deckZ + dz;
   part(korea, x, 0.33, z, 3.6, 0.045, 2.8, "#9f7967");
   for (let i = 0; i < 4; i++)
     part(korea, x - 1.4 + i * 0.9, 0.36, z, 0.08, 0.025, 2.7, "#c1ac8b");
@@ -284,20 +333,20 @@ for (const [x, z] of [
   koreaSolids.push([x + 0.8, z + 0.5, 0.55, 0.4]);
 }
 for (let i = 0; i < 5; i++) {
-  bicycle(korea, -53, 44 + i * 1.5, i % 2 ? "#618b77" : "#bf9d5c");
-  part(korea, -53, 0.4, 44 + i * 1.5, 3.4, 0.12, 0.12, "#677e75");
+  bicycle(korea, deckX - 9, deckZ - 6 + i * 1.5, i % 2 ? "#618b77" : "#bf9d5c");
+  part(korea, deckX - 9, 0.4, deckZ - 6 + i * 1.5, 3.4, 0.12, 0.12, "#677e75");
 }
-koreaSolids.push([-53, 47, 1.8, 3.9]);
-koreaSolids.push([-41, 54, 0.6, 0.6]);
-for (const x of [-49.5, -38.5]) {
-  part(korea, x, 0.65, 57, 2.1, 0.8, 1.5, "#8d947e");
-  koreaSolids.push([x, 57, 1.15, 0.85]);
+koreaSolids.push([deckX - 9, deckZ - 3, 1.8, 3.9]);
+koreaSolids.push([deckX + 3, deckZ + 4, 0.6, 0.6]);
+for (const x of [deckX - 5.5, deckX + 5.5]) {
+  part(korea, x, 0.65, deckZ + 7, 2.1, 0.8, 1.5, "#8d947e");
+  koreaSolids.push([x, deckZ + 7, 1.15, 0.85]);
   for (let i = 0; i < 7; i++)
     part(
       korea,
       x - 0.75 + i * 0.25,
       1.35,
-      57,
+      deckZ + 7,
       0.1,
       1.2,
       0.65,

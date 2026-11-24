@@ -1,4 +1,5 @@
 import type { WorldId } from "./worlds";
+import { KOREA_PICNIC_GUEST, KOREA_RAMEN_COUNTER } from "./koreaDistrict";
 import { HOME_DESTINATION_CENTERS } from "./homeLayout";
 
 export const GARDEN_REGROW_SECONDS = 35;
@@ -105,8 +106,16 @@ export const activitySpots: readonly {
     world: "home" as const,
     p: d.p,
   })),
-  { id: "ramen", world: "korea", p: [39, 10.6] },
-  { id: "picnic", world: "korea", p: [-41, 51.8] },
+  {
+    id: "ramen",
+    world: "korea",
+    p: [KOREA_RAMEN_COUNTER[0], KOREA_RAMEN_COUNTER[1] + 2.4],
+  },
+  {
+    id: "picnic",
+    world: "korea",
+    p: [KOREA_PICNIC_GUEST[0], KOREA_PICNIC_GUEST[1] - 2.2],
+  },
   ...FISHING_SPOTS.map((p, i) => ({
     id: `fish-${i}` as RegionalAction,
     world: "korea" as const,

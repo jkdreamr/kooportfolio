@@ -1,5 +1,6 @@
 // Deterministic tree trunks are shared by scenery and collision/pathfinding.
 import { WORLD_ELLIPSE } from "../../shared/world-bounds";
+import { isOnKoreaLand } from "./koreaDistrict";
 import {
   isKoreaGardenWalk,
   isKoreaLandmarkArea,
@@ -73,7 +74,9 @@ export const forest = Array.from({ length: 160 }, (_, i) => {
 );
 
 export const koreaForest = forest.filter(
-  ({ x, z }) =>
+  ({ x, z }, i) =>
+    i % 3 === 0 &&
+    isOnKoreaLand(x, z, 3) &&
     !isKoreaLandmarkArea(x, z, KOREA_LANDMARK_CANOPY_CLEARANCE) &&
     !isKoreaGardenWalk(x, z, 0.6),
 );

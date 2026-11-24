@@ -42,8 +42,10 @@ describe("physical neighborhood activities", () => {
     expect(nearbyRegionalActivity("stanford", -14.5, 0)).toBeUndefined();
     expect(nearbyRegionalActivity("home", 0, 5)).toBeUndefined();
     expect(nearbyRegionalActivity("home", -14.5, 0)?.id).toBe("harvest-0");
-    expect(nearbyRegionalActivity("korea", 39, 10.6)?.id).toBe("ramen");
-    expect(nearbyRegionalActivity("home", 39, 10.6)).toBeUndefined();
+    const ramen = activitySpots.find(({ id }) => id === "ramen")!;
+    expect(nearbyRegionalActivity("korea", ...ramen.p)?.id).toBe("ramen");
+    expect(nearbyRegionalActivity("home", ...ramen.p)).toBeUndefined();
+    expect(nearbyRegionalActivity("korea", 39, 10.6)).toBeUndefined();
   });
 });
 

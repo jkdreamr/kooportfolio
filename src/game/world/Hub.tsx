@@ -25,6 +25,7 @@ import { roomFor } from "../core/room";
 import { useGameMode } from "../core/gameMode";
 import { useWorldView } from "../core/worldView";
 import {
+  islandCenter,
   islandZoom,
   islandFollow,
   ISLAND_CAMERA_OFFSET,
@@ -39,7 +40,6 @@ import { MovieTheaterBuilding } from "../scenes/MovieTheater";
 import { IslandTrain } from "./IslandTrain";
 import { WorldTravel } from "./WorldTravel";
 import { WORLD_ELLIPSE } from "../../shared/world-bounds";
-import { islandForWorld } from "../core/homeIsland";
 import { PhotoBooth } from "./PhotoBooth";
 import { PhotoBoothView } from "./PhotoBoothView";
 import { isNearPhotoBooth } from "../core/photoBoothLayout";
@@ -197,15 +197,15 @@ export function Walker({
     const mobile = size.width < 700 || size.height < 500;
     const worldZoom = useWorldView.getState().zoom;
     const playerFollow = islandFollow(worldZoom);
-    const island = islandForWorld(state.world);
+    const [centerX, centerZ] = islandCenter(state.world);
     desired.current.set(
       interior
         ? runtime.x * 0.9
-        : THREE.MathUtils.lerp(island.centerX, runtime.x * 0.92, playerFollow),
+        : THREE.MathUtils.lerp(centerX, runtime.x * 0.92, playerFollow),
       0,
       interior
         ? runtime.z * 0.9 - 2
-        : THREE.MathUtils.lerp(island.centerZ, runtime.z * 0.92, playerFollow),
+        : THREE.MathUtils.lerp(centerZ, runtime.z * 0.92, playerFollow),
     );
     const cameraKey = `${state.scene}:${state.world}`;
     const changedScene = cameraScene.current !== cameraKey;

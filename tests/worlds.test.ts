@@ -18,6 +18,7 @@ import { grassSites } from "../src/game/core/scenery";
 import { HOME_PATH_FOOTPRINTS } from "../src/game/world/HomeWorldEnvironment";
 import { HOME_DESTINATION_CENTERS } from "../src/game/core/homeLayout";
 import { KOREA_RIVER_FOOTPRINT } from "../src/game/world/KoreaRiverGround";
+import { isOnKoreaLand, KOREA_MARKET } from "../src/game/core/koreaDistrict";
 import {
   isKoreaLandmarkArea,
   KOREA_GARDEN_WALKS,
@@ -104,6 +105,13 @@ describe("separate worlds", () => {
     // That coordinate is now offshore at Home, not a shared regional lawn.
     expect(canWalk(45, 26, "home")).toBe(false);
   });
+  it("keeps Korea's south-bank walk open behind the airport terminal", () => {
+    for (let x = 49; x <= 68; x++) {
+      expect(canWalk(x, 47, "korea"), `south bank x=${x}`).toBe(true);
+    }
+    expect(canWalk(58, 52, "korea")).toBe(false);
+    expect(canWalk(58, 47, "home")).toBe(false);
+  });
   it("lists each Seoul landmark once and connects the airport to it", () => {
     const korea = destinationsInWorld("korea");
     const airport = korea.find(({ id }) => id === "airport")!;
@@ -171,8 +179,7 @@ describe("separate worlds", () => {
       isKoreaLandmarkArea(x, z, 2);
     expect(villageGardenPlots("korea").some(overlaps)).toBe(false);
   });
-  it("plants on both sides of the Korea garden walks without blocking them", () => {
-    const plots = villageGardenPlots("korea");
+  it("keeps Korea's paved walks clear through the district", () => {
     for (const [x, z, width, depth] of KOREA_GARDEN_WALKS) {
       const horizontal = width > depth;
       const [dx, dz] = horizontal ? [width / 2, 0] : [0, depth / 2];
@@ -186,33 +193,56 @@ describe("separate worlds", () => {
         }
       }
     }
-    for (const side of [-1, 1]) {
-      expect(
-        plots.filter(
-          ({ x, z }) =>
-            x > -55 &&
-            x < 21 &&
-            z > -34 &&
-            z < 2 &&
-            Math.sign(z - KOREA_MAIN_STREET_Z) === side,
-        ).length,
-      ).toBeGreaterThanOrEqual(12);
-    }
   });
-  it("plants the west shore and connects its path to the picnic deck", () => {
+  it("reclaims Korea's empty coastal apron independently of Home", () => {
+    for (const [x, z] of [
+      [-69, 12],
+      [51, -33],
+      [0, 83],
+    ]) {
+      expect(isOnKoreaLand(x, z)).toBe(false);
+      expect(canWalk(x, z, "korea")).toBe(false);
+      expect(canWalk(x, z, "home")).toBe(false);
+    }
+    for (const [x, z] of [
+      [-48, 40],
+      [-44, 24],
+      [23, -35],
+      [60, -3],
+      [28, 62],
+    ]) {
+      expect(canWalk(x, z, "korea"), `former lawn at ${x}, ${z}`).toBe(false);
+    }
     const plots = villageGardenPlots("korea");
-    expect(
-      plots.filter(
-        ({ x, z, orchard }) => orchard && x < -58 && z >= 36 && z < 49,
-      ).length,
-    ).toBeGreaterThan(8);
-    expect(
-      plots.filter(
-        ({ x, z, orchard }) =>
-          !orchard && x > -54 && x < -42 && z > 16 && z < 32,
-      ).length,
-    ).toBeGreaterThan(4);
-    expect(findPath([-69, 12], [-44, 43], "korea").length).toBeGreaterThan(0);
+    expect(plots.every(({ x, z }) => isOnKoreaLand(x, z, 1.8))).toBe(true);
+  });
+  it("keeps the western pond deck and the covered picnic deck open", () => {
+    for (const [x, z] of [
+      [-35.6, 36.8],
+      [-35.6, 45],
+      [38, 7],
+      [37, 11],
+    ]) {
+      expect(canWalk(x, z, "korea"), `${x}, ${z}`).toBe(true);
+    }
+    expect(canWalk(31.55, 5.6, "korea")).toBe(false);
+  });
+  it("extends the photo booth street to every market stall and links the picnic deck", () => {
+    const [photoX, , photoZ] = PHOTO_BOOTH_ORIGIN;
+    for (const x of KOREA_MARKET.stalls) {
+      expect(canWalk(x, KOREA_MARKET.z, "korea")).toBe(false);
+      expect(canWalk(x, KOREA_MAIN_STREET_Z, "korea")).toBe(true);
+      expect(
+        findPath([photoX, photoZ + 2], [x, KOREA_MAIN_STREET_Z], "korea")
+          .length,
+      ).toBeGreaterThan(0);
+    }
+    const ramen = activitySpots.find(({ id }) => id === "ramen")!;
+    const picnic = activitySpots.find(({ id }) => id === "picnic")!;
+    const route = findPath([...ramen.p], [...picnic.p], "korea");
+    expect(route.length).toBeGreaterThan(0);
+    const [x, z] = route.at(-1)!;
+    expect(Math.hypot(x - picnic.p[0], z - picnic.p[1])).toBeLessThan(1);
   });
   it("requires a plane for Korea and car/train for domestic travel", () => {
     expect(validJourney("home", "stanford", "train")).toBe(true);

@@ -14,10 +14,6 @@ import { WORLD_ELLIPSE } from "../../shared/world-bounds";
 import type { WorldId } from "../core/worlds";
 import { STANFORD_WALKS } from "../core/stanfordLayout";
 import { doorsInWorld } from "../core/world";
-import {
-  isKoreaLandmarkArea,
-  KOREA_LANDMARK_CANOPY_CLEARANCE,
-} from "../core/koreaLandmarks";
 
 type Block = [number, number, number, number, number, number, string, number?];
 function Blocks({
@@ -73,12 +69,6 @@ const rimTrees: TreePlacement[] = Array.from({ length: 40 }, (_, i) => {
 });
 const rimGroves = Array.from({ length: 8 }, (_, i) =>
   rimTrees.slice(i * 5, i * 5 + 5),
-);
-const koreaRimGroves = rimGroves.map((grove) =>
-  grove.filter(
-    ({ p: [x, , z] }) =>
-      !isKoreaLandmarkArea(x, z, KOREA_LANDMARK_CANOPY_CLEARANCE),
-  ),
 );
 const masonry: Block[] = [];
 for (let i = 0; i < 125; i++) {
@@ -173,7 +163,7 @@ export function Landscape({ world = "stanford" }: { world?: WorldId }) {
           />
         );
       })}
-      <Blocks items={masonry} shadow />
+      {world !== "korea" && <Blocks items={masonry} shadow />}
       {/* Home and Korea own their paths. Stacking Stanford's grid beneath
           them produced coplanar intersections and paths through the river. */}
       {world === "stanford" && (
@@ -182,46 +172,52 @@ export function Landscape({ world = "stanford" }: { world?: WorldId }) {
           <GroundGrass avoid={grassAvoid} />
         </>
       )}
-      <Cylinder p={[-9, -1.1, 98]} s={[55, 1.8, 13.5]} c="#387b78" />
-      <Cylinder p={[-9, -0.12, 98]} s={[54.2, 0.25, 13.2]} c="#459d96" />
-      {Array.from({ length: 17 }, (_, i) => (
-        <Box
-          key={i}
-          p={[Math.sin(i * 3.2) * 40 - 9, 0.03, 97.2 + (i % 5)]}
-          s={[1.1 + (i % 3), 0.01, 0.035]}
-          c="#99d4bf"
-        />
-      ))}
-      <group position={[-28, 0.2, world === "stanford" ? 94.8 : 93]}>
-        <Box s={[3.3, 0.25, 6.1]} c="#805d36" />
-        {Array.from({ length: 14 }, (_, i) => (
-          <Box
-            key={i}
-            p={[0, 0.15, i * 0.42 - 2.65]}
-            s={[3.5, 0.15, 0.36]}
-            c={i % 2 ? "#b88a54" : "#c69b61"}
-          />
-        ))}
-        {[-1.4, 1.4].flatMap((x) =>
-          [-2.7, 2.7].map((z) => (
-            <Cylinder
-              key={`${x}:${z}`}
-              p={[x, -0.5, z]}
-              s={[0.16, 1.7, 0.16]}
-              c="#6e5138"
+      {world !== "korea" && (
+        <>
+          <Cylinder p={[-9, -1.1, 98]} s={[55, 1.8, 13.5]} c="#387b78" />
+          <Cylinder p={[-9, -0.12, 98]} s={[54.2, 0.25, 13.2]} c="#459d96" />
+          {Array.from({ length: 17 }, (_, i) => (
+            <Box
+              key={i}
+              p={[Math.sin(i * 3.2) * 40 - 9, 0.03, 97.2 + (i % 5)]}
+              s={[1.1 + (i % 3), 0.01, 0.035]}
+              c="#99d4bf"
             />
-          )),
-        )}
-      </group>
-      <group
-        position={world === "stanford" ? [-23, 0.075, 105.5] : [-23, 0.1, 98]}
-        rotation={[0, 1.4, 0]}
-      >
-        <Boat pace={0} color="#edc96e" />
-      </group>
-      {(world === "korea" ? koreaRimGroves : rimGroves).map((trees, i) => (
-        <NaturalTrees key={i} trees={trees} />
-      ))}
+          ))}
+          <group position={[-28, 0.2, world === "stanford" ? 94.8 : 93]}>
+            <Box s={[3.3, 0.25, 6.1]} c="#805d36" />
+            {Array.from({ length: 14 }, (_, i) => (
+              <Box
+                key={i}
+                p={[0, 0.15, i * 0.42 - 2.65]}
+                s={[3.5, 0.15, 0.36]}
+                c={i % 2 ? "#b88a54" : "#c69b61"}
+              />
+            ))}
+            {[-1.4, 1.4].flatMap((x) =>
+              [-2.7, 2.7].map((z) => (
+                <Cylinder
+                  key={`${x}:${z}`}
+                  p={[x, -0.5, z]}
+                  s={[0.16, 1.7, 0.16]}
+                  c="#6e5138"
+                />
+              )),
+            )}
+          </group>
+          <group
+            position={
+              world === "stanford" ? [-23, 0.075, 105.5] : [-23, 0.1, 98]
+            }
+            rotation={[0, 1.4, 0]}
+          >
+            <Boat pace={0} color="#edc96e" />
+          </group>
+          {rimGroves.map((trees, i) => (
+            <NaturalTrees key={i} trees={trees} />
+          ))}
+        </>
+      )}
       <Bench p={[-2.7, 0.2, 3.4]} />
       <Bench p={[2.8, 0.2, -2.9]} rotation={Math.PI} />
       {[-1, 1].map((side) => (

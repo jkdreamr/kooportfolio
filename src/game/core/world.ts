@@ -1,6 +1,7 @@
 import { WORLD_BOUNDS } from "../../shared/world-bounds";
 import { ISLAND_RAIL } from "./islandRail";
 import { forest, koreaForest } from "./scenery";
+import { isOnKoreaLand } from "./koreaDistrict";
 import {
   KOREA_LANDMARK_DESTINATIONS,
   KOREA_LANDMARK_SOLIDS,
@@ -301,7 +302,6 @@ const sharedObstacles: ReadonlyArray<readonly number[]> = [
   [0, -6.6, 2.1, 0.4],
   [0, 0, 1.5, 1.5],
   [-19, -38, 6, 6],
-  [58, 52, 9, 7],
 ];
 const obstaclesFor = (world?: WorldId): ReadonlyArray<readonly number[]> => [
   ...(world === "home"
@@ -309,7 +309,11 @@ const obstaclesFor = (world?: WorldId): ReadonlyArray<readonly number[]> => [
         ...sharedObstacles.slice(1, 4),
         [HOME_AIRPORT_GATE[0], HOME_AIRPORT_GATE[1] - 9, 5, 3.8],
       ]
-    : sharedObstacles),
+    : [
+        ...sharedObstacles,
+        // Korea keeps its south-bank walk behind the full-size terminal.
+        world === "korea" ? [58, 52, 4.9, 3.9] : [58, 52, 9, 7],
+      ]),
   ...(world === "home" ? [] : world === "korea" ? koreaForest : forest)
     .filter(({ x, z }) => world !== "stanford" || !isStanfordTownSpace(x, z, 3))
     .map((tree) => [tree.x, tree.z, 0.4, 0.4]),
@@ -343,9 +347,11 @@ export function canWalk(x: number, z: number, world?: WorldId) {
     x > WORLD_BOUNDS.maxX ||
     z < WORLD_BOUNDS.minZ ||
     z > WORLD_BOUNDS.maxZ ||
-    ((x - island.centerX) / island.radiusX) ** 2 +
-      ((z - island.centerZ) / island.radiusZ) ** 2 >
-      1
+    (world === "korea"
+      ? !isOnKoreaLand(x, z, 0.35)
+      : ((x - island.centerX) / island.radiusX) ** 2 +
+          ((z - island.centerZ) / island.radiusZ) ** 2 >
+        1)
   )
     return false;
   return !regionalObstacles[world ?? "all"].some(
