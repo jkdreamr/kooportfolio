@@ -37,6 +37,7 @@ import { PhotoBoothCamera } from "./world/PhotoBooth";
 import { PhotoBoothDialog, openPhotoBooth } from "./ui/PhotoBoothDialog";
 import { TelescopeView } from "./ui/TelescopeView";
 import { SkateParkInterior } from "./scenes/SkatePark";
+import { useTheater } from "./scenes/MovieTheater";
 import {
   collectHooverKey,
   claimHooverStash,
@@ -163,6 +164,7 @@ function World() {
   const scene = useGame((s) => s.scene),
     world = useGame((s) => s.world),
     run = useGame((s) => s.run);
+  const filmPlaying = useTheater((s) => s.filmId !== null);
   useEffect(() => {
     useTimeOfDay.getState().setTimeZone(WORLDS[world].timeZone);
   }, [world]);
@@ -211,7 +213,7 @@ function World() {
         color="#c7e6ff"
       />
       <Sun />
-      <TimeOfDayLighting />
+      <TimeOfDayLighting dimmed={scene === "theater" && filmPlaying} />
       <WorldAmbience />
       <PhotoBoothCamera />
       <WorldZoomInput />

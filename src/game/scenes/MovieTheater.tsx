@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
-import { Html } from "@react-three/drei";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Html, PerspectiveCamera } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
 import { create } from "zustand";
 import { Box, Cylinder, Sign } from "../world/Models";
@@ -9,6 +9,17 @@ import {
   youtubeEmbedUrl,
   type TheaterFilm,
 } from "../core/theaterProgram";
+import {
+  THEATER_EYE,
+  THEATER_PLAYER_HEIGHT,
+  THEATER_PLAYER_WIDTH,
+  THEATER_SCREEN,
+  THEATER_SCREEN_HEIGHT,
+  THEATER_SCREEN_WIDTH,
+  THEATER_SEAT_X,
+  THEATER_SEAT_Z,
+  theaterFov,
+} from "../core/theaterScreen";
 import { GameControls } from "./InteriorProps";
 import "./movie-theater.css";
 
@@ -115,24 +126,26 @@ function TheaterViewer({
   const filmId = useTheater((s) => s.filmId);
   const hidden = useGame((s) => s.paused || s.build || s.panel !== "none");
   const selected = program.find((film) => film.id === filmId);
+  const [showProgram, setShowProgram] = useState(false);
   const close = useRef<HTMLButtonElement>(null);
+  const player = useRef<HTMLIFrameElement>(null);
   // Html owns a separate DOM root; focus when its button actually mounts.
   const focusClose = useCallback((button: HTMLButtonElement | null) => {
     close.current = button;
     button?.focus();
   }, []);
   const dialog = useRef<HTMLElement>(null);
+  const getControls = useCallback(
+    () => dialog.current?.querySelectorAll<HTMLElement>(
+      ".cinema-controls button, .cinema-controls a[href], #cinema-program:not([hidden]) button",
+    ),
+    [],
+  );
   const gl = useThree((s) => s.gl);
-  const setFrameloop = useThree((s) => s.setFrameloop);
   const portal = useMemo(
     () => ({ current: gl.domElement.parentElement! }),
     [gl],
   );
-  useEffect(() => {
-    // The opaque viewer covers the world. Don't render 3D behind video.
-    setFrameloop("demand");
-    return () => setFrameloop(useGame.getState().paused ? "demand" : "always");
-  }, [setFrameloop, hidden]);
   useEffect(() => {
     if (hidden) return;
     const keydown = (event: KeyboardEvent) => {
@@ -142,13 +155,12 @@ function TheaterViewer({
         onClose();
       }
       if (event.key === "Tab") {
-        const controls = dialog.current?.querySelectorAll<HTMLElement>(
-          "button,a[href],iframe",
-        );
+        const controls = getControls();
         if (!controls?.length) return;
-        const first = controls[0],
+        const first = player.current ?? controls[0],
           last = controls[controls.length - 1];
-        if (!dialog.current?.contains(document.activeElement)) {
+        if (document.activeElement !== player.current &&
+            !dialog.current?.contains(document.activeElement)) {
           (event.shiftKey ? last : first).focus();
           event.preventDefault();
           return;
@@ -164,91 +176,123 @@ function TheaterViewer({
       }
     };
     window.addEventListener("keydown", keydown, true);
+    window.addEventListener("interior-game-close", onClose);
     return () => {
       window.removeEventListener("keydown", keydown, true);
+      window.removeEventListener("interior-game-close", onClose);
     };
-  }, [hidden, onClose]);
+  }, [getControls, hidden, onClose]);
   if (hidden) return null;
   return (
-    <Html
-      fullscreen
-      calculatePosition={(_object, _camera, size) => [
-        size.width / 2,
-        size.height / 2,
-      ]}
-      onOcclude={() => undefined}
-      portal={portal}
-      zIndexRange={[80, 0]}
-    >
-      <section
-        ref={dialog}
-        className="cinema-viewer"
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        onPointerDown={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
+    <>
+      {selected && (
+        <Html
+          transform
+          prepend
+          position={THEATER_SCREEN}
+          distanceFactor={THEATER_SCREEN_WIDTH * 400 / THEATER_PLAYER_WIDTH}
+          portal={portal}
+          zIndexRange={[20, 0]}
+        >
+          <span
+            className="cinema-focus-guard"
+            tabIndex={0}
+            onFocus={() => {
+              const controls = getControls();
+              controls?.item(controls.length - 1)?.focus();
+            }}
+          />
+          <iframe
+            ref={player}
+            id="cinema-player"
+            className="cinema-screen"
+            key={selected.id}
+            width={THEATER_PLAYER_WIDTH}
+            height={THEATER_PLAYER_HEIGHT}
+            title={`${selected.title} — ${selected.episode}`}
+            src={youtubeEmbedUrl(selected.id)}
+            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+            allowFullScreen
+            referrerPolicy="strict-origin-when-cross-origin"
+            onPointerDown={(event) => event.stopPropagation()}
+          />
+        </Html>
+      )}
+      <Html
+        fullscreen
+        calculatePosition={(_object, _camera, size) => [
+          size.width / 2,
+          size.height / 2,
+        ]}
+        onOcclude={() => undefined}
+        portal={portal}
+        zIndexRange={[80, 0]}
+        style={{ pointerEvents: "none" }}
       >
-        <header>
-          <h2>{title}</h2>
-          <button ref={focusClose} onClick={onClose}>
-            Leave seat
-          </button>
-        </header>
-        {selected && !hidden ? (
-          <div className="cinema-screen">
-            <iframe
-              key={selected.id}
-              title={`${selected.title} — ${selected.episode}`}
-              src={youtubeEmbedUrl(selected.id)}
-              allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-              allowFullScreen
-              referrerPolicy="strict-origin-when-cross-origin"
-            />
-          </div>
-        ) : (
-          <div className="cinema-idle">
-            <span aria-hidden="true">▶</span>
-            <p>{hidden ? "Screen paused" : "Choose something to watch"}</p>
-          </div>
-        )}
-        {selected && (
-          <div className="cinema-now">
-            <span>
-              <strong>{selected.title}</strong> · {selected.episode}
-            </span>
-            <a
-              href={`https://www.youtube.com/watch?v=${selected.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Open on YouTube ↗
-            </a>
-            <button
-              onClick={() => {
-                useTheater.setState({ filmId: null });
-                close.current?.focus();
-              }}
-            >
-              Stop
+        <section
+          ref={dialog}
+          className="cinema-viewer theater-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-label={title}
+          aria-owns={selected ? "cinema-player" : undefined}
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          <header className="cinema-controls">
+            <button ref={focusClose} onClick={onClose}>
+              Leave seat
             </button>
-          </div>
-        )}
-        <div className="cinema-program" aria-label="Program">
-          {program.length === 0 && <p>The program is being prepared.</p>}
-          {program.map((film) => (
             <button
-              key={film.id}
-              aria-pressed={filmId === film.id}
-              onClick={() => useTheater.setState({ filmId: film.id })}
+              aria-expanded={showProgram}
+              aria-controls="cinema-program"
+              onClick={() => setShowProgram((open) => !open)}
             >
-              <strong>{film.title}</strong>
-              <span>{film.episode}</span>
+              Program
             </button>
-          ))}
-        </div>
-      </section>
-    </Html>
+            {selected && (
+              <>
+                <button
+                  onClick={() => {
+                    useTheater.setState({ filmId: null });
+                    close.current?.focus();
+                  }}
+                >
+                  Stop
+                </button>
+                <a
+                  href={`https://www.youtube.com/watch?v=${selected.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  YouTube ↗
+                </a>
+              </>
+            )}
+          </header>
+          <div id="cinema-program" hidden={!showProgram}>
+            <div className="cinema-program" aria-label="Program">
+              {program.length === 0 && <p>The program is being prepared.</p>}
+              {program.map((film) => (
+                <button
+                  key={film.id}
+                  aria-pressed={filmId === film.id}
+                  onClick={() => {
+                    useTheater.setState({ filmId: film.id });
+                    setShowProgram(false);
+                    close.current?.focus();
+                  }}
+                >
+                  <strong>{film.title}</strong>
+                  <span>{film.episode}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+      </Html>
+    </>
   );
 }
 
@@ -257,6 +301,8 @@ export function MovieTheaterInterior({
   title = "The picture house",
 }: { program?: readonly TheaterFilm[]; title?: string } = {}) {
   const seated = useTheater((s) => s.seated);
+  const playing = useTheater((s) => !!s.filmId);
+  const { width, height } = useThree((s) => s.size);
   const restoreSeatFocus = useRef(false);
   const leaveSeat = useCallback(() => {
     restoreSeatFocus.current = true;
@@ -285,11 +331,37 @@ export function MovieTheaterInterior({
   }, []);
   return (
     <group name="picture-house-interior">
+      {seated && (
+        <PerspectiveCamera
+          makeDefault
+          position={THEATER_EYE}
+          fov={theaterFov(width / height, height)}
+          near={0.1}
+          far={100}
+          onUpdate={(camera) => camera.lookAt(...THEATER_SCREEN)}
+        />
+      )}
       <Box p={[0, 0.06, -1]} s={[20.8, 0.1, 23.5]} c="#473638" />
       <Box p={[0, 0.15, -0.5]} s={[2.5, 0.08, 22]} c="#9b4942" />
-      <Box p={[0, 3, -12.35]} s={[21, 5.8, 0.25]} c="#543936" />
-      <Box p={[0, 2.5, -10.7]} s={[15.8, 4.8, 0.5]} c="#b39a61" />
-      <Box p={[0, 2.5, -10.36]} s={[14.9, 4.05, 0.2]} c="#e8dfc8" />
+      <Box p={[0, 3.75, -12.35]} s={[21, 7.5, 0.25]} c="#543936" />
+      {seated && (
+        <group>
+          <Box p={[0, 7.55, -1]} s={[21, 0.16, 23]} c="#36282a" />
+          {[-10.3, 10.3].map((x) => (
+            <Box key={x} p={[x, 3.75, -1]} s={[0.24, 7.5, 23]} c="#543936" />
+          ))}
+        </group>
+      )}
+      <Box
+        p={[0, THEATER_SCREEN[1], -10.7]}
+        s={[THEATER_SCREEN_WIDTH + 0.45, THEATER_SCREEN_HEIGHT + 0.45, 0.5]}
+        c="#b39a61"
+      />
+      <Box
+        p={[0, THEATER_SCREEN[1], THEATER_SCREEN[2] - 0.11]}
+        s={[THEATER_SCREEN_WIDTH, THEATER_SCREEN_HEIGHT, 0.2]}
+        c={playing ? "#121013" : "#e8dfc8"}
+      />
       <Box p={[0, 0.3, -9.7]} s={[19.5, 0.5, 3.3]} c="#795b49" />
       {[-1, 1].flatMap((side) =>
         [0, 1, 2].map((i) => (
@@ -301,9 +373,9 @@ export function MovieTheaterInterior({
           />
         )),
       )}
-      <Sign text={title.toUpperCase()} p={[0, 5.25, -10.3]} size={[6.5, 0.6]} />
-      {[-5.2, -1.6, 2, 5.6].flatMap((z) =>
-        [-7.5, -5.8, -4.1, 4.1, 5.8, 7.5].map((x) => (
+      <Sign text={title.toUpperCase()} p={[0, 7.02, -10.3]} size={[6.5, 0.45]} />
+      {[-5.2, -1.6, 2, THEATER_SEAT_Z].flatMap((z) =>
+        [-7.5, -5.8, -THEATER_SEAT_X, THEATER_SEAT_X, 5.8, 7.5].map((x) => (
           <TheaterSeat key={`${x}:${z}`} x={x} z={z} />
         )),
       )}
