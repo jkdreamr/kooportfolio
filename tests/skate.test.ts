@@ -121,6 +121,15 @@ describe("free-skating park", () => {
     advance(free, 61);
     expect(free.phase).toBe("riding");
   });
+  it("ends after 60 active seconds even below the physics frame budget", () => {
+    for (const fps of [4, 15, 60]) {
+      const g = newSkateGame("run");
+      for (let frame = 0; frame < 60 * fps; frame++)
+        stepSkate(g, idle, 1 / fps);
+      expect(g.phase, `${fps} FPS`).toBe("done");
+      expect(g.time).toBe(SKATE.duration);
+    }
+  });
   it("ignores invalid time and keeps contacts stable over different frame rates", () => {
     const g = newSkateGame();
     stepSkate(g, { ...idle, push: 1 }, NaN);
