@@ -24,11 +24,16 @@ export const useNpcs = create<{
 }>(() => ({ talking: null, line: 0, pending: null }));
 
 export function nearbyNpcId(x: number, z: number) {
-  const npc = nearestNpc(activeNpcActors(), x, z);
+  const npc = nearestNpc(activeNpcActors(), x, z, useGame.getState().world);
   return npc ? "npc" : "";
 }
 export function npcName() {
-  const actor = nearestNpc(activeNpcActors(), runtime.x, runtime.z);
+  const actor = nearestNpc(
+    activeNpcActors(),
+    runtime.x,
+    runtime.z,
+    useGame.getState().world,
+  );
   return villagers.find((npc) => npc.id === actor?.id)?.name ?? "Villager";
 }
 export function closeConversation() {
@@ -46,7 +51,7 @@ export function talkToNpc(id: string) {
     return;
   const actor = npcActors.find((npc) => npc.id === id);
   if (!actor || !npcInWorld(id)) return;
-  if (!canTalkToNpc(actor, runtime.x, runtime.z)) {
+  if (!canTalkToNpc(actor, runtime.x, runtime.z, game.world)) {
     const path = approachNpc(actor, [runtime.x, runtime.z], game.world);
     if (!path.length) return;
     runtime.path = path;
@@ -57,6 +62,9 @@ export function talkToNpc(id: string) {
   runtime.target = null;
   runtime.path = [];
   runtime.moving = false;
+  actor.pose = "stand";
+  actor.posture = 0;
+  actor.heading = Math.atan2(runtime.x - actor.x, runtime.z - actor.z);
   useNpcs.setState({ talking: id, line: 0, pending: null });
   useGame.setState({ panel: "npc" });
 }
@@ -81,7 +89,7 @@ export function interactWithNpc() {
     doors.some((door) => door.id === game.near)
   )
     return false;
-  const actor = nearestNpc(activeNpcActors(), runtime.x, runtime.z);
+  const actor = nearestNpc(activeNpcActors(), runtime.x, runtime.z, game.world);
   if (!actor) return false;
   talkToNpc(actor.id);
   return true;

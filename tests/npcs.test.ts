@@ -19,35 +19,41 @@ import {
   useNpcs,
 } from "../src/game/core/npcState";
 import { runtime, useGame } from "../src/game/core/store";
+import { belongsToWorld, WORLD_IDS } from "../src/game/core/worlds";
+
+const worldFor = (place: string) =>
+  WORLD_IDS.find((world) => belongsToWorld(place, world))!;
 
 describe("wandering village crowd", () => {
-  it("gives every local a reachable loop without cutting through world obstacles", () => {
-    const actors = createNpcActors();
-    expect(actors.length).toBeGreaterThanOrEqual(18);
-    for (let i = 0; i < villagers.length; i++) {
-      const npc = villagers[i],
-        actor = actors[i];
-      expect(canWalk(actor.x, actor.z), npc.id).toBe(true);
+  it.each(villagers)(
+    "gives $id a reachable loop without cutting through world obstacles",
+    (npc) => {
+      const actors = createNpcActors();
+      expect(actors.length).toBeGreaterThanOrEqual(24);
+      const actor = actors.find((actor) => actor.id === npc.id)!,
+        world = worldFor(npc.place);
+      expect(canWalk(actor.x, actor.z, world), npc.id).toBe(true);
       for (let j = 0; j < npc.route.length; j++) {
         const from = npc.route[j],
           to = npc.route[(j + 1) % npc.route.length];
-        expect(canWalk(...to), `${npc.id}: ${to}`).toBe(true);
+        expect(canWalk(...to, world), `${npc.id}: ${to}`).toBe(true);
         expect(
-          findPath(from, to).length,
+          findPath(from, to, world).length,
           `${npc.id}: ${from} → ${to}`,
         ).toBeGreaterThan(0);
       }
       const visited = new Set<string>();
       for (let frame = 0; frame < 60 * 90; frame++) {
-        stepNpc(actor, npc, 1 / 60, [1000, 1000]);
-        expect(canWalk(actor.x, actor.z), npc.id).toBe(true);
+        stepNpc(actor, npc, 1 / 60, [1000, 1000], false, false, world);
+        expect(canWalk(actor.x, actor.z, world), npc.id).toBe(true);
         visited.add(`${Math.round(actor.x)},${Math.round(actor.z)}`);
       }
       expect(visited.size, `${npc.id} should actually wander`).toBeGreaterThan(
         12,
       );
-    }
-  }, 15000);
+    },
+    15000,
+  );
   it("stops near the player, faces them, and freezes without consuming a route while paused", () => {
     const actor = createNpcActors()[0],
       npc = villagers[0];
@@ -66,14 +72,48 @@ describe("wandering village crowd", () => {
   });
   it("approaches a selected local on a walkable path ending within talking distance", () => {
     for (const actor of createNpcActors()) {
-      const path = approachNpc(actor, [0, 5]);
+      const npc = villagers.find((npc) => npc.id === actor.id)!;
+      const world = worldFor(npc.place);
+      const path = approachNpc(actor, [0, 5], world);
       expect(path.length, actor.id).toBeGreaterThan(0);
-      expect(path.every((point) => canWalk(...point))).toBe(true);
+      expect(path.every((point) => canWalk(...point, world))).toBe(true);
       const last = path.at(-1)!;
       expect(Math.hypot(last[0] - actor.x, last[1] - actor.z)).toBeLessThan(
         TALK_DISTANCE,
       );
     }
+  });
+  it("rests on the bench visually without routing into its solid table, then resumes the errand", () => {
+    const actor = createNpcActors().find((actor) => actor.id === "reader")!;
+    const npc = villagers.find((npc) => npc.id === actor.id)!;
+    expect(actor.pose).toBe("sit");
+    expect(canWalk(actor.x, actor.z, "home")).toBe(true);
+    expect(canWalk(...actor.seat!.position, "home")).toBe(false);
+    const waiting = actor.wait;
+    stepNpc(actor, npc, 1 / 60, [actor.x + 1, actor.z], false, true, "home");
+    expect(actor.pose).toBe("stand");
+    expect(actor.wait).toBe(waiting);
+    expect(actor.heading).toBeCloseTo(Math.PI / 2);
+    const paused = structuredClone(actor);
+    stepNpc(actor, npc, 1, [1000, 1000], true, false, "home");
+    expect(actor).toEqual(paused);
+    stepNpc(actor, npc, 1 / 60, [1000, 1000], false, false, "home");
+    expect(actor.pose).toBe("sit");
+    for (let frame = 0; frame < 60 * 30; frame++) {
+      stepNpc(actor, npc, 1 / 60, [1000, 1000], false, false, "home");
+      expect(canWalk(actor.x, actor.z, "home")).toBe(true);
+    }
+    expect(
+      Math.hypot(actor.x - npc.route[0][0], actor.z - npc.route[0][1]),
+    ).toBeGreaterThan(2);
+  });
+  it("uses the active world's collision for conversations instead of phantom buildings", () => {
+    const [x, z] = doors.find((door) => door.id === "kappa")!.footprint;
+    const actor = { ...createNpcActors()[0], x, z };
+    expect(canWalk(x, z, "home")).toBe(true);
+    expect(canWalk(x, z, "stanford")).toBe(false);
+    expect(canTalkToNpc(actor, x + 1, z, "home")).toBe(true);
+    expect(canTalkToNpc(actor, x + 1, z, "stanford")).toBe(false);
   });
   it("does not offer a conversation through a collision corner", () => {
     const actor = { ...createNpcActors()[0], x: 1.9, z: 1.5 };
