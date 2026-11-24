@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  chooseGoMove, GO_KOMI, goGroup, newGoGame, passGo, playGo,
+  GO_KOMI, goGroup, newGoGame, passGo, playGo,
   resumeGo, scoreGo, toggleGoDead, type GoGame,
 } from "../src/game/core/go";
+import { chooseGoMove, GO_LEVELS } from "../src/game/core/goBot";
 
 function position(black: number[], white: number[]): GoGame {
   const game = newGoGame();
@@ -109,5 +110,37 @@ describe("9×9 Go", () => {
     const ready = { ...newGoGame(), moves: 30, passes: 1 };
     expect(chooseGoMove(ready)).toBeNull();
     expect(chooseGoMove({ ...ready, phase: "finished" })).toBeNull();
+  });
+});
+
+describe("Go opponent levels", () => {
+  it.each(GO_LEVELS)("%s captures, saves a group in atari and leaves its own eye open", (level) => {
+    expect(chooseGoMove(position([2, 9], [0, 1]), level)).toBe(10);
+    expect(chooseGoMove(position([10], [1, 9, 11]), level)).toBe(19);
+    const eye = position([30, 31, 32, 39, 41, 48, 49, 50], [80]);
+    const point = chooseGoMove(eye, level);
+    expect(point).not.toBeNull();
+    expect(point).not.toBe(40);
+    if (point !== null) expect(playGo(eye, point).ok).toBe(true);
+  });
+
+  it.each(GO_LEVELS)("%s plays on after a pass when the board is still open", (level) => {
+    const game = { ...passGo(position([20, 60], [24, 56])), moves: 30 };
+    const point = chooseGoMove(game, level);
+    expect(point).not.toBeNull();
+    if (point !== null) expect(playGo(game, point).ok).toBe(true);
+  });
+
+  it.each(GO_LEVELS)("%s agrees to count when behind with only own-territory fills left", (level) => {
+    const eyes = new Set([10, 13, 25, 58, 59, 69, 73]);
+    const stones = Array.from({ length: 81 }, (_, point) => point).filter((point) => !eyes.has(point));
+    const game = passGo({ ...position(stones.filter((p) => p < 45), stones.filter((p) => p >= 45)), moves: 76 });
+    const score = scoreGo(game);
+    expect(score.winner).toBe(1);
+    const fill = playGo(game, 59);
+    expect(fill.ok).toBe(true);
+    if (fill.ok) expect(scoreGo(fill.game).white).toBe(score.white);
+    expect(chooseGoMove(game, level)).toBeNull();
+    expect(passGo(game).phase).toBe("scoring");
   });
 });

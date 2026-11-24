@@ -39,7 +39,6 @@ const districts: readonly (readonly [
   [-44, 60, 9, 4, false, ["home"]],
   [-21, 61, 4, 4, true, all],
   [-50, 2, 6, 2, false, all],
-  [-28, -7, 4, 2, false, all],
   [30, -36, 4, 2, false, domestic],
 ];
 
