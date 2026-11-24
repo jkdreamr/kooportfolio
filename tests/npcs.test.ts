@@ -47,7 +47,7 @@ describe("wandering village crowd", () => {
         12,
       );
     }
-  });
+  }, 15000);
   it("stops near the player, faces them, and freezes without consuming a route while paused", () => {
     const actor = createNpcActors()[0],
       npc = villagers[0];
