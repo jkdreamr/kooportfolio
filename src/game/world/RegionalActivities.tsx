@@ -312,9 +312,11 @@ export function RegionalActivities({ world }: { world: WorldId }) {
         useActivities.getState().play,
       );
       if (!spot) return;
+      selectActivity(spot.id, world);
+      // A parcel drop-off sits on a door: deliver and still let E enter.
+      if (spot.id.startsWith("parcel-")) return;
       e.preventDefault();
       e.stopImmediatePropagation();
-      selectActivity(spot.id, world);
     };
     window.addEventListener("keydown", key, true);
     return () => window.removeEventListener("keydown", key, true);
