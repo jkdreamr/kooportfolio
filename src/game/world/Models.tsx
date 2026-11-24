@@ -3,7 +3,9 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { runtime, useGame } from "../core/store";
-import { GableRoof, StoneFooting } from "./ArchitectureDetail";
+import { GableRoof, StoneFooting, WindowDetail } from "./ArchitectureDetail";
+import { sculptedMaterial } from "./Surface";
+import { NationalFlag } from "./NationalFlag";
 
 const rounded = new Map<string, RoundedBoxGeometry>();
 function roundedGeometry(size: [number, number, number]) {
@@ -13,8 +15,8 @@ function roundedGeometry(size: [number, number, number]) {
       key,
       new RoundedBoxGeometry(
         ...size,
-        1,
-        Math.min(0.13, Math.min(...size) * 0.24),
+        2,
+        Math.min(0.16, Math.min(...size) * 0.22),
       ),
     );
   return rounded.get(key)!;
@@ -25,8 +27,7 @@ const cyl = new THREE.CylinderGeometry(1, 1, 1, 12);
 const cone = new THREE.ConeGeometry(1, 1, 8);
 const mats = new Map<string, THREE.MeshStandardMaterial>();
 function material(color: string) {
-  if (!mats.has(color))
-    mats.set(color, new THREE.MeshStandardMaterial({ color, roughness: 0.87 }));
+  if (!mats.has(color)) mats.set(color, sculptedMaterial({ color }));
   return mats.get(color)!;
 }
 type Props = {
@@ -134,23 +135,33 @@ export function Sign({
     el.width = 512;
     el.height = 128;
     const ctx = el.getContext("2d")!;
+    ctx.clearRect(0, 0, 512, 128);
     ctx.fillStyle = color;
-    ctx.fillRect(0, 0, 512, 128);
+    ctx.fillRect(6, 6, 500, 116);
+    // Inset lettering sits on a solid, beveled plaque below.
+    ctx.strokeStyle = ink;
+    ctx.globalAlpha = 0.2;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(15, 15, 482, 98);
+    ctx.globalAlpha = 1;
     ctx.fillStyle = ink;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = "600 40px monospace";
-    ctx.fillText(text, 256, 68);
+    ctx.font = '700 42px "Trebuchet MS", sans-serif';
+    ctx.fillText(text, 256, 67, 458);
     const t = new THREE.CanvasTexture(el);
     t.colorSpace = THREE.SRGBColorSpace;
     return t;
   }, [text, color, ink]);
   useEffect(() => () => texture.dispose(), [texture]);
   return (
-    <mesh position={p}>
-      <planeGeometry args={size} />
-      <meshStandardMaterial map={texture} roughness={0.9} />
-    </mesh>
+    <group position={p}>
+      <Box s={[size[0] + 0.1, size[1] + 0.1, 0.14]} c="#493d2e" />
+      <mesh position={[0, 0, 0.076]}>
+        <planeGeometry args={size} />
+        <meshStandardMaterial map={texture} roughness={0.75} transparent />
+      </mesh>
+    </group>
   );
 }
 export function Character({
@@ -298,11 +309,7 @@ export function Window({
 }) {
   return (
     <group position={p}>
-      <Box s={[width + 0.18, 1.15, 0.13]} c="#80715a" />
-      <Box p={[0, 0, 0.08]} s={[width, 1, 0.08]} c="#efc982" />
-      <Box p={[0, 0, 0.14]} s={[0.06, 1.05, 0.07]} c="#faf0d4" />
-      <Box p={[0, 0, 0.14]} s={[width, 0.06, 0.07]} c="#faf0d4" />
-      <Box p={[0, -0.6, 0.14]} s={[width + 0.35, 0.14, 0.38]} c="#e3d6b7" />
+      <WindowDetail width={width} />
     </group>
   );
 }
@@ -353,7 +360,7 @@ export function House({
   const roof = study ? "#466c65" : "#bd512f";
   return (
     <group position={p}>
-      {/* Chunky masonry, timber corner braces and original village banners. */}
+      {/* Chunky masonry and timber corner braces. */}
       {[-2.8, 2.8].flatMap((x) =>
         [-1.9, 1.9].map((z) => (
           <group key={`${x}:${z}`}>
@@ -372,16 +379,7 @@ export function House({
         />
       ))}
       <Box p={[0, 3.44, 2.2]} s={[6.3, 0.32, 0.32]} c="#775438" />
-      <group position={[2.5, 4.5, 0.5]}>
-        <Cylinder p={[0, 1.15, 0]} s={[0.075, 2.8, 0.075]} c="#755335" />
-        <Ball p={[0, 2.6, 0]} s={[0.14, 0.14, 0.14]} c="#e4b94e" />
-        <Box
-          p={[0.48, 2.03, 0]}
-          s={[1.05, 0.8, 0.07]}
-          c={study ? "#396e71" : "#bb563e"}
-        />
-        <Box p={[0.48, 2.04, 0.05]} s={[0.16, 0.55, 0.035]} c="#f4cc70" />
-      </group>
+      <NationalFlag nation={study ? "kr" : "us"} p={[2.5, 4.5, 0.5]} />
       {study && (
         <group position={[-1.4, 5.1, -0.65]}>
           <Box p={[0, 0.65, 0]} s={[1.8, 2, 1.8]} c="#c5b79b" />

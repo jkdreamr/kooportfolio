@@ -4,6 +4,8 @@ import * as THREE from "three";
 import { runtime, useGame } from "../core/store";
 import { daylightClock } from "../core/timeOfDay";
 import { sampleDaylight } from "../core/daylight";
+import { sampleWeather } from "../core/weather";
+import { Weather } from "./Weather";
 import {
   ANIMALS,
   animalPose,
@@ -201,7 +203,7 @@ function Duck({ animal }: { animal: Animal }) {
       pose = animalPose(animal, t);
     group.current.position.set(
       pose.x,
-      0.08 + Math.sin(t * 2 + animal.offset) * 0.025,
+      0.16 + Math.sin(t * 2 + animal.offset) * 0.025,
       pose.z,
     );
     group.current.rotation.y = pose.heading;
@@ -231,7 +233,11 @@ function Bird({ index }: { index: number }) {
     if (!g) return;
     const t = wildlifeClock.seconds,
       pose = birdPose(t, index);
-    g.visible = sampleDaylight(daylightClock.hour).night < 0.7;
+    const weather = sampleWeather(daylightClock.hour);
+    g.visible =
+      sampleDaylight(daylightClock.hour).night < 0.7 &&
+      weather.rain < 0.4 &&
+      weather.snow < 0.2;
     g.position.set(pose.x, pose.y, pose.z);
     g.rotation.set(0, pose.heading, pose.bank);
     const flap = Math.sin(t * 6 + index) * 0.5;
@@ -329,6 +335,7 @@ export function Wildlife() {
   }, -1);
   return (
     <group name="ambient-wildlife">
+      <Weather />
       {ANIMALS.filter((_, i) => quality === "high" || i % 2 === 0).map(
         (animal, i) =>
           animal.kind === "duck" ? (
