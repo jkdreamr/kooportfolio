@@ -645,7 +645,7 @@ export function Hud({ interact }: { interact: () => void }) {
           <p>
             {confirmBuild === "boathouse"
               ? "Expand the boathouse"
-              : "Add garden planting and seating"}{" "}
+              : "Improve the garden"}{" "}
             for {g.save.upgrades[confirmBuild] === 1 ? 60 : 120} coins?
           </p>
           <button
