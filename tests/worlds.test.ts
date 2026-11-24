@@ -8,8 +8,15 @@ import {
 import { canWalk, destinationsInWorld, findPath } from "../src/game/core/world";
 import { freshSave, parseSave } from "../src/shared/save";
 import { runtime, useGame } from "../src/game/core/store";
+import { activitySpots } from "../src/game/core/regionalActivities";
 
 describe("separate worlds", () => {
+  it.each(activitySpots)("keeps $id reachable in $world", ({ world, p }) => {
+    expect(canWalk(...p, world)).toBe(true);
+    const route = findPath([0, 5], [...p], world);
+    expect(route.length).toBeGreaterThan(0);
+    expect(route.every(([x, z]) => canWalk(x, z, world))).toBe(true);
+  });
   it("places every requested room in its region without cross-world ghost buildings", () => {
     expect(belongsToWorld("office", "home")).toBe(true);
     expect(belongsToWorld("kappa", "stanford")).toBe(true);
@@ -17,8 +24,9 @@ describe("separate worlds", () => {
     expect(belongsToWorld("cognition", "home")).toBe(false);
     expect(belongsToWorld("theater", "korea")).toBe(true);
     expect(belongsToWorld("theater", "home")).toBe(true);
-    expect(canWalk(18, -14, "home")).toBe(true);
-    expect(canWalk(18, -14, "korea")).toBe(false);
+    // The Home grocer now occupies x=18; the west lab edge remains Home lawn.
+    expect(canWalk(15, -14, "home")).toBe(true);
+    expect(canWalk(15, -14, "korea")).toBe(false);
     expect(WORLDS.home.timeZone).toBe(WORLDS.stanford.timeZone);
     expect(WORLDS.korea.timeZone).toBe("Asia/Seoul");
   });

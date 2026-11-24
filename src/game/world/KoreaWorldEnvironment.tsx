@@ -7,7 +7,6 @@ import { HanRiverBridge } from "./HanRiverBridge";
 import { SeoulSkyline } from "./SeoulSkyline";
 import { NaturalTrees, type TreePlacement } from "./TreeArt";
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
-import { RegionalActivities } from "./RegionalActivities";
 import {
   KoreaRiversideLife,
   KOREA_ACTIVITY_OBSTACLES,
@@ -194,7 +193,6 @@ export function KoreaWorldEnvironment() {
       <HangangWater />
       <HanRiverBridge />
       <KoreaRiversideLife />
-      <RegionalActivities world="korea" />
     </group>
   );
 }
