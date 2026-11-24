@@ -193,8 +193,8 @@ function World() {
         attach="fog"
         args={[
           scene === "rowing" ? "#d5e0ce" : "#dce5c7",
-          scene === "rowing" ? 65 : 65,
-          scene === "rowing" ? 120 : 160,
+          scene === "hub" ? 300 : 65,
+          scene === "hub" ? 500 : scene === "rowing" ? 120 : 160,
         ]}
       />
       <hemisphereLight
