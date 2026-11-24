@@ -34,6 +34,9 @@ class FakeContext {
   createOscillator = this.createBufferSource;
   createGain = node;
   createBiquadFilter = node;
+  createBuffer = (_channels: number, length: number) => ({
+    getChannelData: () => new Float32Array(length),
+  });
   constructor() {
     contexts.push(this);
   }
@@ -77,8 +80,8 @@ describe("ambient audio lifecycle", () => {
     expect(fetch).not.toHaveBeenCalled();
     environment.muted = false;
     audio.sync();
-    await vi.waitFor(() => expect(sources).toHaveLength(4));
-    expect(fetch).toHaveBeenCalledTimes(3);
+    await vi.waitFor(() => expect(sources).toHaveLength(6));
+    expect(fetch).toHaveBeenCalledTimes(4);
     expect(sources.every((s) => s.start.mock.calls.length === 1)).toBe(true);
   });
 
@@ -87,7 +90,7 @@ describe("ambient audio lifecycle", () => {
     async (reason) => {
       environment.muted = false;
       audio.unlock();
-      await vi.waitFor(() => expect(sources).toHaveLength(4));
+      await vi.waitFor(() => expect(sources).toHaveLength(6));
       if (reason === "inactive") environment.active = false;
       else if (reason === "interior") environment.scene = "kappa";
       else environment[reason as "muted" | "paused" | "hidden"] = true;
@@ -107,8 +110,8 @@ describe("ambient audio lifecycle", () => {
         scene: "hub",
       });
       audio.sync();
-      await vi.waitFor(() => expect(sources).toHaveLength(8));
-      expect(fetch).toHaveBeenCalledTimes(3);
+      await vi.waitFor(() => expect(sources).toHaveLength(12));
+      expect(fetch).toHaveBeenCalledTimes(4);
       audio.dispose();
       expect(contexts[0].close).toHaveBeenCalledTimes(1);
       audio.unlock();
@@ -124,7 +127,7 @@ describe("ambient audio lifecycle", () => {
     );
     environment.muted = false;
     audio.unlock();
-    await vi.waitFor(() => expect(responses).toHaveLength(3));
+    await vi.waitFor(() => expect(responses).toHaveLength(4));
     environment.muted = true;
     audio.sync();
     audio.dispose();
@@ -147,7 +150,7 @@ describe("ambient audio lifecycle", () => {
       }),
     );
     audio.unlock();
-    await vi.waitFor(() => expect(sources).toHaveLength(1));
+    await vi.waitFor(() => expect(sources).toHaveLength(2));
     expect(sources[0].type).toBe("sawtooth");
   });
 });
