@@ -3,7 +3,15 @@ import { forest } from "./scenery";
 import { campusObstacles } from "./campus";
 import { POND } from "./pond";
 
-export const doors = [
+const villageDoors = [
+  {
+    id: "skate",
+    name: "Skate park",
+    x: -50,
+    z: 63.8,
+    anchor: [-50, 10, 50] as const,
+    footprint: [-50, 50, 16, 12] as const,
+  },
   {
     id: "theater",
     name: "Cinema",
@@ -117,7 +125,44 @@ export const doors = [
     footprint: [11, -25, 3.1, 2.1] as const,
   },
 ] as const;
+// Rendered massing, collision and the front step share the same transform.
+const largerHouses = new Set<string>([
+  "boathouse",
+  "office",
+  "kappa",
+  "cognition",
+  "kitchen",
+  "gym",
+  "music",
+  "math",
+]);
+export const doors = villageDoors.map((door) => {
+  const horizontal = largerHouses.has(door.id) ? 1.5 : 1;
+  const vertical = horizontal > 1 ? 1.2 : 1;
+  const [cx, cz, hx, hz] = door.footprint;
+  return {
+    ...door,
+    z: cz + (door.z - cz) * horizontal,
+    anchor: [cx, door.anchor[1] * vertical, cz] as const,
+    footprint: [cx, cz, hx * horizontal, hz * horizontal] as const,
+    scale: [horizontal, vertical, horizontal] as const,
+  };
+});
 export const landmarks = [
+  {
+    id: "photo",
+    name: "Photo booth",
+    x: -6,
+    z: -4.4,
+    anchor: [-6, 4.2, -6.2] as const,
+  },
+  {
+    id: "stargazing",
+    name: "Telescope",
+    x: -19,
+    z: -30,
+    anchor: [-19, 10, -38] as const,
+  },
   {
     id: "bulletin",
     name: "Bulletin",
@@ -135,9 +180,9 @@ export const landmarks = [
   {
     id: "station",
     name: "Train station",
-    x: -61,
+    x: -76,
     z: 12,
-    anchor: [-61, 4, 12] as const,
+    anchor: [-76, 4, 12] as const,
   },
 ] as const;
 export const destinations = [...doors, ...landmarks];
@@ -152,6 +197,8 @@ const obstacles: ReadonlyArray<readonly number[]> = [
   [POND.x, POND.z, POND.radiusX, POND.radiusZ],
   [0, -6.6, 2.1, 0.4],
   [0, 0, 1.5, 1.5],
+  [-6, -6.2, 1.2, 0.8],
+  [-19, -38, 6, 6],
 ];
 export function canWalk(x: number, z: number) {
   if (
