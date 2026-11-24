@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef } from "react";
 import * as THREE from "three";
 import { Box, Cylinder, Ball, Tree, Bench, Boat, Cone, Sign } from "./Models";
 import { Scenery } from "./Scenery";
+import { NationalFlag } from "./NationalFlag";
 import { Campus } from "./Campus";
 
 type Block = [number, number, number, number, number, number, string, number?];
@@ -172,16 +173,12 @@ export function Landscape() {
       <Bench p={[-2.7, 0.2, 3.4]} />
       <Bench p={[2.8, 0.2, -2.9]} rotation={Math.PI} />
       {[-1, 1].map((side) => (
-        <group key={side} position={[side * 2.4, 0, -4.3]}>
-          <Cylinder p={[0, 2.25, 0]} s={[0.09, 4.5, 0.09]} c="#604a31" />
-          <Box
-            p={[0.5, 3.7, 0]}
-            s={[1.1, 1, 0.08]}
-            c={side === 1 ? "#c95134" : "#327b75"}
-          />
-          <Box p={[0.5, 3.7, 0.06]} s={[0.16, 0.65, 0.03]} c="#edc45e" />
-          <Ball p={[0, 4.55, 0]} s={[0.16, 0.16, 0.16]} c="#e8bb4e" />
-        </group>
+        <NationalFlag
+          key={side}
+          nation={side === 1 ? "us" : "kr"}
+          p={[side * 2.4, 0, -4.3]}
+          height={4.5}
+        />
       ))}
     </group>
   );
