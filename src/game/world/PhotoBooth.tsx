@@ -132,26 +132,17 @@ export function PhotoBoothCamera() {
     (state) =>
       state.scene === "hub" && state.panel === "photo" && !state.paused,
   );
-  const { get, invalidate, setFrameloop } = useThree();
+  const invalidate = useThree((state) => state.invalidate);
   useEffect(() => {
     if (!active) return;
-    const previous = get().frameloop;
-    // The opaque postcard preview does not need a full village rendered behind
-    // it at 60fps. Keep controls/timers responsive even on software GPUs.
-    setFrameloop("demand");
+    // Game owns demand/live rendering and suspends performance sampling while
+    // the modal is open; new capture requests still need a fresh canvas frame.
     invalidate();
-    const unsubscribe = usePhotoBooth.subscribe((state, before) => {
+    return usePhotoBooth.subscribe((state, before) => {
       if (state.request?.id !== before.request?.id) invalidate();
     });
-    return () => {
-      unsubscribe();
-      setFrameloop(useGame.getState().paused ? "demand" : previous);
-      invalidate();
-    };
-  }, [active, get, invalidate, setFrameloop]);
+  }, [active, invalidate]);
   useFrame(({ gl, scene }) => {
-    // Canvas can be reconfigured by a resize or automatic quality adjustment.
-    if (active && get().frameloop !== "demand") setFrameloop("demand");
     const request = usePhotoBooth.getState().request;
     const game = useGame.getState();
     if (

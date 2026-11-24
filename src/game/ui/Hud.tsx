@@ -10,7 +10,7 @@ import { WORLDS } from "../core/worlds";
 import { useGym } from "../scenes/CognitionGym";
 import { profile } from "../../content/profile";
 import { WorldLabels } from "../world/Labels";
-import { ROOM } from "../core/room";
+import { roomFor } from "../core/room";
 import { RoomStory } from "./RoomStory";
 import type { PlaceId } from "../core/world";
 import { npcName } from "../core/npcState";
@@ -340,6 +340,7 @@ function Modal({
   );
 }
 export function Hud({ interact }: { interact: () => void }) {
+  const pendingExit = useRef<Scene | null>(null);
   useEffect(() => {
     const shell = document.querySelector(".game-shell");
     if (!shell) return;
@@ -372,6 +373,18 @@ export function Hud({ interact }: { interact: () => void }) {
     [confirmBuild, setConfirmBuild] = useState<"garden" | "boathouse" | null>(
       null,
     );
+  useEffect(() => {
+    if (pendingExit.current && pendingExit.current !== g.scene)
+      pendingExit.current = null;
+    if (!g.overlayLocked && pendingExit.current === g.scene) {
+      const frame = requestAnimationFrame(() => {
+        runtime.path = [];
+        runtime.target = [0, roomFor(g.scene).doorZ];
+        pendingExit.current = null;
+      });
+      return () => cancelAnimationFrame(frame);
+    }
+  }, [g.overlayLocked, g.scene]);
   const hub = g.scene === "hub",
     interior = isInterior(g.scene),
     game = g.scene === "rowing" || g.scene === "basketball";
@@ -433,8 +446,15 @@ export function Hud({ interact }: { interact: () => void }) {
           <button
             className="back-link"
             onClick={() => {
-              runtime.path = [];
-              runtime.target = [0, ROOM.doorZ];
+              keys.clear();
+              touch.x = touch.z = 0;
+              pendingExit.current = g.scene;
+              window.dispatchEvent(new Event("interior-game-close"));
+              if (!useGame.getState().overlayLocked) {
+                runtime.path = [];
+                runtime.target = [0, roomFor(g.scene).doorZ];
+                pendingExit.current = null;
+              }
             }}
           >
             ← Exit
@@ -460,79 +480,83 @@ export function Hud({ interact }: { interact: () => void }) {
           <CourtControls />
         </>
       )}
-      {(hub || interior) && !g.build && (
-        <>
-          <div
-            className={`context-action ${g.scene === "stadium" ? "context-action--stadium" : ""} ${g.near ? "visible" : ""}`}
-            style={{ zIndex: 20 }}
-          >
-            <div>
-              <strong>
+      {(hub || interior) &&
+        !g.build &&
+        g.panel !== "npc" &&
+        !g.overlayLocked && (
+          <>
+            <div
+              className={`context-action ${g.scene === "stadium" ? "context-action--stadium" : ""} ${g.near ? "visible" : ""}`}
+              style={{ zIndex: 20 }}
+            >
+              <div>
+                <strong>
+                  {g.near === "hoover-key"
+                    ? "Small key"
+                    : g.near === "hoover-door"
+                      ? "Hoover Tower"
+                      : g.near === "stash"
+                        ? "Coin stash"
+                        : g.near === "photo"
+                          ? "Photo booth"
+                          : g.near === "stargazing"
+                            ? "Telescope"
+                            : g.near === "exit"
+                              ? "Exit"
+                              : g.near === "race"
+                                ? "Coxswain Regatta"
+                                : g.near === "read"
+                                  ? "Meet Joshua"
+                                  : g.near === "desk"
+                                    ? "Desk"
+                                    : g.near === "lift"
+                                      ? `${reps} reps`
+                                      : g.near === "npc"
+                                        ? npcName()
+                                        : doors.find((d) => d.id === g.near)
+                                            ?.name}
+                </strong>
+              </div>
+              <button onClick={interact}>
+                <kbd>E</kbd>
                 {g.near === "hoover-key"
-                  ? "Small key"
+                  ? "Take"
                   : g.near === "hoover-door"
-                    ? "Hoover Tower"
+                    ? "Unlock"
                     : g.near === "stash"
-                      ? "Coin stash"
+                      ? "Collect"
                       : g.near === "photo"
-                        ? "Photo booth"
+                        ? "Photo"
                         : g.near === "stargazing"
-                          ? "Telescope"
+                          ? "Look"
                           : g.near === "exit"
                             ? "Exit"
                             : g.near === "race"
-                              ? "Coxswain Regatta"
+                              ? "Race"
                               : g.near === "read"
-                                ? "Meet Joshua"
+                                ? "Read"
                                 : g.near === "desk"
-                                  ? "Desk"
+                                  ? "Open"
                                   : g.near === "lift"
-                                    ? `${reps} reps`
+                                    ? "Lift"
                                     : g.near === "npc"
-                                      ? npcName()
-                                      : doors.find((d) => d.id === g.near)
-                                          ?.name}
-              </strong>
+                                      ? "Talk"
+                                      : "Enter"}{" "}
+                <Icon name="arrow" size={17} />
+              </button>
             </div>
-            <button onClick={interact}>
-              <kbd>E</kbd>
-              {g.near === "hoover-key"
-                ? "Take"
-                : g.near === "hoover-door"
-                  ? "Unlock"
-                  : g.near === "stash"
-                    ? "Collect"
-                    : g.near === "photo"
-                      ? "Photo"
-                      : g.near === "stargazing"
-                        ? "Look"
-                        : g.near === "exit"
-                          ? "Exit"
-                          : g.near === "race"
-                            ? "Race"
-                            : g.near === "read"
-                              ? "Read"
-                              : g.near === "desk"
-                                ? "Open"
-                                : g.near === "lift"
-                                  ? "Lift"
-                                  : g.near === "npc"
-                                    ? "Talk"
-                                    : "Enter"}{" "}
-              <Icon name="arrow" size={17} />
-            </button>
-          </div>
-          {g.panel === "none" && !g.overlayLocked && !g.traveling && (
-            <Joystick />
-          )}
-        </>
-      )}
+            {g.panel === "none" && !g.overlayLocked && !g.traveling && (
+              <Joystick />
+            )}
+          </>
+        )}
       {interior && g.scene === "boathouse" && g.near === "race" && (
         <div className="race-select">
           <button
             onClick={() => {
               runtime.raceLength = 360;
               runtime.raceSeed = 1;
+              runtime.raceMode = "sprint";
               g.go("rowing");
             }}
           >
@@ -543,6 +567,7 @@ export function Hud({ interact }: { interact: () => void }) {
             onClick={() => {
               runtime.raceLength = 750;
               runtime.raceSeed = 2;
+              runtime.raceMode = "regatta";
               g.go("rowing");
             }}
           >
@@ -553,6 +578,7 @@ export function Hud({ interact }: { interact: () => void }) {
             onClick={() => {
               runtime.raceLength = 750;
               runtime.raceSeed = dailySeed();
+              runtime.raceMode = "daily";
               g.go("rowing");
             }}
           >
