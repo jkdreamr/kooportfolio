@@ -39,7 +39,7 @@ export function RoomStory({
       </button>
       {state === "prompt" ? (
         <>
-          <p>Learn about Josh?</p>
+          <p>About Josh</p>
           <button className="story-read" onClick={() => setState("read")}>
             Read <Icon name="arrow" size={16} />
           </button>

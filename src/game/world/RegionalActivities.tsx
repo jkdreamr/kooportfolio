@@ -4,11 +4,16 @@ import { Html } from "@react-three/drei";
 import { create } from "zustand";
 import * as THREE from "three";
 import { runtime, useGame, walkTo } from "../core/store";
+import { newRunId } from "../../shared/run-id";
 import { useGameMode } from "../core/gameMode";
 import type { WorldId } from "../core/worlds";
 import {
   activitySpots,
+  BOOK_SPOTS,
+  FISHING_SPOTS,
   freshActivities,
+  PARCEL_DOORS,
+  regionalPayout,
   nearbyRegionalActivity,
   regionalActionLabel,
   stepRegionalActivity,
@@ -17,15 +22,27 @@ import {
 } from "../core/regionalActivities";
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
 
+type Gain = { coins: number; p: readonly [number, number]; key: number };
 const useActivities = create<{
   play: ActivityState;
+  gain: Gain | null;
   act: (id: RegionalAction) => void;
-}>((set) => ({
+}>((set, get) => ({
   play: freshActivities(),
-  act: (id) =>
-    set((s) => ({
-      play: stepRegionalActivity(s.play, id, performance.now() / 1000),
-    })),
+  gain: null,
+  act: (id) => {
+    const now = performance.now() / 1000,
+      game = useGame.getState(),
+      play = get().play,
+      coins = regionalPayout(play, id, now, game.save.upgrades.garden),
+      next = stepRegionalActivity(play, id, now);
+    if (next === play) return;
+    set({ play: next });
+    if (!coins) return;
+    game.award(`side-${id}-${newRunId()}`, coins, Math.ceil(coins / 2));
+    const p = activitySpots.find((s) => s.id === id)!.p;
+    set({ gain: { coins, p, key: now } });
+  },
 }));
 const nowSeconds = () => performance.now() / 1000;
 const ripeBeds: SceneryPart[][] = Array.from({ length: 4 }, (_, i) =>
@@ -148,9 +165,110 @@ function PicnicGuest({ fed }: { fed: boolean }) {
   );
 }
 
+const parcel: SceneryPart[] = [
+  { p: [0, 0.2, 0], s: [0.55, 0.4, 0.45], c: "#b8915f", shape: "block" },
+  { p: [0, 0.2, 0], s: [0.08, 0.41, 0.46], c: "#e3d6bb", shape: "block" },
+  { p: [0, 0.405, 0], s: [0.56, 0.01, 0.08], c: "#e3d6bb", shape: "block" },
+];
+const postbox: SceneryPart[] = [
+  { p: [0, 0.55, 0], s: [0.12, 1.1, 0.12], c: "#3c4652", shape: "block" },
+  { p: [0, 1.3, 0], s: [0.7, 0.55, 0.5], c: "#41566a", shape: "stone" },
+  { p: [0, 1.4, 0.26], s: [0.42, 0.05, 0.02], c: "#1d242c", shape: "block" },
+  { p: [0.38, 1.45, 0], s: [0.04, 0.3, 0.04], c: "#c9cfd6", shape: "block" },
+];
+const bookColors = ["#4f6a7f", "#8b5a4a", "#6f7f61"];
+function Book({ c }: { c: string }) {
+  return (
+    <group>
+      <mesh castShadow>
+        <boxGeometry args={[0.5, 0.12, 0.36]} />
+        <meshStandardMaterial color={c} roughness={0.8} />
+      </mesh>
+      <mesh position={[0.02, 0, 0]}>
+        <boxGeometry args={[0.47, 0.09, 0.37]} />
+        <meshStandardMaterial color="#e7e0cf" />
+      </mesh>
+    </group>
+  );
+}
+const bookDrop: SceneryPart[] = [
+  { p: [0, 0.6, 0], s: [0.9, 1.2, 0.7], c: "#4b5966", shape: "stone" },
+  { p: [0, 1.28, 0], s: [0.95, 0.16, 0.75], c: "#5f6d79", shape: "stone" },
+  { p: [0, 0.95, 0.36], s: [0.6, 0.08, 0.02], c: "#1d242c", shape: "block" },
+];
+const rodStand: SceneryPart[] = [
+  { p: [0, 0.3, 0], s: [0.5, 0.6, 0.5], c: "#5a6470", shape: "stone" },
+  {
+    p: [0, 1.4, 1],
+    s: [0.05, 0.05, 2.6],
+    c: "#8a7558",
+    r: [-0.6, 0, 0],
+    shape: "block",
+  },
+];
+function Bobber({ x, rod }: { x: number; rod: number }) {
+  const ref = useRef<THREE.Group>(null);
+  useFrame(({ clock }) => {
+    if (!ref.current) return;
+    const bite = useActivities.getState().play.biteAt[rod],
+      now = nowSeconds();
+    ref.current.visible = bite !== null;
+    const biting = bite !== null && now >= bite;
+    ref.current.position.y =
+      -2.22 +
+      (biting
+        ? -0.12 + Math.sin(clock.elapsedTime * 18) * 0.05
+        : Math.sin(clock.elapsedTime * 2.4) * 0.03);
+  });
+  return (
+    <group ref={ref} position={[x, -2.22, 24.6]} visible={false}>
+      <mesh>
+        <sphereGeometry args={[0.13, 10, 8]} />
+        <meshStandardMaterial color="#e4e8ec" />
+      </mesh>
+      <mesh position={[0, 0.1, 0]}>
+        <sphereGeometry args={[0.08, 8, 6]} />
+        <meshStandardMaterial color="#b4543f" />
+      </mesh>
+    </group>
+  );
+}
+function ParcelMarker({ p }: { p: readonly [number, number] }) {
+  const ref = useRef<THREE.Group>(null);
+  useFrame(({ clock }) => {
+    if (!ref.current) return;
+    ref.current.position.y = 3.4 + Math.sin(clock.elapsedTime * 2) * 0.15;
+    ref.current.rotation.y = clock.elapsedTime * 0.8;
+  });
+  return (
+    <group ref={ref} position={[p[0], 3.4, p[1]]}>
+      <WorldSceneryParts parts={parcel} />
+    </group>
+  );
+}
+function CoinGain({ gain }: { gain: Gain }) {
+  const [shown, setShown] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setShown(false), 1400);
+    return () => clearTimeout(t);
+  }, []);
+  if (!shown) return null;
+  return (
+    <Html
+      position={[gain.p[0], 3.4, gain.p[1]]}
+      center
+      zIndexRange={[18, 0]}
+      style={{ pointerEvents: "none" }}
+    >
+      <span className="side-quest-gain">+{gain.coins}</span>
+    </Html>
+  );
+}
+
 /** Self-contained world interactions; mounting the environment is sufficient. */
 export function RegionalActivities({ world }: { world: WorldId }) {
-  const play = useActivities((s) => s.play);
+  const play = useActivities((s) => s.play),
+    gain = useActivities((s) => s.gain);
   const [near, setNear] = useState<RegionalAction | null>(null),
     [now, setNow] = useState(nowSeconds);
   const carried = useRef<THREE.Group>(null),
@@ -160,7 +278,12 @@ export function RegionalActivities({ world }: { world: WorldId }) {
     if (timer.current > 0.15) {
       timer.current = 0;
       const next = available(world)
-        ? (nearbyRegionalActivity(world, runtime.x, runtime.z)?.id ?? null)
+        ? (nearbyRegionalActivity(
+            world,
+            runtime.x,
+            runtime.z,
+            useActivities.getState().play,
+          )?.id ?? null)
         : null;
       setNear((old) => (old === next ? old : next));
       setNow(nowSeconds());
@@ -182,11 +305,22 @@ export function RegionalActivities({ world }: { world: WorldId }) {
         !available(world)
       )
         return;
-      const spot = nearbyRegionalActivity(world, runtime.x, runtime.z);
-      if (!spot) return;
+      const play = useActivities.getState().play;
+      const spot = nearbyRegionalActivity(world, runtime.x, runtime.z, play);
+      // Leave E to doors and villagers when this spot has nothing to do.
+      if (
+        !spot ||
+        stepRegionalActivity(play, spot.id, performance.now() / 1000) === play
+      )
+        return;
+      selectActivity(spot.id, world);
+      // Delivering at a door's own prompt still lets the same E enter it.
+      const door = spot.id.startsWith("parcel-")
+        ? PARCEL_DOORS[Number(spot.id.slice(7))]?.id
+        : undefined;
+      if (door && useGame.getState().near === door) return;
       e.preventDefault();
       e.stopImmediatePropagation();
-      selectActivity(spot.id, world);
     };
     window.addEventListener("keydown", key, true);
     return () => window.removeEventListener("keydown", key, true);
@@ -227,6 +361,63 @@ export function RegionalActivities({ world }: { world: WorldId }) {
           >
             <Basket count={Math.min(3, play.produceCrates)} />
           </group>
+          <group
+            position={[5.2, 0, -5.4]}
+            rotation={[0, -0.5, 0]}
+            onPointerDown={(e) => selectActivity("postbox", world, e)}
+          >
+            <WorldSceneryParts parts={postbox} />
+            <mesh position={[0, 1, 0]}>
+              <boxGeometry args={[1.4, 2, 1.4]} />
+              <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+            </mesh>
+          </group>
+          {play.parcel !== null && (
+            <group
+              onPointerDown={(e) =>
+                selectActivity(
+                  `parcel-${play.parcel}` as RegionalAction,
+                  world,
+                  e,
+                )
+              }
+            >
+              <ParcelMarker p={PARCEL_DOORS[play.parcel].p} />
+            </group>
+          )}
+        </>
+      )}
+      {world === "stanford" && (
+        <>
+          {BOOK_SPOTS.map(([x, z], i) =>
+            now >= play.booksReadyAt[i] ? (
+              <group
+                key={i}
+                position={[x + 0.7, 0.25, z + 0.4]}
+                rotation={[0, i * 1.3, 0]}
+                onPointerDown={(e) =>
+                  selectActivity(`book-${i}` as RegionalAction, world, e)
+                }
+              >
+                <Book c={bookColors[i]} />
+                <mesh>
+                  <boxGeometry args={[1.4, 1, 1.4]} />
+                  <meshBasicMaterial
+                    transparent
+                    opacity={0}
+                    depthWrite={false}
+                  />
+                </mesh>
+              </group>
+            ) : null,
+          )}
+          <group
+            position={[42.3, 0, 55.6]}
+            rotation={[0, Math.PI, 0]}
+            onPointerDown={(e) => selectActivity("bookdrop", world, e)}
+          >
+            <WorldSceneryParts parts={bookDrop} />
+          </group>
         </>
       )}
       {world === "korea" && (
@@ -248,13 +439,38 @@ export function RegionalActivities({ world }: { world: WorldId }) {
               <meshBasicMaterial transparent opacity={0} depthWrite={false} />
             </mesh>
           </group>
+          {FISHING_SPOTS.map(([x, z], i) => (
+            <group key={i}>
+              <group
+                position={[x + 0.9, 0, z]}
+                onPointerDown={(e) =>
+                  selectActivity(`fish-${i}` as RegionalAction, world, e)
+                }
+              >
+                <WorldSceneryParts parts={rodStand} />
+              </group>
+              <Bobber x={x + 0.9} rod={i} />
+            </group>
+          ))}
         </>
       )}
       <group ref={carried}>
         {world === "home" && play.basket > 0 ? (
           <Basket count={play.basket} />
+        ) : world === "home" && play.parcel !== null ? (
+          <WorldSceneryParts parts={parcel} />
         ) : world === "korea" && play.bowl ? (
           <Bowl />
+        ) : world === "stanford" && play.books > 0 ? (
+          Array.from({ length: play.books }, (_, i) => (
+            <group
+              key={i}
+              position={[0, i * 0.13, 0]}
+              rotation={[0, i * 0.4, 0]}
+            >
+              <Book c={bookColors[i % 3]} />
+            </group>
+          ))
         ) : null}
       </group>
       {spot && (
@@ -268,23 +484,14 @@ export function RegionalActivities({ world }: { world: WorldId }) {
             disabled={disabled}
             onPointerDown={(e) => e.stopPropagation()}
             onClick={() => selectActivity(spot.id, world)}
-            style={{
-              whiteSpace: "nowrap",
-              border: "1px solid #c4b28b",
-              borderRadius: 8,
-              padding: "9px 12px",
-              background: "#243d37",
-              color: "#f3e8cd",
-              font: "600 13px system-ui",
-              cursor: disabled ? "default" : "pointer",
-              opacity: disabled ? 0.75 : 1,
-            }}
+            className="side-quest-action"
           >
             {label}
-            {!disabled && " · E"}
+            {!disabled && <kbd>E</kbd>}
           </button>
         </Html>
       )}
+      {gain && <CoinGain key={gain.key} gain={gain} />}
     </group>
   );
 }

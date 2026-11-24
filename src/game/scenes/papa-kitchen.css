@@ -14,13 +14,11 @@
 .papa-play {
   min-height: 44px;
   padding: 9px 16px;
-  border: 1px solid #b5a76b;
+  border: 1px solid var(--hud-edge);
   border-radius: 6px;
-  background: #31564d;
-  box-shadow:
-    inset 0 1px #d7c78c44,
-    0 3px 0 #162d2c;
-  color: #f3e9cd;
+  background: var(--hud-face);
+  box-shadow: var(--hud-shadow);
+  color: var(--hud-ink);
   font: 600 14px/1.2 var(--font-ui, system-ui);
   cursor: pointer;
   touch-action: manipulation;
@@ -28,11 +26,11 @@
 }
 .papa-game button:hover,
 .papa-play:hover {
-  background: #426b5c;
+  background: #3c5663;
 }
 .papa-game button:focus-visible,
 .papa-play:focus-visible {
-  outline: 3px solid #efd787;
+  outline: 2px solid #fff;
   outline-offset: 3px;
 }
 .papa-game button:disabled {
@@ -40,8 +38,8 @@
   cursor: default;
 }
 .papa-game button[aria-pressed="true"] {
-  border-color: #e1c06e;
-  background: #68734b;
+  border-color: var(--hud-muted);
+  background: #3c5663;
 }
 .papa-game .papa-secondary {
   background: #213d3e;
@@ -263,10 +261,10 @@
   max-width: 210px;
   min-width: 136px;
   padding: 12px;
-  border-top: 3px solid #ad9b5d;
+  border: 1px solid var(--hud-edge);
   border-radius: 6px;
-  background: #203e3ff0;
-  box-shadow: 0 5px 15px #11262e44;
+  background: var(--hud-low);
+  box-shadow: var(--hud-shadow);
 }
 .papa-order .papa-recipe {
   min-height: 36px;
