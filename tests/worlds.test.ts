@@ -5,7 +5,12 @@ import {
   validJourney,
   belongsToWorld,
 } from "../src/game/core/worlds";
-import { canWalk, destinationsInWorld, findPath } from "../src/game/core/world";
+import {
+  canWalk,
+  destinationsInWorld,
+  doorsInWorld,
+  findPath,
+} from "../src/game/core/world";
 import { freshSave, parseSave } from "../src/shared/save";
 import { runtime, useGame } from "../src/game/core/store";
 import { activitySpots } from "../src/game/core/regionalActivities";
@@ -19,7 +24,9 @@ import {
   KOREA_LANDMARK_FOOTPRINTS,
   KOREA_LANDMARK_SOLIDS,
   KOREA_LANDMARKS,
+  KOREA_MAIN_STREET_Z,
 } from "../src/game/core/koreaLandmarks";
+import { PHOTO_BOOTH_ORIGIN } from "../src/game/core/photoBoothLayout";
 import { villageGardenPlots } from "../src/game/core/villageGardens";
 import { labelsOverlap } from "../src/game/world/Labels";
 
@@ -64,9 +71,12 @@ describe("separate worlds", () => {
     expect(belongsToWorld("cognition", "home")).toBe(false);
     expect(belongsToWorld("theater", "korea")).toBe(true);
     expect(belongsToWorld("theater", "home")).toBe(true);
-    // The Home grocer now occupies x=18; the west lab edge remains Home lawn.
-    expect(canWalk(15, -14, "home")).toBe(true);
-    expect(canWalk(15, -14, "korea")).toBe(false);
+    const cognition = doorsInWorld("korea").find(
+      ({ id }) => id === "cognition",
+    )!;
+    const [x, z, halfWidth] = cognition.footprint;
+    expect(canWalk(x + halfWidth, z, "home")).toBe(true);
+    expect(canWalk(x + halfWidth, z, "korea")).toBe(false);
     expect(WORLDS.home.timeZone).toBe(WORLDS.stanford.timeZone);
     expect(WORLDS.korea.timeZone).toBe("Asia/Seoul");
   });
@@ -107,6 +117,40 @@ describe("separate worlds", () => {
       ).toBe(true);
     }
   });
+  it("puts Korea's neighboring venues on a single walkable street", () => {
+    const korea = destinationsInWorld("korea");
+    const row = ["bukchon", "gwanghwamun", "theater", "cognition", "photo"].map(
+      (id) => korea.find((place) => place.id === id)!,
+    );
+    const airport = korea.find(({ id }) => id === "airport")!;
+    for (const { id, x, z } of row) {
+      expect(Math.abs(z - KOREA_MAIN_STREET_Z), id).toBeLessThan(1);
+      expect(canWalk(x, z, "korea"), id).toBe(true);
+      const route = findPath([airport.x, airport.z], [x, z], "korea");
+      expect(route.length, id).toBeGreaterThan(0);
+      const [endX, endZ] = route.at(-1)!;
+      expect(Math.hypot(endX - x, endZ - z), id).toBeLessThan(1);
+    }
+    for (let i = 1; i < row.length; i++) {
+      expect(row[i].x - row[i - 1].x).toBeGreaterThan(0);
+      expect(row[i].x - row[i - 1].x).toBeLessThan(15);
+    }
+    const homeCinema = doorsInWorld("home").find(({ id }) => id === "theater");
+    expect(homeCinema?.footprint.slice(0, 2)).toEqual([-38, -39]);
+  });
+  it("routes a player from the photo booth corner to Korea's airport", () => {
+    const [x, , z] = PHOTO_BOOTH_ORIGIN;
+    const corner: [number, number] = [x + 0.65, z - 0.65];
+    const airport = destinationsInWorld("korea").find(
+      ({ id }) => id === "airport",
+    )!;
+    expect(canWalk(...corner, "korea")).toBe(true);
+    const route = findPath(corner, [airport.x, airport.z], "korea");
+    expect(route.length).toBeGreaterThan(1);
+    const [endX, endZ] = route.at(-1)!;
+    expect(Math.hypot(endX - airport.x, endZ - airport.z)).toBeLessThan(1);
+    expect(route.every(([px, pz]) => canWalk(px, pz, "korea"))).toBe(true);
+  });
   it("blocks the landmark buildings without blocking the Bukchon lane", () => {
     for (const [x, z] of KOREA_LANDMARK_SOLIDS) {
       expect(canWalk(x, z, "korea"), `${x}, ${z}`).toBe(false);
@@ -118,11 +162,10 @@ describe("separate worlds", () => {
       }
     }
   });
-  it("clears gardens from landmark approaches in Korea only", () => {
+  it("clears gardens from Korea's district approaches", () => {
     const overlaps = ({ x, z }: { x: number; z: number }) =>
       isKoreaLandmarkArea(x, z, 2);
     expect(villageGardenPlots("korea").some(overlaps)).toBe(false);
-    expect(villageGardenPlots("home").some(overlaps)).toBe(true);
   });
   it("plants on both sides of the Korea garden walks without blocking them", () => {
     const plots = villageGardenPlots("korea");
@@ -139,20 +182,17 @@ describe("separate worlds", () => {
         }
       }
     }
-    for (const sx of [-1, 1]) {
-      for (const sz of [-1, 1]) {
-        expect(
-          plots.filter(
-            ({ x, z }) =>
-              x > -47 &&
-              x < -6 &&
-              z > -33 &&
-              z < 10 &&
-              Math.sign(x + 23.5) === sx &&
-              Math.sign(z + 14.4) === sz,
-          ).length,
-        ).toBeGreaterThan(4);
-      }
+    for (const side of [-1, 1]) {
+      expect(
+        plots.filter(
+          ({ x, z }) =>
+            x > -55 &&
+            x < 21 &&
+            z > -34 &&
+            z < 2 &&
+            Math.sign(z - KOREA_MAIN_STREET_Z) === side,
+        ).length,
+      ).toBeGreaterThanOrEqual(12);
     }
   });
   it("plants the west shore and connects its path to the picnic deck", () => {
@@ -164,7 +204,8 @@ describe("separate worlds", () => {
     ).toBeGreaterThan(8);
     expect(
       plots.filter(
-        ({ x, z, orchard }) => !orchard && x > -54 && x < -42 && z > 16 && z < 32,
+        ({ x, z, orchard }) =>
+          !orchard && x > -54 && x < -42 && z > 16 && z < 32,
       ).length,
     ).toBeGreaterThan(4);
     expect(findPath([-69, 12], [-44, 43], "korea").length).toBeGreaterThan(0);

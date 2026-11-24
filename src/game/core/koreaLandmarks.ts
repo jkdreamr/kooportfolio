@@ -1,30 +1,48 @@
+export const KOREA_MAIN_STREET_Z = -14.4;
+export const KOREA_STREET_BUILDINGS = {
+  theater: [-8, KOREA_MAIN_STREET_Z - 5.2],
+  cognition: [4.5, KOREA_MAIN_STREET_Z - 5.25],
+  photo: [12, KOREA_MAIN_STREET_Z - 2.6],
+} as const;
+
 const namsan = {
   id: "namsan",
   name: "N Seoul Tower",
-  origin: [-28, -48],
-  approach: [-28, -44.5],
+  origin: [-35, -30.6],
+  approach: [-35, -27.1],
   height: 26.6,
 } as const;
 const palace = {
   id: "gwanghwamun",
   name: "Gyeongbokgung",
-  origin: [-48, -24],
-  approach: [-48, -18.8],
+  origin: [-22, KOREA_MAIN_STREET_Z - 5.2],
+  approach: [-22, KOREA_MAIN_STREET_Z],
   height: 7.6,
 } as const;
 const village = {
   id: "bukchon",
   name: "Bukchon Hanok Village",
-  origin: [-59, -5],
-  approach: [-51.7, -5],
+  origin: [-40, KOREA_MAIN_STREET_Z],
+  approach: [-32.7, KOREA_MAIN_STREET_Z],
   height: 3.8,
 } as const;
 
 export const KOREA_LANDMARKS = { namsan, palace, village };
+export const KOREA_MAIN_STREET = [
+  -5.85,
+  KOREA_MAIN_STREET_Z,
+  54.3,
+  3.2,
+] as const;
 export const KOREA_GARDEN_WALKS = [
-  [-24.4, -14.4, 45, 2.4],
-  [-26.7, -24.05, 2.6, 16.9],
-  [-23.5, -1.425, 2.6, 23.55],
+  KOREA_MAIN_STREET,
+  [-50.6, KOREA_MAIN_STREET_Z, 6.8, 2.4],
+  [-54, -1.2, 2.4, 26.4],
+  [-29.6, -20.75, 2.2, 12.7],
+  [-27, -27.1, 16, 2.4],
+  [-19, -28.55, 2.4, 2.9],
+  [-23.5, -1.875, 2.6, 25.05],
+  [21, 2.15, 2.4, 33.1],
   [-69, 23.25, 2.4, 22.5],
   [-42, 33.5, 54, 2.4],
   [-44, 38.25, 2.4, 9.5],
@@ -62,9 +80,11 @@ export const KOREA_LANDMARK_SOLIDS = [
 
 const reserves = [
   [...namsan.origin, 3, 4.4],
-  [namsan.origin[0], namsan.origin[1] + 7.8, 1.2, 4.7],
   [...palace.origin, 8, 6],
   [...village.origin, 8, 4.3],
+  [...KOREA_STREET_BUILDINGS.theater, 5.3, 4.3],
+  [...KOREA_STREET_BUILDINGS.cognition, 5.6, 4.2],
+  [...KOREA_STREET_BUILDINGS.photo, 1.7, 1.6],
 ] as const;
 export const KOREA_LANDMARK_FOOTPRINTS = reserves.map(
   ([x, z, hx, hz]) => [x, z, hx * 2, hz * 2] as const,

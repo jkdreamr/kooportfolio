@@ -7,6 +7,7 @@ import {
   KOREA_GARDEN_WALKS,
   KOREA_LANDMARK_FOOTPRINTS,
   KOREA_LANDMARKS,
+  KOREA_MAIN_STREET,
 } from "../core/koreaLandmarks";
 import { KOREA_EXERCISE_YARD } from "../core/regionalActivities";
 import { HanRiverBridge } from "./HanRiverBridge";
@@ -32,22 +33,14 @@ function slab(x: number, z: number, sx: number, sz: number, c = "#aaa99e") {
 }
 // No paths over water: connect the office/booth to continuous bank promenades.
 slab(0, 0, 13, 15, "#a8aaa2");
-slab(0, -23, 4, 45);
+slab(0, -10.95, 4, 6.9, "#b3ab97");
 slab(9, 1, 18, 3.4);
-slab(18, -10, 14, 12, "#b0afa5");
-slab(18, -3, 3.5, 10);
 slab(11.5, 10, 27, 3.4);
-slab(-6, -3, 3.3, 5);
-slab(-10, -30, 24, 3.5);
-slab(-19, -34, 38, 3);
 const [towerX, towerZ] = KOREA_LANDMARKS.namsan.origin;
-slab(towerX, towerZ + 1, 4.4, 4.2, "#b8b5a8");
-slab(towerX, towerZ + 7.8, 2.4, 9.4);
-slab(-48, -11.9, 2.25, 14);
-slab(-49.25, -5, 4.1, 2.15);
-slab(-53, 2.875, 2.25, 14.5);
-for (const [x, z, width, depth] of KOREA_GARDEN_WALKS) {
-  slab(x, z, width, depth, "#b3ab97");
+slab(towerX, towerZ, 5.2, 5.2, "#b8b5a8");
+for (const walk of KOREA_GARDEN_WALKS) {
+  const [x, z, width, depth] = walk;
+  slab(x, z, width, depth, walk === KOREA_MAIN_STREET ? "#c8bba4" : "#b3ab97");
 }
 slab(0, 12, 145, 3.3);
 slab(25, 18.7, 79, 3.2);

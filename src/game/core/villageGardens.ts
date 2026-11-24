@@ -88,12 +88,17 @@ for (const [cx, cz, cols, rows, orchard, worlds] of districts) {
 
 // Groves and allotments flank the landmark walks and the path to the picnic deck.
 const koreaGardenDistricts = [
+  [-51, -27, 4, 3, true],
+  [-34, -45, 4, 2, true],
+  [-55, -5.5, 4, 3, false],
   [-35.5, -24.25, 4, 3, true],
   [-41.5, -7.5, 3, 2, false],
   [-29.4, 3, 2, 2, false],
   [-12.5, -22.75, 4, 2, false],
   [-15.1, -1, 2, 4, true],
   [-8.8, -1, 1, 4, false],
+  [16, -7.5, 2, 3, false],
+  [30, -13, 4, 3, true],
   [-75, 26, 1, 5, true],
   [-65.2, 43, 4, 3, true],
   [-54.6, 38.8, 2, 1, false],
