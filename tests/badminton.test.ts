@@ -113,6 +113,26 @@ describe("badminton quick singles", () => {
     },
   );
 
+  it.each([
+    { x: 3, y: 1.6, movement: 1, seconds: 0.35, message: "Move to shuttle" },
+    { x: 0, y: 5, movement: 0, seconds: 0.3, message: "Too early" },
+  ])(
+    "clears $message when moving or waiting makes a return legal",
+    ({ x, y, movement, seconds, message }) => {
+      const game = newBadmintonGame();
+      game.phase = "rally";
+      game.lastHit = "opponent";
+      Object.assign(game.shuttle, { x, z: 5.7, y, vx: 0, vy: 0, vz: 0 });
+      stepBadminton(game, { ...idle, swing: true }, 1 / 120);
+      expect(game.message).toBe(message);
+      advance(game, seconds, { ...idle, x: movement });
+      expect(canReturnBadminton(game)).toBe(true);
+      expect(game.message).toBe("");
+      stepBadminton(game, { ...idle, swing: true }, 1 / 120);
+      expect(game.lastHit).toBe("player");
+    },
+  );
+
   it("lets the opponent return a reachable serve instead of awarding automatic points", () => {
     const game = newBadmintonGame();
     stepBadminton(game, { ...idle, swing: true }, 1 / 120);

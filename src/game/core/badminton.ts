@@ -271,5 +271,7 @@ export function stepBadminton(
         inBounds ? "Down" : "Out",
       );
     }
+    // A recovered position/timing must not retain the previous missed-swing hint.
+    if (canReturnBadminton(game)) game.message = "";
   }
 }
