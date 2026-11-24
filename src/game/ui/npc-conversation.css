@@ -74,9 +74,9 @@
 .npc-dialog button:hover {
   filter: brightness(1.12);
 }
-.npc-dialog button:focus-visible {
-  outline: 2px solid var(--hud-gold, #f0c56b);
-  outline-offset: 3px;
+.game-shell .npc-dialog button:focus-visible {
+  outline: 1px solid #d2dee0;
+  outline-offset: 2px;
 }
 .npc-dialog .npc-goodbye {
   margin-left: auto;
@@ -99,6 +99,49 @@
   }
   .npc-dialog p {
     margin: 8px 0;
+  }
+}
+@media (max-height: 500px) and (min-width: 560px) {
+  .npc-dialog {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr) max-content;
+    align-items: center;
+    gap: 10px;
+    width: min(920px, calc(100% - 32px));
+    padding: 8px 12px;
+  }
+  .npc-speaker {
+    gap: 6px;
+  }
+  .npc-speaker i {
+    width: 10px;
+    height: 10px;
+    flex-shrink: 0;
+  }
+  .npc-dialog h2 {
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .npc-dialog p {
+    min-width: 0;
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .npc-dialog-actions {
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+  .npc-dialog button {
+    padding: 6px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .npc-dialog .npc-goodbye {
+    margin-left: 0;
+  }
+  .npc-dialog kbd {
+    margin-left: 6px;
   }
 }
 @media (max-height: 500px) and (min-width: 701px) {
