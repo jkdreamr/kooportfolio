@@ -16,6 +16,7 @@ import { sound } from "../core/sound";
 import { GAME_STAGE_Y } from "./InteriorGameStage";
 import { gameIsActive, type InteriorGameProps } from "./InteriorProps";
 import { PapaKitchenScene } from "./PapaKitchenScene";
+import { readKitchenDay, saveKitchenDay } from "./kitchenProgress";
 import {
   cookTarget,
   dayGoal,
@@ -520,7 +521,7 @@ export function PapaKitchenGame({ onReward }: InteriorGameProps) {
     (s) => s.paused || s.panel !== "none" || s.build || s.near === "exit",
   );
   const [game, dispatch] = useReducer(papaReducer, undefined, () =>
-    newPapaGame(),
+    newPapaGame(0, readKitchenDay()),
   );
   const [armed, arm] = useState<Topping | null>(null);
   const timer = useRef(0),
@@ -542,6 +543,9 @@ export function PapaKitchenGame({ onReward }: InteriorGameProps) {
     dispatch({ type: "stop" });
     endGameMode();
   };
+  useEffect(() => {
+    saveKitchenDay(game.unlockedDay);
+  }, [game.unlockedDay]);
   useEffect(() => {
     if (!active) return;
     const stop = () => {

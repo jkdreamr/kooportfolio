@@ -36,6 +36,21 @@ function build(
 }
 
 describe("Papa-style kitchen service", () => {
+  it("keeps an earned next day after Back to room without paying the tip again", () => {
+    const ready = { ...build(cooked()), served: 3, score: 270, tips: 18 };
+    const passed = act(ready, { type: "serve" });
+    expect(passed.unlockedDay).toBe(2);
+    const closed = act(passed, { type: "stop" });
+    expect(closed.tips).toBe(passed.tips);
+    const reopened = act(closed, { type: "start" });
+    expect(reopened).toMatchObject({
+      day: 2,
+      unlockedDay: 2,
+      phase: "service",
+      tips: 0,
+    });
+  });
+
   it("requires explicit play and a real top bun before serving", () => {
     const idle = newPapaGame();
     expect(act(idle, { type: "tick", dt: 1 })).toBe(idle);

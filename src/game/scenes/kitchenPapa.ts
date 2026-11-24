@@ -36,6 +36,7 @@ export type Grade = {
 export type PapaGame = {
   run: number;
   day: number;
+  unlockedDay: number;
   phase: "idle" | "service" | "grade" | "results";
   station: "orders" | "grill" | "build";
   remaining: number;
@@ -102,6 +103,7 @@ export function newPapaGame(run = 0, day = 1): PapaGame {
   return {
     run,
     day,
+    unlockedDay: day,
     phase: "idle",
     station: "orders",
     remaining: 120,
@@ -156,7 +158,10 @@ export function papaReducer(game: PapaGame, action: PapaAction): PapaGame {
     if (action.nextDay && (game.phase !== "results" || !shiftPassed(game)))
       return game;
     return {
-      ...newPapaGame(game.run + 1, game.day + (action.nextDay ? 1 : 0)),
+      ...newPapaGame(
+        game.run + 1,
+        action.nextDay ? game.day + 1 : game.unlockedDay,
+      ),
       phase: "service",
     };
   }
@@ -314,7 +319,9 @@ export function papaReducer(game: PapaGame, action: PapaAction): PapaGame {
     const grade = gradeBurger(order),
       combo = grade.total >= 85 ? game.combo + 1 : 0,
       tip = grade.tip + Math.max(0, combo - 1);
-    const orders = game.orders.filter((o) => o !== order);
+    const orders = game.orders.filter((o) => o !== order),
+      served = game.served + 1,
+      score = game.score + grade.total;
     return {
       ...game,
       phase: "grade",
@@ -322,8 +329,11 @@ export function papaReducer(game: PapaGame, action: PapaAction): PapaGame {
       grade: { ...grade, tip },
       orders,
       selected: orders[0]?.ticket.id ?? null,
-      served: game.served + 1,
-      score: game.score + grade.total,
+      served,
+      score,
+      unlockedDay: shiftPassed({ ...game, served, score })
+        ? Math.max(game.unlockedDay, game.day + 1)
+        : game.unlockedDay,
       tips: game.tips + tip,
       combo,
     };
