@@ -29,7 +29,14 @@ export const PARCEL_DOORS = [
     ],
   },
   { id: "music", name: "Beat Lab", p: [-11, -20.5] },
-  { id: "kitchen", name: "Kitchen", p: [-8, 16.4] },
+  {
+    id: "kitchen",
+    name: "Kitchen",
+    p: [
+      HOME_DESTINATION_CENTERS.kitchen[0],
+      HOME_DESTINATION_CENTERS.kitchen[1] + 4.35,
+    ],
+  },
 ] as const;
 export const BOOK_SPOTS = [
   [17, 29],

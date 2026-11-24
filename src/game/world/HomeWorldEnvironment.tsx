@@ -5,6 +5,7 @@ import { GroundGrass } from "./Scenery";
 import type { GroundFootprint } from "../core/scenery";
 import { HOME_GARDEN_FOOTPRINTS } from "../core/homeGardens";
 import { HomeGardens } from "./HomeGardens";
+import { HOME_DESTINATION_CENTERS } from "../core/homeLayout";
 
 const paths: SceneryPart[] = [];
 function path(x: number, z: number, width: number, depth: number) {
@@ -34,27 +35,30 @@ function path(x: number, z: number, width: number, depth: number) {
   }
 }
 
-// Quiet domestic garden lanes connect the existing Home room thresholds.
-path(0, -5, 3.6, 53);
-path(-12, -18, 24, 3.4);
-path(-11, -20, 3.4, 4);
-path(-21, 7.5, 42, 3);
-path(-14, 18, 28, 3.4);
+// The short entrance walks feed two shared streets, not an island-wide grid.
+for (const id of ["theater", "music", "writing", "office"] as const) {
+  const [x, z] = HOME_DESTINATION_CENTERS[id];
+  const entry = z + (id === "theater" ? 5.2 : id === "writing" ? 3.5 : 4.5);
+  path(x, (entry - 18) / 2, 2.6, -18 - entry);
+}
+for (const id of ["go", "kitchen", "stadium"] as const) {
+  const [x, z] = HOME_DESTINATION_CENTERS[id];
+  const entry = z + (id === "go" ? 4.2 : id === "kitchen" ? 4.35 : 4.5);
+  path(x, (entry - 5) / 2, 2.6, -5 - entry);
+}
+path(-4.5, 5, 3, 20);
 path(-21, 29, 42, 3.6);
-path(21.5, -9, 43, 3.6);
-path(14, -18, 28, 3.4);
-path(-4, 16, 8, 3.6);
-path(-8, 16, 3.4, 3.6);
+path(-16, -31, 34, 2.8);
+path(-5, -26, 2.6, 16);
 path(-59, 12, 32, 3.6);
 path(28, 29, 56, 3.6);
 path(58, 43.5, 3.6, 35);
 path(58, 61, 10, 3.4);
-path(-9, -30, 18, 3.4);
 
 // Limestone at the Study and kitchen entrances; timber on the Go approach.
 for (let i = 0; i < 9; i++) {
   paths.push({
-    p: [-8 + (i % 3) * 0.9 - 0.9, 0.216, 15.5 + Math.floor(i / 3) * 0.8],
+    p: [-11 + (i % 3) * 0.9 - 0.9, 0.216, -6.5 + Math.floor(i / 3) * 0.65],
     s: [0.84, 0.02, 0.74],
     c: i % 3 ? "#c5b79c" : "#b7aa91",
     shape: "stone",
@@ -62,8 +66,8 @@ for (let i = 0; i < 9; i++) {
 }
 for (let i = 0; i < 16; i++) {
   paths.push({
-    p: [-20, 0.22, 15.1 + i * 0.39],
-    s: [3.2, 0.045, 0.34],
+    p: [-24, 0.22, -6.5 + i * 0.1],
+    s: [2.2, 0.045, 0.075],
     c: i % 3 ? "#88745b" : "#9b8467",
   });
 }

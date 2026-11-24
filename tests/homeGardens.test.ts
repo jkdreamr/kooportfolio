@@ -5,6 +5,33 @@ import { AIRPORT_GATE, STATION_GATE } from "../src/game/core/journey";
 import { PARCEL_DOORS } from "../src/game/core/regionalActivities";
 
 describe("Home planted districts", () => {
+  it("keeps every full-size destination in one connected village block", () => {
+    const block = doorsInWorld("home");
+    const edgeGap = (a: (typeof block)[number], b: (typeof block)[number]) => {
+      const [ax, az, aw, ad] = a.footprint;
+      const [bx, bz, bw, bd] = b.footprint;
+      return Math.hypot(
+        Math.max(0, Math.abs(ax - bx) - aw - bw),
+        Math.max(0, Math.abs(az - bz) - ad - bd),
+      );
+    };
+    for (const a of block) {
+      const original = doors.find(({ id }) => id === a.id)!;
+      expect(a.scale).toEqual(original.scale);
+      expect(a.footprint.slice(2)).toEqual(original.footprint.slice(2));
+      for (const b of block.filter(({ id }) => id !== a.id)) {
+        expect(edgeGap(a, b), `${a.id}/${b.id} overlap`).toBeGreaterThan(1.2);
+      }
+    }
+    // One street and its front steps may separate neighbours, not a full lawn
+    // or planted district. This fails when Go/Kitchen form a detached cluster.
+    const reached = new Set([block[0].id]);
+    for (let pass = 0; pass < block.length; pass++)
+      for (const a of block.filter(({ id }) => reached.has(id)))
+        for (const b of block) if (edgeGap(a, b) <= 8) reached.add(b.id);
+    expect(reached.size).toBe(block.length);
+  });
+
   it("keeps parcel deliveries at their actual Home entrances", () => {
     for (const parcel of PARCEL_DOORS) {
       const door = doorsInWorld("home").find((item) => item.id === parcel.id)!;
