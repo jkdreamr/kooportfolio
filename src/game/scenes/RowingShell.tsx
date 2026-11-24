@@ -28,13 +28,22 @@ export function RowingShell({
     shape.bezierCurveTo(0.48, 2.8, 0.35, 4, 0, 4.8);
     shape.bezierCurveTo(-0.35, 4, -0.48, 2.8, -0.44, 0);
     shape.bezierCurveTo(-0.48, -1.8, -0.45, -3.7, 0, -4.8);
+    const cockpit = new THREE.Path();
+    cockpit.moveTo(-0.28, -2.5);
+    cockpit.lineTo(-0.28, 2.5);
+    cockpit.quadraticCurveTo(-0.28, 2.95, 0, 2.95);
+    cockpit.quadraticCurveTo(0.28, 2.95, 0.28, 2.5);
+    cockpit.lineTo(0.28, -2.5);
+    cockpit.quadraticCurveTo(0.28, -2.95, 0, -2.95);
+    cockpit.quadraticCurveTo(-0.28, -2.95, -0.28, -2.5);
+    shape.holes.push(cockpit);
     const geometry = new THREE.ExtrudeGeometry(shape, {
-      depth: 0.16,
+      depth: 0.22,
       bevelEnabled: true,
       bevelThickness: 0.12,
-      bevelSize: 0.09,
-      bevelSegments: 2,
-      curveSegments: 12,
+      bevelSize: 0.06,
+      bevelSegments: 4,
+      curveSegments: 16,
     });
     geometry.rotateX(-Math.PI / 2);
     return geometry;
@@ -100,25 +109,82 @@ export function RowingShell({
           </mesh>
         ))}
       </group>
-      <mesh geometry={hull} position={[0, 0.03, 0]}>
-        <meshStandardMaterial color={color} roughness={0.32} />
+      <mesh
+        geometry={hull}
+        position={[0, -0.12, 0]}
+        scale={[0.98, 1.25, 0.99]}
+        castShadow
+        receiveShadow
+      >
+        <meshStandardMaterial color={color} roughness={0.3} metalness={0.14} />
       </mesh>
-      <Box p={[0, 0.22, 0]} s={[0.61, 0.08, 5.6]} c="#243f43" />
+      <mesh
+        geometry={hull}
+        position={[0, 0.13, 0]}
+        scale={[0.97, 0.3, 0.99]}
+        castShadow
+        receiveShadow
+      >
+        <meshStandardMaterial
+          color="#ead8ac"
+          roughness={0.42}
+          metalness={0.08}
+        />
+      </mesh>
+      <Box p={[0, 0.22, 0]} s={[0.64, 0.13, 5.7]} c="#17333a" />
+      {SEATS.map((z) => (
+        <group key={z}>
+          <Box p={[0, 0.3, z]} s={[0.46, 0.07, 0.37]} c="#b27b43" />
+          {[-1, 1].map((side) => (
+            <group key={side}>
+              <Box
+                p={[side * 0.17, 0.31, z + 0.12]}
+                s={[0.035, 0.035, 0.75]}
+                c="#c5cbc1"
+              />
+              <group
+                position={[side * 0.59, 0.34, z]}
+                rotation={[0, side * 0.42, 0]}
+              >
+                <Box p={[0, 0, 0]} s={[0.6, 0.045, 0.055]} c="#a4b7b5" />
+              </group>
+              <Cylinder
+                p={[side * 0.75, 0.42, z]}
+                s={[0.065, 0.13, 0.065]}
+                c="#273e44"
+              />
+            </group>
+          ))}
+        </group>
+      ))}
       {[-1, 1].map((side) => (
         <Box
           key={side}
-          p={[side * 0.34, 0.25, 0]}
-          s={[0.055, 0.08, 6.3]}
-          c="#f5e7c7"
+          p={[side * 0.37, 0.29, 0]}
+          s={[0.065, 0.09, 6.3]}
+          c="#be8a47"
         />
       ))}
-      <Box p={[0, 0.23, -3.8]} s={[0.11, 0.025, 1.25]} c="#f9e7b7" />
+      <Box p={[0, 0.23, -3.8]} s={[0.16, 0.04, 1.25]} c={color} />
+      <Box p={[0, 0.23, 3.8]} s={[0.16, 0.04, 1.25]} c={color} />
       <group ref={crew}>
         {SEATS.map((z, i) => (
           <group key={z} position={[0, 0.35, z]} userData={{ seat: i }}>
             <Box p={[0, 0.02, 0]} s={[0.4, 0.13, 0.35]} c="#263e46" />
-            <Box p={[0, 0.27, 0]} s={[0.46, 0.42, 0.3]} c={color} />
+            <Ball p={[0, 0.3, 0]} s={[0.26, 0.3, 0.2]} c={color} />
+            <Box p={[0, 0.15, 0]} s={[0.4, 0.22, 0.29]} c={color} />
+            <Box p={[0, 0.34, 0.18]} s={[0.38, 0.075, 0.045]} c="#eee3c6" />
+            <Cylinder p={[0, 0.54, 0]} s={[0.09, 0.16, 0.09]} c={SKIN[i]} />
             <Ball p={[0, 0.65, 0]} s={[0.2, 0.23, 0.2]} c={SKIN[i]} />
+            <Ball p={[0, 0.64, 0.18]} s={[0.055, 0.06, 0.055]} c={SKIN[i]} />
+            {[-1, 1].map((side) => (
+              <Ball
+                key={side}
+                p={[side * 0.075, 0.7, 0.18]}
+                s={[0.025, 0.025, 0.018]}
+                c="#253b40"
+              />
+            ))}
             <Ball
               p={[0, 0.78, 0]}
               s={[0.205, 0.12, 0.21]}
@@ -131,15 +197,30 @@ export function RowingShell({
             />
             {[-1, 1].map((side) => (
               <group key={side}>
+                <Ball
+                  p={[side * 0.24, 0.41, 0.04]}
+                  s={[0.135, 0.14, 0.145]}
+                  c={color}
+                />
                 <Box
                   p={[side * 0.23, 0.3, 0.23]}
                   s={[0.11, 0.13, 0.48]}
+                  c={SKIN[i]}
+                />
+                <Ball
+                  p={[side * 0.23, 0.3, 0.45]}
+                  s={[0.085, 0.085, 0.09]}
                   c={SKIN[i]}
                 />
                 <Box
                   p={[side * 0.13, 0.03, 0.3]}
                   s={[0.13, 0.13, 0.51]}
                   c="#29434c"
+                />
+                <Box
+                  p={[side * 0.13, 0.04, 0.58]}
+                  s={[0.15, 0.14, 0.23]}
+                  c="#e2d9bb"
                 />
               </group>
             ))}
@@ -149,12 +230,13 @@ export function RowingShell({
       <group ref={oars}>
         {SEATS.flatMap((z) =>
           [-1, 1].map((side) => (
-            <group key={`${z}:${side}`} position={[side * 0.5, 0.4, z]}>
-              <Box
-                p={[side * 0.98, 0, 0]}
-                s={[2.35, 0.055, 0.065]}
-                c="#d7b77c"
-              />
+            <group key={`${z}:${side}`} position={[side * 0.75, 0.4, z]}>
+              <group
+                position={[side * 0.98, 0, 0]}
+                rotation={[0, 0, Math.PI / 2]}
+              >
+                <Cylinder p={[0, 0, 0]} s={[0.035, 2.35, 0.035]} c="#c89b58" />
+              </group>
               <group position={[side * 2.05, -0.035, 0]}>
                 <Box p={[0, 0, 0]} s={[0.65, 0.1, 0.33]} c={color} />
                 <Box
