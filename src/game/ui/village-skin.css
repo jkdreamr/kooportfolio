@@ -429,6 +429,13 @@
 .game-shell .room-story[hidden] {
   display: none;
 }
+@media (min-width: 900px) and (min-height: 500px) {
+  .game-shell .scene-cognition .room-story {
+    left: auto;
+    right: max(36px, env(safe-area-inset-right));
+    transform: none;
+  }
+}
 /* The course picker owns this surface; no duplicate Race CTA over Daily river. */
 .game-shell:has(.race-select) :is(.room-story, .context-action) {
   display: none;

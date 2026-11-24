@@ -123,14 +123,12 @@ export function Sign({
   p,
   color = "#faf0d7",
   ink = "#414e3b",
-  frameColor = "#493d2e",
   size = [2, 0.5],
 }: {
   text: string;
   p: [number, number, number];
   color?: string;
   ink?: string;
-  frameColor?: string;
   size?: [number, number];
 }) {
   const texture = useMemo(() => {
@@ -159,7 +157,7 @@ export function Sign({
   useEffect(() => () => texture.dispose(), [texture]);
   return (
     <group position={p}>
-      <Box s={[size[0] + 0.1, size[1] + 0.1, 0.14]} c={frameColor} />
+      <Box s={[size[0] + 0.1, size[1] + 0.1, 0.14]} c="#493d2e" />
       <mesh position={[0, 0, 0.076]}>
         <planeGeometry args={size} />
         <meshStandardMaterial map={texture} roughness={0.75} transparent />

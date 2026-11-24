@@ -6,6 +6,8 @@ describe("connected house movement", () => {
   it.each([
     { scene: "kappa", start: [-5, 4], end: [-5, -4] },
     { scene: "kitchen", start: [0, 4], end: [0, -3] },
+    { scene: "cognition", start: [0, 16.5], end: [0, 5] },
+    { scene: "cognition", start: [0, 5], end: [0, 18.3] },
     { scene: "stadium", start: [-19, 0], end: [0, 28.3] },
     { scene: "stadium", start: [19, -20], end: [0, 28.3] },
   ])("walks around $scene partitions to the tapped floor or Exit", ({ scene, start, end }) => {

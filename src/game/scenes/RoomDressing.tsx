@@ -5,6 +5,7 @@ import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { sculptedMaterial } from "../world/Surface";
+import { CognitionDeskTent, CognitionWordmark } from "./CognitionWordmark";
 
 function Bookcase({ x, z }: { x: number; z: number }) {
   return (
@@ -132,16 +133,29 @@ const detailGeometry = {
   ring: new THREE.TorusGeometry(1, 0.12, 5, 16),
 };
 const detailMaterial = sculptedMaterial({ roughness: 0.79 });
+const officeDesks = [
+  [-7, -4.5],
+  [7, -7],
+  [-7, 11],
+  [7, 4.3],
+] as const;
+
+function dressingPosition(
+  { width, depth }: ReturnType<typeof roomFor>,
+  [x, y, z]: V3,
+): V3 {
+  return [
+    Math.abs(x) > 4.8 ? x + (Math.sign(x) * (width - 22)) / 2 : x,
+    y,
+    z < 0 ? z - (depth - 26) / 2 : z,
+  ];
+}
 
 function roomDetails(scene: PlaceId) {
   const out: Detail[] = [];
   const room = roomFor(scene);
   // Anchor peripheral props to the larger walls; never scale the objects themselves.
-  const position = ([x, y, z]: V3): V3 => [
-    Math.abs(x) > 4.8 ? x + (Math.sign(x) * (room.width - 22)) / 2 : x,
-    y,
-    z < 0 ? z - (room.depth - 26) / 2 : z,
-  ];
+  const position = (p: V3) => dressingPosition(room, p);
   const box = (p: V3, s: V3, c: string, r?: V3) =>
     out.push({ p: position(p), s, c, shape: "box", r });
   const cylinder = (p: V3, s: V3, c: string, r?: V3) =>
@@ -189,8 +203,10 @@ function roomDetails(scene: PlaceId) {
     box([x, 1.42, z - 0.25], [0.14, 0.5, 0.15], steel);
     box([x, 1.22, z - 0.2], [0.85, 0.06, 0.5], steel);
     box([x, 1.87, z - 0.38], [1.7, 1, 0.12], "#263c43");
-    box([x, 1.87, z - 0.3], [1.5, 0.8, 0.035], "#91aaa1");
-    box([x, 1.28, z + 0.4], [1.2, 0.05, 0.38], "#d5d5c3");
+    if (scene !== "cognition") {
+      box([x, 1.87, z - 0.3], [1.5, 0.8, 0.035], "#91aaa1");
+      box([x, 1.28, z + 0.4], [1.2, 0.05, 0.38], "#d5d5c3");
+    }
     cylinder([x + 1.16, 1.4, z + 0.3], [0.13, 0.28, 0.13], "#cbbd97");
     ring([x + 1.3, 1.41, z + 0.3], 0.09, "#cbbd97", [0, Math.PI / 2, 0]);
     box([x, 0.75, z + 1.65], [1.35, 0.24, 1.12], "#496159");
@@ -256,12 +272,9 @@ function roomDetails(scene: PlaceId) {
     }
   }
   if (scene === "office" || scene === "cognition") {
-    desk(-7, -4.5);
-    desk(7, -7);
-    desk(-7, 11);
+    for (const [x, z] of officeDesks) desk(x, z);
     cabinet(0, -11.4, 6);
     bench(7, 13.2, 3.8);
-    desk(7, 4.3);
     cabinet(-7.5, 5.5, 3);
     // A quiet reading corner; the central desk/walking lane stays clear.
     box([-6.7, 0.75, 1], [3.5, 0.5, 1.6], "#5d7565");
@@ -378,6 +391,7 @@ function DetailBatch({
 }
 
 function RoomDetails({ scene }: { scene: PlaceId }) {
+  const room = roomFor(scene);
   const batches = useMemo(() => {
     const parts = roomDetails(scene);
     return (Object.keys(detailGeometry) as (keyof typeof detailGeometry)[]).map(
@@ -399,6 +413,13 @@ function RoomDetails({ scene }: { scene: PlaceId }) {
             />
           ),
       )}
+      {scene === "cognition" &&
+        officeDesks.map(([x, z]) => (
+          <group key={`${x}:${z}`} position={dressingPosition(room, [x, 0, z])}>
+            <CognitionWordmark p={[0, 1.87, -0.313]} size={[1.5, 0.8]} />
+            <CognitionDeskTent p={[0, 1.245, 0.47]} size={[1.84, 0.48]} />
+          </group>
+        ))}
     </>
   );
 }

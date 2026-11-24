@@ -3,10 +3,15 @@ import { Html, OrthographicCamera } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { create } from "zustand";
 import * as THREE from "three";
-import { Box, Cylinder, Ball, Bench, Flowers, Ring, Sign } from "../world/Models";
+import { Box, Cylinder, Ball, Bench, Flowers, Ring } from "../world/Models";
 import { runtime, useGame } from "../core/store";
 import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
-import { roomFor } from "../core/room";
+import { COGNITION_OFFICE_WALL } from "../core/houseRooms";
+import {
+  CognitionDeskTent,
+  CognitionPlaque,
+  CognitionWordmark,
+} from "./CognitionWordmark";
 import { gameIsActive } from "./InteriorProps";
 import "./gym-room.css";
 
@@ -216,80 +221,36 @@ function GymControls() {
   );
 }
 
-const cognitionSlate = "#314553";
-
-function CognitionBadge({
-  p,
-  r,
-  size,
-}: {
-  p: [number, number, number];
-  r?: [number, number, number];
-  size: [number, number];
-}) {
-  return (
-    <group position={p} rotation={r}>
-      <Sign
-        text="cognition"
-        p={[0, 0, 0]}
-        size={size}
-        frameColor="#52616c"
-        color={cognitionSlate}
-        ink="#f3f6f8"
-      />
-    </group>
-  );
-}
-
 export function CognitionFurnishings() {
-  const room = roomFor("cognition");
+  const wall = COGNITION_OFFICE_WALL;
   return (
     <group>
-      <CognitionBadge
-        p={[0, 0.08, room.spawnZ - 2.6]}
-        r={[-Math.PI / 2, 0, 0]}
-        size={[2.2, 0.54]}
+      <Box
+        p={[wall.x, 2, wall.z]}
+        s={[wall.width, 3.9, wall.depth]}
+        c="#6e808d"
       />
-      <CognitionBadge
-        p={[-room.width / 2 + 0.46, 2.85, -5.4]}
-        r={[0, Math.PI / 2, 0]}
-        size={[2.8, 0.68]}
+      <Box
+        p={[wall.x, 3.94, wall.z]}
+        s={[wall.width + 0.08, 0.14, wall.depth + 0.06]}
+        c="#435668"
+      />
+      <CognitionPlaque
+        p={[wall.x, 3.05, wall.z + wall.depth / 2 + 0.06]}
+        size={[6.35, 1.35]}
       />
       <Box p={[0, 0.08, -1.8]} s={[7.4, 0.08, 5.2]} c="#3c5f56" />
-      {[-2.4, 2.4].map((x) => (
-        <group key={x} position={[x, 0, -3.4]}>
-          <Box p={[0, 1.25, 0]} s={[3.2, 0.2, 1.4]} c="#b59b6b" />
+      {[-2.05, 2.05].map((x) => (
+        <group key={x} position={[wall.x + x, 0, wall.z + 1.55]}>
+          <Box p={[0, 1.25, 0]} s={[3.55, 0.2, 1.65]} c="#b59b6b" />
           {[-1.15, 1.15].map((leg) => (
             <Box key={leg} p={[leg, 0.6, 0]} s={[0.15, 1.2, 1.1]} c="#3c4e48" />
           ))}
-          <Box p={[0, 1.87, -0.25]} s={[1.6, 1, 0.14]} c="#263c39" />
-          <Box p={[0, 1.88, -0.16]} s={[1.35, 0.77, 0.03]} c="#8dc0b4" />
-          {Array.from({ length: 4 }, (_, i) => (
-            <Box
-              key={i}
-              p={[-0.4 + (i % 2) * 0.2, 2.08 - i * 0.14, -0.13]}
-              s={[0.3 + (i % 3) * 0.2, 0.035, 0.015]}
-              c={i % 2 ? "#d9b56a" : "#3e7869"}
-            />
-          ))}
-          <Box p={[0, 1.39, 0.35]} s={[1.1, 0.06, 0.35]} c="#46554c" />
-          <CognitionBadge p={[1.03, 1.49, 0.48]} size={[0.84, 0.23]} />
-          <group position={[-1.02, 1.36, 0.14]}>
-            {[-1, 1].map((side) => (
-              <Box
-                key={side}
-                p={[side * 0.11, 0.01, -0.08]}
-                s={[0.04, 0.025, 0.37]}
-                r={[0, side * -0.64, 0]}
-                c={cognitionSlate}
-              />
-            ))}
-            <CognitionBadge
-              p={[0, 0, 0.22]}
-              r={[-Math.PI / 2, 0, 0]}
-              size={[0.42, 0.2]}
-            />
-          </group>
+          <Box p={[0, 1.39, -0.31]} s={[1.13, 0.1, 0.54]} c="#435668" />
+          <Box p={[0, 1.62, -0.36]} s={[0.2, 0.42, 0.16]} c="#435668" />
+          <Box p={[0, 2.38, -0.36]} s={[2.65, 1.24, 0.17]} c="#182630" />
+          <CognitionWordmark p={[0, 2.38, -0.268]} size={[2.39, 0.99]} />
+          <CognitionDeskTent p={[0, 1.35, 0.48]} size={[2.23, 0.6]} />
           <Bench p={[0, 0, 1.1]} />
         </group>
       ))}

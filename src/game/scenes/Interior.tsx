@@ -13,6 +13,7 @@ import { useGame, walkTo } from "../core/store";
 import { useGameMode } from "../core/gameMode";
 import { doors } from "../core/world";
 import { CognitionFurnishings, GymFurnishings } from "./CognitionGym";
+import { CognitionPlaque } from "./CognitionWordmark";
 import { HouseInterior } from "./HouseInterior";
 import { KitchenInterior } from "./KitchenInterior";
 import { newRunId } from "../../shared/run-id";
@@ -42,7 +43,8 @@ export function Interior() {
   const stashClaimed = useGame((s) => s.save.memories.includes(HOOVER_STASH));
   const scene = useGame((s) => s.scene),
     office = scene === "office",
-    theater = scene === "theater";
+    theater = scene === "theater",
+    cognition = scene === "cognition";
   const name =
     scene === "secret"
       ? "Hoover vault"
@@ -116,13 +118,15 @@ export function Interior() {
             width={2.4}
           />
         ))}
-      {!theater && (
+      {cognition ? (
+        <CognitionPlaque p={[0, 4.55, back + 0.49]} size={[5.9, 1.35]} />
+      ) : !theater ? (
         <Sign
           text={name.toUpperCase()}
           p={[0, 4.4, back + 0.55]}
           size={[4.5, 0.65]}
         />
-      )}
+      ) : null}
       {!theater &&
         [-1, 1].map((side) => (
           <group key={side}>
@@ -181,7 +185,7 @@ export function Interior() {
           <Box p={[3.5, 1.1, -5.2]} s={[0.8, 0.12, 0.6]} c="#826a4a" />
         </>
       ) : null}
-      {scene === "cognition" && <CognitionFurnishings />}
+      {cognition && <CognitionFurnishings />}
       {scene === "kappa" && <HouseInterior onReward={rewardInterior} />}
       {scene === "kitchen" && <KitchenInterior onReward={rewardInterior} />}
       {scene === "gym" && <GymFurnishings />}
@@ -206,7 +210,21 @@ export function Interior() {
       <Box p={[-1.7, 1.6, room.doorZ + 1]} s={[0.35, 3.2, 0.4]} c="#8c6947" />
       <Box p={[1.7, 1.6, room.doorZ + 1]} s={[0.35, 3.2, 0.4]} c="#8c6947" />
       <Box p={[0, 3.2, room.doorZ + 1]} s={[3.8, 0.38, 0.5]} c="#8c6947" />
-      <Sign text="EXIT" p={[0, 3.55, room.doorZ + 1.05]} size={[2.8, 0.55]} />
+      {cognition ? (
+        <>
+          <CognitionPlaque
+            p={[0, 3.99, room.doorZ + 1.05]}
+            size={[3.7, 1.1]}
+          />
+          <Sign
+            text="EXIT"
+            p={[0, 3.2, room.doorZ + 1.27]}
+            size={[1.75, 0.26]}
+          />
+        </>
+      ) : (
+        <Sign text="EXIT" p={[0, 3.55, room.doorZ + 1.05]} size={[2.8, 0.55]} />
+      )}
       {!badmintonActive && (
         <Walker interior locked={theater && theaterSeated} />
       )}
