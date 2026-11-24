@@ -7,6 +7,10 @@ import { HanRiverBridge } from "./HanRiverBridge";
 import { SeoulSkyline } from "./SeoulSkyline";
 import { NaturalTrees, type TreePlacement } from "./TreeArt";
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
+import {
+  KoreaRiversideLife,
+  KOREA_ACTIVITY_OBSTACLES,
+} from "./CommunityScenery";
 
 const paving: SceneryPart[] = [],
   park: SceneryPart[] = [];
@@ -32,10 +36,11 @@ slab(14, 47, 60, 3.2);
 slab(14, 50, 60, 1.9, "#a27d72");
 slab(-15, 33, 3, 30);
 slab(65, 30, 3, 25);
-// East bank dog-leg stays outside the airport footprint x49..67,z45..59.
-slab(69.5, 40.8, 12, 3);
-slab(74, 51, 3.4, 24);
-slab(67, 61, 17, 3.4);
+// A narrow bank lane fits between the airport and the island's curved edge.
+// Its outermost corner [70, 62] remains inside the ellipse; x74 did not.
+slab(67.5, 34, 7, 2.4);
+slab(69, 47.5, 2, 27);
+slab(63.5, 61, 13, 2);
 for (let x = -13; x < 63; x += 2) {
   paving.push({
     p: [x, 0.216, 15.8],
@@ -61,17 +66,17 @@ for (let x = -6; x < 7; x += 1.6)
     });
 for (const z of [21.55, 44.45]) slab(25, z, 74.8, 0.55, "#cbc7b7");
 
-export const KOREA_PARK_OBSTACLES: readonly (readonly [
-  number,
-  number,
-  number,
-  number,
-])[] = [
-  [-5, 53.5, 1.7, 0.55],
-  [13, 53.5, 1.7, 0.55],
-  [31, 53.5, 1.7, 0.55],
-];
-for (const [x, z] of KOREA_PARK_OBSTACLES) {
+const benchFootprints: readonly (readonly [number, number, number, number])[] =
+  [
+    [-5, 53.5, 1.7, 0.55],
+    [13, 53.5, 1.7, 0.55],
+    [31, 53.5, 1.7, 0.55],
+  ];
+export const KOREA_PARK_OBSTACLES = [
+  ...benchFootprints,
+  ...KOREA_ACTIVITY_OBSTACLES,
+] as const;
+for (const [x, z] of benchFootprints) {
   for (const dx of [-1.2, 1.2])
     park.push({
       p: [x + dx, 0.55, z],
@@ -187,6 +192,7 @@ export function KoreaWorldEnvironment() {
       <SeoulSkyline />
       <HangangWater />
       <HanRiverBridge />
+      <KoreaRiversideLife />
     </group>
   );
 }

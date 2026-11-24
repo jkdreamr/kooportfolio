@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { RegionalActivities } from "./RegionalActivities";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import {
@@ -320,6 +321,7 @@ export function Hub() {
   return (
     <group>
       <Landscape world={world} />
+      {world !== "stanford" && <RegionalActivities world={world} />}
       {world === "home" && <HomeWorldEnvironment />}
       {world === "korea" && <KoreaWorldEnvironment />}
       <Bulletin />
