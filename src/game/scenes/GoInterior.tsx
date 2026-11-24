@@ -299,7 +299,8 @@ export function GoInterior() {
                       try { localStorage.setItem(GO_LEVEL_KEY, next); } catch { /* Keep the in-session selection. */ }
                     }
                   }}>
-                    {GO_LEVELS.map((option) => <option key={option} value={option}>Computer · {option[0].toUpperCase() + option.slice(1)}</option>)}
+                    <optgroup label="Computer">{GO_LEVELS.map((option) =>
+                      <option key={option} value={option}>{option[0].toUpperCase() + option.slice(1)}</option>)}</optgroup>
                     <option value="local">Local player</option></select></label>}
                   <details className="go-rules"><summary>Rules</summary><p>Black starts. Connect stones and surround space. Groups with no adjacent empty points are captured. No suicide or repeated positions. Pass twice to count; mark dead groups by agreement, or resume to capture them.</p>
                     <p>Area scoring: stones + surrounded space. White gets {GO_KOMI} komi. Captures aren’t added again. Arrow keys move; Enter places. Local game, no online opponent.</p></details>

@@ -94,6 +94,63 @@ function canSettle(game: GoGame, moves: Candidate[]) {
   return score.winner === game.turn && moves.every(({ point }) => score.owners[point] === game.turn);
 }
 
+type SearchEdge = { move: Candidate; prior: number; child?: SearchNode };
+type SearchNode = { value: number; visits: number; total: number; edges: SearchEdge[] };
+const HARD_VISITS = 180;
+const HARD_BUDGET_MS = 1300;
+
+function expand(game: GoGame, moves: Candidate[], width: number): SearchNode {
+  const sign = game.turn === 1 ? 1 : -1;
+  const value = balance(game);
+  const ranked = moves.slice(0, 12).map((move) => {
+    const lead = balance(move.game);
+    return { move, rank: sign * (lead - value) + 0.48 * move.priority };
+  }).sort((a, b) => b.rank - a.rank).slice(0, width);
+  const weights = ranked.map(({ rank }) => Math.exp((rank - ranked[0].rank) / 5));
+  const sum = weights.reduce((total, weight) => total + weight, 0);
+  return { value, visits: 0, total: 0, edges: ranked.map(({ move }, i) => ({ move, prior: weights[i] / sum })) };
+}
+
+function searchHard(game: GoGame, moves: Candidate[]) {
+  if (!moves.length) return null;
+  const deadline = performance.now() + HARD_BUDGET_MS;
+  const root = expand(game, moves, 10);
+  const rootSign = game.turn === 1 ? 1 : -1;
+  for (let i = 0; i < HARD_VISITS && performance.now() < deadline; i++) {
+    let node = root, sign = rootSign;
+    const path = [node];
+    while (node.edges.length && path.length <= 16) {
+      const scale = 12 * Math.sqrt(node.visits + 1);
+      let selected = node.edges[0], best = -Infinity;
+      for (const edge of node.edges) {
+        const child = edge.child;
+        const mean = child?.visits ? child.total / child.visits : node.value - sign * 2;
+        const score = sign * mean + scale * edge.prior / (1 + (child?.visits ?? 0));
+        if (score > best) { selected = edge; best = score; }
+      }
+      if (!selected.child) {
+        const next = selected.move.game;
+        selected.child = expand(next, candidates(next, "hard"), 6);
+        node = selected.child;
+        path.push(node);
+        break;
+      }
+      node = selected.child;
+      path.push(node);
+      sign *= -1;
+    }
+    for (const parent of path) {
+      parent.visits++;
+      parent.total += node.value;
+    }
+  }
+  let best = root.edges[0];
+  for (const edge of root.edges) {
+    if ((edge.child?.visits ?? 0) > (best.child?.visits ?? 0)) best = edge;
+  }
+  return best.move.point;
+}
+
 export function chooseGoMove(game: GoGame, level: GoLevel = DEFAULT_GO_LEVEL): number | null {
   if (game.phase !== "playing") return null;
   const moves = candidates(game, level);
@@ -102,21 +159,14 @@ export function chooseGoMove(game: GoGame, level: GoLevel = DEFAULT_GO_LEVEL): n
 
   const sign = game.turn === 1 ? 1 : -1;
   const before = sign * balance(game);
-  const search = level === "hard" && (game.moves >= 14 || moves.some((move) => move.tactical));
+  if (level === "hard") {
+    return searchHard(game, moves.filter((move) => move.tactical || move.priority >= 0 || sign * balance(move.game) > before));
+  }
   let best: Candidate | undefined, bestValue = -Infinity;
   for (const move of moves.slice(0, 12)) {
     const after = sign * balance(move.game);
     if (!move.tactical && move.priority < 0 && after <= before) continue;
-    let value = after;
-    if (search) {
-      const replies = candidates(move.game, level).slice(0, 5);
-      if (replies.length) value = Math.min(...replies.map((reply) => {
-        const continuations = candidates(reply.game, level).slice(0, 3);
-        return Math.max(sign * balance(reply.game), ...continuations.map((next) => sign * balance(next.game)));
-      }));
-      value = value * 0.35 + after * 0.65;
-    }
-    value += move.priority * 0.48;
+    const value = after + move.priority * 0.48;
     if (value > bestValue) { best = move; bestValue = value; }
   }
   return best?.point ?? null;
