@@ -12,6 +12,8 @@ export type Save = {
   memories: string[];
   rewards: string[];
 };
+import { WORLD_BOUNDS } from "./world-bounds";
+
 export const SAVE_KEY = "joshua-exe-save-v1";
 export function writeGuestSave(
   storage: Pick<Storage, "getItem" | "setItem">,
@@ -49,7 +51,8 @@ export function parseSave(raw: string | null): Save {
     !finiteRange(s.revision, 0, 1e15) ||
     !Array.isArray(s.position) ||
     s.position.length !== 2 ||
-    !s.position.every((v) => finiteRange(v, -15, 15)) ||
+    !finiteRange(s.position[0], WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX) ||
+    !finiteRange(s.position[1], WORLD_BOUNDS.minZ, WORLD_BOUNDS.maxZ) ||
     ![1, 2, 3].includes(s.upgrades?.boathouse) ||
     ![1, 2, 3].includes(s.upgrades?.garden) ||
     typeof s.color !== "string" ||

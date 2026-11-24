@@ -9,6 +9,7 @@ import {
   writeGuestSave,
 } from "../../shared/save";
 import { canWalk, findPath, isInterior, type PlaceId } from "./world";
+import { ROOM } from "./room";
 export type Scene = "hub" | "rowing" | PlaceId;
 let storageIssue = "";
 let savedRaw: string | null = null;
@@ -62,6 +63,7 @@ type State = {
     | "settings"
     | "profile"
     | "places"
+    | "npc"
     | "desk";
   near: string;
   notice: string;
@@ -100,7 +102,7 @@ export const useGame = create<State>((set, get) => ({
       [runtime.x, runtime.z] = get().save.position;
     } else if (isInterior(scene)) {
       runtime.x = 0;
-      runtime.z = 4;
+      runtime.z = ROOM.spawnZ;
     } else if (scene === "basketball") {
       runtime.x = 0;
       runtime.z = 5;

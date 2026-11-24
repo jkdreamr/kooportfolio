@@ -29,10 +29,44 @@ export function GameControls({
     () => ({ current: gl.domElement.parentElement! }),
     [gl],
   );
+  const projected = useMemo(() => new THREE.Vector3(), []);
+  const panel = useRef<HTMLElement>(null);
   const hidden = useGame((s) => s.paused || s.panel !== "none" || s.build);
   return hidden ? null : (
-    <Html portal={portal} position={position} center zIndexRange={[20, 0]}>
+    <Html
+      portal={portal}
+      position={position}
+      center
+      zIndexRange={[20, 0]}
+      calculatePosition={(object, camera, size) => {
+        object.getWorldPosition(projected).project(camera);
+        const halfWidth =
+          (panel.current?.offsetWidth ?? Math.min(320, size.width - 36)) / 2;
+        const x = ((projected.x + 1) * size.width) / 2;
+        const halfHeight = (panel.current?.offsetHeight ?? 160) / 2;
+        // Wide screens have room for a side card; keep the customers/table clear.
+        if (size.width >= 900)
+          return [
+            size.width - halfWidth - 24,
+            THREE.MathUtils.clamp(
+              size.height - halfHeight - (size.height < 600 ? 24 : 96),
+              halfHeight + 12,
+              size.height - halfHeight - 12,
+            ),
+          ];
+        // Keep a room-anchored panel on screen even with a narrow camera crop.
+        return [
+          THREE.MathUtils.clamp(x, halfWidth + 12, size.width - halfWidth - 12),
+          THREE.MathUtils.clamp(
+            ((1 - projected.y) * size.height) / 2,
+            halfHeight + 12,
+            size.height - halfHeight - 12,
+          ),
+        ];
+      }}
+    >
       <section
+        ref={panel}
         className="interior-game"
         aria-label={name}
         onPointerDown={(e) => e.stopPropagation()}

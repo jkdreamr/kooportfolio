@@ -9,7 +9,6 @@ import {
   Cylinder,
   Flowers,
   House,
-  Npc,
   Ring,
 } from "./Models";
 import { runtime, useGame, walkTo } from "../core/store";
@@ -17,6 +16,14 @@ import { movement } from "../core/input";
 import { canWalk, doors, moveWorld } from "../core/world";
 import { LabelProjection } from "./Labels";
 import { Landscape } from "./Landscape";
+import { Bulletin } from "./Bulletin";
+import { ROOM } from "../core/room";
+import { NpcCrowd } from "./VillageNpcs";
+import { nearbyNpcId } from "../core/npcState";
+import { BadmintonPavilion } from "../scenes/BadmintonCourt";
+import { Wildlife } from "./Wildlife";
+import { WritingShell } from "./WritingShell";
+import { BeatLabShell, MathLabShell } from "./LabBuildings";
 import {
   KappaShell,
   CognitionShell,
@@ -63,8 +70,16 @@ export function Walker({ interior = false }: { interior?: boolean }) {
     if (runtime.moving) {
       const step = Math.min(dt * (interior ? 4 : 4.6), remaining);
       if (interior) {
-        runtime.x = THREE.MathUtils.clamp(runtime.x + dx * step, -4.6, 4.6);
-        runtime.z = THREE.MathUtils.clamp(runtime.z + dz * step, -5, 5.7);
+        runtime.x = THREE.MathUtils.clamp(
+          runtime.x + dx * step,
+          -ROOM.walkX,
+          ROOM.walkX,
+        );
+        runtime.z = THREE.MathUtils.clamp(
+          runtime.z + dz * step,
+          ROOM.minZ,
+          ROOM.maxZ,
+        );
       } else
         [runtime.x, runtime.z] = moveWorld(
           runtime.x,
@@ -85,7 +100,8 @@ export function Walker({ interior = false }: { interior?: boolean }) {
     }
     let near = "";
     if (interior) {
-      if (runtime.z > 3.7) near = "exit";
+      if (runtime.z > ROOM.doorZ - 1.3 && Math.abs(runtime.x) < 2.2)
+        near = "exit";
       if (Math.hypot(runtime.x, runtime.z + 2) < 2.5) {
         near =
           (
@@ -97,19 +113,23 @@ export function Walker({ interior = false }: { interior?: boolean }) {
             } as Record<string, string>
           )[state.scene] ?? "";
       }
-    } else
+    } else {
       near =
         doors.find((d) => Math.hypot(d.x - runtime.x, d.z - runtime.z) < 1.9)
           ?.id ?? "";
+      if (!near && Math.hypot(runtime.x, runtime.z + 4.6) < 1.9) near = "read";
+      if (!near) near = nearbyNpcId(runtime.x, runtime.z);
+    }
     state.setNear(near);
-    const mobile = size.width < 700;
+    const mobile = size.width < 700 || size.height < 500;
+    const closeInterior = interior && (mobile || size.height < 500);
     desired.current.set(
-      interior ? 0 : runtime.x * (mobile ? 0.92 : 0.12),
+      interior ? (closeInterior ? runtime.x * 0.8 : 0) : runtime.x * 0.92,
       0,
-      interior ? 0 : runtime.z * (mobile ? 0.92 : 0.12),
+      interior ? (closeInterior ? runtime.z * 0.8 : 0) : runtime.z * 0.92,
     );
     follow.current.lerp(desired.current, 1 - Math.exp(-dt * 3));
-    if (interior) offset.current.set(13, 15, 20);
+    if (interior) offset.current.set(18, 23, 29);
     else offset.current.set(28, 34, 38);
     camera.position.copy(offset.current.add(follow.current));
     camera.lookAt(follow.current.x, interior ? 0.5 : 0.7, follow.current.z);
@@ -117,17 +137,19 @@ export function Walker({ interior = false }: { interior?: boolean }) {
       const fitted = Math.max(
         3.5,
         Math.min(
-          (size.width - 70) / 57,
-          (size.height - (size.height < 500 ? 120 : 180)) / 39,
+          (size.width - 70) / 114,
+          (size.height - (size.height < 500 ? 100 : 150)) / 83,
         ),
       );
       const targetZoom = interior
-        ? Math.min(44, (size.width - 25) / 17, (size.height - 170) / 17)
-        : mobile
-          ? state.build
-            ? 8
-            : 22
-          : fitted * (state.build ? 0.9 : 1);
+        ? closeInterior
+          ? 24
+          : Math.min(38, (size.width - 35) / 35, (size.height - 170) / 29)
+        : state.build
+          ? fitted * 0.9
+          : mobile
+            ? 24
+            : 28;
       camera.zoom = THREE.MathUtils.damp(camera.zoom, targetZoom, 5, dt);
       camera.updateProjectionMatrix();
     }
@@ -220,6 +242,8 @@ export function Hub() {
   return (
     <group>
       <Landscape />
+      <Bulletin />
+      <Wildlife />
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
         position={[0, 0.24, -1]}
@@ -229,7 +253,7 @@ export function Hub() {
             walkTo(e.point.x, e.point.z);
         }}
       >
-        <circleGeometry args={[24, 64]} />
+        <planeGeometry args={[144, 122]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
       {doors.map((door) => (
@@ -241,6 +265,13 @@ export function Hub() {
             <House p={[0, 0, 0]} level={save.upgrades.boathouse} />
           )}
           {door.id === "office" && <House p={[0, 0, 0]} kind="study" />}
+          {(door.id === "go" || door.id === "stadium") && (
+            <House p={[0, 0, 0]} kind="study" />
+          )}
+          {door.id === "writing" && <WritingShell p={[0, 0, 0]} />}
+          {door.id === "badminton" && <BadmintonPavilion />}
+          {door.id === "music" && <BeatLabShell />}
+          {door.id === "math" && <MathLabShell />}
           {door.id === "basketball" && <CourtPavilion />}
           {door.id === "kappa" && <KappaShell />}
           {door.id === "cognition" && <CognitionShell />}
@@ -249,8 +280,7 @@ export function Hub() {
         </group>
       ))}
       <Garden level={save.upgrades.garden} />
-      <Npc origin={[-3.5, 0.2, -3]} color="#b95e3d" />
-      <Npc origin={[11, 0.2, 12.3]} color="#d3a444" />
+      <NpcCrowd />
       <Walker />
       <LabelProjection />
     </group>

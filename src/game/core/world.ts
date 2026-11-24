@@ -1,76 +1,150 @@
+import { WORLD_BOUNDS, WORLD_ELLIPSE } from "../../shared/world-bounds";
+import { forest } from "./scenery";
+import { campusObstacles } from "./campus";
+
 export const doors = [
+  {
+    id: "badminton",
+    name: "Badminton",
+    x: -42,
+    z: -14.8,
+    anchor: [-42, 7, -20] as const,
+    footprint: [-42, -20, 5.5, 4.2] as const,
+  },
+  {
+    id: "go",
+    name: "Go",
+    x: -42,
+    z: 23.2,
+    anchor: [-42, 7, 19] as const,
+    footprint: [-42, 19, 3.6, 2.7] as const,
+  },
+  {
+    id: "writing",
+    name: "Writing",
+    x: 0,
+    z: -42.5,
+    anchor: [0, 7.5, -46] as const,
+    footprint: [0, -46, 3.6, 2.5] as const,
+  },
+  {
+    id: "stadium",
+    name: "49ers Stadium",
+    x: 43,
+    z: -16.5,
+    anchor: [43, 8, -21] as const,
+    footprint: [43, -21, 4, 3.5] as const,
+  },
   {
     id: "boathouse",
     name: "Boathouse",
-    x: -13,
-    z: 6,
-    anchor: [-13, 6.8, 3] as const,
-    footprint: [-13, 3, 3.25, 2.1] as const,
+    x: -22,
+    z: 8,
+    anchor: [-22, 6.8, 5] as const,
+    footprint: [-22, 5, 3.25, 2.1] as const,
   },
   {
     id: "basketball",
     name: "Court",
-    x: 12,
-    z: 5.2,
-    anchor: [12, 4.3, 2] as const,
-    footprint: [12, 2, 3.2, 2.5] as const,
+    x: 23,
+    z: 7.2,
+    anchor: [23, 4.3, 4] as const,
+    footprint: [23, 4, 3.2, 2.5] as const,
   },
   {
     id: "office",
     name: "Study",
     x: 0,
-    z: -8.8,
-    anchor: [0, 8.1, -11.8] as const,
-    footprint: [0, -11.8, 3.1, 2.1] as const,
+    z: -19,
+    anchor: [0, 8.1, -22] as const,
+    footprint: [0, -22, 3.1, 2.1] as const,
   },
   {
     id: "kappa",
     name: "Kappa Sigma",
-    x: -11,
-    z: -5.5,
-    anchor: [-11, 8.8, -9] as const,
-    footprint: [-11, -9, 3.7, 2.7] as const,
+    x: -18,
+    z: -10.5,
+    anchor: [-18, 8.8, -14] as const,
+    footprint: [-18, -14, 3.7, 2.7] as const,
   },
   {
     id: "cognition",
     name: "Cognition",
-    x: 11,
-    z: -5.5,
-    anchor: [11, 7.6, -9] as const,
-    footprint: [11, -9, 3.5, 2.6] as const,
+    x: 18,
+    z: -10.5,
+    anchor: [18, 7.6, -14] as const,
+    footprint: [18, -14, 3.5, 2.6] as const,
   },
   {
     id: "kitchen",
     name: "Kitchen",
-    x: -5,
-    z: 8.9,
-    anchor: [-5, 5.8, 6] as const,
-    footprint: [-5, 6, 2.35, 1.95] as const,
+    x: -8,
+    z: 14.9,
+    anchor: [-8, 5.8, 12] as const,
+    footprint: [-8, 12, 2.35, 1.95] as const,
   },
   {
     id: "gym",
     name: "Gym",
-    x: 5.5,
-    z: 12.3,
-    anchor: [5.5, 6.2, 9] as const,
-    footprint: [5.5, 9, 2.85, 2.5] as const,
+    x: 8,
+    z: 20.3,
+    anchor: [8, 6.2, 17] as const,
+    footprint: [8, 17, 2.85, 2.5] as const,
+  },
+  {
+    id: "music",
+    name: "Beat Lab",
+    x: -11,
+    z: -22,
+    anchor: [-11, 7, -25] as const,
+    footprint: [-11, -25, 3.1, 2.1] as const,
+  },
+  {
+    id: "math",
+    name: "Math Lab",
+    x: 11,
+    z: -22,
+    anchor: [11, 7, -25] as const,
+    footprint: [11, -25, 3.1, 2.1] as const,
   },
 ] as const;
+export const landmarks = [
+  {
+    id: "bulletin",
+    name: "Bulletin",
+    x: 0,
+    z: -4.6,
+    anchor: [0, 4.6, -6.6] as const,
+  },
+  {
+    id: "campus",
+    name: "Stanford",
+    x: 23,
+    z: 27.5,
+    anchor: [23, 10, 20] as const,
+  },
+] as const;
+export const destinations = [...doors, ...landmarks];
 export type PlaceId = (typeof doors)[number]["id"];
 export function isInterior(scene: string) {
   return doors.some((door) => door.id === scene && scene !== "basketball");
 }
 const obstacles: ReadonlyArray<readonly number[]> = [
   ...doors.map((door) => door.footprint),
+  ...forest.map((tree) => [tree.x, tree.z, 0.4, 0.4]),
+  ...campusObstacles,
+  [0, -6.6, 2.1, 0.4],
   [0, 0, 1.5, 1.5],
 ];
 export function canWalk(x: number, z: number) {
   if (
-    x < -22 ||
-    x > 22 ||
-    z < -18 ||
-    z > 17 ||
-    (x / 23) ** 2 + ((z + 1) / 19) ** 2 > 1
+    x < WORLD_BOUNDS.minX ||
+    x > WORLD_BOUNDS.maxX ||
+    z < WORLD_BOUNDS.minZ ||
+    z > WORLD_BOUNDS.maxZ ||
+    (x / WORLD_ELLIPSE.radiusX) ** 2 +
+      ((z - WORLD_ELLIPSE.centerZ) / WORLD_ELLIPSE.radiusZ) ** 2 >
+      1
   )
     return false;
   return !obstacles.some(
@@ -107,7 +181,9 @@ export function findPath(
     parents = new Map<string, string>();
   seen.set(key(sx, sz), 0);
   for (let n = 0; n < 6000 && open.length; n++) {
-    open.sort((a, b) => a.f - b.f);
+    // Prefer progress toward the goal within the same A* contour. Otherwise
+    // long district routes exhaust the search budget exploring a flat rectangle.
+    open.sort((a, b) => a.f - b.f || b.cost - a.cost);
     const cur = open.shift()!,
       ck = key(cur.x, cur.z);
     if (Math.hypot(cur.x - ex, cur.z - ez) <= 1) {

@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { Box, Cylinder, Ball, Flowers, Sign, Window } from "./Models";
+import { RoofShingles, StoneFooting } from "./ArchitectureDetail";
 
 const roofGeometry = new THREE.BufferGeometry();
 const a = [-0.5, 0, -0.5],
@@ -65,7 +66,7 @@ export function HipRoof({
           side={THREE.DoubleSide}
         />
       </mesh>
-      <Box p={[0, y + rise, 0]} s={[0.22, 0.24, depth * 0.6]} c={color} />
+      <RoofShingles {...{ width, depth, y, rise, color }} />
     </>
   );
 }
@@ -91,6 +92,7 @@ function Door({ z = 2.7, color = "#5f462f" }: { z?: number; color?: string }) {
 export function KappaShell() {
   return (
     <group>
+      <StoneFooting width={6.9} depth={4.8} />
       <Box p={[0, 0.3, 0]} s={[7.5, 0.6, 5.5]} c="#8c6650" />
       <Box p={[0, 2.8, 0]} s={[6.7, 5, 4.6]} c="#f0dbb4" />
       <Box p={[0, 2.85, 2.36]} s={[6.9, 0.3, 0.3]} c="#b69369" />
@@ -133,6 +135,7 @@ export function KappaShell() {
 export function CognitionShell() {
   return (
     <group>
+      <StoneFooting width={6.8} depth={5.2} />
       <Box p={[0, 0.25, 0]} s={[7.1, 0.5, 5.5]} c="#8a8f88" />
       <Box p={[-0.85, 2.8, -0.25]} s={[4.6, 5, 4.6]} c="#3c554d" />
       <Box p={[2.1, 1.85, 0.35]} s={[2.3, 3.2, 4.7]} c="#d4c9ad" />
@@ -182,6 +185,7 @@ export function CognitionShell() {
 export function KitchenShell() {
   return (
     <group>
+      <StoneFooting width={4.65} depth={3.85} />
       <Box p={[0, 0.22, 0]} s={[4.9, 0.45, 4.2]} c="#9e7652" />
       <Box p={[0, 1.65, 0]} s={[4.5, 2.8, 3.7]} c="#dfad72" />
       <HipRoof width={5.2} depth={4.5} y={3.15} rise={1.6} color="#d16b2e" />
@@ -217,6 +221,17 @@ export function KitchenShell() {
 export function GymShell() {
   return (
     <group>
+      <StoneFooting width={5.65} depth={4.9} />
+      {[-2.65, 2.65].map((z) => (
+        <mesh key={z} position={[0, 2.7, z]} castShadow>
+          <torusGeometry args={[2.9, 0.17, 6, 24, Math.PI]} />
+          <meshStandardMaterial
+            color="#31535a"
+            roughness={0.55}
+            metalness={0.25}
+          />
+        </mesh>
+      ))}
       <Box p={[0, 0.2, 0]} s={[5.8, 0.4, 5.1]} c="#8c9181" />
       <Box p={[0, 1.45, 0]} s={[5.5, 2.6, 4.8]} c="#acae94" />
       <mesh

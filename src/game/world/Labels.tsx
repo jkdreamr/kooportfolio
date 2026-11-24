@@ -1,7 +1,7 @@
 import { useFrame } from "@react-three/fiber";
 import { Vector3 } from "three";
-import { useGame, walkTo } from "../core/store";
-import { doors } from "../core/world";
+import { runtime, useGame, walkTo } from "../core/store";
+import { destinations } from "../core/world";
 
 const elements = new Map<string, HTMLButtonElement>();
 const projected = new Vector3();
@@ -10,18 +10,54 @@ const projected = new Vector3();
 // The renderer only updates their projection; React owns their full lifecycle.
 export function LabelProjection() {
   useFrame(({ camera, size }) => {
-    doors.forEach((door) => {
-      const element = elements.get(door.id);
-      if (!element) return;
-      projected.set(door.anchor[0], door.anchor[1], door.anchor[2]).project(camera);
-      element.style.transform = `translate(${((projected.x + 1) * size.width) / 2}px, ${((-projected.y + 1) * size.height) / 2}px) translate(-50%, -50%)`;
-      element.style.visibility =
-        Math.abs(projected.z) <= 1 &&
-        Math.abs(projected.x) < 0.95 &&
-        Math.abs(projected.y) < 0.8
-          ? "visible"
-          : "hidden";
-    });
+    const occupied: { x: number; y: number; w: number; h: number }[] = [];
+    // Physical door actions win over projected destination labels, including
+    // the frame in which the mobile prompt animates into view.
+    const prompt = document
+      .querySelector(".context-action.visible")
+      ?.getBoundingClientRect();
+    if (prompt) {
+      const origin = document
+        .querySelector(".game-shell")
+        ?.getBoundingClientRect();
+      occupied.push({
+        x: prompt.left - (origin?.left ?? 0) + prompt.width / 2,
+        y: prompt.top - (origin?.top ?? 0) + prompt.height / 2,
+        w: prompt.width + 20,
+        h: prompt.height + 20,
+      });
+    }
+    const compact = size.height < 500;
+    const distance = (door: (typeof destinations)[number]) =>
+      Math.hypot(door.x - runtime.x, door.z - runtime.z);
+    [...destinations]
+      .sort((a, b) => distance(a) - distance(b))
+      .forEach((door) => {
+        const element = elements.get(door.id);
+        if (!element) return;
+        projected
+          .set(door.anchor[0], door.anchor[1], door.anchor[2])
+          .project(camera);
+        const x = ((projected.x + 1) * size.width) / 2,
+          y = ((-projected.y + 1) * size.height) / 2;
+        const w = element.offsetWidth + 16,
+          h = element.offsetHeight + 14;
+        const visible =
+          Math.abs(projected.z) <= 1 &&
+          distance(door) < (compact ? 25 : 36) &&
+          x > w / 2 + 10 &&
+          x < size.width - w / 2 - 10 &&
+          y > (compact ? 75 : 100) &&
+          y < size.height - (compact ? 80 : 155) &&
+          !occupied.some(
+            (b) =>
+              Math.abs(x - b.x) < (w + b.w) / 2 &&
+              Math.abs(y - b.y) < (h + b.h) / 2,
+          );
+        element.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
+        element.style.visibility = visible ? "visible" : "hidden";
+        if (visible) occupied.push({ x, y, w, h });
+      });
   });
   return null;
 }
@@ -30,7 +66,7 @@ export function WorldLabels() {
   const level = useGame((s) => s.save.upgrades.boathouse);
   return (
     <nav className="world-labels" aria-label="Village places">
-      {doors.map((door) => (
+      {destinations.map((door) => (
         <button
           key={door.id}
           ref={(element) => {
