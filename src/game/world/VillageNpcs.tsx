@@ -3,7 +3,7 @@ import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
 import { movement } from "../core/input";
 import { runtime, useGame } from "../core/store";
-import { stepNpc, TALK_DISTANCE, villagers } from "../core/npcs";
+import { canTalkToNpc, nearestNpc, stepNpc, villagers } from "../core/npcs";
 import {
   closeConversation,
   npcActors,
@@ -126,15 +126,16 @@ function TalkRings() {
   useFrame(() => {
     const game = useGame.getState(),
       selected = useNpcs.getState().pending;
+    const nearest =
+      game.near === "npc"
+        ? nearestNpc(npcActors, runtime.x, runtime.z)?.id
+        : null;
     npcActors.forEach((actor, i) => {
       const show =
         game.panel === "none" &&
         !game.paused &&
         !game.build &&
-        (actor.id === selected ||
-          (game.near === "npc" &&
-            Math.hypot(actor.x - runtime.x, actor.z - runtime.z) <
-              TALK_DISTANCE));
+        (actor.id === selected || actor.id === nearest);
       transform.position.set(actor.x, 0.27, actor.z);
       transform.rotation.set(-Math.PI / 2, 0, 0);
       transform.scale.setScalar(show ? 1 : 0);
@@ -189,9 +190,7 @@ export function NpcCrowd() {
     const actor = npcActors.find((npc) => npc.id === state.pending)!;
     if (frozen || Math.hypot(dx, dz) > 0.1 || pendingTime.current > 25) {
       useNpcs.setState({ pending: null });
-    } else if (
-      Math.hypot(actor.x - runtime.x, actor.z - runtime.z) < TALK_DISTANCE
-    ) {
+    } else if (canTalkToNpc(actor, runtime.x, runtime.z)) {
       talkToNpc(actor.id);
     } else if (!runtime.target) useNpcs.setState({ pending: null });
   });

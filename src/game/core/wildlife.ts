@@ -1,7 +1,14 @@
 import { sampleDaylight } from "./daylight";
+import { POND } from "./pond";
 import { sampleWeather } from "./weather";
 
 type Point = readonly [number, number];
+const DUCK_ROUTE: readonly Point[] = [
+  [POND.x - 3, POND.z],
+  [POND.x, POND.z - 2],
+  [POND.x + 4, POND.z],
+  [POND.x, POND.z + 2],
+];
 export type AnimalKind = "rabbit" | "cat" | "dog" | "duck";
 export type Animal = {
   kind: AnimalKind;
@@ -94,12 +101,7 @@ export const ANIMALS: readonly Animal[] = [
   },
   {
     kind: "duck",
-    route: [
-      [-29, 42],
-      [-26, 40],
-      [-22, 42],
-      [-26, 44],
-    ],
+    route: DUCK_ROUTE,
     speed: 0.55,
     rest: 0,
     offset: 0,
@@ -107,12 +109,7 @@ export const ANIMALS: readonly Animal[] = [
   },
   {
     kind: "duck",
-    route: [
-      [-29, 42],
-      [-26, 40],
-      [-22, 42],
-      [-26, 44],
-    ],
+    route: DUCK_ROUTE,
     speed: 0.55,
     rest: 0,
     offset: 2,
@@ -120,12 +117,7 @@ export const ANIMALS: readonly Animal[] = [
   },
   {
     kind: "duck",
-    route: [
-      [-29, 42],
-      [-26, 40],
-      [-22, 42],
-      [-26, 44],
-    ],
+    route: DUCK_ROUTE,
     speed: 0.55,
     rest: 0,
     offset: 4,
@@ -198,7 +190,11 @@ export function ambientMix(hour: number, x: number, z: number, scene: string) {
   const riverDistance =
     scene === "rowing"
       ? 0
-      : Math.max(0, Math.hypot(((x + 26) * 4) / 6, z - 42) - 4);
+      : Math.max(
+          0,
+          Math.hypot(((x - POND.x) * POND.radiusZ) / POND.radiusX, z - POND.z) -
+            POND.radiusZ,
+        );
   return {
     birds: outside
       ? (1 - night) *
