@@ -322,6 +322,11 @@ function Decorate({
           body: jpeg,
           signal: controller.signal,
         });
+        if (response.status === 429) {
+          if (!controller.signal.aborted)
+            setError("Too many posts. Try again later.");
+          return;
+        }
         if (!response.ok) throw new Error("Wall unavailable.");
         if (!controller.signal.aborted) onPosted();
       } else {

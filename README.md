@@ -12,7 +12,7 @@ Portfolio: `/`, `/about`, `/work`, `/contact`. Game: `/play`. Static editorial f
 
 ### Photo booth
 
-The booth on the Korea island uses the camera on HTTPS or localhost. The camera stays local unless you choose **Post to wall**. The wall shows the 12 newest strips and drops older entries.
+The booth on the Korea island uses the camera on HTTPS or localhost. The camera stays local unless you choose **Post to wall**. The wall shows the 12 newest strips and drops older entries. Each visitor can post three strips per hour; local requests without a Cloudflare visitor address share that limit.
 
 `npm run build && npm run preview` applies the local D1 migration before starting the Worker. Visitors using that same preview server share the wall, which persists in `.wrangler/state` across restarts. For `npm run dev`, run `npm run prepreview` once to initialize the database. Static hosts and the unprovisioned staging environment can still take and save photos but do not have a shared wall.
 

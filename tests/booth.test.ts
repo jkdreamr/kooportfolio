@@ -19,26 +19,33 @@ function statement(sql: string, values: SQLInputValue[] = []) {
     async all<T>() {
       return { results: sqlite.prepare(sql).all(...values) as T[] };
     },
-    run() {
-      sqlite.prepare(sql).run(...values);
-    },
   };
 }
 
 beforeEach(() => {
   sqlite = new DatabaseSync(":memory:");
-  sqlite.exec(
-    readFileSync(
-      new URL("../migrations/booth/0001_booth.sql", import.meta.url),
-      "utf8",
-    ),
-  );
+  for (const migration of ["0001_booth.sql", "0002_post_limits.sql"]) {
+    sqlite.exec(
+      readFileSync(
+        new URL(`../migrations/booth/${migration}`, import.meta.url),
+        "utf8",
+      ),
+    );
+  }
   env = {
     BOOTH_DB: {
       prepare: statement,
       async batch(statements) {
-        for (const query of statements)
-          (query as ReturnType<typeof statement>).run();
+        sqlite.exec("BEGIN");
+        try {
+          const results = [];
+          for (const query of statements) results.push(await query.all());
+          sqlite.exec("COMMIT");
+          return results;
+        } catch (error) {
+          sqlite.exec("ROLLBACK");
+          throw error;
+        }
       },
     },
   };
@@ -96,7 +103,12 @@ describe("photo wall", () => {
     const bytes = jpeg();
     const ids = [];
     for (let index = 0; index < WALL_LIMIT + 2; index++) {
-      const created = await worker.fetch(request("POST", bytes), env);
+      const created = await worker.fetch(
+        request("POST", bytes, {
+          "CF-Connecting-IP": `192.0.2.${index + 1}`,
+        }),
+        env,
+      );
       expect(created.status).toBe(201);
       ids.unshift((await created.json()).id);
     }
@@ -110,6 +122,41 @@ describe("photo wall", () => {
     expect(
       sqlite.prepare("SELECT COUNT(*) AS count FROM booth_strips").get()?.count,
     ).toBe(WALL_LIMIT);
+  });
+
+  it("limits a visitor without evicting strips or blocking another visitor", async () => {
+    const ip = "192.0.2.20";
+    const post = (visitor: string) =>
+      worker.fetch(
+        request("POST", jpeg(), {
+          "CF-Connecting-IP": visitor,
+        }),
+        env,
+      );
+    for (let count = 0; count < 3; count++)
+      expect((await post(ip)).status).toBe(201);
+    const before = await (await worker.fetch(request(), env)).json();
+    const rejected = await post(ip);
+    expect(rejected.status).toBe(429);
+    expect(rejected.headers.get("Retry-After")).toBe("3600");
+    expect(await (await worker.fetch(request(), env)).json()).toEqual(before);
+    expect((await post("192.0.2.21")).status).toBe(201);
+    const visitors = sqlite
+      .prepare("SELECT DISTINCT visitor_hash FROM booth_post_limits")
+      .all();
+    expect(visitors).toHaveLength(2);
+    expect(
+      visitors.every(
+        ({ visitor_hash }) =>
+          typeof visitor_hash === "string" && visitor_hash.length === 44,
+      ),
+    ).toBe(true);
+    sqlite.exec("UPDATE booth_post_limits SET posted_at = 0");
+    expect((await post(ip)).status).toBe(201);
+    expect(
+      sqlite.prepare("SELECT COUNT(*) AS count FROM booth_post_limits").get()
+        ?.count,
+    ).toBe(1);
   });
 
   it("rejects wrong origin, content type, size, dimensions and invalid JPEG headers", async () => {

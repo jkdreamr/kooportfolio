@@ -14,9 +14,12 @@ type Statement = {
 export type BoothEnv = {
   BOOTH_DB?: {
     prepare(sql: string): Statement;
-    batch(statements: Statement[]): Promise<unknown>;
+    batch(statements: Statement[]): Promise<{ results: unknown[] }[]>;
   };
 };
+
+const POST_LIMIT = 3;
+const POST_WINDOW_SECONDS = 3600;
 
 function reply(data: unknown, status = 200, headers?: Record<string, string>) {
   return Response.json(data, {
@@ -98,6 +101,15 @@ function encode(bytes: Uint8Array) {
   return btoa(value);
 }
 
+async function visitorHash(request: Request) {
+  const ip = request.headers.get("CF-Connecting-IP") ?? "local";
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(`photo-booth:${ip}`),
+  );
+  return encode(new Uint8Array(digest));
+}
+
 export async function boothApi(request: Request, { BOOTH_DB: db }: BoothEnv) {
   if (request.method !== "GET" && request.method !== "POST") {
     return reply({ error: "Method not allowed." }, 405, { Allow: "GET, POST" });
@@ -122,16 +134,36 @@ export async function boothApi(request: Request, { BOOTH_DB: db }: BoothEnv) {
     if (!bytes) return reply({ error: "Strip too large." }, 413);
     if (!isStripJpeg(bytes)) return reply({ error: "Invalid strip." }, 400);
     const id = crypto.randomUUID();
-    await db.batch([
+    const visitor = await visitorHash(request);
+    const now = Math.floor(Date.now() / 1000);
+    const since = now - POST_WINDOW_SECONDS;
+    const [insert] = await db.batch([
       db
-        .prepare("INSERT INTO booth_strips (id, jpeg) VALUES (?, ?)")
-        .bind(id, encode(bytes)),
+        .prepare(
+          `INSERT INTO booth_strips (id, jpeg)
+           SELECT ?, ? WHERE (SELECT COUNT(*) FROM booth_post_limits
+             WHERE visitor_hash = ? AND posted_at > ?) < ?
+           RETURNING id`,
+        )
+        .bind(id, encode(bytes), visitor, since, POST_LIMIT),
+      db
+        .prepare(
+          "INSERT INTO booth_post_limits (post_id, visitor_hash, posted_at) SELECT id, ?, ? FROM booth_strips WHERE id = ?",
+        )
+        .bind(visitor, now, id),
+      db
+        .prepare("DELETE FROM booth_post_limits WHERE posted_at <= ?")
+        .bind(since),
       db
         .prepare(
           "DELETE FROM booth_strips WHERE seq <= (SELECT seq FROM booth_strips ORDER BY seq DESC LIMIT 1 OFFSET ?)",
         )
         .bind(WALL_LIMIT),
     ]);
+    if (!insert.results.length)
+      return reply({ error: "Too many posts. Try again later." }, 429, {
+        "Retry-After": String(POST_WINDOW_SECONDS),
+      });
     return reply({ id }, 201);
   } catch {
     return reply({ error: "Wall unavailable." }, 503);
