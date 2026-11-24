@@ -17,6 +17,7 @@ import { gameIsActive } from "./InteriorProps";
 import { SkateParkTerrain } from "./SkateParkTerrain";
 import {
   SKATE,
+  SKATE_EXIT,
   idleSkateInput,
   newSkateGame,
   skateComboValue,
@@ -336,7 +337,12 @@ export function SkateParkInterior() {
         }
         useGame
           .getState()
-          .setNear(runtime.z > 23 && Math.abs(runtime.x) < 3.5 ? "exit" : "");
+          .setNear(
+            runtime.z > SKATE_EXIT[1] - 1 &&
+              Math.abs(runtime.x - SKATE_EXIT[0]) < 3.5
+              ? "exit"
+              : "",
+          );
       }
     }
     // Fixed isometric orientation makes steering readable; follow exposes the park's real size.
