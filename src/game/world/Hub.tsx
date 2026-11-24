@@ -23,6 +23,7 @@ import { nearbyNpcId } from "../core/npcState";
 import { BadmintonPavilion } from "../scenes/BadmintonCourt";
 import { Wildlife } from "./Wildlife";
 import { WritingShell } from "./WritingShell";
+import { StadiumBuilding } from "../scenes/Stadium";
 import { BeatLabShell, MathLabShell } from "./LabBuildings";
 import {
   KappaShell,
@@ -31,7 +32,7 @@ import {
   GymShell,
 } from "./VillageBuildings";
 
-export function Walker({ interior = false }: { interior?: boolean }) {
+export function Walker({ interior = false, locked = false }: { interior?: boolean; locked?: boolean }) {
   const avatar = useRef<THREE.Group>(null),
     save = useGame((s) => s.save);
   const { camera, size } = useThree();
@@ -41,6 +42,11 @@ export function Walker({ interior = false }: { interior?: boolean }) {
   useFrame((_, delta) => {
     const state = useGame.getState(),
       dt = Math.min(delta, 0.04);
+    if (locked) {
+      runtime.moving = false;
+      state.setNear("");
+      return;
+    }
     let [dx, dz] = movement(),
       remaining = Infinity;
     if (Math.hypot(dx, dz) > 0.1) {
@@ -155,7 +161,7 @@ export function Walker({ interior = false }: { interior?: boolean }) {
     }
   });
   return (
-    <group ref={avatar}>
+    <group ref={avatar} name="village-player" visible={!locked}>
       <Character color={save.color} hat={save.hat} scale={0.65} />
     </group>
   );
@@ -246,14 +252,14 @@ export function Hub() {
       <Wildlife />
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, 0.24, -1]}
+        position={[0, 0.24, 12]}
         onPointerDown={(e) => {
           e.stopPropagation();
           if (!build && canWalk(e.point.x, e.point.z))
             walkTo(e.point.x, e.point.z);
         }}
       >
-        <planeGeometry args={[144, 122]} />
+        <planeGeometry args={[144, 152]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
       {doors.map((door) => (
@@ -265,10 +271,11 @@ export function Hub() {
             <House p={[0, 0, 0]} level={save.upgrades.boathouse} />
           )}
           {door.id === "office" && <House p={[0, 0, 0]} kind="study" />}
-          {(door.id === "go" || door.id === "stadium") && (
+          {(door.id === "go" || door.id === "theater") && (
             <House p={[0, 0, 0]} kind="study" />
           )}
           {door.id === "writing" && <WritingShell p={[0, 0, 0]} />}
+          {door.id === "stadium" && <StadiumBuilding />}
           {door.id === "badminton" && <BadmintonPavilion />}
           {door.id === "music" && <BeatLabShell />}
           {door.id === "math" && <MathLabShell />}

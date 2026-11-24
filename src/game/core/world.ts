@@ -1,8 +1,17 @@
 import { WORLD_BOUNDS, WORLD_ELLIPSE } from "../../shared/world-bounds";
 import { forest } from "./scenery";
 import { campusObstacles } from "./campus";
+import { POND } from "./pond";
 
 export const doors = [
+  {
+    id: "theater",
+    name: "Cinema",
+    x: -38,
+    z: -33.8,
+    anchor: [-38, 9, -39] as const,
+    footprint: [-38, -39, 5, 4] as const,
+  },
   {
     id: "badminton",
     name: "Badminton",
@@ -119,9 +128,16 @@ export const landmarks = [
   {
     id: "campus",
     name: "Stanford",
-    x: 23,
-    z: 27.5,
-    anchor: [23, 10, 20] as const,
+    x: 20,
+    z: 20,
+    anchor: [20, 16, 50] as const,
+  },
+  {
+    id: "station",
+    name: "Train station",
+    x: -61,
+    z: 12,
+    anchor: [-61, 4, 12] as const,
   },
 ] as const;
 export const destinations = [...doors, ...landmarks];
@@ -133,6 +149,7 @@ const obstacles: ReadonlyArray<readonly number[]> = [
   ...doors.map((door) => door.footprint),
   ...forest.map((tree) => [tree.x, tree.z, 0.4, 0.4]),
   ...campusObstacles,
+  [POND.x, POND.z, POND.radiusX, POND.radiusZ],
   [0, -6.6, 2.1, 0.4],
   [0, 0, 1.5, 1.5],
 ];
