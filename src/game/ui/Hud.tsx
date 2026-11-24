@@ -5,7 +5,7 @@ import { dailySeed, raceTime } from "../core/rowing";
 import { useRaceHud } from "../scenes/Rowing";
 import { CourtControls, useBasketHud } from "../scenes/Basketball";
 import { Icon } from "./Icon";
-import { doors, isInterior } from "../core/world";
+import { destinations, doors, isInterior } from "../core/world";
 import { useGym } from "../scenes/CognitionGym";
 import { profile } from "../../content/profile";
 import { WorldLabels } from "../world/Labels";
@@ -813,7 +813,7 @@ export function Hud({ interact }: { interact: () => void }) {
       {g.panel === "places" && (
         <Modal title="Places" close={closePanel}>
           <nav className="places-list" aria-label="Walk to a place">
-            {doors.map((door) => (
+            {destinations.map((door) => (
               <button
                 key={door.id}
                 onClick={() => {

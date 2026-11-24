@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef } from "react";
 import * as THREE from "three";
 import { Box, Cylinder, Ball, Tree, Bench, Boat, Cone, Sign } from "./Models";
 import { Scenery } from "./Scenery";
+import { Campus } from "./Campus";
 
 type Block = [number, number, number, number, number, number, string, number?];
 function Blocks({
@@ -115,6 +116,7 @@ export function Landscape() {
       <Cylinder p={[0, -0.5, -1]} s={[52, 1, 44]} c="#a49564" />
       <Cylinder p={[0, -0.01, -1]} s={[51.5, 0.3, 43.5]} c="#568f38" />
       <Scenery />
+      <Campus />
       <Blocks items={tiles} />
       <Blocks items={masonry} shadow />
       <Blocks items={roads} />
@@ -208,7 +210,7 @@ function Orchard() {
 }
 function MusicCorner() {
   return (
-    <group position={[24, 0, 25]}>
+    <group position={[-29, 0, 23]}>
       <Cylinder p={[0, 0.24, 0]} s={[2.35, 0.45, 2.35]} c="#8c6b45" />
       <Box p={[0, 1.15, -0.5]} s={[2.7, 0.18, 1.1]} c="#b29a68" />
       {[-0.7, 0.7].map((x) => (

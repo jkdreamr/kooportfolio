@@ -7,4 +7,4 @@ export const forest = Array.from({ length: 100 }, (_, i) => {
     z: Math.sin(a) * 41 * r,
     height: 3.2 + (i % 5) * 0.6,
   };
-});
+}).filter(({ x, z }) => !(x > 12 && x < 35 && z > 10 && z < 30));
