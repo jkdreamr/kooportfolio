@@ -1,159 +1,84 @@
 .cinema-viewer {
-  box-sizing: border-box;
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  left: 50%;
+  width: min(540px, calc(100% - 24px));
+  transform: translateX(-50%);
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: max(16px, env(safe-area-inset-top))
-    max(20px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom))
-    max(20px, env(safe-area-inset-left));
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  color: #f4f7f8;
-  background: #14212a;
-  font:
-    14px Trebuchet MS,
-    Arial,
-    sans-serif;
-  pointer-events: auto;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 8px;
+  color: #f4ead9;
+  font: 14px system-ui, sans-serif;
+  pointer-events: none;
   color-scheme: dark;
 }
-.cinema-viewer header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  flex: 0 0 auto;
+.cinema-controls,
+#cinema-program {
+  box-sizing: border-box;
+  padding: 6px;
+  border: 1px solid #79634e;
+  border-radius: 8px;
+  background: #201918f5;
+  pointer-events: auto;
 }
-.cinema-viewer h2 {
-  margin: 0;
-  font:
-    bold 18px Trebuchet MS,
-    Arial,
-    sans-serif;
+.cinema-controls {
+  display: flex;
+  gap: 4px;
 }
 .cinema-viewer button,
 .cinema-viewer a {
-  border: 1px solid #657985;
-  border-bottom-width: 3px;
-  border-radius: 6px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 44px;
-  padding: 10px 14px;
-  color: #f4f7f8;
-  background: #304650;
-  font:
-    bold 13px Trebuchet MS,
-    Arial,
-    sans-serif;
+  padding: 6px 9px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: #382927;
+  color: inherit;
+  font: 600 13px system-ui, sans-serif;
+  text-decoration: none;
   cursor: pointer;
   touch-action: manipulation;
 }
 .cinema-viewer button:hover,
 .cinema-viewer a:hover {
-  background: #415b66;
+  background: #553d37;
 }
 .cinema-viewer button:focus-visible,
 .cinema-viewer a:focus-visible,
-.cinema-viewer iframe:focus-visible {
-  outline: 3px solid #e2e8eb;
-  outline-offset: 3px;
+.cinema-screen:focus-visible {
+  outline: 2px solid #f0d099;
+  outline-offset: 2px;
 }
-.cinema-screen,
-.cinema-idle {
-  width: min(100%, 1000px);
-  margin: 0 auto;
-  aspect-ratio: 16 / 9;
-  background: #05080a;
-  flex: 0 0 auto;
-  max-height: 56vh;
-  min-height: 200px;
-  border: 1px solid #536873;
-}
-.cinema-screen iframe {
-  width: 100%;
-  height: 100%;
-  border: 0;
+.cinema-screen {
   display: block;
+  border: 0;
+  background: #050407;
 }
-.cinema-idle {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: #c3d0d0;
-}
-.cinema-idle > span {
-  color: #c3d0d0;
-  font-size: 40px;
-}
-.cinema-idle p {
-  margin: 14px 0 0;
-}
-.cinema-now {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  align-items: center;
-  width: min(100%, 1000px);
-  margin: 0 auto;
-}
-.cinema-now > span {
-  flex: 1;
-  min-width: 180px;
-  line-height: 1.5;
-}
-.cinema-now a {
-  display: flex;
-  align-items: center;
-  box-sizing: border-box;
-  text-decoration: none;
+#cinema-program {
+  width: 100%;
+  max-height: min(52dvh, 360px);
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 .cinema-program {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
-  gap: 10px;
-  width: min(100%, 1000px);
-  margin: 0 auto;
-  padding-bottom: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
+  gap: 4px;
 }
 .cinema-program button {
-  display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 5px;
-  padding: 12px;
-  border-width: 1px;
+  justify-content: flex-start;
+  gap: 3px;
   text-align: left;
 }
 .cinema-program button[aria-pressed="true"] {
-  border-color: #b4c0c7;
-  background: #3e5660;
-}
-.cinema-program strong {
-  color: #f4f7f8;
-  font-size: 16px;
+  border-color: #b09268;
 }
 .cinema-program span {
   font-weight: normal;
-}
-@media (max-width: 600px) {
-  .cinema-viewer {
-    padding: max(12px, env(safe-area-inset-top)) 12px
-      max(12px, env(safe-area-inset-bottom));
-    gap: 10px;
-  }
-  .cinema-viewer h2 {
-    font-size: 16px;
-  }
-  .cinema-screen,
-  .cinema-idle {
-    min-height: 200px;
-    max-height: 40vh;
-  }
-  .cinema-program {
-    grid-template-columns: 1fr;
-  }
 }
