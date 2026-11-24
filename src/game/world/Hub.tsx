@@ -20,6 +20,7 @@ import { HomeWorldEnvironment } from "./HomeWorldEnvironment";
 import { KoreaWorldEnvironment } from "./KoreaWorldEnvironment";
 import { Bulletin } from "./Bulletin";
 import { roomFor } from "../core/room";
+import { useGameMode } from "../core/gameMode";
 import { NpcCrowd } from "./VillageNpcs";
 import { nearbyNpcId } from "../core/npcState";
 import { BadmintonPavilion } from "../scenes/BadmintonCourt";
@@ -64,7 +65,7 @@ export function Walker({
   useFrame((_, delta) => {
     const state = useGame.getState(),
       dt = Math.min(delta, 0.04);
-    if (locked) {
+    if (locked || useGameMode.getState().active) {
       runtime.moving = false;
       state.setNear("");
       return;
