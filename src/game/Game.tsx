@@ -28,6 +28,10 @@ import { useGym } from "./scenes/CognitionGym";
 import { interactWithNpc } from "./core/npcState";
 import { NpcDialog } from "./ui/NpcConversation";
 import { WorldAmbience } from "./world/WorldAmbience";
+import { PhotoBoothCamera } from "./world/PhotoBooth";
+import { PhotoBoothDialog, openPhotoBooth } from "./ui/PhotoBoothDialog";
+import { TelescopeView } from "./ui/TelescopeView";
+import { SkateParkInterior } from "./scenes/SkatePark";
 import "./game.css";
 
 class WorldBoundary extends Component<
@@ -183,6 +187,7 @@ function World() {
       <Sun />
       <TimeOfDayLighting />
       <WorldAmbience />
+      <PhotoBoothCamera />
       {scene !== "rowing" && (
         <mesh
           rotation={[-Math.PI / 2, 0, 0]}
@@ -194,7 +199,8 @@ function World() {
         </mesh>
       )}
       {scene === "hub" && <Hub />}
-      {isInterior(scene) && <Interior key={scene} />}
+      {isInterior(scene) && scene !== "skate" && <Interior key={scene} />}
+      {scene === "skate" && <SkateParkInterior key={`skate-${run}`} />}
       {scene === "rowing" && <Rowing key={`race-${run}`} />}
       {scene === "basketball" && <Basketball key={`basket-${run}`} />}
       <FrameMetrics />
@@ -212,7 +218,8 @@ export default function Game() {
       }
     });
   const quality = useGame((s) => s.quality),
-    paused = useGame((s) => s.paused);
+    paused = useGame((s) => s.paused),
+    panel = useGame((s) => s.panel);
   const interact = useCallback(() => {
     const g = useGame.getState();
     if (interactWithNpc()) return;
@@ -224,6 +231,8 @@ export default function Game() {
       runtime.raceCadence = 30;
       g.go("rowing");
     } else if (g.near === "read") useGame.setState({ panel: "profile" });
+    else if (g.near === "photo") openPhotoBooth();
+    else if (g.near === "stargazing") useGame.setState({ panel: "telescope" });
     else if (g.near === "desk") useGame.setState({ panel: "desk" });
     else if (g.near === "lift") useGym.getState().lift();
   }, []);
@@ -289,6 +298,10 @@ export default function Game() {
       <Hud interact={interact} />
       <TimeOfDayControls />
       <NpcDialog />
+      <PhotoBoothDialog />
+      {panel === "telescope" && !paused && (
+        <TelescopeView onClose={() => useGame.setState({ panel: "none" })} />
+      )}
     </div>
   );
 }

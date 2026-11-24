@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import {
@@ -24,6 +24,12 @@ import { BadmintonPavilion } from "../scenes/BadmintonCourt";
 import { Wildlife } from "./Wildlife";
 import { WritingShell } from "./WritingShell";
 import { StadiumBuilding } from "../scenes/Stadium";
+import { MovieTheaterBuilding } from "../scenes/MovieTheater";
+import { IslandTrain } from "./IslandTrain";
+import { WORLD_ELLIPSE } from "../../shared/world-bounds";
+import { PhotoBooth } from "./PhotoBooth";
+import { StargazingHill } from "./StargazingHill";
+import { SkateParkBuilding } from "../scenes/SkatePark";
 import { BeatLabShell, MathLabShell } from "./LabBuildings";
 import {
   KappaShell,
@@ -32,7 +38,15 @@ import {
   GymShell,
 } from "./VillageBuildings";
 
-export function Walker({ interior = false, locked = false, followCamera = true }: { interior?: boolean; locked?: boolean; followCamera?: boolean }) {
+export function Walker({
+  interior = false,
+  locked = false,
+  followCamera = true,
+}: {
+  interior?: boolean;
+  locked?: boolean;
+  followCamera?: boolean;
+}) {
   const avatar = useRef<THREE.Group>(null),
     save = useGame((s) => s.save);
   const { camera, size } = useThree();
@@ -124,6 +138,10 @@ export function Walker({ interior = false, locked = false, followCamera = true }
         doors.find((d) => Math.hypot(d.x - runtime.x, d.z - runtime.z) < 1.9)
           ?.id ?? "";
       if (!near && Math.hypot(runtime.x, runtime.z + 4.6) < 1.9) near = "read";
+      if (!near && Math.hypot(runtime.x + 6, runtime.z + 4.4) < 1.9)
+        near = "photo";
+      if (!near && Math.hypot(runtime.x + 19, runtime.z + 30) < 1.9)
+        near = "stargazing";
       if (!near) near = nearbyNpcId(runtime.x, runtime.z);
     }
     state.setNear(near);
@@ -142,10 +160,11 @@ export function Walker({ interior = false, locked = false, followCamera = true }
     camera.lookAt(follow.current.x, interior ? 0.5 : 0.7, follow.current.z);
     if (camera instanceof THREE.OrthographicCamera) {
       const fitted = Math.max(
-        3.5,
+        0.9,
         Math.min(
-          (size.width - 70) / 114,
-          (size.height - (size.height < 500 ? 100 : 150)) / 83,
+          (size.width - 70) / (WORLD_ELLIPSE.radiusX * 2.1),
+          (size.height - (size.height < 500 ? 100 : 150)) /
+            (WORLD_ELLIPSE.radiusZ * 1.45),
         ),
       );
       const targetZoom = interior
@@ -244,6 +263,7 @@ function Garden({ level }: { level: number }) {
 }
 
 export function Hub() {
+  const [trainRiding, setTrainRiding] = useState(false);
   const save = useGame((s) => s.save),
     build = useGame((s) => s.build);
   return (
@@ -251,6 +271,12 @@ export function Hub() {
       <Landscape />
       <Bulletin />
       <Wildlife />
+      <SkateParkBuilding />
+      <group position={[-6, 0, -6.2]}>
+        <PhotoBooth />
+      </group>
+      <StargazingHill position={[-19, 0, -38]} />
+      <IslandTrain onRidingChange={setTrainRiding} />
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
         position={[0, 0.24, 12]}
@@ -260,21 +286,21 @@ export function Hub() {
             walkTo(e.point.x, e.point.z);
         }}
       >
-        <planeGeometry args={[144, 152]} />
+        <planeGeometry args={[174, 184]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
       {doors.map((door) => (
         <group
           key={door.id}
           position={[door.footprint[0], 0, door.footprint[1]]}
+          scale={door.scale}
         >
           {door.id === "boathouse" && (
             <House p={[0, 0, 0]} level={save.upgrades.boathouse} />
           )}
           {door.id === "office" && <House p={[0, 0, 0]} kind="study" />}
-          {(door.id === "go" || door.id === "theater") && (
-            <House p={[0, 0, 0]} kind="study" />
-          )}
+          {door.id === "go" && <House p={[0, 0, 0]} kind="study" />}
+          {door.id === "theater" && <MovieTheaterBuilding p={[0, 0, 0]} />}
           {door.id === "writing" && <WritingShell p={[0, 0, 0]} />}
           {door.id === "stadium" && <StadiumBuilding />}
           {door.id === "badminton" && <BadmintonPavilion />}
@@ -289,7 +315,7 @@ export function Hub() {
       ))}
       <Garden level={save.upgrades.garden} />
       <NpcCrowd />
-      <Walker />
+      <Walker locked={trainRiding} />
       <LabelProjection />
     </group>
   );

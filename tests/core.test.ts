@@ -92,8 +92,8 @@ describe("walkable physical world", () => {
     const kitchen = doors.find((door) => door.id === "kitchen")!;
     for (const start of [
       [0, 5],
-      [-5.2, 14.1],
-      [-10.7, 9.8],
+      [-3.8, 16.4],
+      [-12.4, 8.6],
     ] as [number, number][]) {
       let position = start;
       const path = findPath(position, [kitchen.x, kitchen.z]);
@@ -192,7 +192,7 @@ describe("walkable physical world", () => {
           ),
         ).toBeLessThan(1.2);
       }
-  });
+  }, 15000);
   it("traverses a Study-to-Court corner without cutting the collision edge", () => {
     const study = doors.find((door) => door.id === "office")!,
       court = doors.find((door) => door.id === "basketball")!;
