@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Html } from "@react-three/drei";
-import { useFrame, useThree } from "@react-three/fiber";
+import { useThree } from "@react-three/fiber";
 import { Ball, Box, Cylinder, Ring } from "../world/Models";
 import { CraftedBox, WallSconce } from "./CraftedDetails";
 import { useGame } from "../core/store";
 import { keys, touch } from "../core/input";
 import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import {
-  GO_KOMI, GO_SIZE, chooseGoMove, newGoGame, passGo, playGo, resumeGo,
+  GO_KOMI, GO_SIZE, newGoGame, passGo, playGo, resumeGo,
   scoreGo, toggleGoDead, type GoGame,
 } from "../core/go";
+import { chooseGoMove, DEFAULT_GO_LEVEL, GO_LEVELS, type GoLevel } from "../core/goBot";
 import "./go-room.css";
 
 const COLUMNS = "ABCDEFGHJ";
@@ -17,6 +18,16 @@ const colorName = (color: number) => color === 1 ? "Black" : "White";
 const coordinate = (point: number) => `${COLUMNS[point % GO_SIZE]}${GO_SIZE - Math.floor(point / GO_SIZE)}`;
 type Match = { game: GoGame; past: GoGame[] };
 const freshMatch = (): Match => ({ game: newGoGame(), past: [] });
+const GO_LEVEL_KEY = "go-opponent-level";
+
+function savedGoLevel(): GoLevel {
+  try {
+    const saved = localStorage.getItem(GO_LEVEL_KEY);
+    return GO_LEVELS.find((level) => level === saved) ?? DEFAULT_GO_LEVEL;
+  } catch {
+    return DEFAULT_GO_LEVEL;
+  }
+}
 
 function StoneBowl({ x, z, white = false }: { x: number; z: number; white?: boolean }) {
   return (
@@ -91,10 +102,10 @@ export function GoInterior() {
   const [match, setMatch] = useState(freshMatch);
   const started = useGameMode((s) => s.active?.id === "go");
   const [computer, setComputer] = useState(true);
+  const [level, setLevel] = useState(savedGoLevel);
   const [message, setMessage] = useState("");
   const [confirmNew, setConfirmNew] = useState(false);
   const [focus, setFocus] = useState(0);
-  const timer = useRef(0);
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
   const playButton = useRef<HTMLButtonElement>(null);
   const gl = useThree((s) => s.gl);
@@ -105,7 +116,6 @@ export function GoInterior() {
   const score = useMemo(() => scoreGo(game), [game]);
   const close = useCallback(() => {
     setConfirmNew(false);
-    timer.current = 0;
     endGameMode();
     requestAnimationFrame(() => playButton.current?.focus());
   }, []);
@@ -117,13 +127,11 @@ export function GoInterior() {
   const commit = (next: GoGame) => {
     setMatch((old) => ({ game: next, past: [...old.past, old.game] }));
     setConfirmNew(false);
-    timer.current = 0;
   };
   const open = () => {
     if (!startGameMode("go")) return;
     keys.clear(); touch.x = 0; touch.z = 0;
     setConfirmNew(false);
-    timer.current = 0;
     requestAnimationFrame(() => buttons.current[focus]?.focus());
   };
   const place = (point: number) => {
@@ -135,21 +143,34 @@ export function GoInterior() {
     commit(move.game);
     setMessage(`${colorName(game.turn)} ${coordinate(point)}${move.captured ? ` · captured ${move.captured}` : ""}`);
   };
-  useFrame((_, dt) => {
-    if (!started || hidden || !thinking || confirmNew) { timer.current = 0; return; }
-    timer.current += Math.min(dt, 0.1);
-    if (timer.current < 0.55) return;
-    timer.current = 0;
-    const point = chooseGoMove(game);
-    const move = point === null ? null : playGo(game, point);
-    if (move?.ok) {
-      commit(move.game);
-      setMessage(`White ${coordinate(point!)}${move.captured ? ` · captured ${move.captured}` : ""}`);
-    } else {
-      commit(passGo(game));
-      setMessage("White passed.");
+  useEffect(() => {
+    if (!started || hidden || !thinking || confirmNew) return;
+    const readyAt = performance.now() + 350;
+    let timer = 0, worker: Worker | undefined;
+    const receive = (point: number | null) => {
+      timer = window.setTimeout(() => {
+        const move = point === null ? null : playGo(game, point);
+        const next = move?.ok ? move.game : passGo(game);
+        setMatch((old) => old.game === game ? { game: next, past: [...old.past, game] } : old);
+        setMessage(move?.ok && point !== null
+          ? `White ${coordinate(point)}${move.captured ? ` · captured ${move.captured}` : ""}`
+          : "White passed.");
+      }, Math.max(0, readyAt - performance.now()));
+    };
+    const fallback = () => {
+      worker?.terminate();
+      timer = window.setTimeout(() => receive(chooseGoMove(game, level)), 0);
+    };
+    try {
+      worker = new Worker(new URL("../core/goBot.worker.ts", import.meta.url), { type: "module" });
+      worker.onmessage = ({ data }: MessageEvent<number | null>) => receive(data);
+      worker.onerror = fallback;
+      worker.postMessage({ game, level });
+    } catch {
+      fallback();
     }
-  });
+    return () => { worker?.terminate(); window.clearTimeout(timer); };
+  }, [started, hidden, thinking, confirmNew, game, level]);
   const boardKey = (event: KeyboardEvent<HTMLButtonElement>, point: number) => {
     const row = Math.floor(point / GO_SIZE), col = point % GO_SIZE;
     const next = ({ ArrowLeft: row * GO_SIZE + Math.max(0, col - 1),
@@ -251,7 +272,7 @@ export function GoInterior() {
                         const count = computer && game.turn === 1 ? 2 : 1;
                         const index = Math.max(0, match.past.length - count);
                         setMatch({ game: match.past[index], past: match.past.slice(0, index) });
-                        timer.current = 0; setMessage("Move taken back.");
+                        setMessage("Move taken back.");
                       }}>Undo</button>
                     </div>
                   </> : <>
@@ -270,8 +291,17 @@ export function GoInterior() {
                     if (game.moves && game.phase !== "finished") setConfirmNew(true);
                     else { setMatch(freshMatch()); setMessage(""); }
                   }}>New game</button>}
-                  {game.moves === 0 && <label className="go-mode">Opponent <select value={computer ? "computer" : "local"} onChange={(e) => setComputer(e.target.value === "computer")}>
-                    <option value="computer">Computer</option><option value="local">Local player</option></select></label>}
+                  {game.moves === 0 && <label className="go-mode">Opponent <select value={computer ? level : "local"} onChange={(e) => {
+                    const next = GO_LEVELS.find((option) => option === e.target.value);
+                    setComputer(Boolean(next));
+                    if (next) {
+                      setLevel(next);
+                      try { localStorage.setItem(GO_LEVEL_KEY, next); } catch { /* Keep the in-session selection. */ }
+                    }
+                  }}>
+                    <optgroup label="Computer">{GO_LEVELS.map((option) =>
+                      <option key={option} value={option}>{option[0].toUpperCase() + option.slice(1)}</option>)}</optgroup>
+                    <option value="local">Local player</option></select></label>}
                   <details className="go-rules"><summary>Rules</summary><p>Black starts. Connect stones and surround space. Groups with no adjacent empty points are captured. No suicide or repeated positions. Pass twice to count; mark dead groups by agreement, or resume to capture them.</p>
                     <p>Area scoring: stones + surrounded space. White gets {GO_KOMI} komi. Captures aren’t added again. Arrow keys move; Enter places. Local game, no online opponent.</p></details>
                 </div>
