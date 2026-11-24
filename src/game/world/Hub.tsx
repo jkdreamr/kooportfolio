@@ -254,6 +254,9 @@ export function Hub() {
             <House p={[0, 0, 0]} level={save.upgrades.boathouse} />
           )}
           {door.id === "office" && <House p={[0, 0, 0]} kind="study" />}
+          {(door.id === "music" || door.id === "math") && (
+            <House p={[0, 0, 0]} kind="study" />
+          )}
           {door.id === "basketball" && <CourtPavilion />}
           {door.id === "kappa" && <KappaShell />}
           {door.id === "cognition" && <CognitionShell />}

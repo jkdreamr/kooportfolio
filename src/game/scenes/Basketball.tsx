@@ -69,9 +69,15 @@ export function CourtControls() {
   const { mode, style, assist } = useBasketOptions();
   const { challenge, target } = useBasketHud();
   return (
-    <div className="basketball-controls" data-mode={mode}
-      onKeyDown={(event) => { if (event.key === " ") event.stopPropagation(); }}
-      onKeyUp={(event) => { if (event.key === " ") event.stopPropagation(); }}
+    <div
+      className="basketball-controls"
+      data-mode={mode}
+      onKeyDown={(event) => {
+        if (event.key === " ") event.stopPropagation();
+      }}
+      onKeyUp={(event) => {
+        if (event.key === " ") event.stopPropagation();
+      }}
     >
       <select
         className="basketball-mode-select"

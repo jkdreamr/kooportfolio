@@ -5,6 +5,16 @@ import type { PlaceId } from "../game/core/world";
 export const roomStories: Partial<
   Record<PlaceId, { text: string; link: string; label: string }>
 > = {
+  music: {
+    text: "Josh shares music as kelix. His SoundCloud has original tracks and demos, including ‘back room’ and ‘please be’.",
+    link: "https://soundcloud.com/atkelix",
+    label: "SoundCloud",
+  },
+  math: {
+    text: "Josh studies computer science and mathematics at Stanford.",
+    link: "https://joshuakoo.xyz",
+    label: "About Josh",
+  },
   boathouse: {
     text: "Josh is a coxswain and studies computer science and mathematics at Stanford.",
     link: "https://joshuakoo.xyz",
