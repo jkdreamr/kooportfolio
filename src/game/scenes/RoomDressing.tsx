@@ -1,13 +1,14 @@
 import { Ball, Box, Cylinder, Flowers, Ring } from "../world/Models";
 import type { PlaceId } from "../core/world";
+import { roomFor } from "../core/room";
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { sculptedMaterial } from "../world/Surface";
 
-function Bookcase({ x }: { x: number }) {
+function Bookcase({ x, z }: { x: number; z: number }) {
   return (
-    <group position={[x, 0, -11.4]}>
+    <group position={[x, 0, z]}>
       <Box p={[0, 1.8, -0.5]} s={[4.2, 3.6, 0.25]} c="#674b32" />
       {[-2, 2].map((side) => (
         <Box key={side} p={[side, 1.8, 0]} s={[0.25, 3.6, 1.15]} c="#805f3b" />
@@ -29,13 +30,16 @@ function Bookcase({ x }: { x: number }) {
 }
 
 export function RoomDressing({ scene }: { scene: PlaceId }) {
+  const room = roomFor(scene),
+    flank = room.width / 2 - 3.5,
+    rear = -room.depth / 2 + 1.6;
   if (scene === "boathouse")
     return (
       <>
         <RoomDetails scene={scene} />
-        {[-7.5, 7.5].map((x, side) => (
+        {[-flank, flank].map((x, side) => (
           <group key={x}>
-            {[-10, -4].map((z) => (
+            {[rear + 1, rear + 7].map((z) => (
               <group key={z}>
                 <Box p={[x, 2.1, z]} s={[0.22, 4.2, 0.3]} c="#785337" />
                 <Box p={[x, 0.25, z]} s={[2.8, 0.25, 0.8]} c="#a58d64" />
@@ -45,7 +49,7 @@ export function RoomDressing({ scene }: { scene: PlaceId }) {
               </group>
             ))}
             {[1.45, 2.65, 3.85].map((y, i) => (
-              <group key={y} position={[x, y, -7]}>
+              <group key={y} position={[x, y, rear + 4]}>
                 <Ball
                   s={[0.45, 0.23, 4.5]}
                   c={["#b94e30", "#e7bc5c", "#335b54"][(i + side) % 3]}
@@ -63,16 +67,16 @@ export function RoomDressing({ scene }: { scene: PlaceId }) {
             ))}
           </group>
         ))}
-        <Box p={[0, 0.09, -8.5]} s={[5, 0.1, 6]} c="#456d65" />
+        <Box p={[0, 0.09, rear + 4]} s={[5, 0.1, 6]} c="#456d65" />
       </>
     );
   if (scene === "office" || scene === "cognition")
     return (
       <>
         <RoomDetails scene={scene} />
-        <Bookcase x={7.5} />
-        <Bookcase x={-7.5} />
-        <group position={[7, 0, 0]}>
+        <Bookcase x={flank - 3} z={rear} />
+        <Bookcase x={-flank + 3} z={rear} />
+        <group position={[flank, 0, 0]}>
           <Cylinder p={[0, 1.1, 0]} s={[1.8, 0.2, 1.8]} c="#a57c4b" />
           <Cylinder p={[0, 0.55, 0]} s={[0.25, 1.1, 0.25]} c="#47514a" />
           <Cylinder p={[0, 0.1, 0]} s={[0.9, 0.15, 0.9]} c="#47514a" />
@@ -92,8 +96,8 @@ export function RoomDressing({ scene }: { scene: PlaceId }) {
     return (
       <>
         <RoomDetails scene={scene} />
-        {[-7, 7].map((x) => (
-          <group key={x} position={[x, 0, -8.5]}>
+        {[-flank, flank].map((x) => (
+          <group key={x} position={[x, 0, rear + 3]}>
             <Box p={[0, 0.12, 0]} s={[3, 0.16, 5.5]} c="#3c554e" />
             <Cylinder p={[0, 0.3, 0]} s={[0.9, 0.25, 0.9]} c="#7c8372" />
             <Cylinder p={[0, 2.2, 0]} s={[0.18, 4, 0.18]} c="#c3c7b6" />
@@ -131,12 +135,25 @@ const detailMaterial = sculptedMaterial({ roughness: 0.79 });
 
 function roomDetails(scene: PlaceId) {
   const out: Detail[] = [];
+  const room = roomFor(scene);
+  // Anchor peripheral props to the larger walls; never scale the objects themselves.
+  const position = ([x, y, z]: V3): V3 => [
+    Math.abs(x) > 4.8 ? x + (Math.sign(x) * (room.width - 22)) / 2 : x,
+    y,
+    z < 0 ? z - (room.depth - 26) / 2 : z,
+  ];
   const box = (p: V3, s: V3, c: string, r?: V3) =>
-    out.push({ p, s, c, shape: "box", r });
+    out.push({ p: position(p), s, c, shape: "box", r });
   const cylinder = (p: V3, s: V3, c: string, r?: V3) =>
-    out.push({ p, s, c, shape: "cylinder", r });
+    out.push({ p: position(p), s, c, shape: "cylinder", r });
   const ring = (p: V3, radius: number, c: string, r?: V3) =>
-    out.push({ p, s: [radius, radius, radius], c, shape: "ring", r });
+    out.push({
+      p: position(p),
+      s: [radius, radius, radius],
+      c,
+      shape: "ring",
+      r,
+    });
   const wood = "#8b6540",
     darkWood = "#624a36",
     steel = "#46535a",
@@ -192,6 +209,18 @@ function roomDetails(scene: PlaceId) {
 
   if (scene === "boathouse") {
     cabinet(-7.8, 1.2);
+    cabinet(-7.8, 11.5, 4);
+    bench(-7.5, 14, 4.4);
+    // Full-height oar storage along the starboard side, away from the entrance.
+    box([9.2, 0.25, 10], [0.9, 0.35, 4.8], darkWood);
+    box([9.2, 2.2, 10], [0.28, 0.2, 4.8], wood);
+    for (let i = 0; i < 6; i++) {
+      const z = 8 + i * 0.78;
+      cylinder([9.2, 2.3, z], [0.045, 4.2, 0.045], wood);
+      box([9.2, 3.8, z], [0.16, 0.9, 0.32], i % 2 ? "#d1c496" : "#476d62");
+    }
+    bench(7.3, 13.3, 4);
+    ring([9.5, 2.2, 5], 0.65, "#b46b46", [0, Math.PI / 2, 0]);
     bench(-7.5, 3.2, 4.4);
     // A repair bench, toolboard and clamped hull hardware, not a generic trophy wall.
     box([7.2, 1.2, 1.5], [4.3, 0.24, 1.7], wood);
@@ -228,6 +257,10 @@ function roomDetails(scene: PlaceId) {
   }
   if (scene === "office" || scene === "cognition") {
     desk(-7, -4.5);
+    desk(7, -7);
+    desk(-7, 11);
+    cabinet(0, -11.4, 6);
+    bench(7, 13.2, 3.8);
     desk(7, 4.3);
     cabinet(-7.5, 5.5, 3);
     // A quiet reading corner; the central desk/walking lane stays clear.
@@ -246,6 +279,33 @@ function roomDetails(scene: PlaceId) {
       );
   }
   if (scene === "gym") {
+    // A complete bench-press station and stretch bay occupy the new forward wings.
+    box([7.3, 0.1, 11], [4.5, 0.12, 5.5], "#405c55");
+    box([7.3, 0.8, 11], [0.85, 0.25, 2.8], "#7c5540");
+    for (const z of [10, 12]) box([7.3, 0.4, z], [0.65, 0.8, 0.16], steel);
+    cylinder([7.3, 1.65, 9.65], [0.065, 2.6, 0.065], "#bfc5b8", [
+      0,
+      0,
+      Math.PI / 2,
+    ]);
+    for (const side of [-1, 1]) {
+      box([7.3 + side * 0.85, 0.82, 9.65], [0.14, 1.65, 0.14], steel);
+      cylinder([7.3 + side * 1.08, 1.65, 9.65], [0.43, 0.18, 0.43], "#34494a", [
+        0,
+        0,
+        Math.PI / 2,
+      ]);
+    }
+    for (const z of [10, 14]) {
+      box([-7.4, 0.1, z], [2.8, 0.1, 2.6], z === 10 ? "#6b7969" : "#567469");
+      cylinder([-8.2, 0.4, z + 0.7], [0.28, 1.1, 0.28], "#a79b75", [
+        0,
+        0,
+        Math.PI / 2,
+      ]);
+    }
+    box([9.6, 2.3, -1.5], [0.18, 2.8, 5.8], steel);
+    box([9.48, 2.3, -1.5], [0.05, 2.5, 5.5], "#8aa4a1");
     box([7.3, 0.08, 1.8], [4.3, 0.1, 5], "#405c55");
     for (const z of [0.2, 3.5]) box([7.3, 0.7, z], [3.8, 0.14, 0.25], steel);
     for (const x of [5.6, 9]) box([x, 0.58, 1.8], [0.16, 1.16, 3.6], steel);
