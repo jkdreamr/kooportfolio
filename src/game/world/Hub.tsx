@@ -322,7 +322,7 @@ export function Hub() {
   return (
     <group>
       <Landscape world={world} />
-      {world !== "stanford" && <RegionalActivities world={world} />}
+      <RegionalActivities world={world} />
       {world === "home" && <HomeWorldEnvironment />}
       {world === "korea" && <KoreaWorldEnvironment />}
       <Bulletin />
