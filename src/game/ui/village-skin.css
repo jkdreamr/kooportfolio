@@ -19,6 +19,13 @@
 .game-shell .game-ui {
   color: var(--hud-ink);
 }
+.game-shell select {
+  color-scheme: dark;
+}
+.game-shell select option {
+  color: var(--hud-ink);
+  background: var(--hud-low);
+}
 /* Old scene rules use font shorthands with Georgia. Inherit the game face
    explicitly so no countdown, split, room card or control falls back to serif. */
 .game-shell .game-ui * {
