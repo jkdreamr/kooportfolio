@@ -15,6 +15,7 @@ const FILES = {
   birds: "/audio/birds.mp3",
   crickets: "/audio/crickets.mp3",
   water: "/audio/water.mp3",
+  rain: "/audio/rain.mp3",
 } as const;
 type Layer = keyof typeof FILES;
 
@@ -27,6 +28,7 @@ export class AmbientAudio {
   private nodes: AudioNode[] = [];
   private engineGain?: GainNode;
   private engine?: OscillatorNode;
+  private windGain?: GainNode;
   private request?: AbortController;
   private generation = 0;
   private starting = false;
@@ -83,6 +85,7 @@ export class AmbientAudio {
       context.currentTime,
       0.5,
     );
+    this.windGain?.gain.setTargetAtTime(mix.wind, context.currentTime, 0.8);
   }
 
   private async start(context: AudioContext) {
@@ -141,6 +144,29 @@ export class AmbientAudio {
     this.engineGain = gain;
     this.sources.push(engine);
     this.nodes.push(filter, gain);
+    // Seeded filtered air noise under the snow/mist, not a downloaded wind sample.
+    const wind = context.createBufferSource(),
+      windFilter = context.createBiquadFilter(),
+      windGain = context.createGain();
+    const windBuffer = context.createBuffer(1, 44100, 22050),
+      samples = windBuffer.getChannelData(0);
+    let seed = 731;
+    for (let i = 0; i < samples.length; i++) {
+      seed = (Math.imul(seed, 1664525) + 1013904223) | 0;
+      samples[i] = seed / 2147483648;
+    }
+    wind.buffer = windBuffer;
+    wind.loop = true;
+    windFilter.type = "lowpass";
+    windFilter.frequency.value = 420;
+    windGain.gain.value = 0;
+    wind.connect(windFilter);
+    windFilter.connect(windGain);
+    windGain.connect(context.destination);
+    wind.start();
+    this.windGain = windGain;
+    this.sources.push(wind);
+    this.nodes.push(windFilter, windGain);
     this.sync();
   }
 
@@ -160,6 +186,7 @@ export class AmbientAudio {
     this.gains.clear();
     this.engine = undefined;
     this.engineGain = undefined;
+    this.windGain = undefined;
   }
 
   dispose() {

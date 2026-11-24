@@ -128,11 +128,11 @@ export const villagers: {
     place: "gym",
     lines: ["One more lap.", "Then I'm heading to the gym."],
     route: [
-      [2, 23],
-      [-4, 22],
-      [-2, 16],
-      [3, 13],
-      [12, 22],
+      [-6, 21],
+      [-12, 22],
+      [-14, 28],
+      [-8, 30],
+      [-5, 26],
     ],
   },
   {
@@ -281,11 +281,11 @@ export const villagers: {
     place: "gym",
     lines: ["Leg day's tomorrow.", "Today I'm just going for a walk."],
     route: [
-      [12, 24],
-      [8, 27],
-      [2, 29],
-      [-3, 27],
-      [0, 21],
+      [-20, 25],
+      [-18, 29],
+      [-12, 28],
+      [-9, 23],
+      [-15, 21],
     ],
   },
   {
@@ -353,12 +353,25 @@ export function nearestNpc(actors: NpcActor[], x: number, z: number) {
     distance = TALK_DISTANCE;
   for (const actor of actors) {
     const d = Math.hypot(actor.x - x, actor.z - z);
-    if (d < distance) {
+    if (d < distance && canTalkToNpc(actor, x, z)) {
       best = actor;
       distance = d;
     }
   }
   return best;
+}
+
+export function canTalkToNpc(actor: NpcActor, x: number, z: number) {
+  const distance = Math.hypot(actor.x - x, actor.z - z);
+  if (distance >= TALK_DISTANCE) return false;
+  const steps = Math.max(1, Math.ceil(distance / 0.2));
+  for (let i = 1; i <= steps; i++) {
+    if (
+      !canWalk(x + ((actor.x - x) * i) / steps, z + ((actor.z - z) * i) / steps)
+    )
+      return false;
+  }
+  return true;
 }
 
 /** Uses the same collision grid as the player; no per-frame path searches. */
@@ -373,10 +386,7 @@ export function stepNpc(
   actor.moving = false;
   if (frozen) return;
   const dt = Math.max(0, Math.min(delta, 0.04));
-  if (
-    selected ||
-    Math.hypot(actor.x - player[0], actor.z - player[1]) < TALK_DISTANCE
-  ) {
+  if (selected || canTalkToNpc(actor, ...player)) {
     actor.heading = Math.atan2(player[0] - actor.x, player[1] - actor.z);
     return;
   }
@@ -429,12 +439,7 @@ export function approachNpc(actor: NpcActor, player: Point): Point[] {
     ];
     if (!canWalk(...point)) continue;
     const path = findPath(player, point);
-    if (
-      path.length &&
-      Math.hypot(path.at(-1)![0] - actor.x, path.at(-1)![1] - actor.z) <
-        TALK_DISTANCE
-    )
-      return path;
+    if (path.length && canTalkToNpc(actor, ...path.at(-1)!)) return path;
   }
   return [];
 }
