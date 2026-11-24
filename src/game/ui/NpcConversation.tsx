@@ -78,11 +78,9 @@ export function NpcDialog() {
           >
             Walk to {place.name} <span aria-hidden="true">↗</span>
           </button>
-          {line < npc.lines.length - 1 && (
-            <button className="npc-goodbye" onClick={closeConversation}>
-              Bye
-            </button>
-          )}
+          <button className="npc-goodbye" onClick={closeConversation}>
+            Bye
+          </button>
         </div>
       </section>
     </div>
