@@ -416,6 +416,22 @@
   border: 1px solid #a6976e;
   box-shadow: var(--hud-raised);
 }
+.game-shell .time-of-day-control {
+  color: var(--hud-gold);
+  background: #2b414b;
+  border-color: #6a7b7f;
+  border-top-color: #9caaa6;
+  border-bottom-color: #172d37;
+  box-shadow: inset 0 1px #bbc7b82e, 0 3px 8px #15313c24;
+}
+.game-shell .time-of-day-control select {
+  color: var(--hud-ink);
+  background: #2b414b;
+}
+.game-shell .time-of-day-control time {
+  color: var(--hud-muted);
+  font-family: inherit;
+}
 .game-shell :is(button, a, input, select):focus-visible {
   outline: 3px solid #ffdb87;
   outline-offset: 3px;
