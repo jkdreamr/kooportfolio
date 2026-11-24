@@ -72,6 +72,25 @@ describe("badminton quick singles", () => {
     expect(game.score).toEqual([0, 0]);
   });
 
+  it("does not let a player's missed swing suppress the opponent's reachable return", () => {
+    const game = newBadmintonGame();
+    game.phase = "rally";
+    game.lastHit = "player";
+    game.flightTime = 0.5;
+    Object.assign(game.shuttle, {
+      x: 0,
+      z: -5.7,
+      y: 1.8,
+      vx: 0,
+      vy: -1,
+      vz: -1,
+    });
+    stepBadminton(game, { ...idle, swing: true }, 1 / 120);
+    expect(game.lastHit).toBe("opponent");
+    expect(game.shuttle.vz).toBeGreaterThan(0);
+    expect(game.playerCooldown).toBeGreaterThan(0);
+  });
+
   it("awards an in-bounds landing to the hitter, and an out or net to the receiver", () => {
     const inside = newBadmintonGame();
     falling(inside, 2, -7);

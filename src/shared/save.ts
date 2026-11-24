@@ -4,6 +4,7 @@ export type Save = {
   coins: number;
   xp: number;
   position: [number, number];
+  world: WorldId;
   upgrades: { boathouse: number; garden: number };
   color: string;
   hat: boolean;
@@ -13,6 +14,7 @@ export type Save = {
   rewards: string[];
 };
 import { WORLD_BOUNDS } from "./world-bounds";
+import { isWorld, type WorldId } from "./worlds";
 
 export const SAVE_KEY = "joshua-exe-save-v1";
 export function writeGuestSave(
@@ -31,6 +33,7 @@ export const freshSave = (): Save => ({
   coins: 0,
   xp: 0,
   position: [0, 5],
+  world: "home",
   upgrades: { boathouse: 1, garden: 1 },
   color: "#6f8670",
   hat: true,
@@ -44,8 +47,11 @@ const finiteRange = (x: unknown, min: number, max: number): x is number =>
 export function parseSave(raw: string | null): Save {
   if (!raw) return freshSave();
   const s = JSON.parse(raw) as Save;
+  // Version-one saves predate the three regions; all other progress survives.
+  if (s.world === undefined) s.world = "home";
   if (
     s.version !== 1 ||
+    !isWorld(s.world) ||
     !finiteRange(s.coins, 0, 1e9) ||
     !finiteRange(s.xp, 0, 1e9) ||
     !finiteRange(s.revision, 0, 1e15) ||

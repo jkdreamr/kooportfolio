@@ -2,8 +2,12 @@ import { useLayoutEffect, useRef } from "react";
 import * as THREE from "three";
 import { Box, Cylinder, Ball, Tree, Bench, Boat, Cone, Sign } from "./Models";
 import { Scenery } from "./Scenery";
-import { Campus } from "./Campus";
+import { NationalFlag } from "./NationalFlag";
+import { CampusDistrict } from "./CampusDistrict";
+import { campus } from "../core/campus";
+import { POND } from "../core/pond";
 import { WORLD_ELLIPSE } from "../../shared/world-bounds";
+import type { WorldId } from "../core/worlds";
 
 type Block = [number, number, number, number, number, number, string, number?];
 function Blocks({
@@ -44,10 +48,10 @@ function Blocks({
 }
 
 const tiles: Block[] = [];
-for (let ix = -33; ix <= 33; ix++)
-  for (let iz = -27; iz <= 27; iz++) {
+for (let ix = -40; ix <= 40; ix++)
+  for (let iz = -43; iz <= 43; iz++) {
     const x = ix * 2.12,
-      z = iz * 2.12 - 1;
+      z = iz * 2.12 + WORLD_ELLIPSE.centerZ;
     if (
       (x / WORLD_ELLIPSE.radiusX) ** 2 +
         ((z - WORLD_ELLIPSE.centerZ) / WORLD_ELLIPSE.radiusZ) ** 2 <
@@ -69,7 +73,7 @@ const masonry: Block[] = [];
 for (let i = 0; i < 125; i++) {
   const angle = Math.PI + (i / 124) * Math.PI;
   const x = Math.cos(angle) * WORLD_ELLIPSE.radiusX,
-    z = Math.sin(angle) * (WORLD_ELLIPSE.radiusZ - 0.5) - 0.5;
+    z = Math.sin(angle) * (WORLD_ELLIPSE.radiusZ - 0.5) + WORLD_ELLIPSE.centerZ;
   masonry.push([
     x,
     0.55,
@@ -85,7 +89,10 @@ for (let i = 0; i < 125; i++) {
     masonry.push([x, 1.48, z, 0.72, 0.55, 0.8, "#b1b48f", -angle]);
 }
 const roads: Block[] = [
-  [0, 0.17, -1, 3, 0.1, 98, "#c9b381"],
+  [0, 0.17, 12, 3, 0.1, 166, "#c9b381"],
+  [14, 0.17, 21, 28, 0.1, 3, "#c9b381"],
+  [-38, 0.17, -29, 2.5, 0.1, 10, "#c9b381"],
+  [-63, 0.17, 12, 28, 0.1, 2.5, "#c9b381"],
   [0, 0.17, -9, 105, 0.1, 3, "#c9b381"],
   [0, 0.17, 10, 105, 0.1, 3.5, "#c9b381"],
   [-46, 0.17, 4, 2.5, 0.1, 51, "#c9b381"],
@@ -104,6 +111,9 @@ const roads: Block[] = [
   [6, 0.17, -18, 13, 0.1, 2.5, "#c9b381"],
   [-11, 0.17, -20, 2.5, 0.1, 4.5, "#c9b381"],
   [11, 0.17, -20, 2.5, 0.1, 4.5, "#c9b381"],
+  [-29, 0.17, 46, 2.5, 0.1, 34, "#c9b381"],
+  [-40, 0.17, 64, 24, 0.1, 3, "#c9b381"],
+  [-19, 0.17, -29, 2.5, 0.1, 7, "#c9b381"],
 ];
 const paving: Block[] = [];
 for (let i = 0; i < 108; i++)
@@ -117,29 +127,46 @@ for (let i = 0; i < 108; i++)
     i % 3 ? "#d9c99d" : "#b9a37b",
   ]);
 
-export function Landscape() {
+export function Landscape({ world = "stanford" }: { world?: WorldId }) {
   return (
     <group>
-      <Cylinder p={[0, -2.1, -1]} s={[71.8, 4.2, 59.8]} c="#655e3e" />
-      <Cylinder p={[0, -0.5, -1]} s={[72, 1, 60]} c="#a49564" />
-      <Cylinder p={[0, -0.01, -1]} s={[71.5, 0.3, 59.5]} c="#568f38" />
+      <Cylinder p={[0, -2.1, 12]} s={[86.8, 4.2, 91.8]} c="#655e3e" />
+      <Cylinder p={[0, -0.5, 12]} s={[87, 1, 92]} c="#a49564" />
+      <Cylinder p={[0, -0.01, 12]} s={[86.5, 0.3, 91.5]} c="#568f38" />
       <Scenery />
-      <Campus />
+      {world === "stanford" && (
+        <group position={[campus.x, 0, campus.z]} rotation={[0, Math.PI, 0]}>
+          <CampusDistrict />
+        </group>
+      )}
+      <Cylinder p={[POND.x, 0.13, POND.z]} s={[6.4, 0.18, 4.4]} c="#736c50" />
+      <Cylinder p={[POND.x, 0.19, POND.z]} s={[6, 0.06, 4]} c="#459d96" />
+      {Array.from({ length: 20 }, (_, i) => {
+        const a = (i / 20) * Math.PI * 2;
+        return (
+          <Ball
+            key={`pond-${i}`}
+            p={[POND.x + Math.cos(a) * 6.3, 0.32, POND.z + Math.sin(a) * 4.3]}
+            s={[0.5, 0.35, 0.45]}
+            c={i % 2 ? "#8f9276" : "#b4b49a"}
+          />
+        );
+      })}
       <Blocks items={tiles} />
       <Blocks items={masonry} shadow />
       <Blocks items={roads} />
       <Blocks items={paving} />
-      <Cylinder p={[-9, -1.1, 53]} s={[55, 1.8, 13.5]} c="#387b78" />
-      <Cylinder p={[-9, -0.12, 53]} s={[54.2, 0.25, 13.2]} c="#459d96" />
+      <Cylinder p={[-9, -1.1, 98]} s={[55, 1.8, 13.5]} c="#387b78" />
+      <Cylinder p={[-9, -0.12, 98]} s={[54.2, 0.25, 13.2]} c="#459d96" />
       {Array.from({ length: 17 }, (_, i) => (
         <Box
           key={i}
-          p={[Math.sin(i * 3.2) * 40 - 9, 0.03, 52.2 + (i % 5)]}
+          p={[Math.sin(i * 3.2) * 40 - 9, 0.03, 97.2 + (i % 5)]}
           s={[1.1 + (i % 3), 0.01, 0.035]}
           c="#99d4bf"
         />
       ))}
-      <group position={[-28, 0.2, 48]}>
+      <group position={[-28, 0.2, 93]}>
         <Box s={[3.3, 0.25, 6.1]} c="#805d36" />
         {Array.from({ length: 14 }, (_, i) => (
           <Box
@@ -160,7 +187,7 @@ export function Landscape() {
           )),
         )}
       </group>
-      <group position={[-23, 0.1, 53]} rotation={[0, 1.4, 0]}>
+      <group position={[-23, 0.1, 98]} rotation={[0, 1.4, 0]}>
         <Boat pace={0} color="#edc96e" />
       </group>
       {Array.from({ length: 40 }, (_, i) => {
@@ -168,28 +195,28 @@ export function Landscape() {
         return (
           <Tree
             key={i}
-            p={[Math.cos(a) * 71, 0, Math.sin(a) * 59 - 0.6]}
+            p={[Math.cos(a) * 86, 0, Math.sin(a) * 91 + 12]}
             size={0.8 + (i % 3) * 0.15}
             variant={i % 3 === 0 ? 0 : 2}
           />
         );
       })}
-      <Orchard />
-      <MusicCorner />
-      <Windmill />
+      {world === "home" && (
+        <>
+          <Orchard />
+          <MusicCorner />
+          <Windmill />
+        </>
+      )}
       <Bench p={[-2.7, 0.2, 3.4]} />
       <Bench p={[2.8, 0.2, -2.9]} rotation={Math.PI} />
       {[-1, 1].map((side) => (
-        <group key={side} position={[side * 2.4, 0, -4.3]}>
-          <Cylinder p={[0, 2.25, 0]} s={[0.09, 4.5, 0.09]} c="#604a31" />
-          <Box
-            p={[0.5, 3.7, 0]}
-            s={[1.1, 1, 0.08]}
-            c={side === 1 ? "#c95134" : "#327b75"}
-          />
-          <Box p={[0.5, 3.7, 0.06]} s={[0.16, 0.65, 0.03]} c="#edc45e" />
-          <Ball p={[0, 4.55, 0]} s={[0.16, 0.16, 0.16]} c="#e8bb4e" />
-        </group>
+        <NationalFlag
+          key={side}
+          nation={side === 1 ? "us" : "kr"}
+          p={[side * 2.4, 0, -4.3]}
+          height={4.5}
+        />
       ))}
     </group>
   );

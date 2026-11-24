@@ -1,18 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { runtime, useGame, walkTo, type Scene } from "../core/store";
-import { touch } from "../core/input";
+import { keys, touch } from "../core/input";
 import { dailySeed, raceTime } from "../core/rowing";
 import { useRaceHud } from "../scenes/Rowing";
 import { CourtControls, useBasketHud } from "../scenes/Basketball";
 import { Icon } from "./Icon";
-import { destinations, doors, isInterior } from "../core/world";
+import { destinationsInWorld, doors, isInterior } from "../core/world";
+import { WORLDS } from "../core/worlds";
 import { useGym } from "../scenes/CognitionGym";
 import { profile } from "../../content/profile";
 import { WorldLabels } from "../world/Labels";
-import { ROOM } from "../core/room";
+import { roomFor } from "../core/room";
 import { RoomStory } from "./RoomStory";
 import type { PlaceId } from "../core/world";
 import { npcName } from "../core/npcState";
+import { Leaderboard } from "./Leaderboard";
 
 export function Joystick() {
   const pad = useRef<HTMLDivElement>(null),
@@ -99,32 +101,32 @@ export function RaceHud() {
         <div
           style={{ width: `${(race.distance / runtime.raceLength) * 100}%` }}
         />
-        <span>START</span>
+        <span>Start</span>
         <span>
           {Math.floor(race.distance)} / {runtime.raceLength} m
         </span>
-        <span>FINISH</span>
+        <span>Finish</span>
       </div>
       {race.time < 0 && (
         <div className="countdown">
           <span>{Math.ceil(-race.time)}</span>
-          <small>Hands on the oars.</small>
+          <small>Ready</small>
         </div>
       )}
       <div className="race-instruments">
         <div>
-          <small>YOUR TIME</small>
+          <small>Time</small>
           <strong>{raceTime(race.time)}</strong>
         </div>
         <div>
-          <small>PLACE</small>
+          <small>Place</small>
           <strong>
             {place}
             <em> / 4</em>
           </strong>
         </div>
         <div>
-          <small>BOAT SPEED</small>
+          <small>Speed</small>
           <strong>
             {race.speed.toFixed(1)}
             <em> m/s</em>
@@ -133,7 +135,7 @@ export function RaceHud() {
       </div>
       <div className="race-control-panel">
         <div className="stamina-label">
-          <span>CREW ENERGY</span>
+          <span>Crew energy</span>
           <b>{Math.round(race.stamina)}%</b>
         </div>
         <div className="energy-track">
@@ -162,12 +164,12 @@ export function RaceHud() {
             ? "Shallows — steer inside the buoys."
             : race.stamina < 20
               ? "Low energy — settle the pace."
-              : "Pale water runs faster."}
+              : "Stay in the pale current."}
         </p>
       </div>
       {race.splits.length > 0 && (
         <div className="last-split">
-          {race.splits.length * 100} M SPLIT{" "}
+          {race.splits.length * 100} m split{" "}
           <b>{raceTime(race.splits[race.splits.length - 1])}</b>
         </div>
       )}
@@ -176,7 +178,7 @@ export function RaceHud() {
           ←
         </button>
         <button className="burst" {...touchButton("burst")}>
-          BURST
+          Burst
         </button>
         <button aria-label="Steer right" {...touchButton("right")}>
           →
@@ -191,19 +193,19 @@ export function BasketHud() {
     <>
       <div className="challenge-heading">
         <h1>Court</h1>
-        <p className="keyboard-hint">
-          WASD move · hold & release Space to shoot · Q / E adjust aim
-        </p>
         <p className="touch-hint">Drag to move · hold & release to shoot</p>
       </div>
+      <p className="court-keyboard-hint keyboard-hint">
+        WASD move · Hold Space to charge, release to shoot · Q / E aim
+      </p>
       <div className="basket-score">
         <div>
-          <small>SCORE</small>
+          <small>Score</small>
           <strong>{hud.score.toString().padStart(2, "0")}</strong>
         </div>
         <span />
         <div>
-          <small>ON THE CLOCK</small>
+          <small>Time</small>
           <strong>
             {Math.ceil(hud.time)}
             <em>s</em>
@@ -215,8 +217,8 @@ export function BasketHud() {
       </div>
       <div className="shot-panel">
         <div className="stamina-label">
-          <span>{hud.holding ? "SHOT POWER" : "CHASING A REBOUND"}</span>
-          <span>{hud.holding ? "HOLD → RELEASE" : "NEW BALL IN A MOMENT"}</span>
+          <span>{hud.holding ? "Shot power" : "Rebound"}</span>
+          <span>{hud.holding ? "Hold & release" : "Next ball soon"}</span>
         </div>
         <div className="power-track">
           <i style={{ width: `${hud.charge * 100}%` }} />
@@ -224,7 +226,7 @@ export function BasketHud() {
         </div>
         <p className="shot-instruction">Release in gold. Closer is easier.</p>
         <label className="aim-label">
-          AIM{" "}
+          Aim{" "}
           <input
             aria-label="Adjust shot aim"
             type="range"
@@ -338,10 +340,51 @@ function Modal({
   );
 }
 export function Hud({ interact }: { interact: () => void }) {
+  const pendingExit = useRef<Scene | null>(null);
+  useEffect(() => {
+    const shell = document.querySelector(".game-shell");
+    if (!shell) return;
+    const sync = () => {
+      const overlayLocked = !!shell.querySelector(
+        '[data-interior-game-open="true"], .go-card-open, .writing-modal, .theater-dialog',
+      );
+      if (overlayLocked === useGame.getState().overlayLocked) return;
+      keys.clear();
+      touch.x = touch.z = 0;
+      runtime.path = [];
+      runtime.target = null;
+      runtime.moving = false;
+      useGame.setState({ overlayLocked });
+    };
+    const observer = new MutationObserver(sync);
+    observer.observe(shell, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["class", "data-interior-game-open"],
+    });
+    sync();
+    return () => {
+      observer.disconnect();
+      useGame.setState({ overlayLocked: false });
+    };
+  }, []);
   const g = useGame(),
     [confirmBuild, setConfirmBuild] = useState<"garden" | "boathouse" | null>(
       null,
     );
+  useEffect(() => {
+    if (pendingExit.current && pendingExit.current !== g.scene)
+      pendingExit.current = null;
+    if (!g.overlayLocked && pendingExit.current === g.scene) {
+      const frame = requestAnimationFrame(() => {
+        runtime.path = [];
+        runtime.target = [0, roomFor(g.scene).doorZ];
+        pendingExit.current = null;
+      });
+      return () => cancelAnimationFrame(frame);
+    }
+  }, [g.overlayLocked, g.scene]);
   const hub = g.scene === "hub",
     interior = isInterior(g.scene),
     game = g.scene === "rowing" || g.scene === "basketball";
@@ -359,12 +402,9 @@ export function Hud({ interact }: { interact: () => void }) {
     return () => clearTimeout(t);
   }, [g.notice]);
   return (
-    <div className={`game-ui scene-${g.scene}`}>
+    <div className={`game-ui scene-${g.scene} world-${g.world}`}>
       <header className="game-header">
         <a className="game-brand" href="/">
-          <span className="brand-glyph">
-            j<span>k</span>.
-          </span>
           <div>
             <b>
               JOSHUA<span>.EXE</span>
@@ -372,11 +412,14 @@ export function Hud({ interact }: { interact: () => void }) {
           </div>
         </a>
         <div className="resources">
-          <div className="resource coins">
+          <div className="resource coins" aria-label={`${g.save.coins} coins`}>
             <Icon name="coin" />
             <b>{g.save.coins}</b>
           </div>
-          <div className="resource level">
+          <div
+            className="resource level"
+            aria-label={`Level ${1 + Math.floor(g.save.xp / 100)}`}
+          >
             <Icon name="star" />
             <b>Lv. {1 + Math.floor(g.save.xp / 100)}</b>
           </div>
@@ -397,18 +440,30 @@ export function Hud({ interact }: { interact: () => void }) {
         </div>
       </header>
       {hub && !g.build && <WorldLabels />}
+      {hub && <span className="world-name">{WORLDS[g.world].name}</span>}
       {interior && (
         <div className="interior-heading">
           <button
             className="back-link"
             onClick={() => {
-              runtime.path = [];
-              runtime.target = [0, ROOM.doorZ];
+              keys.clear();
+              touch.x = touch.z = 0;
+              pendingExit.current = g.scene;
+              window.dispatchEvent(new Event("interior-game-close"));
+              if (!useGame.getState().overlayLocked) {
+                runtime.path = [];
+                runtime.target = [0, roomFor(g.scene).doorZ];
+                pendingExit.current = null;
+              }
             }}
           >
             ← Exit
           </button>
-          <h1>{doors.find((door) => door.id === g.scene)?.name}</h1>
+          <h1>
+            {g.scene === "secret"
+              ? "Hoover vault"
+              : doors.find((door) => door.id === g.scene)?.name}
+          </h1>
         </div>
       )}
       {interior && (
@@ -425,56 +480,83 @@ export function Hud({ interact }: { interact: () => void }) {
           <CourtControls />
         </>
       )}
-      {(hub || interior) && !g.build && (
-        <>
-          <div
-            className={`context-action ${g.near ? "visible" : ""}`}
-            style={{ zIndex: 20 }}
-          >
-            <div>
-              <strong>
-                {g.near === "exit"
-                  ? "Village door"
-                  : g.near === "race"
-                    ? "Coxswain Regatta"
-                    : g.near === "read"
-                      ? "Meet Joshua"
-                      : g.near === "desk"
-                        ? "Desk"
-                        : g.near === "lift"
-                          ? `${reps} reps`
-                          : g.near === "npc"
-                            ? npcName()
-                            : doors.find((d) => d.id === g.near)?.name}
-              </strong>
+      {(hub || interior) &&
+        !g.build &&
+        g.panel !== "npc" &&
+        !g.overlayLocked && (
+          <>
+            <div
+              className={`context-action ${g.scene === "stadium" ? "context-action--stadium" : ""} ${g.near ? "visible" : ""}`}
+              style={{ zIndex: 20 }}
+            >
+              <div>
+                <strong>
+                  {g.near === "hoover-key"
+                    ? "Small key"
+                    : g.near === "hoover-door"
+                      ? "Hoover Tower"
+                      : g.near === "stash"
+                        ? "Coin stash"
+                        : g.near === "photo"
+                          ? "Photo booth"
+                          : g.near === "stargazing"
+                            ? "Telescope"
+                            : g.near === "exit"
+                              ? "Exit"
+                              : g.near === "race"
+                                ? "Coxswain Regatta"
+                                : g.near === "read"
+                                  ? "Meet Joshua"
+                                  : g.near === "desk"
+                                    ? "Desk"
+                                    : g.near === "lift"
+                                      ? `${reps} reps`
+                                      : g.near === "npc"
+                                        ? npcName()
+                                        : doors.find((d) => d.id === g.near)
+                                            ?.name}
+                </strong>
+              </div>
+              <button onClick={interact}>
+                <kbd>E</kbd>
+                {g.near === "hoover-key"
+                  ? "Take"
+                  : g.near === "hoover-door"
+                    ? "Unlock"
+                    : g.near === "stash"
+                      ? "Collect"
+                      : g.near === "photo"
+                        ? "Photo"
+                        : g.near === "stargazing"
+                          ? "Look"
+                          : g.near === "exit"
+                            ? "Exit"
+                            : g.near === "race"
+                              ? "Race"
+                              : g.near === "read"
+                                ? "Read"
+                                : g.near === "desk"
+                                  ? "Open"
+                                  : g.near === "lift"
+                                    ? "Lift"
+                                    : g.near === "npc"
+                                      ? "Talk"
+                                      : "Enter"}{" "}
+                <Icon name="arrow" size={17} />
+              </button>
             </div>
-            <button onClick={interact}>
-              <kbd>E</kbd>
-              {g.near === "exit"
-                ? "Exit"
-                : g.near === "race"
-                  ? "Race"
-                  : g.near === "read"
-                    ? "Read"
-                    : g.near === "desk"
-                      ? "Open"
-                      : g.near === "lift"
-                        ? "Lift"
-                        : g.near === "npc"
-                          ? "Talk"
-                          : "Enter"}{" "}
-              <Icon name="arrow" size={17} />
-            </button>
-          </div>
-          <Joystick />
-        </>
-      )}
+            {g.panel === "none" && !g.overlayLocked && !g.traveling && (
+              <Joystick />
+            )}
+          </>
+        )}
       {interior && g.scene === "boathouse" && g.near === "race" && (
         <div className="race-select">
           <button
             onClick={() => {
               runtime.raceLength = 360;
               runtime.raceSeed = 1;
+              runtime.raceMode = "sprint";
               g.go("rowing");
             }}
           >
@@ -485,6 +567,7 @@ export function Hud({ interact }: { interact: () => void }) {
             onClick={() => {
               runtime.raceLength = 750;
               runtime.raceSeed = 2;
+              runtime.raceMode = "regatta";
               g.go("rowing");
             }}
           >
@@ -495,6 +578,7 @@ export function Hud({ interact }: { interact: () => void }) {
             onClick={() => {
               runtime.raceLength = 750;
               runtime.raceSeed = dailySeed();
+              runtime.raceMode = "daily";
               g.go("rowing");
             }}
           >
@@ -550,8 +634,8 @@ export function Hud({ interact }: { interact: () => void }) {
                           <Icon name="coin" size={16} /> {cost}{" "}
                           <span>
                             {g.save.coins < cost
-                              ? "Keep playing to earn"
-                              : "Preview upgrade →"}
+                              ? "Not enough coins"
+                              : "Upgrade"}
                           </span>
                         </>
                       )}
@@ -561,7 +645,7 @@ export function Hud({ interact }: { interact: () => void }) {
               );
             })}
             <p className="local-note">
-              Cosmetic upgrades never give an unfair race advantage.
+              Upgrades change the village, not your scores.
             </p>
             <button
               className="primary-button"
@@ -652,10 +736,9 @@ export function Hud({ interact }: { interact: () => void }) {
         <Modal eyebrow="" title="Upgrade?" close={() => setConfirmBuild(null)}>
           <p>
             {confirmBuild === "boathouse"
-              ? "Add a new architectural tier to the boathouse."
-              : "Bring more flowers and a new gathering spot to the garden."}{" "}
-            This will spend {g.save.upgrades[confirmBuild] === 1 ? 60 : 120}{" "}
-            local coins.
+              ? "Expand the boathouse"
+              : "Improve the garden"}{" "}
+            for {g.save.upgrades[confirmBuild] === 1 ? 60 : 120} coins?
           </p>
           <button
             className="primary-button"
@@ -714,17 +797,33 @@ export function Hud({ interact }: { interact: () => void }) {
             <Icon name="oar" size={28} />
             <div>
               <b>Coxswain</b>
-              <small>PUBLIC BIO · JOSHUAKOO.XYZ</small>
             </div>
           </div>
           <div className="memory-card">
             <Icon name="memories" size={28} />
             <div>
               <b>Stanford CS + math</b>
-              <small>PUBLIC BIO · JOSHUAKOO.XYZ</small>
             </div>
           </div>
+          <button
+            className="setting-row"
+            onClick={() => useGame.setState({ panel: "leaderboard" })}
+          >
+            Records <Icon name="arrow" />
+          </button>
         </Modal>
+      )}
+      {g.panel === "leaderboard" && (
+        <Leaderboard
+          initialBoard={
+            g.scene === "basketball"
+              ? "basketball-attack"
+              : runtime.raceLength === 750
+                ? "rowing-regatta"
+                : "rowing-sprint"
+          }
+          onClose={closePanel}
+        />
       )}
       {g.panel === "settings" && (
         <Modal eyebrow="" title="Settings" close={closePanel}>
@@ -747,8 +846,7 @@ export function Hud({ interact }: { interact: () => void }) {
             <b>{g.quality === "high" ? "Full detail" : "Low power"}</b>
           </button>
           <p className="local-note">
-            Progress is saved only in this browser. Cloud sync and global
-            rankings are not enabled. No accounts, no tracking, no purchases.
+            Saved in this browser only. Back up your save to keep a copy.
           </p>
           <button
             className="setting-row"
@@ -822,7 +920,7 @@ export function Hud({ interact }: { interact: () => void }) {
       {g.panel === "places" && (
         <Modal title="Places" close={closePanel}>
           <nav className="places-list" aria-label="Walk to a place">
-            {destinations.map((door) => (
+            {destinationsInWorld(g.world).map((door) => (
               <button
                 key={door.id}
                 onClick={() => {
@@ -893,9 +991,8 @@ export function Hud({ interact }: { interact: () => void }) {
           </a>
         </Modal>
       )}
-      {g.result && (
+      {g.result && g.panel !== "leaderboard" && (
         <Modal
-          eyebrow="RESULT"
           title={g.result.title}
           close={() => g.go(g.scene === "rowing" ? "boathouse" : "hub")}
         >
@@ -927,6 +1024,12 @@ export function Hud({ interact }: { interact: () => void }) {
           <small className="local-note">
             Local record only. No global rankings or cloud saves.
           </small>
+          <button
+            className="quiet-button"
+            onClick={() => useGame.setState({ panel: "leaderboard" })}
+          >
+            Records
+          </button>
         </Modal>
       )}
     </div>

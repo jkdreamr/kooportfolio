@@ -347,7 +347,9 @@ export function BadmintonCourt({
       const target = e.target as HTMLElement;
       if (
         target.matches("input,textarea,select") ||
-        (e.key === " " && target.closest("button,a"))
+        (e.key === " " &&
+          target.closest("button,a") &&
+          !target.closest("[data-badminton-shortcuts]"))
       )
         return;
       e.preventDefault();
@@ -501,7 +503,6 @@ export function BadmintonCourt({
           <div className={`badminton-ui ${playing ? "is-playing" : ""}`}>
             {!playing ? (
               <section className="badminton-start" aria-label="Badminton match">
-                <h2>Badminton</h2>
                 <p>Quick singles · first to 7</p>
                 <button onClick={begin}>Play a match</button>
               </section>
@@ -561,6 +562,7 @@ export function BadmintonCourt({
                     <section
                       className="badminton-actions"
                       aria-label="Racket controls"
+                      data-badminton-shortcuts
                     >
                       <div
                         className="badminton-aim"
