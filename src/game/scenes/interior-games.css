@@ -190,6 +190,12 @@
   .interior-game--sheet p {
     display: none;
   }
+  .interior-game--sheet p[role="status"],
+  .interior-game--sheet p.kitchen-missed {
+    display: block;
+    margin-top: 3px;
+    font-size: 11px;
+  }
   .interior-game--sheet .kitchen-active > meter {
     display: block;
     width: 100%;
