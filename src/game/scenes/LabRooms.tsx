@@ -34,7 +34,7 @@ import {
   type BeatGame,
 } from "../core/labGames";
 import { newRunId } from "../../shared/run-id";
-import { labBeatClick, labTone } from "./labAudio";
+import { labTone, scheduleLabBeatClicks } from "./labAudio";
 import "./lab-rooms.css";
 
 const colors = ["#7699bb", "#75a59a", "#bf8791", "#aa9cc0"];
@@ -371,8 +371,8 @@ export function BeatLabInterior() {
     4 * LANE_SPACING * labZoom("music", size.width, size.height) + 18;
   const game = useRef(newBeatGame()),
     rewarded = useRef(false),
-    lastPulse = useRef(-1),
     lastTick = useRef<number | null>(null);
+  const beatTrack = useRef<(() => void) | null>(null);
   const [view, setView] = useState(game.current),
     [near, setNear] = useState(false);
   const [lit, setLit] = useState<readonly boolean[]>([]);
@@ -391,15 +391,38 @@ export function BeatLabInterior() {
   }, []);
   useEffect(() => clearFlashTimers, [clearFlashTimers]);
   const refresh = useRef(0);
+  const stopBeatTrack = useCallback(() => {
+    beatTrack.current?.();
+    beatTrack.current = null;
+  }, []);
+  const syncBeatTrack = useCallback(() => {
+    if (
+      game.current.phase !== "playing" ||
+      !runtime.active ||
+      !gameIsActive() ||
+      useGame.getState().muted ||
+      useGameMode.getState().active?.id !== "music"
+    ) {
+      stopBeatTrack();
+    } else if (!beatTrack.current) {
+      beatTrack.current = scheduleLabBeatClicks(() => {
+        const tick = lastTick.current;
+        return (
+          game.current.time +
+          (tick === null ? 0 : (performance.now() - tick) / 1000)
+        );
+      }, beatRoundEnd(game.current));
+    }
+  }, [stopBeatTrack]);
   const cancelRound = useCallback(() => {
+    stopBeatTrack();
     game.current = newBeatGame();
     rewarded.current = false;
-    lastPulse.current = -1;
     lastTick.current = null;
     setView(game.current);
     clearFlashTimers();
     setLit([]);
-  }, [clearFlashTimers]);
+  }, [clearFlashTimers, stopBeatTrack]);
   const close = useLabClose(
     "music",
     useCallback(() => {
@@ -417,13 +440,26 @@ export function BeatLabInterior() {
       game.current = advanceBeat(game.current, (now - previous) / 1000);
     return game.current;
   }, []);
-  useEffect(
-    () =>
-      useGame.subscribe(() => {
-        if (!gameIsActive()) lastTick.current = null;
-      }),
-    [],
-  );
+  useEffect(() => {
+    const unsubscribeGame = useGame.subscribe(() => {
+      if (!gameIsActive() || !runtime.active) {
+        if (lastTick.current !== null) syncBeat();
+        lastTick.current = null;
+      } else if (
+        game.current.phase === "playing" &&
+        lastTick.current === null
+      ) {
+        lastTick.current = performance.now();
+      }
+      syncBeatTrack();
+    });
+    const unsubscribeMode = useGameMode.subscribe(syncBeatTrack);
+    return () => {
+      unsubscribeGame();
+      unsubscribeMode();
+      stopBeatTrack();
+    };
+  }, [stopBeatTrack, syncBeat, syncBeatTrack]);
   const play = useCallback(
     (lane: number) => {
       if (!gameIsActive() || useGameMode.getState().active?.id !== "music")
@@ -471,6 +507,7 @@ export function BeatLabInterior() {
   useFrame((_, dt) => {
     if (!gameIsActive() || !runtime.active) {
       lastTick.current = null;
+      stopBeatTrack();
       return;
     }
     if (useGameMode.getState().active?.id !== "music") {
@@ -479,12 +516,8 @@ export function BeatLabInterior() {
       return;
     }
     const g = syncBeat();
-    const pulse = Math.floor((g.time + 0.0001) / BEAT_INTERVAL);
-    if (g.phase === "playing" && pulse !== lastPulse.current) {
-      lastPulse.current = pulse;
-      labBeatClick();
-    }
     if (g.phase === "done" && !rewarded.current) {
+      stopBeatTrack();
       rewarded.current = true;
       const hits = g.notes.filter((n) => n.hit).length;
       if (hits >= 20)
@@ -507,10 +540,9 @@ export function BeatLabInterior() {
     cancelRound();
     if (phase === "playing") {
       game.current = { ...game.current, phase };
-      lastPulse.current = 0;
       lastTick.current = performance.now();
       setView(game.current);
-      labBeatClick();
+      syncBeatTrack();
     }
   };
   const hits = view.notes.filter((note) => note.hit).length;
