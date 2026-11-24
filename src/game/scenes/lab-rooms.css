@@ -71,8 +71,48 @@
   gap: 8px;
 }
 .beat-buttons button {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
   min-height: 48px;
+  border-color: var(--pad-color);
   font-size: 19px;
+}
+.beat-buttons kbd {
+  font: inherit;
+}
+.beat-buttons span {
+  font-size: 12px;
+  color: #f3e4c2;
+}
+.beat-buttons button[data-lit="true"] {
+  background: var(--pad-color);
+  color: #10251e;
+  transform: translateY(2px);
+  box-shadow: none;
+}
+.beat-buttons button[data-lit="true"] span {
+  color: inherit;
+}
+.beat-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.lab-game .beat-toolbar p {
+  margin: 0;
+  text-align: left;
+}
+.lab-game .beat-toolbar .lab-primary {
+  width: auto;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.lab-controls .beat-launch button {
+  min-height: 42px;
+  font-size: 14px;
 }
 .beat-track {
   height: 5px;
