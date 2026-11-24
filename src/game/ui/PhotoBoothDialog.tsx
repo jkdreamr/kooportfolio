@@ -147,7 +147,7 @@ function BoothSession() {
                 <legend>Border</legend>
                 {(
                   [
-                    ["cream", "Cream"],
+                    ["slate", "Slate"],
                     ["pine", "Pine"],
                   ] as const
                 ).map(([frame, label]) => (
