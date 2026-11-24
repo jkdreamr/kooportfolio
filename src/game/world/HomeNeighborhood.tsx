@@ -1,6 +1,7 @@
 import { NaturalTrees, type TreePlacement } from "./TreeArt";
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
 import { HomeCommunity, HOME_COMMUNITY_OBSTACLES } from "./CommunityScenery";
+import type { GroundFootprint } from "../core/scenery";
 
 const parts: SceneryPart[] = [];
 const shrubs: SceneryPart[] = [];
@@ -123,10 +124,23 @@ fence(64.75, -13, 5.5);
 fence(67.3, -20, 14, true);
 
 // Residential asphalt with concrete gutters, scored sidewalks and driveway cuts.
-block(0, 0.19, 1, 143, 0.045, 7.2, "#676d6a");
+const streetParts: GroundFootprint[] = [];
+function street(
+  x: number,
+  y: number,
+  z: number,
+  width: number,
+  height: number,
+  depth: number,
+  color: string,
+) {
+  streetParts.push([x, z, width, depth]);
+  block(x, y, z, width, height, depth, color);
+}
+street(0, 0.19, 1, 143, 0.045, 7.2, "#676d6a");
 for (const side of [-1, 1]) {
-  block(0, 0.23, 1 + side * 3.75, 143, 0.12, 0.32, "#c6c1ad");
-  block(0, 0.21, 1 + side * 5.25, 143, 0.07, 2.55, "#bdbba9");
+  street(0, 0.23, 1 + side * 3.75, 143, 0.12, 0.32, "#c6c1ad");
+  street(0, 0.21, 1 + side * 5.25, 143, 0.07, 2.55, "#bdbba9");
   for (let x = -71; x < 72; x += 2.4)
     parts.push({
       p: [x, 0.251, 1 + side * 5.25],
@@ -141,10 +155,11 @@ for (const x of [-43, 0, 43]) {
     block(x, 0.224, z, 3.2, 0.015, 0.5, "#d4d1b9");
 }
 for (const x of [-62, 59]) {
-  block(x, 0.22, -7, 5.7, 0.06, 12, "#b5b4a2");
+  street(x, 0.22, -7, 5.7, 0.06, 12, "#b5b4a2");
   block(x + 3.8, 1.15, -9, 0.13, 2, 0.13, "#686c60");
   block(x + 3.8, 2.1, -9, 0.65, 0.4, 0.6, "#4c5e59");
 }
+export const HOME_STREET_FOOTPRINTS: readonly GroundFootprint[] = streetParts;
 // Recessed drainage grates keep street detailing functional rather than ornamental.
 for (const x of [-66, -30, 28, 66]) {
   block(x, 0.255, 4.4, 1.1, 0.025, 0.55, "#545e5a");

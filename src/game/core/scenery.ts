@@ -1,5 +1,45 @@
 // Deterministic tree trunks are shared by scenery and collision/pathfinding.
 import { WORLD_ELLIPSE } from "../../shared/world-bounds";
+
+export type GroundFootprint = readonly [
+  x: number,
+  z: number,
+  width: number,
+  depth: number,
+];
+
+export function grassSites(avoid: readonly GroundFootprint[]) {
+  const sites: { x: number; z: number; variant: number }[] = [];
+  for (let i = 0; i < 650; i++) {
+    const a = i * 2.399963,
+      r = Math.sqrt((i + 1) / 650),
+      x = Math.cos(a) * 46 * r,
+      z = Math.sin(a) * 39 * r;
+    if (
+      Math.abs(x) < 2.5 ||
+      Math.abs(z - 10) < 2.5 ||
+      Math.abs(z + 9) < 2.5 ||
+      Math.abs(z - 29) < 2.5 ||
+      Math.abs(Math.abs(x) - 34) < 2
+    )
+      continue;
+    for (let j = 0; j < 3; j++) {
+      const bladeX = x + j * 0.16,
+        bladeZ = z + (j % 2) * 0.15;
+      if (
+        avoid.some(
+          ([cx, cz, width, depth]) =>
+            Math.abs(bladeX - cx) <= width / 2 + 0.12 &&
+            Math.abs(bladeZ - cz) <= depth / 2 + 0.12,
+        )
+      )
+        continue;
+      sites.push({ x: bladeX, z: bladeZ, variant: i });
+    }
+  }
+  return sites;
+}
+
 export const forest = Array.from({ length: 160 }, (_, i) => {
   const a = i * 2.399963,
     r = 0.72 + ((i * 23) % 19) / 100;

@@ -51,28 +51,11 @@
   font-size: 13px;
   cursor: pointer;
 }
-.telescope-view select.quiet-button {
-  display: block;
-  width: 100%;
-  min-width: 0;
-  padding-right: 26px;
-  text-overflow: ellipsis;
-}
-.telescope-view button:disabled,
-.telescope-view select:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-.telescope-view .quiet-button[aria-pressed="true"] {
-  color: #fff;
-  background: #3a525b;
-  border-color: #91a3ab;
-}
-.telescope-view .quiet-button:hover:not(:disabled) {
+.telescope-view .quiet-button:hover {
   color: #fff;
   background: #3a525b;
 }
-.telescope-view .quiet-button:active:not(:disabled) {
+.telescope-view .quiet-button:active {
   filter: brightness(0.9);
 }
 .telescope-view :is(.quiet-button, .telescope-attribution a):focus-visible {
@@ -131,84 +114,22 @@
     linear-gradient(#b1b9ae, #b1b9ae) center / 1px 100% no-repeat,
     linear-gradient(#b1b9ae, #b1b9ae) center / 100% 1px no-repeat;
 }
-.telescope-day .telescope-aperture {
-  background: #91b0c0;
-}
-.telescope-day .telescope-reticle {
-  display: none;
-}
-.telescope-day-message {
-  position: absolute;
-  top: 50%;
-  left: 18px;
-  right: 18px;
-  margin: 0;
-  transform: translateY(-50%);
-  text-align: center;
-  color: #1f3441;
-  font-size: 15px;
-}
-.telescope-day-message span {
-  display: inline-block;
-  margin-top: 8px;
-  font-size: 12px;
-}
 .telescope-controls {
   justify-self: center;
   align-self: center;
-  width: min(100%, 580px);
   min-width: 0;
-}
-.telescope-main-controls {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-}
-.telescope-time-row,
-.telescope-zoom,
-.telescope-pan {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.telescope-target {
-  min-width: 0;
-}
-.telescope-desktop-controls {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 12px;
-  margin-top: 8px;
-}
-.telescope-desktop-controls .quiet-button {
-  padding: 8px;
-}
-.telescope-zoom output {
-  width: 36px;
   text-align: center;
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
 }
 .telescope-readout {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px 16px;
-  margin-top: 12px;
   color: var(--hud-muted, #c3d0d0);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
+  font-size: 12px;
 }
-.telescope-touch-hint,
-.telescope-touch-fov {
+.telescope-touch-hint {
   display: none;
 }
 .telescope-attribution {
   margin: 8px 0 0;
   color: #8fa3ad;
-  text-align: center;
   font-size: 10px;
 }
 .telescope-attribution a {
@@ -224,13 +145,11 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
-@media (pointer: coarse), (max-width: 700px), (max-height: 520px) {
-  .telescope-desktop-controls,
+@media (pointer: coarse) {
   .telescope-desktop-hint {
     display: none;
   }
-  .telescope-touch-hint,
-  .telescope-touch-fov {
+  .telescope-touch-hint {
     display: inline;
   }
 }
@@ -238,13 +157,6 @@
   .telescope-view {
     padding: 14px;
     gap: 10px;
-  }
-  .telescope-main-controls {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-  .telescope-time-row {
-    grid-column: 1 / -1;
-    justify-content: center;
   }
 }
 @media (max-height: 520px) and (orientation: landscape) {
@@ -267,15 +179,6 @@
   .telescope-controls {
     grid-column: 2;
     grid-row: 2;
-  }
-  .telescope-main-controls {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-  .telescope-time-row {
-    grid-column: 1 / -1;
-  }
-  .telescope-readout {
-    gap: 6px 12px;
   }
   .telescope-header h2 {
     font-size: 14px;

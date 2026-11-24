@@ -17,6 +17,7 @@ import * as THREE from "three";
 import { Hub } from "./world/Hub";
 import { Interior } from "./scenes/Interior";
 import { Rowing } from "./scenes/Rowing";
+import { StudyPaperToss } from "./scenes/StudyPaperToss";
 import { Basketball } from "./scenes/Basketball";
 import { Hud } from "./ui/Hud";
 import { TimeOfDayLighting } from "./world/TimeOfDayLighting";
@@ -36,6 +37,7 @@ import { PhotoBoothCamera } from "./world/PhotoBooth";
 import { PhotoBoothDialog, openPhotoBooth } from "./ui/PhotoBoothDialog";
 import { TelescopeView } from "./ui/TelescopeView";
 import { SkateParkInterior } from "./scenes/SkatePark";
+import { useTheater } from "./scenes/MovieTheater";
 import {
   collectHooverKey,
   claimHooverStash,
@@ -162,10 +164,12 @@ function World() {
   const scene = useGame((s) => s.scene),
     world = useGame((s) => s.world),
     run = useGame((s) => s.run);
+  const filmPlaying = useTheater((s) => s.filmId !== null);
   useEffect(() => {
     useTimeOfDay.getState().setTimeZone(WORLDS[world].timeZone);
   }, [world]);
-  const flat = scene === "hub" || isInterior(scene);
+  const paperToss = useGameMode((s) => scene === "office" && s.active?.id === "paper-toss");
+  const flat = !paperToss && (scene === "hub" || isInterior(scene));
   return (
     <>
       {flat ? (
@@ -179,7 +183,7 @@ function World() {
       ) : (
         <PerspectiveCamera
           makeDefault
-          position={scene === "rowing" ? [3, 9.5, 17] : [7, 12, 18]}
+          position={scene === "rowing" ? [3, 9.5, 17] : paperToss ? [0, 9, 16] : [7, 12, 18]}
           fov={55}
           near={0.1}
           far={130}
@@ -209,7 +213,7 @@ function World() {
         color="#c7e6ff"
       />
       <Sun />
-      <TimeOfDayLighting />
+      <TimeOfDayLighting dimmed={scene === "theater" && filmPlaying} />
       <WorldAmbience />
       <PhotoBoothCamera />
       <WorldZoomInput />
@@ -224,7 +228,8 @@ function World() {
         </mesh>
       )}
       {scene === "hub" && <Hub key={world} />}
-      {isInterior(scene) && scene !== "skate" && <Interior key={scene} />}
+      {isInterior(scene) && scene !== "skate" && !paperToss && <Interior key={scene} />}
+      {scene === "office" && <StudyPaperToss playing={paperToss} />}
       {scene === "skate" && <SkateParkInterior key={`skate-${run}`} />}
       {scene === "rowing" && <Rowing key={`race-${run}`} />}
       {scene === "basketball" && <Basketball key={`basket-${run}`} />}

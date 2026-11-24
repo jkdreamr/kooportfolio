@@ -3,7 +3,8 @@ import * as THREE from "three";
 import { Box, Cylinder, Ball, Bench, Boat, Cone, Sign } from "./Models";
 import { NaturalTrees, type TreePlacement } from "./TreeArt";
 import { KoreaRiverGround } from "./KoreaRiverGround";
-import { Scenery } from "./Scenery";
+import { GroundGrass, Scenery } from "./Scenery";
+import type { GroundFootprint } from "../core/scenery";
 import { NationalFlag } from "./NationalFlag";
 import { CampusDistrict } from "./CampusDistrict";
 import { campus } from "../core/campus";
@@ -119,6 +120,9 @@ for (let i = 0; i < 108; i++)
     0.42,
     i % 3 ? "#d9c99d" : "#b9a37b",
   ]);
+const roadFootprints = roads.map<GroundFootprint>(
+  ([x, , z, width, , depth]) => [x, z, width, depth],
+);
 
 export function Landscape({ world = "stanford" }: { world?: WorldId }) {
   return (
@@ -158,6 +162,7 @@ export function Landscape({ world = "stanford" }: { world?: WorldId }) {
         <>
           <Blocks items={roads} />
           <Blocks items={paving} />
+          <GroundGrass avoid={roadFootprints} />
         </>
       )}
       <Cylinder p={[-9, -1.1, 98]} s={[55, 1.8, 13.5]} c="#387b78" />

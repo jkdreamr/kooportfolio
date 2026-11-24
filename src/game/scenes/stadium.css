@@ -2,12 +2,15 @@
   width: 120px;
   padding: 6px;
 }
-.interior-game .stadium-play {
+.game-shell .interior-game .stadium-play {
   width: 100%;
-  min-height: 44px;
   margin: 0;
-  background: #9a2937;
-  border-color: #d2ad67;
+  color: #fff;
+  background: var(--hud-face);
+  border: 1px solid var(--hud-edge);
+}
+.game-shell .interior-game .stadium-play:hover {
+  background: var(--hud-edge);
 }
 .stadium-game-stage {
   position: absolute;
@@ -15,7 +18,7 @@
   width: 100%;
   height: 100%;
   pointer-events: none;
-  color: #f4ead4;
+  color: #fff;
   font-family: inherit;
   font-size: 13px;
   user-select: none;
@@ -24,12 +27,10 @@
 .stadium-game-close,
 .stadium-game-controls {
   box-sizing: border-box;
-  border: 1px solid #b39b66;
-  border-radius: 4px;
-  background: #243b45;
-  box-shadow:
-    inset 0 0 0 2px #192e36,
-    0 4px 0 #14232b;
+  border: 1px solid var(--hud-edge);
+  border-radius: 6px;
+  background: var(--hud-low);
+  box-shadow: var(--hud-shadow);
 }
 .stadium-game-score {
   position: absolute;
@@ -43,11 +44,10 @@
   font-variant-numeric: tabular-nums;
 }
 .stadium-game-score strong {
-  color: #edcc83;
   letter-spacing: 0.08em;
 }
 .stadium-game-score small {
-  color: #c2cfcf;
+  color: var(--hud-muted);
   font-size: 12px;
 }
 .stadium-game-score > span {
@@ -55,7 +55,7 @@
 }
 .stadium-game-stage button {
   min-height: 44px;
-  color: #fff0d1;
+  color: inherit;
   font: inherit;
   font-weight: 700;
   cursor: pointer;
@@ -83,7 +83,7 @@
   margin: 0 auto 8px;
   padding: 4px 10px;
   border-radius: 4px;
-  background: #17262b;
+  background: var(--hud-low);
   text-align: center;
   font-size: 13px;
 }
@@ -108,9 +108,6 @@
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
-.stadium-game-info strong {
-  color: #edcc83;
-}
 .stadium-game-bars {
   display: grid;
   gap: 6px;
@@ -119,11 +116,11 @@
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr);
   align-items: center;
-  color: #c2cfcf;
+  color: var(--hud-muted);
   font-size: 12px;
 }
 .stadium-game-bar[data-active="true"] {
-  color: #fff0d1;
+  color: #fff;
   font-weight: 700;
 }
 .stadium-game-track {
@@ -134,7 +131,7 @@
   background: #11242e;
 }
 .stadium-game-bar[data-active="true"] .stadium-game-track {
-  box-shadow: 0 0 0 1px #b39b66;
+  box-shadow: 0 0 0 1px var(--hud-muted);
 }
 .stadium-game-zone {
   position: absolute;
@@ -148,14 +145,14 @@
   left: 0;
   width: 4px;
   border-radius: 1px;
-  background: #fff0d1;
+  background: #fff;
   box-shadow: 0 0 0 1px #11242e;
   transform: translateX(-50%);
 }
 .stadium-game-controls button {
-  border: 1px solid #d2ad67;
-  border-radius: 3px;
-  background: #9a2937;
+  border: 1px solid var(--hud-edge);
+  border-radius: 6px;
+  background: var(--hud-face);
 }
 .stadium-game-controls button[aria-disabled="true"] {
   opacity: 0.65;
@@ -164,8 +161,9 @@
 .stadium-game-stage button:hover:not([aria-disabled="true"]) {
   filter: brightness(1.15);
 }
-.stadium-game-stage :focus-visible {
-  outline: 2px solid #f0cd85;
+.game-shell .stadium-game-stage :focus-visible,
+.game-shell .interior-game .stadium-play:focus-visible {
+  outline: 2px solid #fff;
   outline-offset: 3px;
 }
 /* A single physical exit stays opposite the walking stick. */
