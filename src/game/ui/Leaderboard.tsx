@@ -14,6 +14,7 @@ import {
   type LeaderboardEntry,
   type Scoreboard,
 } from "../../shared/leaderboard";
+import { Icon } from "./Icon";
 import "./leaderboard.css";
 
 const boards = Object.keys(scoreboards) as Scoreboard[];
@@ -78,8 +79,8 @@ export function Leaderboard({
         setLocal(true);
         setMessage(
           readLocalLeaderboard(board).some((item) => item.id === entry.id)
-            ? "Score saved on this device."
-            : "Score did not make this device’s top 10.",
+            ? "Saved locally."
+            : "Outside the local top 10.",
         );
       }
     } catch (error) {
@@ -94,7 +95,7 @@ export function Leaderboard({
   return (
     <dialog
       ref={dialog}
-      className="leaderboard"
+      className="game-modal leaderboard"
       aria-labelledby={titleId}
       onCancel={(event) => {
         event.preventDefault();
@@ -106,11 +107,12 @@ export function Leaderboard({
         <h2 id={titleId}>Leaderboard</h2>
         <button
           ref={closeButton}
+          className="close-button"
           type="button"
           aria-label="Close leaderboard"
           onClick={onClose}
         >
-          ×
+          <Icon name="close" />
         </button>
       </header>
       <label className="leaderboard-picker">
@@ -134,7 +136,7 @@ export function Leaderboard({
       <div className="leaderboard-caption">
         <span>
           {showLocal
-            ? "This device"
+            ? "Local scores"
             : shared
               ? "Shared · unverified"
               : "Connecting…"}
@@ -142,6 +144,7 @@ export function Leaderboard({
         {shared && (
           <button
             type="button"
+            className="quiet-button"
             disabled={posting}
             onClick={() => {
               setLocal((value) => !value);
@@ -194,8 +197,12 @@ export function Leaderboard({
               disabled={posting}
               onChange={(event) => setName(event.currentTarget.value)}
             />
-            <button disabled={posting || !entries} type="submit">
-              {posting ? "Saving…" : showLocal ? "Save here" : "Post score"}
+            <button
+              className="primary-button"
+              disabled={posting || !entries}
+              type="submit"
+            >
+              {posting ? "Saving…" : showLocal ? "Save" : "Post score"}
             </button>
           </div>
         </form>
