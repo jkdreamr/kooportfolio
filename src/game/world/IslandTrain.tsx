@@ -1,4 +1,11 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
@@ -212,6 +219,14 @@ export function IslandTrain({
   const cameraTarget = useMemo(() => new THREE.Vector3(), []);
   const look = useMemo(() => new THREE.Vector3(), []);
   const exitRef = useRef<HTMLButtonElement>(null);
+  const boardRef = useRef<HTMLButtonElement>(null);
+  const leave = useCallback(() => {
+    // Ground clicks during the ride must not become a walk after disembarking.
+    runtime.target = null;
+    runtime.path = [];
+    runtime.moving = false;
+    setRiding(false);
+  }, []);
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
     const update = () => setReducedMotion(media.matches);
@@ -221,6 +236,7 @@ export function IslandTrain({
   useEffect(() => {
     onRidingChange?.(riding);
     if (riding) exitRef.current?.focus();
+    else boardRef.current?.focus();
     return () => {
       onRidingChange?.(false);
     };
@@ -231,11 +247,11 @@ export function IslandTrain({
       if (event.key !== "Escape") return;
       event.preventDefault();
       event.stopImmediatePropagation();
-      setRiding(false);
+      leave();
     };
     window.addEventListener("keydown", escape, true);
     return () => window.removeEventListener("keydown", escape, true);
-  }, [riding]);
+  }, [riding, leave]);
   useFrame(({ camera }, delta) => {
     if (hidden || !runtime.active) return;
     const dt = Math.min(delta, 0.05);
@@ -324,11 +340,13 @@ export function IslandTrain({
           >
             <strong>Island rail</strong>
             {riding ? (
-              <button ref={exitRef} onClick={() => setRiding(false)}>
+              <button ref={exitRef} onClick={leave}>
                 Return to station
               </button>
             ) : (
-              <button onClick={board}>Ride island loop</button>
+              <button ref={boardRef} onClick={board}>
+                Ride island loop
+              </button>
             )}
           </section>
         </Html>
