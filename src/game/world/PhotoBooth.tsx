@@ -1,5 +1,5 @@
-import { useRef } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useEffect, useRef } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { Ball, Box, Cylinder, Sign } from "./Models";
@@ -128,6 +128,20 @@ export function PhotoBoothCamera() {
   const avatar = useRef<THREE.Group>(null);
   const handled = useRef(0);
   const pose = usePhotoBooth((state) => state.pose);
+  const active = useGame(
+    (state) =>
+      state.scene === "hub" && state.panel === "photo" && !state.paused,
+  );
+  const invalidate = useThree((state) => state.invalidate);
+  useEffect(() => {
+    if (!active) return;
+    // Game owns demand/live rendering and suspends performance sampling while
+    // the modal is open; new capture requests still need a fresh canvas frame.
+    invalidate();
+    return usePhotoBooth.subscribe((state, before) => {
+      if (state.request?.id !== before.request?.id) invalidate();
+    });
+  }, [active, invalidate]);
   useFrame(({ gl, scene }) => {
     const request = usePhotoBooth.getState().request;
     const game = useGame.getState();

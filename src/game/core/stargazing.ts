@@ -1,111 +1,238 @@
-import { sampleDaylight } from "./daylight";
+import catalogue from "./stargazing-catalogue.json";
 
-export type SkyStar = {
-  x: number;
-  y: number;
-  radius: number;
-  color: string;
-  name?: string;
+export type SkyWorld = "stanford" | "home" | "korea";
+export type SkyLocation = {
+  label: string;
+  latitude: number;
+  longitude: number;
+  timeZone: string;
 };
-export type SkyPattern = {
-  name: string;
-  stars: SkyStar[];
-  lines: [number, number][];
-  nebula?: [number, number];
+export const SKY_LOCATIONS: Record<SkyWorld, SkyLocation> = {
+  stanford: {
+    label: "Stanford",
+    latitude: 37.43,
+    longitude: -122.17,
+    timeZone: "America/Los_Angeles",
+  },
+  home: {
+    label: "Bay Area",
+    latitude: 37.43,
+    longitude: -122.17,
+    timeZone: "America/Los_Angeles",
+  },
+  korea: {
+    label: "Seoul",
+    latitude: 37.57,
+    longitude: 126.98,
+    timeZone: "Asia/Seoul",
+  },
 };
-
-/** Hand-plotted, schematic patterns, not a location/date-specific sky prediction. */
-export const SKY_PATTERNS: SkyPattern[] = [
-  {
-    name: "Orion",
-    stars: [
-      { x: -110, y: -115, radius: 4.2, color: "#ffc49b", name: "Betelgeuse" },
-      { x: 83, y: -127, radius: 3.2, color: "#d0e6ff", name: "Bellatrix" },
-      { x: -43, y: 12, radius: 2.8, color: "#d7e8ff", name: "Alnitak" },
-      { x: 0, y: 0, radius: 3.2, color: "#d7e8ff", name: "Alnilam" },
-      { x: 43, y: -12, radius: 2.7, color: "#d7e8ff", name: "Mintaka" },
-      { x: -92, y: 137, radius: 3, color: "#d2e6ff", name: "Saiph" },
-      { x: 116, y: 117, radius: 4.7, color: "#d0e4ff", name: "Rigel" },
-      { x: -4, y: -182, radius: 2, color: "#d7e8ff", name: "Meissa" },
-      { x: -10, y: 67, radius: 1.9, color: "#ebdce9" },
-    ],
-    lines: [
-      [7, 0],
-      [7, 1],
-      [0, 2],
-      [1, 4],
-      [2, 3],
-      [3, 4],
-      [2, 5],
-      [4, 6],
-      [5, 6],
-      [3, 8],
-    ],
-    nebula: [-10, 67],
-  },
-  {
-    name: "Cassiopeia",
-    stars: [
-      { x: -174, y: -60, radius: 3, color: "#d6e7ff", name: "Caph" },
-      { x: -90, y: 64, radius: 3.8, color: "#f6cf9c", name: "Schedar" },
-      { x: 0, y: -30, radius: 3.8, color: "#d6e7ff", name: "Navi" },
-      { x: 84, y: 66, radius: 3.1, color: "#e5ecff", name: "Ruchbah" },
-      { x: 173, y: -91, radius: 2.7, color: "#d6e7ff", name: "Segin" },
-    ],
-    lines: [
-      [0, 1],
-      [1, 2],
-      [2, 3],
-      [3, 4],
-    ],
-  },
-  {
-    name: "Big Dipper",
-    stars: [
-      { x: -198, y: -54, radius: 3.1, color: "#d7e8ff", name: "Alkaid" },
-      { x: -113, y: -15, radius: 3.2, color: "#e6edff", name: "Mizar" },
-      { x: -32, y: 39, radius: 3.7, color: "#e5ecff", name: "Alioth" },
-      { x: 43, y: 72, radius: 2.4, color: "#e5ecff", name: "Megrez" },
-      { x: 146, y: 64, radius: 3.8, color: "#ffd4a2", name: "Dubhe" },
-      { x: 155, y: -40, radius: 3.1, color: "#d7e8ff", name: "Merak" },
-      { x: 58, y: -49, radius: 3.4, color: "#d7e8ff", name: "Phecda" },
-      { x: -103, y: -25, radius: 1.5, color: "#e6edff", name: "Alcor" },
-    ],
-    lines: [
-      [0, 1],
-      [1, 2],
-      [2, 3],
-      [3, 4],
-      [4, 5],
-      [5, 6],
-      [6, 3],
-    ],
-  },
-];
-
-export function starsVisible(hour: number) {
-  return Number.isFinite(hour) && sampleDaylight(hour).night > 0.5;
-}
-
+const RAD = Math.PI / 180;
+const DAY = 86400000;
 export const MIN_ZOOM = 0.8;
 export const MAX_ZOOM = 2.4;
-export const PAN_LIMIT = 300;
-export const clampPan = (value: number) =>
-  Math.max(-PAN_LIMIT, Math.min(PAN_LIMIT, value));
 export const clampZoom = (value: number) =>
   Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, value));
-
-/** Fixed seed: the field stays still when aiming, zooming or changing daylight. */
-export function makeStarField(seed: number, count = 430): SkyStar[] {
-  let state = seed >>> 0;
-  const random = () => {
-    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
-    return state / 4294967296;
+export const wrapDegrees = (value: number) => ((value % 360) + 360) % 360;
+export type SkyAim = { azimuth: number; altitude: number; zoom: number };
+export const INITIAL_AIM: SkyAim = { azimuth: 180, altitude: 50, zoom: 1 };
+export function panSky(aim: SkyAim, dx: number, dy: number): SkyAim {
+  return {
+    ...aim,
+    azimuth: wrapDegrees(aim.azimuth + dx / aim.zoom),
+    altitude: Math.max(5, Math.min(88, aim.altitude + dy / aim.zoom)),
   };
-  return Array.from({ length: count }, () => ({
-    x: (random() - 0.5) * 1500,
-    y: (random() - 0.5) * 1500,
-    radius: 0.5 + random() ** 4 * 1.6,
-    color: random() > 0.85 ? "#e8caa5" : "#d0deef",
-  }));
+}
+export type Horizontal = {
+  azimuth: number;
+  altitude: number;
+  east: number;
+  north: number;
+  up: number;
+};
+export type ObservedStar = Horizontal & {
+  id: number;
+  name: string;
+  magnitude: number;
+  color: string;
+};
+// HYG v4.1 subset, CC BY-SA 4.0; provenance and tuple schema in /stargazing-data.txt.
+type CatalogueStar = [
+  number,
+  number,
+  number,
+  number,
+  number | null,
+  string,
+  number,
+  number,
+];
+export const STAR_CATALOGUE = catalogue as CatalogueStar[];
+export const julianDate = (date: Date) => date.getTime() / DAY + 2440587.5;
+
+/** USNO approximate GMST in degrees; UTC used as UT1 (<1 second discrepancy). */
+export function greenwichSiderealTime(date: Date) {
+  const days = julianDate(date) - 2451545;
+  const t = days / 36525;
+  return wrapDegrees(
+    280.46061837 +
+      360.98564736629 * days +
+      0.000387933 * t ** 2 -
+      t ** 3 / 38710000,
+  );
+}
+/** Equator/equinox of date -> local horizon. Azimuth: north=0, east=90. */
+export function equatorialToHorizontal(
+  raHours: number,
+  declination: number,
+  date: Date,
+  location: Pick<SkyLocation, "latitude" | "longitude">,
+): Horizontal {
+  const ha =
+    (greenwichSiderealTime(date) + location.longitude - raHours * 15) * RAD;
+  const dec = declination * RAD;
+  const lat = location.latitude * RAD;
+  const east = -Math.cos(dec) * Math.sin(ha);
+  const north =
+    Math.sin(dec) * Math.cos(lat) -
+    Math.cos(dec) * Math.cos(ha) * Math.sin(lat);
+  const up =
+    Math.sin(dec) * Math.sin(lat) +
+    Math.cos(dec) * Math.cos(ha) * Math.cos(lat);
+  return {
+    east,
+    north,
+    up,
+    azimuth: wrapDegrees(Math.atan2(east, north) / RAD),
+    altitude: Math.asin(Math.max(-1, Math.min(1, up))) / RAD,
+  };
+}
+/** IAU 1976 precession from catalogue J2000 to date, for a wide-field chart. */
+export function precessJ2000(raHours: number, declination: number, date: Date) {
+  const t = (julianDate(date) - 2451545) / 36525;
+  const zeta =
+    ((2306.2181 * t + 0.30188 * t ** 2 + 0.017998 * t ** 3) / 3600) * RAD;
+  const z =
+    ((2306.2181 * t + 1.09468 * t ** 2 + 0.018203 * t ** 3) / 3600) * RAD;
+  const theta =
+    ((2004.3109 * t - 0.42665 * t ** 2 - 0.041833 * t ** 3) / 3600) * RAD;
+  const ra = raHours * 15 * RAD + zeta;
+  const dec = declination * RAD;
+  const a = Math.cos(dec) * Math.sin(ra);
+  const b =
+    Math.cos(theta) * Math.cos(dec) * Math.cos(ra) -
+    Math.sin(theta) * Math.sin(dec);
+  const c =
+    Math.sin(theta) * Math.cos(dec) * Math.cos(ra) +
+    Math.cos(theta) * Math.sin(dec);
+  return {
+    ra: wrapDegrees((Math.atan2(a, b) + z) / RAD) / 15,
+    dec: Math.asin(Math.max(-1, Math.min(1, c))) / RAD,
+  };
+}
+/** USNO low-precision solar coordinates: real civil twilight, not game presets. */
+export function solarAltitude(date: Date, location: SkyLocation) {
+  const n = julianDate(date) - 2451545;
+  const meanLongitude = wrapDegrees(280.459 + 0.98564736 * n) * RAD;
+  const anomaly = wrapDegrees(357.529 + 0.98560028 * n) * RAD;
+  const lon =
+    meanLongitude +
+    (1.915 * Math.sin(anomaly) + 0.02 * Math.sin(2 * anomaly)) * RAD;
+  const obliquity = (23.439 - 0.00000036 * n) * RAD;
+  const ra =
+    wrapDegrees(
+      Math.atan2(Math.cos(obliquity) * Math.sin(lon), Math.cos(lon)) / RAD,
+    ) / 15;
+  const dec = Math.asin(Math.sin(obliquity) * Math.sin(lon)) / RAD;
+  return equatorialToHorizontal(ra, dec, date, location).altitude;
+}
+export function observeSky(date: Date, location: SkyLocation): ObservedStar[] {
+  const years = (julianDate(date) - 2451545) / 365.25;
+  return STAR_CATALOGUE.map(
+    ([id, ra, dec, magnitude, bv, name, pmra, pmdec]) => {
+      // HYG RA proper motion includes cos(dec), milliarcseconds/year.
+      const movedRA =
+        ra +
+        (pmra * years) / (3600000 * Math.max(0.001, Math.cos(dec * RAD))) / 15;
+      const equator = precessJ2000(
+        movedRA,
+        dec + (pmdec * years) / 3600000,
+        date,
+      );
+      const horizontal = equatorialToHorizontal(
+        equator.ra,
+        equator.dec,
+        date,
+        location,
+      );
+      const color =
+        bv === null
+          ? "#e3eaff"
+          : bv < 0.1
+            ? "#c4dcff"
+            : bv < 0.6
+              ? "#e4eaff"
+              : bv < 1.2
+                ? "#ffe4ba"
+                : "#ffc68f";
+      return { id, name, magnitude, color, ...horizontal };
+    },
+  ).filter((star) => star.altitude > 0);
+}
+/** Gnomonic projection: never wrap stars or show anything below the horizon. */
+export function projectStar(
+  star: Horizontal,
+  aim: SkyAim,
+): { x: number; y: number } | null {
+  if (star.altitude <= 0) return null;
+  const az = aim.azimuth * RAD;
+  const alt = aim.altitude * RAD;
+  const forward =
+    star.east * Math.cos(alt) * Math.sin(az) +
+    star.north * Math.cos(alt) * Math.cos(az) +
+    star.up * Math.sin(alt);
+  if (forward <= 0) return null;
+  const scale = 300 / Math.tan((35 * RAD) / aim.zoom);
+  const x =
+    ((star.east * Math.cos(az) - star.north * Math.sin(az)) / forward) * scale;
+  const y =
+    (-(
+      -star.east * Math.sin(alt) * Math.sin(az) -
+      star.north * Math.sin(alt) * Math.cos(az) +
+      star.up * Math.cos(alt)
+    ) /
+      forward) *
+    scale;
+  return x * x + y * y <= 310 ** 2 ? { x, y } : null;
+}
+/** Today's 22:00 in the observer's timezone, including Pacific DST. */
+export function tonightAtLocation(now: Date, location: SkyLocation): Date {
+  const parts = (date: Date) =>
+    Object.fromEntries(
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: location.timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hourCycle: "h23",
+      })
+        .formatToParts(date)
+        .map((part) => [part.type, part.value]),
+    );
+  const local = parts(now);
+  const wallTime = Date.UTC(+local.year, +local.month - 1, +local.day, 22);
+  const guess = parts(new Date(wallTime));
+  const offset =
+    Date.UTC(
+      +guess.year,
+      +guess.month - 1,
+      +guess.day,
+      +guess.hour,
+      +guess.minute,
+      +guess.second,
+    ) - wallTime;
+  return new Date(wallTime - offset);
 }

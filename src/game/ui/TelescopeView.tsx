@@ -1,32 +1,85 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
-  clampPan,
   clampZoom,
-  makeStarField,
+  INITIAL_AIM,
   MAX_ZOOM,
   MIN_ZOOM,
-  SKY_PATTERNS,
-  starsVisible,
+  observeSky,
+  panSky,
+  projectStar,
+  SKY_LOCATIONS,
+  solarAltitude,
+  tonightAtLocation,
+  type SkyWorld,
 } from "../core/stargazing";
-import { useTimeOfDay } from "../core/timeOfDay";
 import "./telescope.css";
 
-const fields = SKY_PATTERNS.map((_, index) => makeStarField(2026 + index));
-const initialAim = { x: 0, y: 0, zoom: 1 };
-
-/** DOM eyepiece: mount only while panel === 'telescope'; onClose restores the world. */
-export function TelescopeView({ onClose }: { onClose: () => void }) {
-  const night = useTimeOfDay((state) => starsVisible(state.hour));
-  const [patternIndex, setPatternIndex] = useState(0);
+/** Real UTC sky, independent of the village's artistic time-of-day presets. */
+export function TelescopeView({
+  onClose,
+  worldId = "home",
+}: {
+  onClose: () => void;
+  worldId?: SkyWorld;
+}) {
+  const location = SKY_LOCATIONS[worldId];
+  const [now, setNow] = useState(() => Date.now());
+  const [preview, setPreview] = useState(false);
   const [guides, setGuides] = useState(false);
-  const [aim, setAim] = useState(initialAim);
+  const [aim, setAim] = useState(INITIAL_AIM);
+  const [targetId, setTargetId] = useState<number | null>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const drag = useRef<{ pointer: number; x: number; y: number } | null>(null);
   const id = useId();
-  const pattern = SKY_PATTERNS[patternIndex];
-  const width = 600 / aim.zoom;
-  const viewBox = `${aim.x - width / 2} ${aim.y - width / 2} ${width} ${width}`;
+  const timestamp = preview
+    ? tonightAtLocation(new Date(now), location).getTime()
+    : now;
+  const sky = useMemo(
+    () => observeSky(new Date(timestamp), location),
+    [timestamp, location],
+  );
+  const sunAltitude = solarAltitude(new Date(timestamp), location);
+  const night = sunAltitude < -6;
+  const magnitudeLimit = Math.min(6, Math.max(0, (-sunAltitude - 6) * 0.75));
+  const target = sky.find((star) => star.id === targetId);
+  const viewingAim = target
+    ? { azimuth: target.azimuth, altitude: target.altitude, zoom: aim.zoom }
+    : aim;
+  const targets = sky
+    .filter(
+      (star) =>
+        star.name &&
+        star.magnitude < 3 &&
+        star.magnitude <= magnitudeLimit &&
+        star.altitude > 10,
+    )
+    .sort((a, b) => a.magnitude - b.magnitude);
+  const projected = night
+    ? sky
+        .filter((star) => star.magnitude <= magnitudeLimit)
+        .flatMap((star) => {
+          const point = projectStar(star, viewingAim);
+          return point ? [{ ...star, ...point }] : [];
+        })
+    : [];
+  const localTime = new Intl.DateTimeFormat("en-US", {
+    timeZone: location.timeZone,
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  }).format(timestamp);
 
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 30000);
+    const refresh = () => setNow(Date.now());
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, []);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     closeButton.current?.focus();
@@ -41,16 +94,15 @@ export function TelescopeView({ onClose }: { onClose: () => void }) {
       zoom: clampZoom(current.zoom * factor),
     }));
   }
-  function changePattern(index: number) {
-    setPatternIndex(index);
-    setAim(initialAim);
-  }
   function pan(dx: number, dy: number) {
-    setAim((current) => ({
-      ...current,
-      x: clampPan(current.x + dx / current.zoom),
-      y: clampPan(current.y + dy / current.zoom),
-    }));
+    setTargetId(null);
+    setAim(panSky(viewingAim, dx, dy));
+  }
+  function changeTime(nextPreview: boolean) {
+    setPreview(nextPreview);
+    setNow(Date.now());
+    setTargetId(null);
+    setAim(INITIAL_AIM);
   }
 
   return (
@@ -61,7 +113,6 @@ export function TelescopeView({ onClose }: { onClose: () => void }) {
       aria-labelledby={`${id}-title`}
       onPointerDown={(event) => event.stopPropagation()}
       onKeyDown={(event) => {
-        // Keep gameplay's global movement/pause shortcuts out of this dialog.
         event.stopPropagation();
         if (event.key === "Escape") {
           event.preventDefault();
@@ -70,46 +121,62 @@ export function TelescopeView({ onClose }: { onClose: () => void }) {
         if (event.key === "Tab") {
           const controls = [
             ...event.currentTarget.querySelectorAll<HTMLElement>(
-              "button:not(:disabled),select",
+              "button:not(:disabled),select:not(:disabled),a[href]",
             ),
           ];
-          const first = controls[0],
-            last = controls.at(-1)!;
+          const first = controls[0];
+          const last = controls[controls.length - 1];
           if (event.shiftKey && document.activeElement === first) {
             event.preventDefault();
-            last.focus();
+            last?.focus();
           } else if (!event.shiftKey && document.activeElement === last) {
             event.preventDefault();
-            first.focus();
+            first?.focus();
           }
+        }
+        if (!night || event.target instanceof HTMLSelectElement) return;
+        const direction: Record<string, [number, number]> = {
+          ArrowLeft: [-8, 0],
+          ArrowRight: [8, 0],
+          ArrowUp: [0, 8],
+          ArrowDown: [0, -8],
+        };
+        if (direction[event.key]) {
+          event.preventDefault();
+          pan(...direction[event.key]);
         }
       }}
     >
       <header className="telescope-header">
-        <h2 id={`${id}-title`}>Telescope</h2>
+        <div>
+          <h2 id={`${id}-title`}>
+            Telescope <span>— {location.label}</span>
+          </h2>
+          <p className="telescope-time">
+            {preview ? "Tonight preview" : "Live"} ·{" "}
+            <time dateTime={new Date(timestamp).toISOString()}>
+              {localTime}
+            </time>
+          </p>
+        </div>
         <button
+          className="telescope-close"
           ref={closeButton}
           type="button"
           onClick={onClose}
-          className="telescope-close"
         >
-          Back to hill <span aria-hidden="true">×</span>
+          Back <span aria-hidden="true">×</span>
         </button>
       </header>
 
       <div className="telescope-aperture">
         <svg
           className="telescope-sky"
-          viewBox={viewBox}
+          viewBox="-300 -300 600 600"
           role="img"
-          aria-label={
-            night
-              ? `${pattern.name} through the telescope`
-              : "Daylight through the telescope"
-          }
+          aria-label={`${night ? "Star chart" : "Daylight sky"} above ${location.label}, ${localTime}`}
           onPointerDown={(event) => {
             if (!night) return;
-            event.preventDefault();
             event.currentTarget.setPointerCapture(event.pointerId);
             drag.current = {
               pointer: event.pointerId,
@@ -119,11 +186,13 @@ export function TelescopeView({ onClose }: { onClose: () => void }) {
           }}
           onPointerMove={(event) => {
             const previous = drag.current;
-            if (!previous || previous.pointer !== event.pointerId) return;
-            const rect = event.currentTarget.getBoundingClientRect();
+            if (!previous || previous.pointer !== event.pointerId || !night)
+              return;
+            const scale =
+              70 / event.currentTarget.getBoundingClientRect().width;
             pan(
-              ((previous.x - event.clientX) * 600) / rect.width,
-              ((previous.y - event.clientY) * 600) / rect.height,
+              (previous.x - event.clientX) * scale,
+              (event.clientY - previous.y) * scale,
             );
             drag.current = {
               pointer: event.pointerId,
@@ -141,113 +210,102 @@ export function TelescopeView({ onClose }: { onClose: () => void }) {
             drag.current = null;
           }}
           onWheel={(event) => {
-            event.stopPropagation();
-            if (night) zoomBy(event.deltaY > 0 ? 1 / 1.12 : 1.12);
+            if (night) zoomBy(event.deltaY < 0 ? 1.12 : 1 / 1.12);
           }}
         >
           <defs>
-            <radialGradient id={`${id}-nebula`}>
-              <stop stopColor="#cdb4c5" stopOpacity="0.4" />
-              <stop offset="0.35" stopColor="#b598b5" stopOpacity="0.12" />
-              <stop offset="1" stopColor="#6b708d" stopOpacity="0" />
-            </radialGradient>
             <radialGradient id={`${id}-glow`}>
-              <stop stopColor="#e5edff" stopOpacity="0.42" />
+              <stop stopColor="#e5edff" stopOpacity="0.3" />
               <stop offset="1" stopColor="#ccdfff" stopOpacity="0" />
             </radialGradient>
           </defs>
-          {night && (
-            <>
-              {fields[patternIndex].map((star, index) => (
-                <circle
-                  key={index}
-                  cx={star.x}
-                  cy={star.y}
-                  r={star.radius}
-                  fill={star.color}
-                  opacity={0.38 + star.radius * 0.22}
-                />
-              ))}
-              {pattern.nebula && (
-                <ellipse
-                  cx={pattern.nebula[0]}
-                  cy={pattern.nebula[1]}
-                  rx="42"
-                  ry="30"
-                  fill={`url(#${id}-nebula)`}
-                />
-              )}
-              {guides &&
-                pattern.lines.map(([a, b], index) => (
-                  <line
-                    key={index}
-                    x1={pattern.stars[a].x}
-                    y1={pattern.stars[a].y}
-                    x2={pattern.stars[b].x}
-                    y2={pattern.stars[b].y}
-                    stroke="#a7bccb"
-                    strokeOpacity="0.36"
-                    strokeWidth="0.7"
-                  />
-                ))}
-              {pattern.stars.map((star, index) => (
-                <g key={index}>
+          {projected.map((star) => {
+            const radius = Math.max(0.65, 2.8 - star.magnitude * 0.36);
+            return (
+              <g key={star.id} data-star-id={star.id}>
+                {star.magnitude < 2 && (
                   <circle
                     cx={star.x}
                     cy={star.y}
-                    r={star.radius * 6}
+                    r={radius * 5}
                     fill={`url(#${id}-glow)`}
                   />
-                  <circle
-                    cx={star.x}
-                    cy={star.y}
-                    r={star.radius}
-                    fill={star.color}
-                  />
-                  <circle
-                    cx={star.x}
-                    cy={star.y}
-                    r={star.radius * 0.35}
-                    fill="#fffdf4"
-                  />
-                  {guides && star.name && (
-                    <text
-                      x={star.x + 9}
-                      y={star.y - 10}
-                      fill="#c5cbd1"
-                      fontSize="10"
-                      fontFamily="inherit"
-                    >
-                      {star.name}
-                    </text>
-                  )}
-                </g>
-              ))}
-            </>
-          )}
+                )}
+                <circle
+                  cx={star.x}
+                  cy={star.y}
+                  r={radius}
+                  fill={star.color}
+                  opacity={Math.max(0.4, 1 - star.magnitude * 0.08)}
+                />
+                {guides && star.name && star.magnitude < 3 && (
+                  <text
+                    x={star.x + 8}
+                    y={star.y - 9}
+                    fill="#c5cbd1"
+                    fontSize="10"
+                    fontFamily="inherit"
+                  >
+                    {star.name}
+                  </text>
+                )}
+              </g>
+            );
+          })}
         </svg>
         <div className="telescope-reticle" aria-hidden="true" />
         {!night && (
           <p className="telescope-day-message" role="status">
-            Stars appear after dusk.
+            {sunAltitude > 0 ? "Daylight" : "Twilight"} in {location.label}.
+            <br />
+            <span>Try tonight’s sky below.</span>
           </p>
         )}
       </div>
 
       <footer className="telescope-controls">
+        <div className="telescope-time-row" role="group" aria-label="Sky time">
+          <button
+            type="button"
+            aria-pressed={!preview}
+            onClick={() => changeTime(false)}
+          >
+            Live
+          </button>
+          <button
+            type="button"
+            aria-pressed={preview}
+            onClick={() => changeTime(true)}
+          >
+            Tonight · 10 pm
+          </button>
+          <output aria-label="Telescope direction">
+            {Math.round(viewingAim.azimuth)}° az ·{" "}
+            {Math.round(viewingAim.altitude)}° alt
+          </output>
+        </div>
         <div className="telescope-target-row">
           <label>
             <span className="telescope-sr-only">Point telescope at</span>
             <select
-              value={patternIndex}
+              value={target?.id ?? ""}
               disabled={!night}
-              onChange={(event) => changePattern(Number(event.target.value))}
+              onChange={(event) => {
+                setTargetId(
+                  event.target.value ? Number(event.target.value) : null,
+                );
+                setAim(INITIAL_AIM);
+              }}
             >
-              {SKY_PATTERNS.map((target, index) => (
-                <option key={target.name} value={index}>
-                  {target.name}
+              <option value="">Explore sky</option>
+              {targets.map((star) => (
+                <option key={star.id} value={star.id}>
+                  {star.name}
                 </option>
               ))}
+              {target && !targets.some((star) => star.id === target.id) && (
+                <option value={target.id}>{target.name}</option>
+              )}
             </select>
           </label>
           <button
@@ -256,7 +314,7 @@ export function TelescopeView({ onClose }: { onClose: () => void }) {
             aria-pressed={guides}
             onClick={() => setGuides(!guides)}
           >
-            Star guide
+            Star names
           </button>
           <div className="telescope-zoom">
             <button
@@ -267,8 +325,8 @@ export function TelescopeView({ onClose }: { onClose: () => void }) {
             >
               −
             </button>
-            <output aria-label="Magnification">
-              {Math.round(aim.zoom * 30)}×
+            <output aria-label="Field of view">
+              {Math.round(70 / aim.zoom)}°
             </output>
             <button
               type="button"
@@ -291,7 +349,7 @@ export function TelescopeView({ onClose }: { onClose: () => void }) {
               type="button"
               disabled={!night}
               aria-label="Aim left"
-              onClick={() => pan(-40, 0)}
+              onClick={() => pan(-8, 0)}
             >
               ←
             </button>
@@ -299,7 +357,7 @@ export function TelescopeView({ onClose }: { onClose: () => void }) {
               type="button"
               disabled={!night}
               aria-label="Aim up"
-              onClick={() => pan(0, -40)}
+              onClick={() => pan(0, 8)}
             >
               ↑
             </button>
@@ -307,7 +365,7 @@ export function TelescopeView({ onClose }: { onClose: () => void }) {
               type="button"
               disabled={!night}
               aria-label="Aim down"
-              onClick={() => pan(0, 40)}
+              onClick={() => pan(0, -8)}
             >
               ↓
             </button>
@@ -315,7 +373,7 @@ export function TelescopeView({ onClose }: { onClose: () => void }) {
               type="button"
               disabled={!night}
               aria-label="Aim right"
-              onClick={() => pan(40, 0)}
+              onClick={() => pan(8, 0)}
             >
               →
             </button>
@@ -323,11 +381,24 @@ export function TelescopeView({ onClose }: { onClose: () => void }) {
           <button
             type="button"
             disabled={!night}
-            onClick={() => setAim(initialAim)}
+            onClick={() => {
+              setTargetId(null);
+              setAim(INITIAL_AIM);
+            }}
           >
             Recenter
           </button>
         </div>
+        <p className="telescope-attribution">
+          Clear-sky chart ·{" "}
+          <a
+            href={`${import.meta.env.BASE_URL}stargazing-data.txt`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            HYG catalogue &amp; model
+          </a>
+        </p>
       </footer>
     </div>
   );

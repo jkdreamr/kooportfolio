@@ -1,0 +1,127 @@
+.world-travel-stop {
+  position: absolute;
+  left: 50%;
+  bottom: max(194px, calc(env(safe-area-inset-bottom) + 184px));
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100vw - 28px);
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 2px solid #b39b66;
+  border-radius: 9px;
+  background: #304650;
+  box-shadow: 0 4px 0 #152630;
+  color: #f5f4e9;
+  font:
+    bold 14px Trebuchet MS,
+    Arial,
+    sans-serif;
+  pointer-events: auto;
+}
+.world-travel-stop--airport {
+  bottom: max(110px, calc(env(safe-area-inset-bottom) + 100px));
+}
+.world-travel-stop strong {
+  display: block;
+  margin-bottom: 8px;
+}
+.world-travel-stop > div {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.world-travel-stop button,
+.world-journey button {
+  min-height: 44px;
+  padding: 10px 13px;
+  border: 1px solid #8ba275;
+  border-bottom-width: 3px;
+  border-radius: 6px;
+  background: #486832;
+  color: #f5f4e9;
+  font:
+    bold 14px Trebuchet MS,
+    Arial,
+    sans-serif;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.world-travel-stop button:hover,
+.world-journey button:hover {
+  background: #5a7a40;
+}
+.world-travel-stop button:focus-visible,
+.world-journey button:focus-visible {
+  outline: 3px solid #f0c56b;
+  outline-offset: 3px;
+}
+.world-journey {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: max(16px, env(safe-area-inset-top))
+    max(20px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom))
+    max(20px, env(safe-area-inset-left));
+  background: #21353f;
+  color: #f5f4e9;
+  font:
+    14px Trebuchet MS,
+    Arial,
+    sans-serif;
+  pointer-events: auto;
+}
+.world-journey header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+}
+.world-journey h2 {
+  font-size: 18px;
+  margin: 0;
+}
+.world-journey h2 span {
+  color: #b39b66;
+  padding: 0 8px;
+}
+.world-journey-view {
+  flex: 1;
+  min-height: 0;
+  border: 2px solid #b39b66;
+  border-radius: 9px;
+  overflow: hidden;
+}
+.world-journey footer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-top: 14px;
+}
+.world-journey progress {
+  flex: 1;
+  height: 12px;
+  accent-color: #f0c56b;
+}
+@media (max-width: 600px) {
+  .world-journey {
+    padding: max(12px, env(safe-area-inset-top)) 12px
+      max(12px, env(safe-area-inset-bottom));
+  }
+  .world-journey header {
+    gap: 10px;
+  }
+  .world-journey h2 {
+    font-size: 16px;
+  }
+  .world-journey h2 span {
+    padding: 0 2px;
+  }
+  .world-journey button {
+    padding: 8px 10px;
+  }
+}
