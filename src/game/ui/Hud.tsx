@@ -533,6 +533,7 @@ export function Hud({ interact }: { interact: () => void }) {
             onClick={() => {
               runtime.raceLength = 360;
               runtime.raceSeed = 1;
+              runtime.raceMode = "sprint";
               g.go("rowing");
             }}
           >
@@ -543,6 +544,7 @@ export function Hud({ interact }: { interact: () => void }) {
             onClick={() => {
               runtime.raceLength = 750;
               runtime.raceSeed = 2;
+              runtime.raceMode = "regatta";
               g.go("rowing");
             }}
           >
@@ -553,6 +555,7 @@ export function Hud({ interact }: { interact: () => void }) {
             onClick={() => {
               runtime.raceLength = 750;
               runtime.raceSeed = dailySeed();
+              runtime.raceMode = "daily";
               g.go("rowing");
             }}
           >

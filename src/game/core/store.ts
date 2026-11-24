@@ -46,6 +46,7 @@ export const runtime = {
   raceCadence: 30,
   raceLength: 360,
   raceSeed: 1,
+  raceMode: "sprint" as "sprint" | "regatta" | "daily",
   shoot: false,
   shooting: false,
   aim: 0,
