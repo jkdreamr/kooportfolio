@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import { HOME_GARDEN_WALKS } from "../src/game/core/homeGardens";
 import { canWalk, doors, doorsInWorld, findPath } from "../src/game/core/world";
 import { AIRPORT_GATE, STATION_GATE } from "../src/game/core/journey";
-import { PARCEL_DOORS } from "../src/game/core/regionalActivities";
+import {
+  PARCEL_DOORS,
+  freshActivities,
+  nearbyRegionalActivity,
+} from "../src/game/core/regionalActivities";
 
 describe("Home planted districts", () => {
   it("keeps every full-size destination in one connected village block", () => {
@@ -40,6 +44,14 @@ describe("Home planted districts", () => {
         parcel.id,
       ).toBeLessThan(0.1);
     }
+  });
+
+  it("does not intercept any room entrance with a fresh-run side activity", () => {
+    for (const door of doorsInWorld("home"))
+      expect(
+        nearbyRegionalActivity("home", door.x, door.z, freshActivities()),
+        door.name,
+      ).toBeUndefined();
   });
 
   it("keeps the centerline of every authored garden walk traversable", () => {

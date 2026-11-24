@@ -99,7 +99,7 @@ export const activitySpots: readonly {
   { id: "harvest-2", world: "home", p: [23.5, 42] },
   { id: "harvest-3", world: "home", p: [23.5, 55] },
   { id: "produce", world: "home", p: [25, -8.8] },
-  { id: "postbox", world: "home", p: [4, -4.6] },
+  { id: "postbox", world: "home", p: [16, -4.6] },
   ...PARCEL_DOORS.map((d, i) => ({
     id: `parcel-${i}` as RegionalAction,
     world: "home" as const,
