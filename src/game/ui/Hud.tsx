@@ -361,9 +361,6 @@ export function Hud({ interact }: { interact: () => void }) {
     <div className={`game-ui scene-${g.scene}`}>
       <header className="game-header">
         <a className="game-brand" href="/">
-          <span className="brand-glyph">
-            j<span>k</span>.
-          </span>
           <div>
             <b>
               JOSHUA<span>.EXE</span>
