@@ -15,7 +15,6 @@ import { startGameMode, endGameMode, useGameMode } from "../core/gameMode";
 import { keys, touch } from "../core/input";
 import { newRunId } from "../../shared/run-id";
 import { Ball, Box, Cylinder, Ring } from "../world/Models";
-import { CraftedBox } from "./CraftedDetails";
 import { HitPad, MovePad } from "./BadmintonControls";
 import { BadmintonGym } from "./BadmintonGym";
 import { gameIsActive } from "./InteriorProps";
@@ -59,7 +58,7 @@ function Shuttlecock() {
       <Cylinder p={[0, 0.12, 0]} s={[0.145, 0.06, 0.145]} c="#ab6a40" />
       {Array.from({ length: 8 }, (_, i) => (
         <group key={i} rotation={[0, (i * Math.PI) / 4, 0]}>
-          <CraftedBox
+          <Box
             p={[0.12, 0.34, 0]}
             s={[0.09, 0.46, 0.06]}
             r={[0, 0, -0.4]}
@@ -124,34 +123,30 @@ function Player({
       <group ref={legs}>
         {[-0.2, 0.2].map((x) => (
           <group key={x} position={[x, 0.5, 0]}>
-            <CraftedBox p={[0, -0.05, 0]} s={[0.3, 0.36, 0.36]} c="#263b40" />
-            <CraftedBox p={[0, -0.28, 0]} s={[0.2, 0.25, 0.23]} c="#d9a57b" />
-            <CraftedBox
-              p={[0, -0.42, 0.08]}
-              s={[0.33, 0.18, 0.49]}
-              c="#f4e8ce"
-            />
+            <Box p={[0, -0.05, 0]} s={[0.3, 0.36, 0.36]} c="#263b40" />
+            <Box p={[0, -0.28, 0]} s={[0.2, 0.25, 0.23]} c="#d9a57b" />
+            <Box p={[0, -0.42, 0.08]} s={[0.33, 0.18, 0.49]} c="#f4e8ce" />
             <Box p={[0, -0.48, 0.08]} s={[0.34, 0.05, 0.5]} c={color} />
           </group>
         ))}
       </group>
-      <CraftedBox p={[0, 0.95, 0]} s={[0.8, 0.72, 0.46]} c={color} />
+      <Box p={[0, 0.95, 0]} s={[0.8, 0.72, 0.46]} c={color} />
       <Box p={[0, 1.18, 0.24]} s={[0.12, 0.13, 0.025]} c="#efdca6" />
       <group ref={arm} position={[-0.5, 1.13, 0]}>
-        <CraftedBox p={[0, -0.2, 0]} s={[0.24, 0.5, 0.26]} c="#e4b28a" />
+        <Box p={[0, -0.2, 0]} s={[0.24, 0.5, 0.26]} c="#e4b28a" />
         <Box p={[0, -0.35, 0]} s={[0.26, 0.1, 0.28]} c="#f5e8cd" />
         <group position={[0, -0.45, 0.08]} rotation={[Math.PI / 2, 0, 0]}>
           <Racket color={opponent ? "#c45e44" : "#dba752"} />
         </group>
       </group>
-      <CraftedBox
+      <Box
         p={[0.5, 0.94, 0]}
         s={[0.23, 0.5, 0.25]}
         c="#e4b28a"
         r={[-0.2, 0, 0.15]}
       />
-      <CraftedBox p={[0, 1.67, 0]} s={[0.8, 0.7, 0.68]} c="#e4b28a" />
-      <CraftedBox p={[0, 1.99, -0.02]} s={[0.84, 0.2, 0.72]} c="#3d332c" />
+      <Box p={[0, 1.67, 0]} s={[0.8, 0.7, 0.68]} c="#e4b28a" />
+      <Box p={[0, 1.99, -0.02]} s={[0.84, 0.2, 0.72]} c="#3d332c" />
       <Box
         p={[0, 1.9, 0.04]}
         s={[0.83, 0.09, 0.67]}
@@ -174,7 +169,7 @@ function CourtFurnishings() {
   return (
     <group>
       <group scale={[COURT_SCALE, 1, COURT_SCALE]}>
-        <CraftedBox p={[0, 0.05, -2]} s={[10.4, 0.24, 19.4]} c="#365844" />
+        <Box p={[0, 0.05, -2]} s={[10.4, 0.24, 19.4]} c="#365844" />
         <Box p={[0, 0.185, -2]} s={[8, 0.035, 17]} c="#387e83" sharp />
         {[-4, -3.4, 3.4, 4].map((x) => (
           <Box
@@ -205,7 +200,7 @@ function CourtFurnishings() {
         ))}
         {[-4.15, 4.15].map((x) => (
           <group key={x} position={[x, 0, -2]}>
-            <CraftedBox p={[0, 0.3, 0]} s={[0.68, 0.35, 0.7]} c="#3a433c" />
+            <Box p={[0, 0.3, 0]} s={[0.68, 0.35, 0.7]} c="#3a433c" />
             <Cylinder p={[0, 1.25, 0]} s={[0.1, 2.25, 0.1]} c="#ca9b4f" />
             <Ball p={[0, 2.42, 0]} s={[0.15, 0.15, 0.15]} c="#e6ba62" />
             <Ring p={[0, 0.52, 0]} radius={0.15} tube={0.04} c="#9d7136" />
@@ -240,22 +235,12 @@ function CourtFurnishings() {
       {[-10.5, 10.5].map((x) => (
         <group key={x} position={[x, 0, -5]}>
           {[-1.1, 1.1].map((z) => (
-            <CraftedBox
-              key={z}
-              p={[0, 0.35, z]}
-              s={[1, 0.7, 0.4]}
-              c="#4d4030"
-            />
+            <Box key={z} p={[0, 0.35, z]} s={[1, 0.7, 0.4]} c="#4d4030" />
           ))}
           {[-0.32, 0, 0.32].map((xx) => (
-            <CraftedBox
-              key={xx}
-              p={[xx, 0.78, 0]}
-              s={[0.28, 0.2, 3.5]}
-              c="#a86b38"
-            />
+            <Box key={xx} p={[xx, 0.78, 0]} s={[0.28, 0.2, 3.5]} c="#a86b38" />
           ))}
-          <CraftedBox
+          <Box
             p={[x < 0 ? -0.5 : 0.5, 1.22, 0]}
             s={[0.18, 0.7, 3.5]}
             c="#86502d"
@@ -269,12 +254,12 @@ function CourtFurnishings() {
           </group>
           <Cylinder p={[0.1, 1.03, 0.8]} s={[0.14, 0.52, 0.14]} c="#688d9d" />
           <Cylinder p={[0.1, 1.32, 0.8]} s={[0.1, 0.08, 0.1]} c="#dfc998" />
-          <CraftedBox p={[0, 0.93, 0.2]} s={[0.75, 0.12, 0.62]} c="#e2d4b4" />
+          <Box p={[0, 0.93, 0.2]} s={[0.75, 0.12, 0.62]} c="#e2d4b4" />
         </group>
       ))}
       <group position={[-10.5, 0, 7.7]}>
-        <CraftedBox p={[0, 0.42, 0]} s={[1.4, 0.8, 1.1]} c="#795132" />
-        <CraftedBox p={[0, 0.84, 0]} s={[1.48, 0.15, 1.18]} c="#c39a54" />
+        <Box p={[0, 0.42, 0]} s={[1.4, 0.8, 1.1]} c="#795132" />
+        <Box p={[0, 0.84, 0]} s={[1.48, 0.15, 1.18]} c="#c39a54" />
         {[0, 1, 2].map((i) => (
           <group
             key={i}
@@ -670,8 +655,8 @@ export function BadmintonCourt({
 export function BadmintonPavilion() {
   return (
     <group>
-      <CraftedBox p={[0, 0.3, 0]} s={[8, 0.6, 10]} c="#6c7053" />
-      <CraftedBox p={[0, 0.62, 0]} s={[7.5, 0.15, 9.5]} c="#bca67c" />
+      <Box p={[0, 0.3, 0]} s={[8, 0.6, 10]} c="#6c7053" />
+      <Box p={[0, 0.62, 0]} s={[7.5, 0.15, 9.5]} c="#bca67c" />
       <Box p={[0, 0.72, 0]} s={[4.8, 0.06, 7.7]} c="#337b7f" />
       {[-2.2, 2.2].map((x) => (
         <Box
@@ -693,7 +678,7 @@ export function BadmintonPavilion() {
       ))}
       {[-2.4, 2.4].map((x) => (
         <group key={x}>
-          <CraftedBox p={[x, 0.9, 0]} s={[0.5, 0.35, 0.5]} c="#4c5140" />
+          <Box p={[x, 0.9, 0]} s={[0.5, 0.35, 0.5]} c="#4c5140" />
           <Cylinder p={[x, 1.6, 0]} s={[0.07, 1.6, 0.07]} c="#d4a64f" />
         </group>
       ))}

@@ -45,7 +45,7 @@ function Scoreboard({ score }: { score: number[] }) {
   return (
     <group position={[0, 4.65, -19.12]}>
       <CraftedBox s={[6.6, 2.7, 0.32]} c="#a7844e" metal />
-      <CraftedBox p={[0, 0, 0.2]} s={[6.3, 2.4, 0.18]} c="#243a41" />
+      <Box p={[0, 0, 0.2]} s={[6.3, 2.4, 0.18]} c="#243a41" />
       {[-1, 1].map((side, index) => (
         <group key={side} position={[side * 1.45, 0, 0.35]}>
           <Box p={[0, 0, -0.015]} s={[2.25, 1.9, 0.06]} c="#172e35" />
@@ -77,20 +77,20 @@ function Bleachers({ side }: { side: number }) {
     <group position={[side * 12.1, 0, -2.6]}>
       {[0, 1, 2].map((row) => (
         <group key={row} position={[side * row * 1.05, row * 0.5, 0]}>
-          <CraftedBox p={[0, 0.2, 0]} s={[1.05, 0.4, 8]} c="#647177" />
-          <CraftedBox
+          <Box p={[0, 0.2, 0]} s={[1.05, 0.4, 8]} c="#647177" />
+          <Box
             p={[0, 0.48, 0]}
             s={[0.88, 0.19, 8.1]}
             c={row % 2 ? "#bd8c52" : "#cd9c5c"}
           />
           {[-3.1, -1.55, 0, 1.55, 3.1].map((z) => (
             <group key={z}>
-              <CraftedBox
+              <Box
                 p={[side * 0.23, 0.84, z]}
                 s={[0.25, 0.64, 1.25]}
                 c="#45616b"
               />
-              <CraftedBox
+              <Box
                 p={[-side * 0.1, 0.61, z]}
                 s={[0.64, 0.11, 1.25]}
                 c="#3c5964"
@@ -114,16 +114,8 @@ function Bleachers({ side }: { side: number }) {
           />
         </group>
       ))}
-      <CraftedBox
-        p={[side * 1.1, 1.68, -1.55]}
-        s={[0.65, 0.14, 0.6]}
-        c="#e4ddc7"
-      />
-      <CraftedBox
-        p={[side * 1.24, 1.53, -1.55]}
-        s={[0.12, 0.38, 0.6]}
-        c="#d3cbb1"
-      />
+      <Box p={[side * 1.1, 1.68, -1.55]} s={[0.65, 0.14, 0.6]} c="#e4ddc7" />
+      <Box p={[side * 1.24, 1.53, -1.55]} s={[0.12, 0.38, 0.6]} c="#d3cbb1" />
     </group>
   );
 }
@@ -141,7 +133,7 @@ export function BadmintonGym({ score }: { score: number[] }) {
       {/* Low padded walls leave the playing surface unobstructed. */}
       {Array.from({ length: 15 }, (_, i) => (
         <group key={i} position={[(i - 7) * 2.1, 0, -19.45]}>
-          <CraftedBox
+          <Box
             p={[0, 1.35, 0]}
             s={[2.03, 2.5, 0.35]}
             c={i % 3 ? "#365862" : "#2d4b55"}
@@ -153,8 +145,8 @@ export function BadmintonGym({ score }: { score: number[] }) {
         <group key={x}>
           {[-16.4, -8.2, 0, 8.2, 16.2].map((z) => (
             <group key={z} position={[x, 0, z]}>
-              <CraftedBox p={[0, 0.4, 0]} s={[1.2, 0.8, 1.2]} c="#72817b" />
-              <CraftedBox p={[0, 4.3, 0]} s={[0.55, 8, 0.6]} c="#34515c" />
+              <Box p={[0, 0.4, 0]} s={[1.2, 0.8, 1.2]} c="#72817b" />
+              <Box p={[0, 4.3, 0]} s={[0.55, 8, 0.6]} c="#34515c" />
               <CraftedBox
                 p={[0, 2.2, 0]}
                 s={[0.65, 0.18, 0.7]}
@@ -169,10 +161,10 @@ export function BadmintonGym({ score }: { score: number[] }) {
               />
             </group>
           ))}
-          <CraftedBox p={[x, 8.15, 0]} s={[0.7, 0.6, 34]} c="#34515c" />
-          <CraftedBox p={[x, 6.2, 0]} s={[0.35, 0.28, 34]} c="#516a72" />
+          <Box p={[x, 8.15, 0]} s={[0.7, 0.6, 34]} c="#34515c" />
+          <Box p={[x, 6.2, 0]} s={[0.35, 0.28, 34]} c="#516a72" />
           {[-12.3, -4.1, 4.1, 12.3].map((z) => (
-            <CraftedBox
+            <Box
               key={z}
               p={[x, 7.17, z]}
               s={[0.22, 0.22, 8.45]}
@@ -182,10 +174,10 @@ export function BadmintonGym({ score }: { score: number[] }) {
           ))}
         </group>
       ))}
-      <CraftedBox p={[0, 8.15, -17.7]} s={[31.8, 0.65, 0.65]} c="#34515c" />
+      <Box p={[0, 8.15, -17.7]} s={[31.8, 0.65, 0.65]} c="#34515c" />
       {[-1, 1].map((side) => (
         <group key={side}>
-          <CraftedBox
+          <Box
             p={[side * 12.5, 6.75, -17.7]}
             s={[0.35, 3.5, 0.35]}
             r={[0, 0, -side * 0.82]}
@@ -201,7 +193,7 @@ export function BadmintonGym({ score }: { score: number[] }) {
           {/* Cantilevered light housings sit outside the court silhouette. */}
           {[-12, 3].map((z) => (
             <group key={z} position={[side * 11.4, 7.5, z]}>
-              <CraftedBox
+              <Box
                 p={[side * 2.1, 0.52, 0]}
                 s={[4.7, 0.22, 0.22]}
                 c="#51666c"
@@ -229,8 +221,8 @@ export function BadmintonGym({ score }: { score: number[] }) {
       ))}
       {/* Rack with rolled mats, cubbies and bottles; no wall-sized text panels. */}
       <group position={[-13.5, 0, 9.7]}>
-        <CraftedBox p={[0, 1.1, 0]} s={[3.8, 2.2, 1.2]} c="#35505a" />
-        <CraftedBox p={[0, 2.3, 0]} s={[4, 0.2, 1.35]} c="#ba925b" />
+        <Box p={[0, 1.1, 0]} s={[3.8, 2.2, 1.2]} c="#35505a" />
+        <Box p={[0, 2.3, 0]} s={[4, 0.2, 1.35]} c="#ba925b" />
         {[-1.2, 0, 1.2].map((x, i) => (
           <group key={x}>
             <Box p={[x, 1.18, 0.62]} s={[1.03, 1.72, 0.04]} c="#213a43" />
