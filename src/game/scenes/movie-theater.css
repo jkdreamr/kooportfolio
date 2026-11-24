@@ -12,7 +12,7 @@
     max(20px, env(safe-area-inset-left));
   overflow-y: auto;
   overscroll-behavior: contain;
-  color: #f5f4e9;
+  color: #f4f7f8;
   background: #14212a;
   font:
     14px Trebuchet MS,
@@ -42,7 +42,7 @@
   border-radius: 6px;
   min-height: 44px;
   padding: 10px 14px;
-  color: #f5f4e9;
+  color: #f4f7f8;
   background: #304650;
   font:
     bold 13px Trebuchet MS,
@@ -58,7 +58,7 @@
 .cinema-viewer button:focus-visible,
 .cinema-viewer a:focus-visible,
 .cinema-viewer iframe:focus-visible {
-  outline: 3px solid #f0c56b;
+  outline: 3px solid #e2e8eb;
   outline-offset: 3px;
 }
 .cinema-screen,
@@ -70,7 +70,7 @@
   flex: 0 0 auto;
   max-height: 56vh;
   min-height: 200px;
-  border: 2px solid #b39b66;
+  border: 1px solid #536873;
 }
 .cinema-screen iframe {
   width: 100%;
@@ -86,7 +86,7 @@
   color: #c3d0d0;
 }
 .cinema-idle > span {
-  color: #b39b66;
+  color: #c3d0d0;
   font-size: 40px;
 }
 .cinema-idle p {
@@ -125,19 +125,15 @@
   align-items: flex-start;
   gap: 5px;
   padding: 12px;
+  border-width: 1px;
   text-align: left;
 }
 .cinema-program button[aria-pressed="true"] {
-  border-color: #f0c56b;
+  border-color: #b4c0c7;
   background: #3e5660;
 }
-.cinema-program small {
-  color: #c3d0d0;
-  font-size: 11px;
-  font-weight: normal;
-}
 .cinema-program strong {
-  color: #f0c56b;
+  color: #f4f7f8;
   font-size: 16px;
 }
 .cinema-program span {
