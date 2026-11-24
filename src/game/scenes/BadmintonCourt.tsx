@@ -627,7 +627,7 @@ export function BadmintonCourt({
                         }}
                       />
                       <small className="badminton-gesture-hint">
-                        ↑ clear · tap drop · ↓ smash
+                        ↑ clear · <span className="badminton-tap-hint">tap drop · </span>↓ smash
                       </small>
                     </section>
                     <p className="badminton-hint">
