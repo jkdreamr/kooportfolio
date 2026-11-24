@@ -156,7 +156,10 @@ export function BlackjackTable({ onReward }: InteriorGameProps) {
             : key === "d"
               ? ({ type: "double" } as const)
               : key === "enter" &&
-                  !(event.target instanceof HTMLButtonElement) &&
+                  !(
+                    event.target instanceof HTMLButtonElement &&
+                    event.target.closest(".interior-game-content")
+                  ) &&
                   (game.phase === "bet" || game.phase === "over")
                 ? ({ type: "deal", deck: shuffledDeck() } as const)
                 : null;
