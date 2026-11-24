@@ -503,7 +503,6 @@ export function BadmintonCourt({
           <div className={`badminton-ui ${playing ? "is-playing" : ""}`}>
             {!playing ? (
               <section className="badminton-start" aria-label="Badminton match">
-                <h2>Badminton</h2>
                 <p>Quick singles · first to 7</p>
                 <button onClick={begin}>Play a match</button>
               </section>

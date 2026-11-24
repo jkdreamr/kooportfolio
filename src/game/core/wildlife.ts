@@ -1,7 +1,14 @@
 import { sampleDaylight } from "./daylight";
+import { POND } from "./pond";
 import { sampleWeather } from "./weather";
 
 type Point = readonly [number, number];
+const DUCK_ROUTE: readonly Point[] = [
+  [POND.x - 3, POND.z],
+  [POND.x, POND.z - 2],
+  [POND.x + 4, POND.z],
+  [POND.x, POND.z + 2],
+];
 export type AnimalKind = "rabbit" | "cat" | "dog" | "duck";
 export type Animal = {
   kind: AnimalKind;
@@ -71,8 +78,8 @@ export const ANIMALS: readonly Animal[] = [
     route: [
       [-11, 5],
       [-7, 6],
-      [-6, 9],
-      [-10, 8],
+      [-6, 8],
+      [-10, 7],
     ],
     speed: 1.1,
     rest: 3,
@@ -94,12 +101,7 @@ export const ANIMALS: readonly Animal[] = [
   },
   {
     kind: "duck",
-    route: [
-      [1, 35],
-      [5, 34],
-      [8, 36],
-      [3, 38],
-    ],
+    route: DUCK_ROUTE,
     speed: 0.55,
     rest: 0,
     offset: 0,
@@ -107,12 +109,7 @@ export const ANIMALS: readonly Animal[] = [
   },
   {
     kind: "duck",
-    route: [
-      [1, 35],
-      [5, 34],
-      [8, 36],
-      [3, 38],
-    ],
+    route: DUCK_ROUTE,
     speed: 0.55,
     rest: 0,
     offset: 2,
@@ -120,12 +117,7 @@ export const ANIMALS: readonly Animal[] = [
   },
   {
     kind: "duck",
-    route: [
-      [1, 35],
-      [5, 34],
-      [8, 36],
-      [3, 38],
-    ],
+    route: DUCK_ROUTE,
     speed: 0.55,
     rest: 0,
     offset: 4,
@@ -198,7 +190,11 @@ export function ambientMix(hour: number, x: number, z: number, scene: string) {
   const riverDistance =
     scene === "rowing"
       ? 0
-      : Math.max(0, Math.hypot((x + 9) * 0.35, z - 37) - 5);
+      : Math.max(
+          0,
+          Math.hypot(((x - POND.x) * POND.radiusZ) / POND.radiusX, z - POND.z) -
+            POND.radiusZ,
+        );
   return {
     birds: outside
       ? (1 - night) *
@@ -207,7 +203,7 @@ export function ambientMix(hour: number, x: number, z: number, scene: string) {
         (1 - weather.snow)
       : 0,
     crickets: outside ? night * 0.16 * (1 - weather.snow) : 0,
-    water: outside ? Math.max(0, 1 - riverDistance / 24) * 0.23 : 0,
+    water: outside ? Math.max(0, 1 - riverDistance / 14) * 0.23 : 0,
     rain: outside ? weather.rain * 0.3 : 0,
     wind: outside ? weather.wind * 0.12 : 0,
   };

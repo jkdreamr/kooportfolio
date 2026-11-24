@@ -1,4 +1,5 @@
 import { canWalk, findPath, moveWorld, type PlaceId } from "./world";
+import type { WorldId } from "./worlds";
 
 type Point = [number, number];
 export const TALK_DISTANCE = 2.7;
@@ -168,7 +169,7 @@ export const villagers: {
     route: [
       [-15, -21],
       [-19, -20],
-      [-23, -15],
+      [-26, -16],
       [-25, -8],
       [-14, -9],
     ],
@@ -202,7 +203,7 @@ export const villagers: {
       [22, -21],
       [24, -16],
       [24, -10],
-      [13, -10],
+      [12, -8],
     ],
   },
   {
@@ -429,7 +430,11 @@ export function stepNpc(
   }
 }
 
-export function approachNpc(actor: NpcActor, player: Point): Point[] {
+export function approachNpc(
+  actor: NpcActor,
+  player: Point,
+  world?: WorldId,
+): Point[] {
   const angle = Math.atan2(player[0] - actor.x, player[1] - actor.z);
   for (let i = 0; i < 8; i++) {
     const a = angle + (i * Math.PI) / 4;
@@ -437,8 +442,8 @@ export function approachNpc(actor: NpcActor, player: Point): Point[] {
       actor.x + Math.sin(a) * 1.6,
       actor.z + Math.cos(a) * 1.6,
     ];
-    if (!canWalk(...point)) continue;
-    const path = findPath(player, point);
+    if (!canWalk(point[0], point[1], world)) continue;
+    const path = findPath(player, point, world);
     if (path.length && canTalkToNpc(actor, ...path.at(-1)!)) return path;
   }
   return [];

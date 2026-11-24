@@ -15,6 +15,7 @@ const palettes = DAYLIGHT_KEYS.map((key) => ({
   ground: new THREE.Color(key.ground),
 }));
 const indoor = {
+  backdrop: new THREE.Color("#34494e"),
   sun: new THREE.Color("#fff0cc"),
   sky: new THREE.Color("#dceaff"),
   ground: new THREE.Color("#64533c"),
@@ -127,8 +128,9 @@ export function TimeOfDayLighting() {
       colors.ground.lerp(indoor.ground, 0.65);
     }
     if (world.background instanceof THREE.Color)
-      world.background.copy(colors.horizon);
-    if (world.fog) world.fog.color.copy(colors.horizon);
+      world.background.copy(interior ? indoor.backdrop : colors.horizon);
+    if (world.fog)
+      world.fog.color.copy(interior ? indoor.backdrop : colors.horizon);
     if (!lights.current) {
       const sun = world.getObjectByName("world-sun");
       const fill = world.getObjectByName("world-fill");
