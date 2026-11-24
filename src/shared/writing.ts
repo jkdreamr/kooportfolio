@@ -17,7 +17,10 @@ export function validateWriting(value: unknown): WritingDraft | null {
     if (
       !text ||
       text.length > WRITING_LIMITS[key] ||
-      /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(text)
+      Array.from(text).some((char) => {
+        const code = char.charCodeAt(0);
+        return (code < 32 && code !== 9 && code !== 10) || code === 127;
+      })
     )
       return null;
     clean[key] = text;

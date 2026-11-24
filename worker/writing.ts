@@ -164,8 +164,15 @@ export async function writingApi(
     if (existing) {
       if (existing.deleteHash !== deleteHash)
         return reply({ error: "Post ID already used." }, 409);
-      const { deleteHash: _secret, ...post } = existing;
-      return reply({ post });
+      return reply({
+        post: {
+          id: existing.id,
+          title: existing.title,
+          author: existing.author,
+          body: existing.body,
+          createdAt: existing.createdAt,
+        },
+      });
     }
     const now = Date.now();
     // Daily rotating network hash: no raw IPs. CF overwrites this header at the edge.
