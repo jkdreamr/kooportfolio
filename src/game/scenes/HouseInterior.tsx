@@ -1,9 +1,12 @@
 import { useState } from "react";
+import { roomFor } from "../core/room";
 import { Box, Ball, Cylinder, Ring } from "../world/Models";
 import { BrassStud, CraftedBox, WallSconce } from "./CraftedDetails";
 import { HouseRooms } from "./HouseRooms";
 import { BlackjackTable } from "./BlackjackTable";
 import { PongTable } from "./PongTable";
+import { HouseBanner } from "./HouseBanner";
+import { Bookcase, DiningSet, RecordCabinet } from "./HouseWingFurniture";
 import {
   Barrel,
   Bottle,
@@ -13,6 +16,10 @@ import {
   Table,
   type InteriorGameProps,
 } from "./InteriorProps";
+
+const hall = roomFor("kappa"),
+  backWall = 0.5 - hall.depth / 2,
+  leftWall = 0.5 - hall.width / 2;
 
 function Sofa({
   p,
@@ -72,7 +79,7 @@ function Sofa({
 }
 function Fireplace() {
   return (
-    <group position={[7.1, 0, -10.9]} scale={1.25}>
+    <group position={[7.1, 0, backWall + 0.6]} scale={1.25}>
       <Box p={[0, 0.12, 0.12]} s={[2.5, 0.24, 1.3]} c="#858377" />
       <Box p={[0, 1.15, -0.3]} s={[2.15, 2.1, 0.45]} c="#6d6b60" />
       <Box p={[0, 0.85, -0.04]} s={[1.3, 1.35, 0.1]} c="#362d27" />
@@ -130,12 +137,10 @@ function Fireplace() {
 }
 function Pennant({ x }: { x: number }) {
   return (
-    <group position={[x, 3, -11.5]} scale={1.25}>
-      <Box s={[1.6, 2.1, 0.12]} c="#285c43" />
-      <Box p={[0, 1.1, 0.04]} s={[1.85, 0.14, 0.2]} c="#c8a452" />
-      <Box p={[0, -0.9, 0.08]} s={[1.42, 0.14, 0.04]} c="#c8a452" />
+    <group position={[x, 3, backWall]} scale={1.25}>
+      <HouseBanner />
       {/* Raised brass letters stay readable at game-camera distance. */}
-      <group position={[-0.06, 0.1, 0.1]}>
+      <group position={[-0.06, 0.1, 0.31]}>
         <Box p={[-0.47, 0, 0]} s={[0.1, 0.8, 0.04]} c="#edcf7d" />
         <Box
           p={[-0.29, 0.21, 0]}
@@ -168,7 +173,7 @@ function Pennant({ x }: { x: number }) {
   );
 }
 
-/** Furnishings/game only. Mount inside the shared 22×26 room shell. */
+/** Furnishings/game only, inside the shared expanded house shell. */
 export function HouseInterior(props: InteriorGameProps) {
   const [activity, setActivity] = useState<"blackjack" | "pong">("blackjack");
   const navigation = (
@@ -191,9 +196,9 @@ export function HouseInterior(props: InteriorGameProps) {
     <group>
       <HouseRooms scene="kappa" />
       <Pennant x={0} />
-      <WallSconce p={[-2.5, 3, -11.5]} />
-      <WallSconce p={[2.5, 3, -11.5]} />
-      <group position={[-10.55, 2.65, 3.3]} rotation={[0, Math.PI / 2, 0]}>
+      <WallSconce p={[-2.5, 3, backWall]} />
+      <WallSconce p={[2.5, 3, backWall]} />
+      <group position={[leftWall, 2.65, 3.3]} rotation={[0, Math.PI / 2, 0]}>
         <WallSconce p={[0, 0, 0]} />
       </group>
       <Fireplace />
@@ -201,7 +206,7 @@ export function HouseInterior(props: InteriorGameProps) {
         <Sofa p={[-6.3, 0, -2.6]} rotation={Math.PI / 2} />
         <Sofa p={[2.8, 0, -4.4]} rotation={-Math.PI / 2} />
       </group>
-      <group position={[-6, 0, -10.6]} scale={1.4}>
+      <group position={[-6, 0, backWall + 0.9]} scale={1.4}>
         <Box p={[0, 0.6, 0]} s={[3.8, 1.2, 0.85]} c="#36543c" />
         <Box p={[0, 1.26, 0]} s={[4.05, 0.18, 1.05]} c="#b47b42" />
         {[-1.35, -0.45, 0.45, 1.35].map((x) => (
@@ -234,7 +239,7 @@ export function HouseInterior(props: InteriorGameProps) {
       <Bottle p={[-8.7, 1.32, 2.2]} />
       <Plant p={[9.5, 0, 8]} />
       <group
-        position={[-10.6, 2.7, -2]}
+        position={[leftWall, 2.7, -2]}
         rotation={[0, Math.PI / 2, 0]}
         scale={1.5}
       >
@@ -261,6 +266,18 @@ export function HouseInterior(props: InteriorGameProps) {
         <Bottle p={[0.7, 1.25, 2]} />
         <Cylinder p={[-0.5, 1.3, 2]} s={[0.3, 0.08, 0.3]} c="#ead4a0" />
       </group>
+      <Bookcase p={[leftWall + 4, 0, backWall + 0.5]} />
+      <Sofa p={[leftWall + 1.8, 0, -11.8]} rotation={Math.PI / 2} />
+      <Table p={[-12, 0, -11.8]} size={[2.4, 1.6]} />
+      <Bottle p={[-12.5, 1.26, -11.8]} />
+      <Plant p={[leftWall + 1.1, 0, backWall + 1.7]} />
+      <DiningSet p={[12.3, 0, -12.5]} />
+      <Sofa p={[-14.5, 0, 9.5]} rotation={Math.PI / 2} />
+      <Table p={[-11.8, 0, 9.5]} size={[2.4, 1.6]} />
+      <RecordCabinet p={[-11.8, 0, 16.8]} rotation={Math.PI} />
+      <DiningSet p={[12.4, 0, 12.6]} />
+      <Plant p={[-15.1, 0, 17.5]} />
+      <Plant p={[15.1, 0, 17.5]} />
       <BlackjackTable
         {...props}
         active={activity === "blackjack"}

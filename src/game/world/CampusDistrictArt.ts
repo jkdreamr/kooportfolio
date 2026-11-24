@@ -4,6 +4,9 @@ import {
   campusDistrictPalms,
 } from "../core/campusDistrict";
 import type { CampusPart, CampusShape } from "./CampusDistrictParts";
+import type { TreePlacement } from "./TreeArt";
+
+export const campusDistrictTrees: TreePlacement[] = [];
 
 const parts: CampusPart[] = [];
 const sandstone = ["#d4b780", "#dfc38e", "#c5a46b", "#e5cb9b"];
@@ -160,29 +163,15 @@ function bench(x: number, z: number, angle = 0) {
   ]);
 }
 function broadleaf(x: number, z: number, h = 5) {
-  part("column", [x, h / 2, z], [0.3, h, 0.3], "#85603d");
-  for (let i = 0; i < 3; i++)
-    part(
-      "round",
-      [x + Math.sin(i * 2.1), h + i * 0.4, z + Math.cos(i * 2.1)],
-      [1.8, 1.8, 1.7],
-      ["#3c743d", "#568b43", "#78a453"][i],
-    );
+  campusDistrictTrees.push({
+    p: [x, 0.22, z],
+    size: (h + 1.6) / 5.1,
+    variant: Math.abs(Math.round(x * 7 + z * 3)),
+    species: "oak",
+  });
 }
 function palm(x: number, z: number) {
-  part("column", [x, 3.3, z], [0.26, 6.1, 0.26], "#987148");
-  for (let i = 0; i < 6; i++)
-    part("column", [x, 0.8 + i * 0.85, z], [0.29, 0.14, 0.29], "#b8935f");
-  for (let i = 0; i < 8; i++) {
-    const a = (i * Math.PI) / 4;
-    part(
-      "round",
-      [x + Math.cos(a) * 1.25, 6.2, z + Math.sin(a) * 1.25],
-      [2.05, 0.32, 0.48],
-      i % 2 ? "#397a40" : "#659647",
-      [0, -a, -0.12],
-    );
-  }
+  campusDistrictTrees.push({ p: [x, 0.22, z], size: 1.27, species: "palm" });
 }
 function table(x: number, z: number) {
   part("column", [x, 0.8, z], [0.12, 1.2, 0.12], "#637564");

@@ -113,6 +113,9 @@ export function Portfolio() {
           <a href="/contact" className={path === "/contact" ? "active" : ""}>
             Contact <span>03</span>
           </a>
+          <a href="/play">
+            Play <span>04</span>
+          </a>
         </nav>
         <div className="paper-divider">
           <span />

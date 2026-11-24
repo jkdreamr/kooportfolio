@@ -9,6 +9,8 @@ import {
   composePostcard,
   PHOTO_HEIGHT,
   PHOTO_WIDTH,
+  PREVIEW_HEIGHT,
+  PREVIEW_WIDTH,
   postcardBlob,
   type PhotoPose,
 } from "../core/postcard";
@@ -132,93 +134,94 @@ export function PhotoBoothCamera() {
     (state) =>
       state.scene === "hub" && state.panel === "photo" && !state.paused,
   );
-  const { get, invalidate, setFrameloop } = useThree();
+  const invalidate = useThree((state) => state.invalidate);
   useEffect(() => {
     if (!active) return;
-    const previous = get().frameloop;
-    // The opaque postcard preview does not need a full village rendered behind
-    // it at 60fps. Keep controls/timers responsive even on software GPUs.
-    setFrameloop("demand");
+    // Game owns demand/live rendering and suspends performance sampling while
+    // the modal is open; new capture requests still need a fresh canvas frame.
     invalidate();
-    const unsubscribe = usePhotoBooth.subscribe((state, before) => {
+    return usePhotoBooth.subscribe((state, before) => {
       if (state.request?.id !== before.request?.id) invalidate();
     });
-    return () => {
-      unsubscribe();
-      setFrameloop(useGame.getState().paused ? "demand" : previous);
-      invalidate();
-    };
-  }, [active, get, invalidate, setFrameloop]);
-  useFrame(({ gl, scene }) => {
-    // Canvas can be reconfigured by a resize or automatic quality adjustment.
-    if (active && get().frameloop !== "demand") setFrameloop("demand");
-    const request = usePhotoBooth.getState().request;
-    const game = useGame.getState();
-    if (
-      !request ||
-      request.id === handled.current ||
-      !avatar.current ||
-      game.scene !== "hub" ||
-      String(game.panel) !== "photo"
-    )
-      return;
-    handled.current = request.id;
-    const player = scene.getObjectByName("village-player");
-    if (!player || gl.getContext().isContextLost()) {
-      failPhoto(request.id);
-      return;
-    }
-    const camera = new THREE.OrthographicCamera(-15, 15, 10, -10, 0.1, 180);
-    camera.position.set(request.x + 11, 15, request.z + 20);
-    camera.lookAt(request.x + 1, 0.7, request.z - 5);
-    avatar.current.position.set(request.x, 0.18, request.z);
-    avatar.current.rotation.y = Math.atan2(11, 20);
-    const playerVisible = player.visible;
-    const previousTarget = gl.getRenderTarget();
-    const previousColorSpace = gl.outputColorSpace;
-    const linear = new THREE.WebGLRenderTarget(PHOTO_WIDTH, PHOTO_HEIGHT, {
-      type: gl.extensions.has("EXT_color_buffer_float")
-        ? THREE.HalfFloatType
-        : THREE.UnsignedByteType,
-    });
-    const output = new THREE.WebGLRenderTarget(PHOTO_WIDTH, PHOTO_HEIGHT, {
-      depthBuffer: false,
-    });
-    const outputPass = new OutputPass();
-    try {
-      player.visible = false;
-      avatar.current.visible = true;
-      gl.setRenderTarget(linear);
-      gl.render(scene, camera);
-      // Offscreen world passes are linear/HDR. Apply the same tone mapping and
-      // display transfer as the live canvas before reading ordinary PNG bytes.
-      gl.outputColorSpace = THREE.SRGBColorSpace;
-      outputPass.render(gl, output, linear, 0, false);
-      const pixels = new Uint8Array(PHOTO_WIDTH * PHOTO_HEIGHT * 4);
-      gl.readRenderTargetPixels(
-        output,
-        0,
-        0,
-        PHOTO_WIDTH,
-        PHOTO_HEIGHT,
-        pixels,
-      );
-      const card = composePostcard(pixels, request.frame, request.date);
-      void postcardBlob(card)
-        .then((blob) => finishPhoto(request.id, blob))
-        .catch(() => failPhoto(request.id));
-    } catch {
-      failPhoto(request.id);
-    } finally {
-      player.visible = playerVisible;
-      avatar.current.visible = false;
-      gl.outputColorSpace = previousColorSpace;
-      gl.setRenderTarget(previousTarget);
-      linear.dispose();
-      output.dispose();
-      outputPass.dispose();
-    }
-  });
+  }, [active, invalidate]);
+  // While the opaque modal is open, render only its offscreen capture. A second
+  // full-viewport world render behind it would erase the preview speedup.
+  useFrame(
+    ({ gl, scene }) => {
+      const request = usePhotoBooth.getState().request;
+      const game = useGame.getState();
+      if (
+        !request ||
+        request.id === handled.current ||
+        !avatar.current ||
+        game.scene !== "hub" ||
+        String(game.panel) !== "photo"
+      )
+        return;
+      handled.current = request.id;
+      const player = scene.getObjectByName("village-player");
+      if (!player || gl.getContext().isContextLost()) {
+        failPhoto(request.id);
+        return;
+      }
+      const camera = new THREE.OrthographicCamera(-15, 15, 10, -10, 0.1, 180);
+      camera.position.set(request.x + 11, 15, request.z + 20);
+      camera.lookAt(request.x + 1, 0.7, request.z - 5);
+      avatar.current.position.set(request.x, 0.18, request.z);
+      avatar.current.rotation.y = Math.atan2(11, 20);
+      const playerVisible = player.visible;
+      const previousTarget = gl.getRenderTarget();
+      const previousColorSpace = gl.outputColorSpace;
+      const previousShadows = gl.shadowMap.enabled;
+      const full = request.resolution === "full";
+      const width = full ? PHOTO_WIDTH : PREVIEW_WIDTH;
+      const height = full ? PHOTO_HEIGHT : PREVIEW_HEIGHT;
+      const linear = new THREE.WebGLRenderTarget(width, height, {
+        type: gl.extensions.has("EXT_color_buffer_float")
+          ? THREE.HalfFloatType
+          : THREE.UnsignedByteType,
+      });
+      const output = new THREE.WebGLRenderTarget(width, height, {
+        depthBuffer: false,
+      });
+      const outputPass = new OutputPass();
+      try {
+        player.visible = false;
+        avatar.current.visible = true;
+        if (!full) gl.shadowMap.enabled = false;
+        gl.setRenderTarget(linear);
+        gl.render(scene, camera);
+        // Offscreen world passes are linear/HDR. Apply the same tone mapping and
+        // display transfer as the live canvas before reading ordinary PNG bytes.
+        gl.outputColorSpace = THREE.SRGBColorSpace;
+        outputPass.render(gl, output, linear, 0, false);
+        const pixels = new Uint8Array(width * height * 4);
+        gl.readRenderTargetPixels(output, 0, 0, width, height, pixels);
+        const card = composePostcard(
+          pixels,
+          request.frame,
+          request.date,
+          width,
+          height,
+        );
+        void postcardBlob(card)
+          .then((blob) => finishPhoto(request.id, blob))
+          .catch(() => failPhoto(request.id));
+      } catch {
+        failPhoto(request.id);
+      } finally {
+        player.visible = playerVisible;
+        avatar.current.visible = false;
+        gl.outputColorSpace = previousColorSpace;
+        gl.shadowMap.enabled = previousShadows;
+        gl.setRenderTarget(previousTarget);
+        linear.dispose();
+        output.dispose();
+        outputPass.dispose();
+      }
+    },
+    active ? 1 : 0,
+  );
   return (
     <group ref={avatar} visible={false}>
       <PhotoAvatar pose={pose} />

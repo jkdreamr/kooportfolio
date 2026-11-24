@@ -82,10 +82,12 @@
   background: #a26139;
   border-color: #d7ab67;
 }
-.skate-view {
+.skate-view-controls {
   position: absolute;
   right: 22px;
   top: 100px;
+  display: flex;
+  gap: 6px;
 }
 .skate-score {
   position: absolute;
@@ -202,9 +204,11 @@
   display: none;
 }
 @media (max-width: 700px) {
-  .skate-view {
+  .skate-view-controls {
     top: 150px;
     right: 12px;
+  }
+  .skate-view-controls button {
     font-size: 10px !important;
     padding: 6px !important;
   }
@@ -286,7 +290,7 @@
   .skate-score {
     top: 80px;
   }
-  .skate-view {
+  .skate-view-controls {
     top: 80px;
   }
   .skate-feedback {

@@ -1,33 +1,98 @@
-.stadium-controls {
-  text-align: left;
+.interior-game:has(.stadium-play) {
+  width: 120px;
+  padding: 6px;
 }
-.stadium-score {
+.interior-game .stadium-play {
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  background: #9a2937;
+  border-color: #d2ad67;
+}
+.stadium-game-stage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  color: #f4ead4;
+  font-family: inherit;
+  font-size: 13px;
+  user-select: none;
+}
+.stadium-game-score,
+.stadium-game-close,
+.stadium-game-controls {
+  box-sizing: border-box;
+  border: 1px solid #b39b66;
+  border-radius: 4px;
+  background: #243b45;
+  box-shadow:
+    inset 0 0 0 2px #192e36,
+    0 4px 0 #14232b;
+}
+.stadium-game-score {
+  position: absolute;
+  top: max(18px, env(safe-area-inset-top));
+  left: 18px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-.stadium-score strong {
-  color: #f0cd85;
-  letter-spacing: 0.08em;
-}
-.stadium-score span {
-  font-size: 12px;
+  gap: 14px;
+  min-height: 44px;
+  padding: 8px 14px;
   font-variant-numeric: tabular-nums;
 }
-.stadium-score b {
-  padding: 0 5px;
-  color: #af986d;
+.stadium-game-score strong {
+  color: #edcc83;
+  letter-spacing: 0.08em;
 }
-.stadium-aim,
-.stadium-power {
+.stadium-game-score small {
+  color: #c2cfcf;
+  font-size: 12px;
+}
+.stadium-game-stage button {
+  min-height: 44px;
+  color: #fff0d1;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+  pointer-events: auto;
+}
+.stadium-game-close {
+  position: absolute;
+  top: max(18px, env(safe-area-inset-top));
+  right: 18px;
+  padding: 8px 16px;
+}
+.stadium-game-dock {
+  position: absolute;
+  left: 50%;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  width: min(600px, calc(100% - 36px));
+  transform: translateX(-50%);
+  pointer-events: auto;
+}
+.stadium-game-dock p {
+  min-height: 20px;
+  margin: 0 0 8px;
+  text-align: center;
+  font-size: 13px;
+  text-shadow: 0 2px 3px #102028;
+}
+.stadium-game-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px;
+  gap: 0 18px;
+  padding: 10px 14px;
+}
+.stadium-game-aim,
+.stadium-game-power {
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 12px;
 }
-.stadium-aim input {
+.stadium-game-aim input {
   flex: 1;
   min-width: 0;
   min-height: 44px;
@@ -35,38 +100,86 @@
   accent-color: #d2b26f;
   cursor: pointer;
 }
-.stadium-aim input:focus-visible {
-  outline: 2px solid #f0cd85;
-  outline-offset: 2px;
-}
-.stadium-power {
-  margin: 0 0 12px;
-}
-.stadium-power meter {
+.stadium-game-power meter {
   flex: 1;
   width: 100%;
+  min-width: 0;
   height: 18px;
   accent-color: #88b46c;
 }
-.interior-game .stadium-controls button {
-  width: 100%;
+.stadium-game-controls button {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  border: 1px solid #d2ad67;
+  border-radius: 3px;
   background: #9a2937;
-  border-color: #d2ad67;
 }
-.interior-game .stadium-controls button:hover:not(:disabled) {
-  background: #b33943;
+.stadium-game-controls button:disabled {
+  opacity: 0.65;
+  cursor: default;
 }
-.interior-game .stadium-controls p {
-  text-align: center;
+.stadium-game-stage button:hover:not(:disabled) {
+  filter: brightness(1.15);
+}
+.stadium-game-stage :focus-visible {
+  outline: 2px solid #f0cd85;
+  outline-offset: 3px;
+}
+/* A single physical exit stays opposite the walking stick. */
+.game-shell .scene-stadium .context-action {
+  left: auto;
+  right: 24px;
+  bottom: calc(100px + env(safe-area-inset-bottom));
+  width: 140px;
+  min-width: 0;
+  padding: 6px;
+  transform: translateY(8px);
+}
+.game-shell .scene-stadium .context-action.visible {
+  transform: none;
+}
+.game-shell .scene-stadium .context-action > div {
+  display: none;
+}
+.game-shell .scene-stadium .context-action > button {
+  width: 100%;
+  justify-content: center;
+  margin: 0;
+}
+@media (max-width: 699px) and (orientation: portrait) {
+  .stadium-game-controls {
+    grid-template-columns: minmax(0, 1fr) 96px;
+    column-gap: 12px;
+    padding: 10px 12px;
+  }
+  .stadium-game-score {
+    gap: 10px;
+    padding: 8px 10px;
+  }
+  .stadium-game-aim,
+  .stadium-game-power {
+    gap: 8px;
+  }
+  .game-shell .scene-stadium .context-action {
+    right: 18px;
+    width: 130px;
+    bottom: calc(104px + env(safe-area-inset-bottom));
+  }
+}
+@media (max-width: 699px) and (max-height: 650px) and (orientation: portrait) {
+  .game-shell .scene-stadium .context-action {
+    bottom: calc(76px + env(safe-area-inset-bottom));
+  }
 }
 @media (max-height: 500px) {
-  .stadium-score {
-    margin-bottom: 3px;
+  .stadium-game-dock {
+    bottom: 14px;
   }
-  .stadium-power {
-    margin-bottom: 5px;
+  .stadium-game-controls {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 120px;
   }
-  .stadium-aim input {
-    min-height: 32px;
+  .stadium-game-controls button {
+    grid-row: 1;
+    grid-column: 3;
   }
 }
