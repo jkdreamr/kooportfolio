@@ -276,6 +276,37 @@ for (const x of [-46, -40]) {
 
 const [deckX, deckZ] = KOREA_PICNIC;
 part(korea, deckX, 0.22, deckZ, 14, 0.15, 15, "#a69371");
+// The market's picnic shelter is open on all four sides.
+const shelterZ = deckZ + 3.25;
+for (const dx of [-5.45, 5.45]) {
+  for (const dz of [-2.65, 2.65]) {
+    part(korea, deckX + dx, 1.93, shelterZ + dz, 0.25, 3.22, 0.25, "#73563f");
+    part(korea, deckX + dx, 0.46, shelterZ + dz, 0.57, 0.26, 0.57, "#99958a");
+    koreaSolids.push([deckX + dx, shelterZ + dz, 0.29, 0.29]);
+  }
+  part(korea, deckX + dx, 3.35, shelterZ, 0.28, 0.24, 5.65, "#765b48");
+}
+for (const side of [-1, 1]) {
+  for (const [offset, y, depth, pitch, color] of [
+    [1.25, 4.1, 2.8, 0.42, "#4d6461"],
+    [3, 3.51, 1.25, 0.16, "#415755"],
+  ] as const) {
+    part(
+      korea,
+      deckX,
+      y,
+      shelterZ + side * offset,
+      12.5,
+      0.17,
+      depth,
+      color,
+      "block",
+      [side * pitch, 0, 0],
+    );
+  }
+  part(korea, deckX, 3.31, shelterZ + side * 2.65, 11.5, 0.29, 0.19, "#8e6150");
+}
+part(korea, deckX, 4.68, shelterZ, 12.6, 0.23, 0.37, "#3d5450");
 for (let i = 0; i < 19; i++)
   part(
     korea,

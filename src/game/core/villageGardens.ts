@@ -12,7 +12,6 @@ type Plot = {
   orchard: boolean;
   worlds: readonly WorldId[];
 };
-const all: readonly WorldId[] = ["home", "stanford", "korea"];
 const domestic: readonly WorldId[] = ["home", "stanford"];
 const korea: readonly WorldId[] = ["korea"];
 const plots: Plot[] = [];
@@ -32,23 +31,23 @@ const districts: readonly (readonly [
   boolean,
   readonly WorldId[],
 ])[] = [
-  [-60, -22, 4, 4, true, all],
-  [60, -24, 4, 4, false, all],
-  [-59, 23, 4, 4, true, all],
+  [-60, -22, 4, 4, true, domestic],
+  [60, -24, 4, 4, false, domestic],
+  [-59, 23, 4, 4, true, domestic],
   [58, 25, 4, 4, false, domestic],
-  [-25, -46, 6, 2, true, all],
-  [13, -43, 10, 3, true, all],
-  [46, -43, 5, 3, true, all],
-  [-31, 77, 7, 3, true, all],
-  [22, 81, 9, 3, false, all],
-  [47, 65, 4, 3, true, ["home", "korea"]],
-  [-57, -6, 6, 2, false, all],
+  [-25, -46, 6, 2, true, domestic],
+  [13, -43, 10, 3, true, domestic],
+  [46, -43, 5, 3, true, domestic],
+  [-31, 77, 7, 3, true, domestic],
+  [22, 81, 9, 3, false, domestic],
+  [47, 65, 4, 3, true, ["home"]],
+  [-57, -6, 6, 2, false, domestic],
   // The Home coast has no skate arena: use that whole district, not a bare
   // lawn reserved for a building which only exists at Stanford.
   [-48, 40, 8, 3, true, ["home"]],
   [-44, 60, 9, 4, false, ["home"]],
-  [-21, 61, 4, 4, true, all],
-  [-50, 2, 6, 2, false, all],
+  [-21, 61, 4, 4, true, domestic],
+  [-50, 2, 6, 2, false, domestic],
   [30, -36, 4, 2, false, domestic],
 ];
 
@@ -89,25 +88,10 @@ for (const [cx, cz, cols, rows, orchard, worlds] of districts) {
     }
 }
 
-// Groves and allotments flank the landmark walks and the path to the picnic deck.
+// Keep one kitchen garden by the pond and the orchard on Namsan.
 const koreaGardenDistricts = [
-  [-51, -27, 4, 3, true],
-  [9, -31, 5, 2, false],
-  [-55, -5.5, 4, 3, false],
-  [-35.5, -24.25, 4, 3, true],
-  [-41.5, -7.5, 3, 2, false],
-  [-29.4, 3, 2, 2, false],
-  [-12.5, -22.75, 4, 2, false],
-  [-15.1, -1, 2, 4, true],
-  [-8.8, -1, 1, 4, false],
-  [16, -7.5, 2, 3, false],
-  [27, -9, 4, 1, false],
-  [44, -27, 4, 1, false],
-  [55, -4, 2, 4, false],
-  [-45, 24, 3, 3, false],
-  [-30, 25, 3, 3, true],
-  [3, 53.2, 3, 2, false],
-  [20, 54.8, 3, 2, true],
+  [-42, -29, 3, 2, true],
+  [-44, 24, 3, 2, false],
 ] as const;
 for (const [cx, cz, cols, rows, orchard] of koreaGardenDistricts) {
   for (let col = 0; col < cols; col++)

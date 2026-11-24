@@ -31,7 +31,7 @@ terrain.rotateX(Math.PI / 2);
 terrain.translate(0, 0.14, 0);
 terrain.computeVertexNormals();
 const groundMaterial = new THREE.MeshStandardMaterial({
-  color: "#a7a28c",
+  color: "#8b9480",
   roughness: 1,
 });
 const soilMaterial = new THREE.MeshStandardMaterial({

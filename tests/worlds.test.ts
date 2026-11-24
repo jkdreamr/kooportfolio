@@ -168,8 +168,7 @@ describe("separate worlds", () => {
       isKoreaLandmarkArea(x, z, 2);
     expect(villageGardenPlots("korea").some(overlaps)).toBe(false);
   });
-  it("plants on both sides of the Korea garden walks without blocking them", () => {
-    const plots = villageGardenPlots("korea");
+  it("keeps Korea's paved walks clear through the district", () => {
     for (const [x, z, width, depth] of KOREA_GARDEN_WALKS) {
       const horizontal = width > depth;
       const [dx, dz] = horizontal ? [width / 2, 0] : [0, depth / 2];
@@ -182,18 +181,6 @@ describe("separate worlds", () => {
           );
         }
       }
-    }
-    for (const side of [-1, 1]) {
-      expect(
-        plots.filter(
-          ({ x, z }) =>
-            x > -55 &&
-            x < 21 &&
-            z > -34 &&
-            z < 2 &&
-            Math.sign(z - KOREA_MAIN_STREET_Z) === side,
-        ).length,
-      ).toBeGreaterThanOrEqual(12);
     }
   });
   it("reclaims the empty coastal apron without changing other worlds", () => {
@@ -208,12 +195,22 @@ describe("separate worlds", () => {
     }
     const plots = villageGardenPlots("korea");
     expect(plots.every(({ x, z }) => isOnKoreaLand(x, z, 1.8))).toBe(true);
+    const beds = plots.filter(({ orchard }) => !orchard);
+    expect(beds.length).toBeGreaterThan(0);
     expect(
-      plots.filter(
-        ({ x, z, orchard }) =>
-          !orchard && x > -54 && x < -42 && z > 16 && z < 32,
-      ).length,
-    ).toBeGreaterThan(4);
+      beds.every(({ x, z }) => x > -50 && x < -38 && z > 18 && z < 30),
+    ).toBe(true);
+  });
+  it("keeps the western pond deck and the covered picnic deck open", () => {
+    for (const [x, z] of [
+      [-35.6, 36.8],
+      [-35.6, 45],
+      [38, 7],
+      [37, 11],
+    ]) {
+      expect(canWalk(x, z, "korea"), `${x}, ${z}`).toBe(true);
+    }
+    expect(canWalk(31.55, 5.6, "korea")).toBe(false);
   });
   it("extends the photo booth street to every market stall and links the picnic deck", () => {
     const [photoX, , photoZ] = PHOTO_BOOTH_ORIGIN;

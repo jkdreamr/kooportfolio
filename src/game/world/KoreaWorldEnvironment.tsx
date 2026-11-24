@@ -11,6 +11,7 @@ import {
 import { HanRiverBridge } from "./HanRiverBridge";
 import { KoreaHistoricLandmarks } from "./KoreaHistoricLandmarks";
 import { NamsanTower } from "./NamsanTower";
+import { KoreaPublicGrounds, KOREA_PUBLIC_TREES } from "./KoreaPublicGrounds";
 import { NaturalTrees, type TreePlacement } from "./TreeArt";
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
 import {
@@ -30,14 +31,6 @@ const cityBlocks = [
   [-16, -18.5, 27, 13.2, "#c9bfac"],
   [9, -18.5, 18, 13.2, "#c3bfb1"],
   [32, -18.5, 33.5, 12.8, "#c6b599"],
-  [-13.5, -6, 17, 10.8, "#969982"],
-  [-15, 5.5, 14, 11.1, "#a3a489"],
-  [13, -6.2, 15, 11.5, "#a8a78e"],
-  [34, -6.8, 25, 6, "#b5aa93"],
-  [55.5, 4.2, 10.5, 13.2, "#92987d"],
-  [-40, 23, 28, 17, "#93967d"],
-  [-38, 40.5, 23, 8.4, "#a7a688"],
-  [18.5, 54.5, 62, 7, "#909981"],
 ] as const;
 for (const [x, z, width, depth, color] of cityBlocks) {
   paving.push({
@@ -111,6 +104,7 @@ const benchFootprints: readonly (readonly [number, number, number, number])[] =
 export const KOREA_PARK_OBSTACLES = [
   ...benchFootprints,
   ...KOREA_ACTIVITY_OBSTACLES,
+  ...KOREA_PUBLIC_TREES.map(({ p: [x, , z] }) => [x, z, 0.4, 0.4] as const),
 ] as const;
 for (const [x, z] of benchFootprints) {
   for (const dx of [-1.2, 1.2])
@@ -226,6 +220,7 @@ export function KoreaWorldEnvironment({
 }) {
   return (
     <group name="korea-environment">
+      <KoreaPublicGrounds />
       <WorldSceneryParts parts={paving} />
       <WorldSceneryParts parts={park} />
       <NaturalTrees trees={trees} />
