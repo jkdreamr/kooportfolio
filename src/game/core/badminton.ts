@@ -193,13 +193,15 @@ export function stepBadminton(
         )) /
         BADMINTON.gravity,
     );
-    const attacking = game.lastHit === "player" && game.flightTime > 0.18;
+    const attacking = game.lastHit === "player" && game.flightTime > 0.3;
+    const recovering = game.lastHit === "opponent" && game.flightTime > 0.65;
     const tx = attacking ? clamp(s.x + s.vx * contactTime, -3.5, 3.5) : 0;
     const tz = attacking ? clamp(s.z + s.vz * contactTime, -8, -1.1) : -5.5;
     const ax = tx - game.opponent.x,
       az = tz - game.opponent.z;
     const distance = Math.hypot(ax, az);
-    const step = Math.min(distance, dt * 3.55);
+    // Slow recovery leaves space to attack; the guest cannot cover every corner.
+    const step = Math.min(distance, dt * (attacking ? 3.2 : recovering ? 1.3 : 0));
     if (distance > 0) {
       game.opponent.x += (ax / distance) * step;
       game.opponent.z += (az / distance) * step;
@@ -210,7 +212,7 @@ export function stepBadminton(
       s.vy < 0 &&
       s.y < 2.8 &&
       s.y > 0.6 &&
-      Math.hypot(s.x - game.opponent.x, s.z - game.opponent.z) < 1.25
+      Math.hypot(s.x - game.opponent.x, s.z - game.opponent.z) < 1.05
     ) {
       const aim =
         game.player.x > 0.5
