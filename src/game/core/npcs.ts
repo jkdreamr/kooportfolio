@@ -17,7 +17,7 @@ export type Villager = {
   color: string;
   skin: string;
   hat: boolean;
-  place: PlaceId | "photo";
+  place: PlaceId | "photo" | "campus" | "bridge";
   lines: string[];
   route: Point[];
   stops?: Record<number, NpcStop>;

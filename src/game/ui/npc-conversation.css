@@ -48,11 +48,46 @@
   line-height: 1.5;
   margin: 12px 0 14px;
 }
-.npc-dialog-actions {
+.npc-dialog-actions,
+.npc-topics {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 4px 8px;
+}
+.npc-topics {
+  margin-bottom: 8px;
+}
+.npc-topics button {
+  flex: 1 1 auto;
+  text-align: left;
+}
+.npc-dialog-illustrated {
+  width: min(480px, calc(100% - 32px));
+}
+.npc-dialog-illustrated .npc-reply {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr);
+  gap: 14px;
+  align-items: center;
+  margin: 12px 0;
+}
+.npc-picture {
+  margin: 0;
+  padding: 5px 5px 4px;
+  border-radius: 2px;
+  background: #ecdfbc;
+  color: #4c4636;
+}
+.npc-picture svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.npc-picture figcaption {
+  padding: 4px 2px 0;
+  font-size: 11px;
+  line-height: 1.25;
 }
 .npc-dialog button {
   min-width: 44px;
@@ -67,7 +102,8 @@
   font-weight: 550;
   cursor: pointer;
 }
-.npc-dialog button:first-child {
+.npc-dialog .npc-continue,
+.npc-dialog .npc-topics button {
   background: #48616d;
   border-color: #82959b;
 }
@@ -103,11 +139,7 @@
 }
 @media (max-height: 500px) and (min-width: 560px) {
   .npc-dialog {
-    display: grid;
-    grid-template-columns: max-content minmax(0, 1fr) max-content;
-    align-items: center;
-    gap: 10px;
-    width: min(920px, calc(100% - 32px));
+    width: min(520px, calc(100% - 32px));
     padding: 8px 12px;
   }
   .npc-speaker {
@@ -122,23 +154,20 @@
     font-size: 12px;
     white-space: nowrap;
   }
-  .npc-dialog p {
+  .npc-dialog .npc-reply p {
     min-width: 0;
-    margin: 0;
+    margin: 6px 0;
     font-size: 12px;
     line-height: 1.4;
   }
-  .npc-dialog-actions {
-    flex-wrap: nowrap;
-    gap: 6px;
+  .npc-dialog-illustrated .npc-reply {
+    grid-template-columns: minmax(0, 1fr) 120px;
+    margin: 4px 0;
   }
   .npc-dialog button {
     padding: 6px;
     font-size: 11px;
     white-space: nowrap;
-  }
-  .npc-dialog .npc-goodbye {
-    margin-left: 0;
   }
   .npc-dialog kbd {
     margin-left: 6px;
