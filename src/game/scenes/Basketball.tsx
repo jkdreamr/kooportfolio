@@ -387,6 +387,12 @@ function CourtSessionHud({ close }: { close: () => void }) {
           </p>
           <button onClick={() => beginRound()}>Play again</button>
           <button onClick={close}>Close</button>
+          <button
+            className="court-records"
+            onClick={() => useGame.setState({ panel: "leaderboard" })}
+          >
+            Records
+          </button>
         </div>
       )}
     </section>

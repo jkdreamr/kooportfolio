@@ -77,14 +77,23 @@ export function HitPad({
   serve: boolean;
   onShot: (selection: Pick<BadmintonInput, "aim" | "shot">) => void;
 }) {
-  const drag = useRef<({ id: number; x: number; y: number } & Pick<BadmintonInput, "aim" | "shot">) | null>(null);
+  const drag = useRef<{
+    id: number;
+    x: number;
+    y: number;
+    pointerType: string;
+    presetsVisible: boolean;
+    selection: Pick<BadmintonInput, "aim" | "shot">;
+  } | null>(null);
   const select = (e: PointerEvent<HTMLButtonElement>) => {
     const start = drag.current;
     if (!start || start.id !== e.pointerId) return null;
-    return badmintonGesture(e.clientX - start.x, e.clientY - start.y, start);
+    return badmintonGesture(e.clientX - start.x, e.clientY - start.y, start.selection, start.pointerType, start.presetsVisible);
   };
   const cancel = () => {
+    const start = drag.current;
     drag.current = null;
+    if (start) onShot(start.selection);
   };
   useEffect(() => {
     window.addEventListener("blur", cancel);
@@ -99,13 +108,20 @@ export function HitPad({
       aria-label={
         serve
           ? "Serve. Tap or swipe"
-          : "Hit. Tap for selected shot; swipe up for clear, down for smash, left or right to aim"
+          : "Hit. Tap to use the selected shot, or drop in touch gesture mode. Swipe up for clear, down for smash, left or right to aim"
       }
       disabled={disabled}
       onContextMenu={(e) => e.preventDefault()}
       onPointerDown={(e) => {
         if (drag.current) return;
-        drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, aim: input.current.aim, shot: input.current.shot };
+        drag.current = {
+          id: e.pointerId,
+          x: e.clientX,
+          y: e.clientY,
+          pointerType: e.pointerType,
+          presetsVisible: !!e.currentTarget.parentElement?.querySelector(".badminton-shots")?.getClientRects().length,
+          selection: { aim: input.current.aim, shot: input.current.shot },
+        };
         e.currentTarget.setPointerCapture(e.pointerId);
       }}
       onPointerMove={(e) => {
@@ -117,10 +133,14 @@ export function HitPad({
         if (!selection) return;
         Object.assign(input.current, selection, { swing: true });
         onShot(selection);
-        cancel();
+        drag.current = null;
       }}
-      onPointerCancel={cancel}
-      onLostPointerCapture={cancel}
+      onPointerCancel={(e) => {
+        if (drag.current?.id === e.pointerId) cancel();
+      }}
+      onLostPointerCapture={(e) => {
+        if (drag.current?.id === e.pointerId) cancel();
+      }}
       onClick={(e) => {
         // Native keyboard / assistive activation; pointer shots commit on release.
         if (e.detail === 0) input.current.swing = true;
