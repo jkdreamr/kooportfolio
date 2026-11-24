@@ -523,8 +523,11 @@ export function Hud({ interact }: { interact: () => void }) {
               </div>
               <button
                 onClick={interact}
+                onPointerDown={(event) => {
+                  if (g.near === "photo") event.stopPropagation();
+                }}
                 onKeyDown={(event) => {
-                  if (g.near === "stargazing" && event.key === " ")
+                  if ((g.near === "stargazing" || g.near === "photo") && event.key === " ")
                     event.stopPropagation();
                 }}
               >

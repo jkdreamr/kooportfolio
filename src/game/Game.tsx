@@ -33,7 +33,6 @@ import { useGym } from "./scenes/CognitionGym";
 import { interactWithNpc } from "./core/npcState";
 import { NpcDialog } from "./ui/NpcConversation";
 import { WorldAmbience } from "./world/WorldAmbience";
-import { PhotoBoothCamera } from "./world/PhotoBooth";
 import { PhotoBoothDialog, openPhotoBooth } from "./ui/PhotoBoothDialog";
 import { TelescopeView } from "./ui/TelescopeView";
 import { SkateParkInterior } from "./scenes/SkatePark";
@@ -215,7 +214,6 @@ function World() {
       <Sun />
       <TimeOfDayLighting dimmed={scene === "theater" && filmPlaying} />
       <WorldAmbience />
-      <PhotoBoothCamera />
       <WorldZoomInput />
       {scene !== "rowing" && (
         <mesh

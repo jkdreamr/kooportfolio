@@ -10,6 +10,12 @@ Node 24 LTS, npm. `npm ci`, then `npm run dev`. Vite serves the app; the officia
 
 Portfolio: `/`, `/about`, `/work`, `/contact`. Game: `/play`. Static editorial fallback pages are generated during build and work without JavaScript. Three.js is lazy-loaded only for play.
 
+### Photo booth
+
+The booth on the Korea island uses the camera on HTTPS or localhost. The camera stays local unless you choose **Post to wall**. The wall shows the 12 newest strips and drops older entries.
+
+`npm run build && npm run preview` applies the local D1 migration before starting the Worker. Visitors using that same preview server share the wall, which persists in `.wrangler/state` across restarts. For `npm run dev`, run `npm run prepreview` once to initialize the database. Static hosts and the unprovisioned staging environment can still take and save photos but do not have a shared wall.
+
 ## Controls
 
 WASD / arrows or touch joystick to move; click the ground or a building name for pathfinding. Walk to a door then E / Enter button. Inside, approach the back exit mat to return to the same hub spot. Escape pauses. Build suspends movement.

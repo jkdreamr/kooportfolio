@@ -47,3 +47,10 @@ test("unprovisioned public writing never reports local-only publication as publi
     error: expect.stringContaining("isn’t connected"),
   });
 });
+test("default preview serves the shared photo wall with local storage", async ({
+  request,
+}) => {
+  const wall = await request.get("/api/booth");
+  expect(wall.status()).toBe(200);
+  expect(Array.isArray((await wall.json()).strips)).toBe(true);
+});

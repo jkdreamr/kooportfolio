@@ -68,7 +68,7 @@ const topics: Record<string, readonly NpcTopic[]> = {
     {
       id: "booth",
       label: "How's the booth work?",
-      reply: "Pick a pose, take a shot, then save it as a postcard.",
+      reply: "Take four photos, decorate the strip, then save it or post it to the wall.",
       picture: "booth",
     },
     {
