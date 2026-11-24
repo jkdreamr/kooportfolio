@@ -11,6 +11,22 @@ const projected = new Vector3();
 export function LabelProjection() {
   useFrame(({ camera, size }) => {
     const occupied: { x: number; y: number; w: number; h: number }[] = [];
+    // Physical door actions win over projected destination labels, including
+    // the frame in which the mobile prompt animates into view.
+    const prompt = document
+      .querySelector(".context-action.visible")
+      ?.getBoundingClientRect();
+    if (prompt) {
+      const origin = document
+        .querySelector(".game-shell")
+        ?.getBoundingClientRect();
+      occupied.push({
+        x: prompt.left - (origin?.left ?? 0) + prompt.width / 2,
+        y: prompt.top - (origin?.top ?? 0) + prompt.height / 2,
+        w: prompt.width + 20,
+        h: prompt.height + 20,
+      });
+    }
     const compact = size.height < 500;
     const distance = (door: (typeof destinations)[number]) =>
       Math.hypot(door.x - runtime.x, door.z - runtime.z);

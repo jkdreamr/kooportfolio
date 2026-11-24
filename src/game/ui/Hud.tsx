@@ -12,6 +12,7 @@ import { WorldLabels } from "../world/Labels";
 import { ROOM } from "../core/room";
 import { RoomStory } from "./RoomStory";
 import type { PlaceId } from "../core/world";
+import { npcName } from "../core/npcState";
 
 export function Joystick() {
   const pad = useRef<HTMLDivElement>(null),
@@ -426,7 +427,10 @@ export function Hud({ interact }: { interact: () => void }) {
       )}
       {(hub || interior) && !g.build && (
         <>
-          <div className={`context-action ${g.near ? "visible" : ""}`}>
+          <div
+            className={`context-action ${g.near ? "visible" : ""}`}
+            style={{ zIndex: 20 }}
+          >
             <div>
               <strong>
                 {g.near === "exit"
@@ -439,7 +443,9 @@ export function Hud({ interact }: { interact: () => void }) {
                         ? "Desk"
                         : g.near === "lift"
                           ? `${reps} reps`
-                          : doors.find((d) => d.id === g.near)?.name}
+                          : g.near === "npc"
+                            ? npcName()
+                            : doors.find((d) => d.id === g.near)?.name}
               </strong>
             </div>
             <button onClick={interact}>
@@ -454,7 +460,9 @@ export function Hud({ interact }: { interact: () => void }) {
                       ? "Open"
                       : g.near === "lift"
                         ? "Lift"
-                        : "Enter"}{" "}
+                        : g.near === "npc"
+                          ? "Talk"
+                          : "Enter"}{" "}
               <Icon name="arrow" size={17} />
             </button>
           </div>
