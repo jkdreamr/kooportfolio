@@ -78,8 +78,8 @@ export const ANIMALS: readonly Animal[] = [
     route: [
       [-11, 5],
       [-7, 6],
-      [-6, 9],
-      [-10, 8],
+      [-6, 8],
+      [-10, 7],
     ],
     speed: 1.1,
     rest: 3,
