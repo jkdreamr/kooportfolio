@@ -106,15 +106,19 @@
 }
 
 .leaderboard th:first-child {
-  width: 22px;
+  width: 42px;
 }
 
 .leaderboard th:last-child {
-  width: 78px;
+  width: 96px;
 }
 
 .leaderboard tr :last-child:not(.leaderboard-empty) {
   text-align: right;
+}
+
+.leaderboard tr :is(:first-child, :last-child):not(.leaderboard-empty) {
+  white-space: nowrap;
 }
 
 .leaderboard .leaderboard-empty {

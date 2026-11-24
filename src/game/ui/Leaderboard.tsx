@@ -26,6 +26,7 @@ export function Leaderboard({
   initialBoard?: Scoreboard;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
   const titleId = useId();
   const nameId = useId();
   const [board, setBoard] = useState<Scoreboard>(initialBoard);
@@ -60,6 +61,7 @@ export function Leaderboard({
       setMessage("Enter a display name.");
       return;
     }
+    closeButton.current?.focus();
     setPosting(true);
     setMessage("");
     try {
@@ -102,7 +104,12 @@ export function Leaderboard({
     >
       <header className="leaderboard-header">
         <h2 id={titleId}>Leaderboard</h2>
-        <button type="button" aria-label="Close leaderboard" onClick={onClose}>
+        <button
+          ref={closeButton}
+          type="button"
+          aria-label="Close leaderboard"
+          onClick={onClose}
+        >
           ×
         </button>
       </header>
