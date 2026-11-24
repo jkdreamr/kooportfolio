@@ -129,6 +129,7 @@ function KitchenControls({
       ) ??
       root.querySelector<HTMLButtonElement>("button");
     next?.focus({ preventScroll: true });
+    next?.scrollIntoView({ block: "nearest", inline: "nearest" });
   });
   const act: Dispatch<PapaAction> = (action) => {
     dispatch(action);
