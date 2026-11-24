@@ -1,7 +1,6 @@
 import { NaturalTrees, type TreePlacement } from "./TreeArt";
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
 import { HomeCommunity, HOME_COMMUNITY_OBSTACLES } from "./CommunityScenery";
-import { RegionalActivities } from "./RegionalActivities";
 
 const parts: SceneryPart[] = [];
 const shrubs: SceneryPart[] = [];
@@ -181,7 +180,6 @@ export function HomeNeighborhood() {
       <WorldSceneryParts parts={shrubs} />
       <NaturalTrees trees={trees} />
       <HomeCommunity />
-      <RegionalActivities world="home" />
     </group>
   );
 }

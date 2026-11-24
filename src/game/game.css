@@ -2229,3 +2229,10 @@ body:has(.game-shell),
     font-size: 9px;
   }
 }
+
+/* Optional biography never competes with room controls on small screens. */
+@media (max-width: 700px), (max-height: 650px) {
+  .game-shell .room-story {
+    display: none;
+  }
+}

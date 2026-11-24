@@ -376,7 +376,7 @@ function TreeInstances({
       ref={ref}
       args={[geometry, material, parts.length]}
       castShadow
-      receiveShadow
+      receiveShadow={geometry === woodGeometry}
       dispose={null}
     />
   );
