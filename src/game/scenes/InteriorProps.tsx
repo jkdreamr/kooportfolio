@@ -36,6 +36,19 @@ export function GameControls({
   gameOpen?: boolean;
 }) {
   const [expanded, setExpanded] = useState(true);
+  const focusPending = useRef(false);
+  const toggle = (next: boolean) => {
+    focusPending.current = true;
+    setExpanded(next);
+  };
+  // Html commits in its own React root. Focus the replacement button when it
+  // actually mounts, not in a parent layout effect before that portal commits.
+  const focusToggle = (button: HTMLButtonElement | null) => {
+    if (button && focusPending.current) {
+      button.focus({ preventScroll: true });
+      focusPending.current = false;
+    }
+  };
   const open = !collapsible || expanded;
   const gl = useThree((s) => s.gl);
   // Drei otherwise changes targets when R3F connects its event source on the
@@ -121,7 +134,7 @@ export function GameControls({
         onPointerDown={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
           e.stopPropagation();
-          if (e.key === "Escape" && collapsible) setExpanded(false);
+          if (e.key === "Escape" && collapsible) toggle(false);
         }}
       >
         {open ? (
@@ -129,8 +142,9 @@ export function GameControls({
             {collapsible && (
               <button
                 className="house-game-close"
+                ref={focusToggle}
                 aria-label={`Close ${collapsible}`}
-                onClick={() => setExpanded(false)}
+                onClick={() => toggle(false)}
               >
                 ×
               </button>
@@ -138,7 +152,9 @@ export function GameControls({
             {children}
           </>
         ) : (
-          <button onClick={() => setExpanded(true)}>Play {collapsible}</button>
+          <button ref={focusToggle} onClick={() => toggle(true)}>
+            Play {collapsible}
+          </button>
         )}
       </section>
     </Html>
