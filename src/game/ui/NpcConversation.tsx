@@ -8,12 +8,13 @@ import {
 } from "../core/npcState";
 import { topicsFor } from "../core/npcTopics";
 import { useGame, walkTo } from "../core/store";
-import { destinations } from "../core/world";
+import { destinationsInWorld } from "../core/world";
 import { NpcIllustration } from "./NpcIllustration";
 import "./npc-conversation.css";
 
 export function NpcDialog() {
   const { talking, line, topic } = useNpcs();
+  const world = useGame((game) => game.world);
   const visible = useGame(
     (game) => game.scene === "hub" && game.panel === "npc" && !game.paused,
   );
@@ -35,9 +36,7 @@ export function NpcDialog() {
   const moreLines = line < npc.lines.length - 1;
   const topics = moreLines ? [] : topicsFor(npc.id);
   const reply = topics.find((option) => option.id === topic);
-  const place = destinations.find(
-    (destination) => destination.id === npc.place,
-  )!;
+  const place = destinationsInWorld(world).find(({ id }) => id === npc.place);
   return (
     <div
       className="npc-conversation-layer"
@@ -101,14 +100,16 @@ export function NpcDialog() {
               <kbd aria-hidden="true">E</kbd>
             </button>
           )}
-          <button
-            onClick={() => {
-              closeConversation();
-              walkTo(place.x, place.z);
-            }}
-          >
-            Walk to {place.name} <span aria-hidden="true">↗</span>
-          </button>
+          {place && (
+            <button
+              onClick={() => {
+                closeConversation();
+                walkTo(place.x, place.z);
+              }}
+            >
+              Walk to {place.name} <span aria-hidden="true">↗</span>
+            </button>
+          )}
           <button className="npc-goodbye" onClick={closeConversation}>
             Bye
           </button>

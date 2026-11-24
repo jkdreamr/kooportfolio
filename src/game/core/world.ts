@@ -4,6 +4,7 @@ import { forest, koreaForest } from "./scenery";
 import {
   KOREA_LANDMARK_DESTINATIONS,
   KOREA_LANDMARK_SOLIDS,
+  KOREA_STREET_BUILDINGS,
 } from "./koreaLandmarks";
 import { campusObstacles } from "./campus";
 import { POND } from "./pond";
@@ -228,11 +229,28 @@ export const landmarks = [
     anchor: [-76, 4, ISLAND_RAIL.station[1]] as const,
   },
 ] as const;
-export const destinations = [...doors, ...landmarks];
+const koreaDoors = doors
+  .filter((door) => belongsToWorld(door.id, "korea"))
+  .map((door) => {
+    if (door.id !== "theater" && door.id !== "cognition") return door;
+    const [x, z] = KOREA_STREET_BUILDINGS[door.id];
+    const [, originalZ, halfWidth, halfDepth] = door.footprint;
+    return {
+      ...door,
+      x,
+      z: z + (door.z - originalZ),
+      anchor: [x, door.anchor[1], z] as const,
+      footprint: [x, z, halfWidth, halfDepth] as const,
+    };
+  });
 export const doorsInWorld = (world: WorldId) =>
-  doors.filter((door) => belongsToWorld(door.id, world));
-export const destinationsInWorld = (world: WorldId) =>
-  destinations.filter((place) => belongsToWorld(place.id, world));
+  world === "korea"
+    ? koreaDoors
+    : doors.filter((door) => belongsToWorld(door.id, world));
+export const destinationsInWorld = (world: WorldId) => [
+  ...doorsInWorld(world),
+  ...landmarks.filter((place) => belongsToWorld(place.id, world)),
+];
 export type PlaceId = (typeof doors)[number]["id"];
 export function isInterior(scene: string) {
   return (
