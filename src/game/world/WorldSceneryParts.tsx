@@ -8,7 +8,7 @@ export type SceneryPart = {
   s: [number, number, number];
   c: string;
   r?: [number, number, number];
-  shape?: "block" | "stone" | "column" | "rock";
+  shape?: "block" | "stone" | "column" | "rock" | "ring";
 };
 
 const geometries = {
@@ -16,6 +16,7 @@ const geometries = {
   stone: new RoundedBoxGeometry(1, 1, 1, 1, 0.045),
   column: new THREE.CylinderGeometry(0.8, 1, 1, 10),
   rock: new THREE.IcosahedronGeometry(1, 1),
+  ring: new THREE.TorusGeometry(0.5, 0.045, 5, 16),
 };
 const material = sculptedMaterial({ roughness: 0.88 });
 
