@@ -213,6 +213,7 @@
     right: 12px;
     bottom: 69px;
     width: 175px;
+    max-width: calc(100% - 168px);
     gap: 4px;
   }
   .badminton-ui button {
@@ -238,6 +239,13 @@
     top: 83px;
     max-width: 64px;
     font-size: 10px !important;
+  }
+}
+@media (max-width: 360px) {
+  .badminton-score {
+    left: auto;
+    right: 12px;
+    transform: none;
   }
 }
 @media (max-height: 500px) and (min-width: 600px) {

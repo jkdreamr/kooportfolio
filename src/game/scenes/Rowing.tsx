@@ -28,6 +28,7 @@ import {
 import { RowingShell } from "./RowingShell";
 import { RowingWater } from "./RowingWater";
 import { RowingBanks } from "./RowingBanks";
+import { recordLeaderboardResult } from "../core/leaderboard";
 export const useRaceHud = create<{
   race: RaceState;
   place: number;
@@ -269,6 +270,12 @@ export function Rowing() {
     }
     if (s.finished && !done.current) {
       done.current = true;
+      if ((seed === 1 && length === 360) || (seed === 2 && length === 750))
+        recordLeaderboardResult({
+          id: id.current,
+          board: length === 360 ? "rowing-sprint" : "rowing-regatta",
+          score: Math.round(s.time * 1000),
+        });
       const coins = 45 + (4 - place) * 10 + (length > 400 ? 25 : 0),
         best = game.save.bestRace;
       const personalBest =

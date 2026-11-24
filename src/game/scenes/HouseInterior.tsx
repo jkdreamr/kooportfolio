@@ -1,19 +1,16 @@
-import { useEffect, useReducer, useRef, useState } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useState } from "react";
 import { Box, Ball, Cylinder, Ring } from "../world/Models";
-import { diceReducer, newDiceGame } from "../core/interiorGames";
 import { BrassStud, CraftedBox, WallSconce } from "./CraftedDetails";
+import { HouseRooms } from "./HouseRooms";
+import { BlackjackTable } from "./BlackjackTable";
+import { PongTable } from "./PongTable";
 import {
   Barrel,
   Bottle,
-  Die,
   Fire,
-  GameControls,
   Plant,
   Shelf,
-  Stool,
   Table,
-  gameIsActive,
   type InteriorGameProps,
 } from "./InteriorProps";
 
@@ -170,131 +167,29 @@ function Pennant({ x }: { x: number }) {
     </group>
   );
 }
-function DiceTable({ onReward }: InteriorGameProps) {
-  const [started, setStarted] = useState(false);
-  const [game, dispatch] = useReducer(diceReducer, undefined, newDiceGame);
-  const timer = useRef(0),
-    rewarded = useRef(false);
-  useFrame((_, dt) => {
-    if (!gameIsActive()) return;
-    if (game.phase === "rolling" || game.phase === "house") {
-      timer.current += Math.min(dt, 0.05);
-      if (timer.current >= 0.85) {
-        timer.current = 0;
-        const roll = () => Math.floor(Math.random() * 6) + 1;
-        dispatch(
-          game.phase === "rolling"
-            ? { type: "settle", value: roll() }
-            : { type: "house", values: [roll(), roll()] },
-        );
-      }
-    } else timer.current = 0;
-  });
-  useEffect(() => {
-    if (game.winner === "player" && !rewarded.current) {
-      rewarded.current = true;
-      onReward?.("dice", 15);
-    }
-  }, [game.winner, onReward]);
-  const reset = () => {
-    rewarded.current = false;
-    timer.current = 0;
-    dispatch({ type: "reset" });
-  };
-  return (
-    <>
-      <group position={[-1.2, 0, -2.6]} scale={1.4}>
-        <Box p={[0, 0.12, 0]} s={[4.8, 0.06, 3.8]} c="#214d3a" />
-        {[-2.26, 2.26].map((x) => (
-          <Box key={x} p={[x, 0.16, 0]} s={[0.06, 0.025, 3.55]} c="#c3a05a" />
-        ))}
-        {[-1.74, 1.74].map((z) => (
-          <Box key={z} p={[0, 0.16, z]} s={[4.55, 0.025, 0.06]} c="#c3a05a" />
-        ))}
-        <Table size={[3.3, 2.3]} />
-        <CraftedBox p={[0, 1.1, 0]} s={[3.6, 0.36, 2.55]} c="#553321" />
-        {[-1.5, 1.5].flatMap((x) =>
-          [-1.1, 1.1].map((z) => (
-            <BrassStud key={`${x}${z}`} p={[x, 1.3, z]} radius={0.075} />
-          )),
-        )}
-        <Box p={[0, 1.26, 0]} s={[3.05, 0.07, 2.05]} c="#225b43" />
-        <Box p={[0, 1.31, 0]} s={[0.025, 0.015, 1.9]} c="#d7b966" />
-        <Die
-          p={[-0.7, 1.66, 0.1]}
-          value={game.die}
-          rolling={game.phase === "rolling"}
-        />
-        <Die
-          p={[0.7, 1.66, -0.2]}
-          value={game.houseDie}
-          rolling={game.phase === "house"}
-          color="#d6a94d"
-        />
-        {[-1, 1].map((side) => (
-          <group key={side}>
-            {Array.from({ length: 4 }, (_, i) => (
-              <Cylinder
-                key={i}
-                p={[side * 1.24, 1.35 + i * 0.065, -0.65]}
-                s={[0.15, 0.055, 0.15]}
-                c={side === 1 ? "#bb5743" : "#e3c16b"}
-              />
-            ))}
-          </group>
-        ))}
-        <Stool p={[-1.05, 0, 2]} />
-        <Stool p={[1.05, 0, -1.9]} color="#356248" />
-      </group>
-      <GameControls name="Dice game" position={[7.5, 0.6, 5]}>
-        {!started ? (
-          <button onClick={() => setStarted(true)}>Play dice</button>
-        ) : (
-          <>
-            <h2>First to 21</h2>
-            <div className="interior-score">
-              <span>
-                You <strong>{game.player}</strong>
-              </span>
-              <span>
-                Turn <strong>{game.turn}</strong>
-              </span>
-              <span>
-                House <strong>{game.house}</strong>
-              </span>
-            </div>
-            <div className="interior-actions">
-              {game.phase === "over" ? (
-                <button onClick={reset}>Play again</button>
-              ) : (
-                <>
-                  <button
-                    disabled={game.phase !== "ready"}
-                    onClick={() => dispatch({ type: "roll" })}
-                  >
-                    Roll
-                  </button>
-                  <button
-                    disabled={game.phase !== "ready" || game.turn === 0}
-                    onClick={() => dispatch({ type: "bank" })}
-                  >
-                    Bank {game.turn || ""}
-                  </button>
-                </>
-              )}
-            </div>
-            <p role="status">{game.message}</p>
-          </>
-        )}
-      </GameControls>
-    </>
-  );
-}
 
 /** Furnishings/game only. Mount inside the shared 22×26 room shell. */
 export function HouseInterior(props: InteriorGameProps) {
+  const [activity, setActivity] = useState<"blackjack" | "pong">("blackjack");
+  const navigation = (
+    <nav className="house-game-tabs" aria-label="House games">
+      <button
+        aria-pressed={activity === "blackjack"}
+        onClick={() => setActivity("blackjack")}
+      >
+        Blackjack
+      </button>
+      <button
+        aria-pressed={activity === "pong"}
+        onClick={() => setActivity("pong")}
+      >
+        Pong
+      </button>
+    </nav>
+  );
   return (
     <group>
+      <HouseRooms scene="kappa" />
       <Pennant x={0} />
       <WallSconce p={[-2.5, 3, -11.5]} />
       <WallSconce p={[2.5, 3, -11.5]} />
@@ -360,42 +255,23 @@ export function HouseInterior(props: InteriorGameProps) {
         />
         <Ball p={[0, 0, 0.1]} s={[0.09, 0.09, 0.04]} c="#a84937" />
       </group>
-      <group position={[5.5, 0, 4.5]}>
-        <Table size={[5, 2.8]} />
-        <CraftedBox p={[0, 1.3, 0]} s={[5.3, 0.3, 3.1]} c="#603a24" />
-        <CraftedBox p={[0, 1.47, 0]} s={[4.7, 0.08, 2.5]} c="#265d43" />
-        {[-1, 1].flatMap((x) =>
-          [-1, 0, 1].map((z) => (
-            <Cylinder
-              key={`${x}${z}`}
-              p={[x * 2.28, 1.52, z * 1.15]}
-              s={[0.14, 0.035, 0.14]}
-              c="#272f25"
-            />
-          )),
-        )}
-        {[0, 1, 2, 3, 4].map((i) => (
-          <Ball
-            key={i}
-            p={[-0.8 + (i % 3) * 0.3, 1.62, -0.2 + Math.floor(i / 3) * 0.3]}
-            s={[0.13, 0.13, 0.13]}
-            c={["#dfb936", "#e4dbc0", "#9e4231", "#3d6b84", "#362c23"][i]}
-          />
-        ))}
-        <Cylinder
-          p={[0, 1.62, 0.8]}
-          s={[0.035, 4, 0.035]}
-          c="#c5a56b"
-          r={[0, 0, Math.PI / 2]}
-        />
-      </group>
       <group position={[-6.5, 0, 6]} scale={1.2}>
         <Sofa p={[0, 0, 0]} />
         <Table p={[0, 0, 2]} size={[2.8, 1.5]} />
         <Bottle p={[0.7, 1.25, 2]} />
         <Cylinder p={[-0.5, 1.3, 2]} s={[0.3, 0.08, 0.3]} c="#ead4a0" />
       </group>
-      <DiceTable {...props} />
+      <BlackjackTable
+        {...props}
+        active={activity === "blackjack"}
+        onSelect={() => setActivity("blackjack")}
+        navigation={navigation}
+      />
+      <PongTable
+        active={activity === "pong"}
+        onSelect={() => setActivity("pong")}
+        navigation={navigation}
+      />
     </group>
   );
 }

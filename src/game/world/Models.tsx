@@ -3,9 +3,10 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { runtime, useGame } from "../core/store";
-import { GableRoof, StoneFooting } from "./ArchitectureDetail";
+import { GableRoof, StoneFooting, WindowDetail } from "./ArchitectureDetail";
 import { sculptedMaterial } from "./Surface";
 import { NationalFlag } from "./NationalFlag";
+import { TreeArt } from "./TreeArt";
 
 const rounded = new Map<string, RoundedBoxGeometry>();
 function roundedGeometry(size: [number, number, number]) {
@@ -246,36 +247,7 @@ export function Tree({
   size?: number;
   variant?: number;
 }) {
-  return (
-    <group position={p} scale={size}>
-      <Cylinder p={[0, 1.2, 0]} s={[0.18, 2.4, 0.18]} c="#866b50" />
-      {variant % 3 === 0 ? (
-        <>
-          <Cone p={[0, 2.1, 0]} s={[1.1, 2.2, 1.1]} />
-          <Cone p={[0, 3, 0]} s={[0.85, 1.9, 0.85]} c="#718967" />
-          <Cone p={[0, 3.8, 0]} s={[0.55, 1.5, 0.55]} c="#849773" />
-        </>
-      ) : (
-        <>
-          <Ball
-            p={[-0.55, 2.8, 0]}
-            s={[1.1, 1.2, 1]}
-            c={variant % 2 ? "#a4ad77" : "#6d8b64"}
-          />
-          <Ball
-            p={[0.6, 3.05, 0]}
-            s={[0.95, 1.25, 1.04]}
-            c={variant % 2 ? "#c3bb7f" : "#849d70"}
-          />
-          <Ball
-            p={[0, 3.8, 0.1]}
-            s={[1.05, 1.1, 1.05]}
-            c={variant % 2 ? "#a6ad76" : "#93a776"}
-          />
-        </>
-      )}
-    </group>
-  );
+  return <TreeArt p={p} size={size} variant={variant} />;
 }
 export function Flowers({
   p,
@@ -309,11 +281,7 @@ export function Window({
 }) {
   return (
     <group position={p}>
-      <Box s={[width + 0.18, 1.15, 0.13]} c="#80715a" />
-      <Box p={[0, 0, 0.08]} s={[width, 1, 0.08]} c="#efc982" />
-      <Box p={[0, 0, 0.14]} s={[0.06, 1.05, 0.07]} c="#faf0d4" />
-      <Box p={[0, 0, 0.14]} s={[width, 0.06, 0.07]} c="#faf0d4" />
-      <Box p={[0, -0.6, 0.14]} s={[width + 0.35, 0.14, 0.38]} c="#e3d6b7" />
+      <WindowDetail width={width} />
     </group>
   );
 }

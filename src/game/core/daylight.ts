@@ -1,5 +1,3 @@
-/** A full village day takes twelve active minutes. No save/progression changes. */
-export const DAY_SECONDS = 12 * 60;
 export const TIME_PRESETS = {
   dawn: { hour: 5.5, label: "Dawn" },
   sunrise: { hour: 6.5, label: "Sunrise" },
@@ -13,10 +11,15 @@ export function wrapHour(hour: number) {
   return ((hour % 24) + 24) % 24;
 }
 
-/** Fixed presets ease along the shortest arc; auto never catches up hidden time. */
-export function advanceHour(hour: number, seconds: number, mode: TimeMode) {
+/** Auto follows regional civil time; fixed presets ease along the shortest arc. */
+export function advanceHour(
+  hour: number,
+  seconds: number,
+  mode: TimeMode,
+  automaticHour = hour,
+) {
   const dt = Math.min(Math.max(seconds, 0), 0.1);
-  if (mode === "auto") return wrapHour(hour + (dt * 24) / DAY_SECONDS);
+  if (mode === "auto") return dt > 0 ? wrapHour(automaticHour) : hour;
   const distance = wrapHour(TIME_PRESETS[mode].hour - hour + 12) - 12;
   if (Math.abs(distance) < 0.0001 && dt > 0) return TIME_PRESETS[mode].hour;
   return wrapHour(hour + distance * (1 - Math.exp(-dt * 2.5)));

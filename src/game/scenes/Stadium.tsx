@@ -3,7 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { Ball, Box, Cylinder } from "../world/Models";
 import { Walker } from "../world/Hub";
-import { runtime } from "../core/store";
+import { runtime, useGame } from "../core/store";
 import {
   FIELD_GOAL,
   goalClearanceTime,
@@ -88,6 +88,7 @@ type Flight = { kick: Kick; time: number; judged: boolean };
 
 /** Complete room-sized outdoor stadium. Mount instead of the generic room shell. */
 export function StadiumInterior() {
+  const nearExit = useGame((state) => state.near === "exit");
   const [aim, setAim] = useState(0);
   const [attempt, setAttempt] = useState(0);
   const [score, setScore] = useState(0);
@@ -130,6 +131,7 @@ export function StadiumInterior() {
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
+      if (useGame.getState().near === "exit") return;
       const target = event.target;
       if (
         target instanceof HTMLElement &&
@@ -213,60 +215,62 @@ export function StadiumInterior() {
           <FootballPlayer p={[side * 4.5, 0.17, -3.5]} />
         </group>
       ))}
-      <GameControls name="49ers field goals" position={[0, 0.5, 7]}>
-        <div className="stadium-controls">
-          <div className="stadium-score">
-            <strong>49ERS</strong>
-            <span>
-              {score * 3} PTS <b>·</b> {attempt}/{FIELD_GOAL.attempts}
-            </span>
+      {!nearExit && (
+        <GameControls name="49ers field goals" position={[0, 0.5, 7]}>
+          <div className="stadium-controls">
+            <div className="stadium-score">
+              <strong>49ERS</strong>
+              <span>
+                {score * 3} PTS <b>·</b> {attempt}/{FIELD_GOAL.attempts}
+              </span>
+            </div>
+            <label className="stadium-aim">
+              Aim
+              <input
+                aria-label="Kick aim"
+                type="range"
+                min={-18}
+                max={18}
+                step={0.5}
+                value={aim}
+                disabled={flying || finished}
+                onChange={(event) => setAim(Number(event.target.value))}
+              />
+            </label>
+            <div className="stadium-power">
+              <span>Power</span>
+              <meter
+                ref={meter}
+                aria-label="Kick power"
+                min={0}
+                max={1}
+                low={0.55}
+                high={0.9}
+                optimum={0.7}
+                defaultValue={power.current}
+              />
+            </div>
+            <button
+              type="button"
+              disabled={flying}
+              onClick={finished ? reset : kick}
+            >
+              {flying
+                ? "In flight"
+                : finished
+                  ? "Play again"
+                  : attempt === 0
+                    ? "Kick"
+                    : "Next kick"}
+            </button>
+            <p role="status" aria-live="polite">
+              {finished
+                ? `${message}. ${score} of ${FIELD_GOAL.attempts} made.`
+                : message}
+            </p>
           </div>
-          <label className="stadium-aim">
-            Aim
-            <input
-              aria-label="Kick aim"
-              type="range"
-              min={-18}
-              max={18}
-              step={0.5}
-              value={aim}
-              disabled={flying || finished}
-              onChange={(event) => setAim(Number(event.target.value))}
-            />
-          </label>
-          <div className="stadium-power">
-            <span>Power</span>
-            <meter
-              ref={meter}
-              aria-label="Kick power"
-              min={0}
-              max={1}
-              low={0.55}
-              high={0.9}
-              optimum={0.7}
-              defaultValue={power.current}
-            />
-          </div>
-          <button
-            type="button"
-            disabled={flying}
-            onClick={finished ? reset : kick}
-          >
-            {flying
-              ? "In flight"
-              : finished
-                ? "Play again"
-                : attempt === 0
-                  ? "Kick"
-                  : "Next kick"}
-          </button>
-          <p role="status" aria-live="polite">
-            {finished
-              ? `${message}. ${score} of ${FIELD_GOAL.attempts} made.`
-              : message}
-          </p>
-        </div>
-      </GameControls>
+        </GameControls>
+      )}
       <Walker interior />
     </group>
   );
