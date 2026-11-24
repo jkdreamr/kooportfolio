@@ -1,10 +1,10 @@
 import { create } from "zustand";
 import {
   approachNpc,
+  canTalkToNpc,
   createNpcActors,
   nearestNpc,
   villagers,
-  TALK_DISTANCE,
 } from "./npcs";
 import { runtime, useGame } from "./store";
 import { doors } from "./world";
@@ -39,7 +39,7 @@ export function talkToNpc(id: string) {
     return;
   const actor = npcActors.find((npc) => npc.id === id);
   if (!actor) return;
-  if (Math.hypot(actor.x - runtime.x, actor.z - runtime.z) > TALK_DISTANCE) {
+  if (!canTalkToNpc(actor, runtime.x, runtime.z)) {
     const path = approachNpc(actor, [runtime.x, runtime.z]);
     if (!path.length) return;
     runtime.path = path;
