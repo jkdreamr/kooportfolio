@@ -738,9 +738,9 @@ function BasketballCourt({ playing }: { playing: boolean }) {
     );
     camera.position.lerp(desiredCamera, 1 - Math.exp(-dt * 7));
     // Leave headroom for the lob apex beneath the session header.
-    camera.lookAt(focusX, portrait ? 1.5 : 3.5, focusZ);
+    camera.lookAt(focusX, portrait ? 1.5 : 4.2, focusZ);
     if (camera instanceof THREE.PerspectiveCamera) {
-      const fov = portrait || size.height < 640 ? 72 : 60;
+      const fov = portrait ? 72 : size.height < 640 ? 76 : 66;
       if (camera.fov !== fov) {
         camera.fov = fov;
         camera.updateProjectionMatrix();
