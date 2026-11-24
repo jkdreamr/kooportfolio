@@ -222,7 +222,6 @@ export const landmarks = [
     anchor: [-76, 4, ISLAND_RAIL.station[1]] as const,
   },
 ] as const;
-export const destinations = [...doors, ...landmarks];
 const koreaDoors = doors
   .filter((door) => belongsToWorld(door.id, "korea"))
   .map((door) => {
