@@ -9,7 +9,6 @@ import {
   Cylinder,
   Flowers,
   House,
-  Npc,
   Ring,
 } from "./Models";
 import { runtime, useGame, walkTo } from "../core/store";
@@ -17,7 +16,14 @@ import { movement } from "../core/input";
 import { canWalk, doors, moveWorld } from "../core/world";
 import { LabelProjection } from "./Labels";
 import { Landscape } from "./Landscape";
+import { Bulletin } from "./Bulletin";
 import { ROOM } from "../core/room";
+import { NpcCrowd } from "./VillageNpcs";
+import { nearbyNpcId } from "../core/npcState";
+import { BadmintonPavilion } from "../scenes/BadmintonCourt";
+import { Wildlife } from "./Wildlife";
+import { WritingShell } from "./WritingShell";
+import { BeatLabShell, MathLabShell } from "./LabBuildings";
 import {
   KappaShell,
   CognitionShell,
@@ -107,10 +113,13 @@ export function Walker({ interior = false }: { interior?: boolean }) {
             } as Record<string, string>
           )[state.scene] ?? "";
       }
-    } else
+    } else {
       near =
         doors.find((d) => Math.hypot(d.x - runtime.x, d.z - runtime.z) < 1.9)
           ?.id ?? "";
+      if (!near && Math.hypot(runtime.x, runtime.z + 4.6) < 1.9) near = "read";
+      if (!near) near = nearbyNpcId(runtime.x, runtime.z);
+    }
     state.setNear(near);
     const mobile = size.width < 700 || size.height < 500;
     const closeInterior = interior && (mobile || size.height < 500);
@@ -233,6 +242,8 @@ export function Hub() {
   return (
     <group>
       <Landscape />
+      <Bulletin />
+      <Wildlife />
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
         position={[0, 0.24, -1]}
@@ -242,7 +253,7 @@ export function Hub() {
             walkTo(e.point.x, e.point.z);
         }}
       >
-        <planeGeometry args={[104, 90]} />
+        <planeGeometry args={[144, 122]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
       {doors.map((door) => (
@@ -254,9 +265,13 @@ export function Hub() {
             <House p={[0, 0, 0]} level={save.upgrades.boathouse} />
           )}
           {door.id === "office" && <House p={[0, 0, 0]} kind="study" />}
-          {(door.id === "music" || door.id === "math") && (
+          {(door.id === "go" || door.id === "stadium") && (
             <House p={[0, 0, 0]} kind="study" />
           )}
+          {door.id === "writing" && <WritingShell p={[0, 0, 0]} />}
+          {door.id === "badminton" && <BadmintonPavilion />}
+          {door.id === "music" && <BeatLabShell />}
+          {door.id === "math" && <MathLabShell />}
           {door.id === "basketball" && <CourtPavilion />}
           {door.id === "kappa" && <KappaShell />}
           {door.id === "cognition" && <CognitionShell />}
@@ -265,8 +280,7 @@ export function Hub() {
         </group>
       ))}
       <Garden level={save.upgrades.garden} />
-      <Npc origin={[-3.5, 0.2, -3]} color="#b95e3d" />
-      <Npc origin={[11, 0.2, 12.3]} color="#d3a444" />
+      <NpcCrowd />
       <Walker />
       <LabelProjection />
     </group>

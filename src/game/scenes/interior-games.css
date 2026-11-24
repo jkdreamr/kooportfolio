@@ -1,6 +1,9 @@
 .interior-game {
   box-sizing: border-box;
   width: min(320px, calc(100vw - 36px));
+  max-height: calc(100dvh - 120px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 12px 14px;
   border: 1px solid #ae8b4a;
   border-radius: 5px;
