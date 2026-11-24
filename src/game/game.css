@@ -523,6 +523,9 @@ body:has(.game-shell),
   align-self: flex-start;
   color: #8f967c;
 }
+.interior-intro {
+  display: contents;
+}
 .interior-heading,
 .challenge-heading {
   position: absolute;
@@ -1500,7 +1503,7 @@ body:has(.game-shell),
   .race-select span {
     font-size: 7px;
   }
-  .interior-heading ~ .context-action {
+  .interior-intro ~ .context-action {
     bottom: 315px;
   }
   .build-heading {

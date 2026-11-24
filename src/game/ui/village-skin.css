@@ -763,7 +763,7 @@
   display: none;
 }
 @media (max-width: 700px) and (max-height: 650px) {
-  .game-shell .interior-heading ~ .context-action {
+  .game-shell .interior-intro ~ .context-action {
     left: auto;
     right: max(16px, env(safe-area-inset-right));
     bottom: max(96px, calc(env(safe-area-inset-bottom) + 88px));
@@ -776,9 +776,26 @@
     overflow: auto;
   }
 }
-@media (max-width: 700px) and (min-height: 651px) {
-  .game-shell .room-story {
-    top: 170px;
+@media (max-width: 700px) and (orientation: portrait) {
+  .game-shell .interior-intro:has(.room-story:not([hidden])) {
+    position: absolute;
+    top: max(90px, calc(env(safe-area-inset-top) + 74px));
+    inset-inline: 0;
+    display: grid;
+    gap: 10px;
+  }
+  .game-shell .interior-intro:has(.room-story:not([hidden])) .interior-heading {
+    position: static;
+    margin-inline: 23px;
+  }
+  .game-shell .interior-intro:has(.room-story:not([hidden])) h1 {
+    margin-bottom: 0;
+  }
+  .game-shell .interior-intro .room-story {
+    position: relative;
+    inset: auto;
+    transform: none;
+    justify-self: center;
   }
 }
 @media (max-height: 650px) and (orientation: landscape) {

@@ -5,7 +5,7 @@ import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { sculptedMaterial } from "../world/Surface";
-import { CognitionDeskTent, CognitionWordmark } from "./CognitionWordmark";
+import { CognitionDeskBadge, CognitionScreen } from "./CognitionWordmark";
 
 function Bookcase({ x, z }: { x: number; z: number }) {
   return (
@@ -206,6 +206,8 @@ function roomDetails(scene: PlaceId) {
     if (scene !== "cognition") {
       box([x, 1.87, z - 0.3], [1.5, 0.8, 0.035], "#91aaa1");
       box([x, 1.28, z + 0.4], [1.2, 0.05, 0.38], "#d5d5c3");
+    } else {
+      box([x, 1.27, z + 0.4], [1.2, 0.06, 0.38], "#d5d5c3");
     }
     cylinder([x + 1.16, 1.4, z + 0.3], [0.13, 0.28, 0.13], "#cbbd97");
     ring([x + 1.3, 1.41, z + 0.3], 0.09, "#cbbd97", [0, Math.PI / 2, 0]);
@@ -416,8 +418,8 @@ function RoomDetails({ scene }: { scene: PlaceId }) {
       {scene === "cognition" &&
         officeDesks.map(([x, z]) => (
           <group key={`${x}:${z}`} position={dressingPosition(room, [x, 0, z])}>
-            <CognitionWordmark p={[0, 1.87, -0.313]} size={[1.5, 0.8]} />
-            <CognitionDeskTent p={[0, 1.245, 0.47]} size={[1.84, 0.48]} />
+            <CognitionScreen p={[0, 1.87, -0.313]} size={[1.5, 0.8]} />
+            <CognitionDeskBadge p={[-1.12, 1.245, 0.5]} size={[0.6, 0.16]} />
           </group>
         ))}
     </>

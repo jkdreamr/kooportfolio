@@ -446,36 +446,36 @@ export function Hud({ interact }: { interact: () => void }) {
       {hub && !g.build && <WorldLabels />}
       {hub && <span className="world-name">{WORLDS[g.world].name}</span>}
       {interior && (
-        <div className="interior-heading">
-          <button
-            className="back-link"
-            onClick={() => {
-              keys.clear();
-              touch.x = touch.z = 0;
-              pendingExit.current = g.scene;
-              window.dispatchEvent(new Event("interior-game-close"));
-              if (!useGame.getState().overlayLocked) {
-                const exit = g.scene === "skate" ? SKATE_EXIT : [0, roomFor(g.scene).doorZ];
-                walkTo(exit[0], exit[1]);
-                pendingExit.current = null;
-              }
-            }}
-          >
-            ← Exit
-          </button>
-          <h1>
-            {g.scene === "secret"
-              ? "Hoover vault"
-              : doors.find((door) => door.id === g.scene)?.name}
-          </h1>
+        <div className="interior-intro">
+          <div className="interior-heading">
+            <button
+              className="back-link"
+              onClick={() => {
+                keys.clear();
+                touch.x = touch.z = 0;
+                pendingExit.current = g.scene;
+                window.dispatchEvent(new Event("interior-game-close"));
+                if (!useGame.getState().overlayLocked) {
+                  const exit = g.scene === "skate" ? SKATE_EXIT : [0, roomFor(g.scene).doorZ];
+                  walkTo(exit[0], exit[1]);
+                  pendingExit.current = null;
+                }
+              }}
+            >
+              ← Exit
+            </button>
+            <h1>
+              {g.scene === "secret"
+                ? "Hoover vault"
+                : doors.find((door) => door.id === g.scene)?.name}
+            </h1>
+          </div>
+          <RoomStory
+            key={g.scene}
+            scene={g.scene as PlaceId}
+            hidden={g.paused || g.panel !== "none"}
+          />
         </div>
-      )}
-      {interior && (
-        <RoomStory
-          key={g.scene}
-          scene={g.scene as PlaceId}
-          hidden={g.paused || g.panel !== "none"}
-        />
       )}
       {g.scene === "rowing" && <RaceHud />}
       {g.scene === "basketball" && (

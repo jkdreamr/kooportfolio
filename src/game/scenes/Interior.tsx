@@ -118,15 +118,13 @@ export function Interior() {
             width={2.4}
           />
         ))}
-      {cognition ? (
-        <CognitionPlaque p={[0, 4.55, back + 0.49]} size={[5.9, 1.35]} />
-      ) : !theater ? (
+      {!cognition && !theater && (
         <Sign
           text={name.toUpperCase()}
           p={[0, 4.4, back + 0.55]}
           size={[4.5, 0.65]}
         />
-      ) : null}
+      )}
       {!theater &&
         [-1, 1].map((side) => (
           <group key={side}>
@@ -213,8 +211,9 @@ export function Interior() {
       {cognition ? (
         <>
           <CognitionPlaque
-            p={[0, 3.99, room.doorZ + 1.05]}
-            size={[3.7, 1.1]}
+            p={[0, 3.685, room.doorZ + 1.05]}
+            size={[3.7, 0.55]}
+            depth={0.07}
           />
           <Sign
             text="EXIT"

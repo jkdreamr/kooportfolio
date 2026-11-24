@@ -8,9 +8,9 @@ import { runtime, useGame } from "../core/store";
 import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import { COGNITION_OFFICE_WALL } from "../core/houseRooms";
 import {
-  CognitionDeskTent,
+  CognitionDeskBadge,
   CognitionPlaque,
-  CognitionWordmark,
+  CognitionScreen,
 } from "./CognitionWordmark";
 import { gameIsActive } from "./InteriorProps";
 import "./gym-room.css";
@@ -228,13 +228,26 @@ export function CognitionFurnishings() {
       <Box
         p={[wall.x, 2, wall.z]}
         s={[wall.width, 3.9, wall.depth]}
-        c="#6e808d"
+        c="#536675"
       />
       <Box
-        p={[wall.x, 3.94, wall.z]}
-        s={[wall.width + 0.08, 0.14, wall.depth + 0.06]}
+        p={[wall.x, 3.92, wall.z]}
+        s={[wall.width + 0.03, 0.16, wall.depth + 0.03]}
         c="#435668"
       />
+      <Box
+        p={[wall.x, 0.24, wall.z]}
+        s={[wall.width + 0.03, 0.36, wall.depth + 0.08]}
+        c="#354453"
+      />
+      {[-1, 1].map((side) => (
+        <Box
+          key={side}
+          p={[wall.x + side * (wall.width / 2 - 0.12), 1.99, wall.z]}
+          s={[0.24, 3.87, wall.depth + 0.06]}
+          c="#435668"
+        />
+      ))}
       <CognitionPlaque
         p={[wall.x, 3.05, wall.z + wall.depth / 2 + 0.06]}
         size={[6.35, 1.35]}
@@ -249,8 +262,9 @@ export function CognitionFurnishings() {
           <Box p={[0, 1.39, -0.31]} s={[1.13, 0.1, 0.54]} c="#435668" />
           <Box p={[0, 1.62, -0.36]} s={[0.2, 0.42, 0.16]} c="#435668" />
           <Box p={[0, 2.38, -0.36]} s={[2.65, 1.24, 0.17]} c="#182630" />
-          <CognitionWordmark p={[0, 2.38, -0.268]} size={[2.39, 0.99]} />
-          <CognitionDeskTent p={[0, 1.35, 0.48]} size={[2.23, 0.6]} />
+          <CognitionScreen p={[0, 2.38, -0.268]} size={[2.39, 0.99]} />
+          <Box p={[0, 1.38, 0.38]} s={[1.18, 0.06, 0.36]} c="#435668" />
+          <CognitionDeskBadge p={[1.15, 1.35, 0.51]} size={[0.72, 0.2]} />
           <Bench p={[0, 0, 1.1]} />
         </group>
       ))}
