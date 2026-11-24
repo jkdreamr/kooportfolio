@@ -10,7 +10,7 @@ const copy = {
 };
 for (const [route, body] of Object.entries(copy)) {
   await mkdir(`${root}/${route}`, { recursive: true });
-  const fallback = `<div id="root"><main style="max-width:660px;margin:15vh auto;padding:28px;font:18px/1.8 Georgia,serif"><nav><a href="/">home</a> · <a href="/about">about</a> · <a href="/work">work</a> · <a href="/contact">contact</a></nav>${body}<noscript>The optional game requires JavaScript; all portfolio links work without it.</noscript></main></div>`;
+  const fallback = `<div id="root"><main style="max-width:660px;margin:15vh auto;padding:28px;font:18px/1.8 Georgia,serif"><nav><a href="/">home</a> · <a href="/about">about</a> · <a href="/work">work</a> · <a href="/contact">contact</a> · <a href="/play">play</a></nav>${body}<noscript>The optional game requires JavaScript; all portfolio links work without it.</noscript></main></div>`;
   await writeFile(
     `${root}/${route}/index.html`,
     html
