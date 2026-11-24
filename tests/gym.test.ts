@@ -239,6 +239,24 @@ describe("optional gym sessions", () => {
     expect(readGymBest()).toBe(2000);
   });
 
+  it("freezes a visible tab when its window loses focus", () => {
+    let focused = true;
+    vi.stubGlobal("document", { hidden: false, hasFocus: () => focused });
+    useGym.getState().startSession();
+    clock += 400;
+    const before = gymMarker(useGym.getState().readyAt, clock, 0);
+    focused = false;
+    useGym.getState().syncClock();
+    clock += 8000;
+    useGym.getState().lift();
+    expect(useGym.getState().reps).toBe(0);
+    focused = true;
+    useGym.getState().syncClock();
+    expect(gymMarker(useGym.getState().readyAt, clock, 0)).toBeCloseTo(before);
+    perfectLift();
+    expect(useGym.getState()).toMatchObject({ reps: 1, judgment: "Perfect" });
+  });
+
   it("still completes and rewards a set when local best storage is blocked", () => {
     vi.stubGlobal("window", {
       localStorage: {

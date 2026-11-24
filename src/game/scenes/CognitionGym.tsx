@@ -83,7 +83,8 @@ export const useGym = create<{
     const running =
       gameIsActive() &&
       runtime.active &&
-      (typeof document === "undefined" || !document.hidden);
+      (typeof document === "undefined" ||
+        (!document.hidden && document.hasFocus()));
     const { pausedAt, readyAt, liftedAt } = get();
     if (!running) {
       if (pausedAt === null) set({ pausedAt: now });
@@ -291,7 +292,7 @@ function GymControls() {
   }, [active]);
   useFrame(() => {
     useGym.getState().syncClock();
-    if (!gameIsActive()) return;
+    if (!gameIsActive() || useGym.getState().pausedAt !== null) return;
     if (!active) {
       const nearby = Math.hypot(runtime.x, runtime.z + 2) <= 6;
       if (nearby !== near) setNear(nearby);
