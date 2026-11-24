@@ -3,7 +3,7 @@
   inset: 0;
   z-index: 80;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(200px, 1fr) auto;
   align-items: center;
   gap: 12px;
   padding: max(18px, env(safe-area-inset-top))
@@ -24,6 +24,39 @@
   margin: 0;
   font-size: 16px;
   font-weight: 600;
+}
+.telescope-header h2 span {
+  color: #b7bdb7;
+  font-weight: 400;
+}
+.telescope-time {
+  margin: 6px 0 0;
+  color: #b7bdb7;
+  font-size: 12px;
+}
+.telescope-time-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.telescope-time-row output {
+  margin-left: auto;
+  color: #b7bdb7;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.telescope-attribution {
+  margin: 12px 0 0;
+  color: #aeb8b3;
+  text-align: center;
+  font-size: 11px;
+}
+.telescope-attribution a {
+  color: inherit;
+  text-underline-offset: 3px;
 }
 .telescope-view button,
 .telescope-view select {
@@ -55,7 +88,7 @@
 .telescope-view button[aria-pressed="true"]:hover {
   background: #ead8b6;
 }
-.telescope-view :is(button, select):focus-visible {
+.telescope-view :is(button, select, a):focus-visible {
   outline: 2px solid #e9cc93;
   outline-offset: 3px;
 }
@@ -72,8 +105,7 @@
   position: relative;
   justify-self: center;
   align-self: center;
-  width: min(calc(100dvh - 230px), 630px, calc(100vw - 64px));
-  max-height: 100%;
+  width: max(180px, min(calc(100dvh - 305px), 630px, calc(100vw - 64px)));
   aspect-ratio: 1;
   border: 9px solid #343a38;
   border-radius: 50%;
@@ -133,6 +165,11 @@
   text-align: center;
   color: #1f3441;
   font-size: 15px;
+}
+.telescope-day-message span {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 12px;
 }
 .telescope-controls {
   justify-self: center;
@@ -204,20 +241,20 @@
     margin-left: 8px;
   }
   .telescope-aperture {
-    width: min(calc(100dvh - 240px), calc(100vw - 60px));
+    width: max(180px, min(calc(100dvh - 340px), calc(100vw - 60px)));
   }
 }
-@media (max-height: 520px) and (min-width: 600px) {
+@media (max-height: 520px) and (min-width: 520px) {
   .telescope-view {
     grid-template-columns: minmax(0, 1fr) 270px;
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: auto minmax(200px, 1fr);
     gap: 12px 24px;
   }
   .telescope-header {
     grid-column: 1 / -1;
   }
   .telescope-aperture {
-    width: min(68dvh, calc(100vw - 365px));
+    width: max(180px, min(68dvh, calc(100vw - 365px)));
   }
   .telescope-controls {
     grid-column: 2;

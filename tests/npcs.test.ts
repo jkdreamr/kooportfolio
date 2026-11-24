@@ -89,6 +89,7 @@ describe("NPC interaction boundaries", () => {
   beforeEach(() => {
     useGame.setState({
       scene: "hub",
+      world: "stanford",
       panel: "none",
       paused: false,
       build: false,

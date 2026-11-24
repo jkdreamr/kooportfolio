@@ -152,15 +152,20 @@ export function BlackjackTable({
           name="Blackjack game"
           position={[7.5, 0.6, 5]}
           mobileSheet
+          dock="left"
+          gameOpen
+          collapsible="Blackjack"
         >
-          {navigation}
-          <div className="blackjack-bank">
-            <span>
-              Play chips <b>{game.bank}</b>
-            </span>
-            <span>
-              Bet <b>{game.bet}</b>
-            </span>
+          <div className="house-game-header">
+            {navigation}
+            <div className="blackjack-bank">
+              <span>
+                Play chips <b>{game.bank}</b>
+              </span>
+              <span>
+                Bet <b>{game.bet}</b>
+              </span>
+            </div>
           </div>
           {game.player.length > 0 && (
             <div className="blackjack-hands">
@@ -186,20 +191,18 @@ export function BlackjackTable({
                 Refill play chips
               </button>
             ) : (
-              <>
-                <div className="interior-actions blackjack-bets">
-                  {[10, 20, 50].map((amount) => (
-                    <button
-                      key={amount}
-                      aria-label={`Bet ${amount} chips`}
-                      aria-pressed={game.bet === amount}
-                      disabled={game.bank < amount}
-                      onClick={() => dispatch({ type: "wager", amount })}
-                    >
-                      {amount}
-                    </button>
-                  ))}
-                </div>
+              <div className="interior-actions blackjack-bets">
+                {[10, 20, 50].map((amount) => (
+                  <button
+                    key={amount}
+                    aria-label={`Bet ${amount} chips`}
+                    aria-pressed={game.bet === amount}
+                    disabled={game.bank < amount}
+                    onClick={() => dispatch({ type: "wager", amount })}
+                  >
+                    {amount}
+                  </button>
+                ))}
                 <button
                   className="blackjack-deal"
                   disabled={game.bank < game.bet}
@@ -209,7 +212,7 @@ export function BlackjackTable({
                 >
                   Deal
                 </button>
-              </>
+              </div>
             )
           ) : (
             <div className="interior-actions">

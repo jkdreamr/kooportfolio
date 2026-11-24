@@ -2,6 +2,7 @@ import { useLayoutEffect, useMemo, useRef, useEffect } from "react";
 import * as THREE from "three";
 import { Box, Cylinder, Sign } from "../world/Models";
 import { FIELD_GOAL } from "../core/fieldGoal";
+import { STADIUM } from "../core/stadiumLayout";
 
 const RED = "#a91f32",
   GOLD = "#c5a15b",
@@ -72,13 +73,13 @@ function Field() {
   useEffect(() => () => texture.dispose(), [texture]);
   return (
     <>
-      <Box p={[0, 0.03, -0.5]} s={[10.2, 0.24, 19.8]} c="#254c36" />
+      <Box p={[0, 0.03, STADIUM.fieldZ]} s={[20.2, 0.24, 48.2]} c="#254c36" />
       <mesh
-        position={[0, 0.158, -0.5]}
+        position={[0, 0.158, STADIUM.fieldZ]}
         rotation={[-Math.PI / 2, 0, 0]}
         receiveShadow
       >
-        <planeGeometry args={[10, 19.6]} />
+        <planeGeometry args={[STADIUM.fieldWidth, STADIUM.fieldDepth]} />
         <meshStandardMaterial map={texture} roughness={1} />
       </mesh>
     </>
@@ -139,34 +140,34 @@ function SeatingBowl() {
   const seats = useMemo(() => {
     const result: Seat[] = [];
     for (const side of [-1, 1])
-      for (let row = 0; row < 3; row++) {
-        for (let i = 0; i < 22; i++) {
-          if (i === 7 || i === 15) continue; // Concrete stair aisles.
+      for (let row = 0; row < 5; row++) {
+        for (let i = 0; i < 60; i++) {
+          if (i === 14 || i === 29 || i === 44) continue; // Concrete stair aisles.
           result.push({
-            x: side * (6.05 + row * 0.76),
+            x: side * (11.5 + row * 0.76),
             y: 0.8 + row * 0.57,
-            z: -8.8 + i * 0.78,
+            z: -22.5 + i * 0.76,
             rotation: (side * -Math.PI) / 2,
           });
         }
       }
-    for (let row = 0; row < 3; row++)
-      for (let i = 0; i < 15; i++) {
-        if (i === 7) continue;
+    for (let row = 0; row < 5; row++)
+      for (let i = 0; i < 29; i++) {
+        if (i === 7 || i === 14 || i === 21) continue;
         result.push({
-          x: (i - 7) * 0.72,
+          x: (i - 14) * 0.72,
           y: 0.8 + row * 0.57,
-          z: -10.75 - row * 0.7,
+          z: -25.2 - row * 0.7,
           rotation: 0,
         });
       }
-    for (let row = 0; row < 2; row++)
+    for (let row = 0; row < 3; row++)
       for (const side of [-1, 1])
-        for (let i = 0; i < 5; i++) {
+        for (let i = 0; i < 13; i++) {
           result.push({
-            x: side * (2.65 + i * 0.72),
+            x: side * (4 + i * 0.72),
             y: 0.7 + row * 0.5,
-            z: 10.2 + row * 0.7,
+            z: 25.2 + row * 0.7,
             rotation: Math.PI,
           });
         }
@@ -176,47 +177,47 @@ function SeatingBowl() {
     <>
       {[-1, 1].map((side) => (
         <group key={side}>
-          {[0, 1, 2].map((row) => (
+          {[0, 1, 2, 3, 4].map((row) => (
             <Box
               key={row}
-              p={[side * (6.05 + row * 0.76), (0.64 + row * 0.57) / 2, -0.6]}
-              s={[0.83, 0.64 + row * 0.57, 17.8]}
+              p={[side * (11.5 + row * 0.76), (0.64 + row * 0.57) / 2, -0.5]}
+              s={[0.83, 0.64 + row * 0.57, 46]}
               c={row % 2 ? "#aa9c83" : STONE}
             />
           ))}
-          <Box p={[side * 8.05, 1.2, -0.6]} s={[0.32, 2.4, 18.5]} c={RED} />
-          <Box p={[side * 8.05, 2.43, -0.6]} s={[0.4, 0.16, 18.6]} c={GOLD} />
-          {[-3.34, 2.9].map((z) => (
+          <Box p={[side * 15.5, 1.8, -0.5]} s={[0.32, 3.6, 47]} c={RED} />
+          <Box p={[side * 15.5, 3.63, -0.5]} s={[0.4, 0.16, 47.2]} c={GOLD} />
+          {[-11.86, -0.46, 10.94].map((z) => (
             <group key={z}>
-              {[0, 1, 2, 3, 4, 5].map((i) => (
+              {Array.from({ length: 10 }, (_, i) => (
                 <Box
                   key={i}
-                  p={[side * (5.65 + i * 0.37), 0.3 + i * 0.28, z]}
+                  p={[side * (11.1 + i * 0.37), 0.3 + i * 0.28, z]}
                   s={[0.4, 0.16, 0.62]}
                   c="#d1c4aa"
                 />
               ))}
             </group>
           ))}
-          <Box p={[side * 5.5, 0.42, -0.5]} s={[0.2, 0.7, 17.5]} c="#d4bf91" />
-          <Box p={[side * 5.48, 0.8, -0.5]} s={[0.28, 0.11, 17.6]} c={RED} />
+          <Box p={[side * 10.7, 0.42, -0.5]} s={[0.2, 0.7, 47]} c="#d4bf91" />
+          <Box p={[side * 10.68, 0.8, -0.5]} s={[0.28, 0.11, 47.1]} c={RED} />
         </group>
       ))}
-      {[0, 1, 2].map((row) => (
+      {[0, 1, 2, 3, 4].map((row) => (
         <Box
           key={row}
-          p={[0, (0.64 + row * 0.57) / 2, -10.75 - row * 0.7]}
-          s={[11.3, 0.64 + row * 0.57, 0.8]}
+          p={[0, (0.64 + row * 0.57) / 2, -25.2 - row * 0.7]}
+          s={[22, 0.64 + row * 0.57, 0.8]}
           c={STONE}
         />
       ))}
       {[-1, 1].map((side) => (
         <group key={side}>
-          {[0, 1].map((row) => (
+          {[0, 1, 2].map((row) => (
             <Box
               key={row}
-              p={[side * 4.1, 0.25 + row * 0.25, 10.2 + row * 0.7]}
-              s={[4, 0.5 + row * 0.5, 0.8]}
+              p={[side * 8.3, 0.25 + row * 0.25, 25.2 + row * 0.7]}
+              s={[9.4, 0.5 + row * 0.5, 0.8]}
               c={STONE}
             />
           ))}
@@ -273,60 +274,62 @@ export function StadiumArchitecture({
 }) {
   return (
     <>
-      <Box p={[0, -0.55, 0]} s={[22, 1.1, 26]} c="#665f50" />
-      <Box p={[0, -0.12, 0]} s={[21.8, 0.35, 25.8]} c="#c0b091" />
+      <Box
+        p={[0, -0.55, 0]}
+        s={[STADIUM.width, 1.1, STADIUM.depth]}
+        c="#665f50"
+      />
+      <Box
+        p={[0, -0.12, 0]}
+        s={[STADIUM.width - 0.2, 0.35, STADIUM.depth - 0.2]}
+        c="#c0b091"
+      />
       <Field />
       <SeatingBowl />
       {/* The asymmetric suite tower is the silhouette cue from Levi's Stadium. */}
-      <Box p={[-9.3, 2.15, -1]} s={[2.1, 4.3, 18.6]} c="#9f967e" />
-      {[1.4, 2.7, 4].map((y) => (
+      <Box p={[-17.2, 3.2, -1]} s={[2.8, 6.4, 46]} c="#9f967e" />
+      {[1.6, 3.1, 4.6, 6].map((y) => (
         <group key={y}>
-          <Box p={[-8.2, y, -1]} s={[0.14, 0.72, 17.6]} c="#3c5758" />
-          <Box p={[-8.08, y - 0.43, -1]} s={[0.35, 0.18, 18.8]} c="#e0ceb0" />
-          {[-8, -5, -2, 1, 4, 7].map((z) => (
-            <Box key={z} p={[-8.06, y, z]} s={[0.18, 0.85, 0.13]} c={GOLD} />
+          <Box p={[-15.75, y, -1]} s={[0.14, 0.78, 44.8]} c="#3c5758" />
+          <Box p={[-15.63, y - 0.45, -1]} s={[0.35, 0.18, 46.2]} c="#e0ceb0" />
+          {Array.from({ length: 12 }, (_, i) => -21.5 + i * 3.8).map((z) => (
+            <Box key={z} p={[-15.6, y, z]} s={[0.18, 0.9, 0.13]} c={GOLD} />
           ))}
         </group>
       ))}
-      <Box p={[-9.15, 4.43, -1]} s={[2.55, 0.34, 19.2]} c={RED} />
-      <Box p={[-9.15, 4.64, -1]} s={[2.7, 0.15, 19.4]} c={GOLD} />
+      <Box p={[-17.05, 6.55, -1]} s={[3.25, 0.34, 46.8]} c={RED} />
+      <Box p={[-17.05, 6.78, -1]} s={[3.4, 0.15, 47]} c={GOLD} />
       <group position={[0, 0, FIELD_GOAL.goalZ]}>
         <GoalPosts />
       </group>
-      <Box p={[0, 3.9, -12.35]} s={[6.2, 2.4, 0.62]} c="#393d35" />
-      <Box p={[0, 5.15, -12.35]} s={[6.4, 0.2, 0.7]} c={GOLD} />
+      <Box p={[0, 4.5, -28.85]} s={[8.4, 3.1, 0.72]} c="#393d35" />
+      <Box p={[0, 6.12, -28.85]} s={[8.6, 0.2, 0.8]} c={GOLD} />
       <Sign
         text="49ERS"
-        p={[0, 4.35, -11.99]}
-        size={[5.45, 0.85]}
+        p={[0, 5.2, -28.45]}
+        size={[7.3, 1.05]}
         color={RED}
         ink="#f7e4b3"
       />
       <Sign
         text={`${score * 3}   •   ${attempt} / 5`}
-        p={[0, 3.35, -11.99]}
-        size={[4.6, 0.65]}
+        p={[0, 3.9, -28.45]}
+        size={[6.2, 0.82]}
         color="#243d32"
         ink="#f7d178"
       />
       {[-1, 1].map((side) => (
         <group key={side}>
-          <Floodlight p={[side * 9, 0, -10.8]} />
-          <Floodlight p={[side * 9, 0, 9.3]} />
-          <Box p={[side * 1.95, 1.3, 12.25]} s={[0.55, 2.6, 0.65]} c={RED} />
-          <Box p={[side * 1.95, 2.65, 12.25]} s={[0.7, 0.18, 0.8]} c={GOLD} />
-          <Box p={[side * 4.1, 1.4, 11.7]} s={[3.7, 0.65, 0.3]} c={RED} />
+          {[-26.5, -9, 9, 25.8].map((z) => (
+            <Floodlight key={z} p={[side * 18.6, 0, z]} />
+          ))}
+          <Box p={[side * 1.95, 1.3, 29.25]} s={[0.55, 2.6, 0.65]} c={RED} />
+          <Box p={[side * 1.95, 2.65, 29.25]} s={[0.7, 0.18, 0.8]} c={GOLD} />
+          <Box p={[side * 8.3, 1.4, 27.6]} s={[11.6, 0.65, 0.3]} c={RED} />
         </group>
       ))}
-      <Box p={[0, 0.1, 11.1]} s={[3.3, 0.16, 3.6]} c="#a58b5e" />
-      <Box p={[0, 2.9, 12.25]} s={[4.5, 0.4, 0.7]} c={RED} />
-      <Sign
-        text="← VILLAGE"
-        p={[0, 2.9, 12.65]}
-        size={[3.4, 0.45]}
-        color={RED}
-        ink="#f4d997"
-      />
+      <Box p={[0, 0.1, 27.4]} s={[3.3, 0.16, 4.2]} c="#a58b5e" />
+      <Box p={[0, 2.9, 29.25]} s={[4.5, 0.4, 0.7]} c={RED} />
     </>
   );
 }

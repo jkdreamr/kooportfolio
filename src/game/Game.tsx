@@ -21,8 +21,11 @@ import { Basketball } from "./scenes/Basketball";
 import { Hud } from "./ui/Hud";
 import { TimeOfDayLighting } from "./world/TimeOfDayLighting";
 import { TimeOfDayControls } from "./ui/TimeOfDayControls";
+import { useTimeOfDay } from "./core/timeOfDay";
+import { WORLDS } from "./core/worlds";
 import { runtime, useGame, type Scene } from "./core/store";
 import { useInput } from "./core/input";
+import { endGameMode, useGameMode } from "./core/gameMode";
 import { doors, isInterior } from "./core/world";
 import { useGym } from "./scenes/CognitionGym";
 import { interactWithNpc } from "./core/npcState";
@@ -39,6 +42,7 @@ import {
   HOOVER_STASH,
 } from "./core/hoover";
 import "./game.css";
+import "./game-mode.css";
 
 class WorldBoundary extends Component<
   { children: ReactNode },
@@ -146,7 +150,11 @@ function Sun() {
 }
 function World() {
   const scene = useGame((s) => s.scene),
+    world = useGame((s) => s.world),
     run = useGame((s) => s.run);
+  useEffect(() => {
+    useTimeOfDay.getState().setTimeZone(WORLDS[world].timeZone);
+  }, [world]);
   const flat = scene === "hub" || isInterior(scene);
   return (
     <>
@@ -204,7 +212,7 @@ function World() {
           <shadowMaterial transparent opacity={0.12} />
         </mesh>
       )}
-      {scene === "hub" && <Hub />}
+      {scene === "hub" && <Hub key={world} />}
       {isInterior(scene) && scene !== "skate" && <Interior key={scene} />}
       {scene === "skate" && <SkateParkInterior key={`skate-${run}`} />}
       {scene === "rowing" && <Rowing key={`race-${run}`} />}
@@ -214,6 +222,13 @@ function World() {
   );
 }
 export default function Game() {
+  useEffect(
+    () =>
+      useGame.subscribe((state, previous) => {
+        if (state.scene !== previous.scene) endGameMode();
+      }),
+    [],
+  );
   const [lost, setLost] = useState(false),
     [supported] = useState(() => {
       try {
@@ -224,12 +239,22 @@ export default function Game() {
       }
     });
   const quality = useGame((s) => s.quality),
+    traveling = useGame((s) => s.traveling),
     paused = useGame((s) => s.paused),
     panel = useGame((s) => s.panel);
+  const gameMode = useGameMode((s) => s.active);
   const interact = useCallback(() => {
     const g = useGame.getState();
     if (interactWithNpc()) return;
-    if (g.paused || g.build || g.panel !== "none") return;
+    if (
+      g.paused ||
+      useGameMode.getState().active ||
+      g.build ||
+      g.overlayLocked ||
+      g.traveling ||
+      g.panel !== "none"
+    )
+      return;
     if (g.scene === "hub" && doors.some((door) => door.id === g.near))
       g.go(g.near as Scene);
     else if (g.near === "exit") g.go("hub");
@@ -284,7 +309,7 @@ export default function Game() {
   }, []);
   if (!supported || lost) return <WorldFallback />;
   return (
-    <div className="game-shell">
+    <div className="game-shell" data-game-mode={gameMode?.id}>
       <WorldBoundary>
         <Canvas
           shadows={quality === "high" ? "soft" : false}
@@ -293,7 +318,9 @@ export default function Game() {
             antialias: quality === "high",
             powerPreference: "high-performance",
           }}
-          frameloop={paused ? "demand" : "always"}
+          frameloop={
+            paused || traveling || panel === "photo" ? "demand" : "always"
+          }
           onCreated={({ gl }) => {
             gl.toneMapping = THREE.ACESFilmicToneMapping;
             gl.toneMappingExposure = 0.98;
@@ -304,21 +331,25 @@ export default function Game() {
           }}
           fallback={<WorldFallback />}
         >
-          <PerformanceMonitor
-            onDecline={() => useGame.setState({ quality: "low" })}
-            flipflops={1}
-            onFallback={() => useGame.setState({ quality: "low" })}
-          >
-            <World />
-          </PerformanceMonitor>
+          {!paused && !traveling && panel !== "photo" && (
+            <PerformanceMonitor
+              onDecline={() => useGame.setState({ quality: "low" })}
+              flipflops={1}
+              onFallback={() => useGame.setState({ quality: "low" })}
+            />
+          )}
+          <World />
         </Canvas>
       </WorldBoundary>
       <Hud interact={interact} />
-      <TimeOfDayControls />
+      {!gameMode && <TimeOfDayControls />}
       <NpcDialog />
       <PhotoBoothDialog />
       {panel === "telescope" && !paused && (
-        <TelescopeView onClose={() => useGame.setState({ panel: "none" })} />
+        <TelescopeView
+          worldId={useGame.getState().world}
+          onClose={() => useGame.setState({ panel: "none" })}
+        />
       )}
     </div>
   );
