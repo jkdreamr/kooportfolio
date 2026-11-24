@@ -187,4 +187,17 @@ describe("local rowing records", () => {
     };
     expect(saveRaceRecord(finish(40), 360, 1, unavailable)).toBe(false);
   });
+  it("uses a returning player's faster sprint record without mixing courses", () => {
+    const s = storage();
+    expect(readRaceRecord(360, 1, s, 32)).toEqual({
+      time: 32,
+      splits: [],
+      strokes: 0,
+    });
+    saveRaceRecord(finish(40), 360, 1, s);
+    expect(readRaceRecord(360, 1, s, 32)?.time).toBe(32);
+    expect(readRaceRecord(360, 1, s, 45)?.time).toBe(40);
+    expect(readRaceRecord(360, 2, s, 32)).toBeNull();
+    expect(readRaceRecord(750, 1, s, 32)).toBeNull();
+  });
 });

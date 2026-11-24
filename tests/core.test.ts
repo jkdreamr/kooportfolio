@@ -27,6 +27,10 @@ describe("guest save trust boundary", () => {
       [-19, 0],
       [0, 16],
       [0, -17],
+      [28, 0],
+      [-28, 0],
+      [0, 32],
+      [0, -33],
     ] as [number, number][]) {
       expect(canWalk(...position)).toBe(true);
       const save = {
@@ -94,6 +98,26 @@ describe("walkable physical world", () => {
         Math.hypot(path.at(-1)![0] - door.x, path.at(-1)![1] - door.z),
       ).toBeLessThan(1.2);
     }
+  });
+  it("can navigate between distant districts and keeps every destination reachable", () => {
+    for (const start of doors)
+      for (const destination of doors) {
+        if (start === destination) continue;
+        const path = findPath(
+          [start.x, start.z],
+          [destination.x, destination.z],
+        );
+        expect(path.length, `${start.id} → ${destination.id}`).toBeGreaterThan(
+          0,
+        );
+        expect(path.every((p) => canWalk(...p))).toBe(true);
+        expect(
+          Math.hypot(
+            path.at(-1)![0] - destination.x,
+            path.at(-1)![1] - destination.z,
+          ),
+        ).toBeLessThan(1.2);
+      }
   });
   it("traverses a Study-to-Court corner without cutting the collision edge", () => {
     const study = doors.find((door) => door.id === "office")!,

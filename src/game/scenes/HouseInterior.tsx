@@ -2,6 +2,7 @@ import { useEffect, useReducer, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Box, Ball, Cylinder, Ring } from "../world/Models";
 import { diceReducer, newDiceGame } from "../core/interiorGames";
+import { BrassStud, CraftedBox, WallSconce } from "./CraftedDetails";
 import {
   Barrel,
   Bottle,
@@ -25,34 +26,47 @@ function Sofa({
 }) {
   return (
     <group position={p} rotation={[0, rotation, 0]}>
-      <Box p={[0, 0.4, 0]} s={[3, 0.65, 1.2]} c="#4d3029" />
-      <Box p={[0, 1.05, -0.48]} s={[3, 1.1, 0.32]} c="#823b35" />
+      <CraftedBox p={[0, 0.4, 0]} s={[3.15, 0.7, 1.35]} c="#482b23" />
+      <CraftedBox p={[0, 1.12, -0.48]} s={[3.15, 1.25, 0.45]} c="#79332c" />
       {[-1, 0, 1].map((x) => (
         <group key={x}>
-          <Box
+          <CraftedBox
             p={[x * 0.82, 0.8, 0.05]}
-            s={[0.79, 0.3, 0.9]}
+            s={[0.8, 0.4, 1.05]}
             c={x === 0 ? "#aa5143" : "#954538"}
           />
-          <Box
+          <CraftedBox
             p={[x * 0.82, 1.1, -0.29]}
-            s={[0.79, 0.65, 0.25]}
+            s={[0.8, 0.85, 0.38]}
             c="#a54a3c"
             r={[-0.1, 0, 0]}
           />
-          <Ball
-            p={[x * 0.82, 1.12, -0.15]}
-            s={[0.04, 0.04, 0.02]}
-            c="#6b332d"
-          />
+          {[-0.2, 0.2].map((dx) => (
+            <BrassStud
+              key={dx}
+              p={[x * 0.82 + dx, 1.17, -0.08]}
+              radius={0.035}
+            />
+          ))}
         </group>
       ))}
       {[-1.5, 1.5].map((x) => (
-        <Box key={x} p={[x, 0.9, 0]} s={[0.3, 0.7, 1.3]} c="#823b35" />
+        <group key={x}>
+          <CraftedBox p={[x, 0.95, 0]} s={[0.42, 0.75, 1.48]} c="#823b35" />
+          {[-0.4, 0, 0.4].map((z) => (
+            <BrassStud key={z} p={[x, 0.98, z + 0.32]} />
+          ))}
+          <CraftedBox
+            p={[x, 0.35, 0.4]}
+            s={[0.28, 0.45, 0.28]}
+            c="#c39b50"
+            metal
+          />
+        </group>
       ))}
-      <Box
+      <CraftedBox
         p={[-0.85, 1.1, 0]}
-        s={[0.5, 0.5, 0.22]}
+        s={[0.57, 0.57, 0.34]}
         c="#d1ab54"
         r={[0, 0, 0.2]}
       />
@@ -61,7 +75,7 @@ function Sofa({
 }
 function Fireplace() {
   return (
-    <group position={[3.3, 0, -5.2]}>
+    <group position={[7.1, 0, -10.9]} scale={1.25}>
       <Box p={[0, 0.12, 0.12]} s={[2.5, 0.24, 1.3]} c="#858377" />
       <Box p={[0, 1.15, -0.3]} s={[2.15, 2.1, 0.45]} c="#6d6b60" />
       <Box p={[0, 0.85, -0.04]} s={[1.3, 1.35, 0.1]} c="#362d27" />
@@ -85,6 +99,17 @@ function Fireplace() {
         />
       ))}
       <Box p={[0, 2.28, 0.03]} s={[2.6, 0.23, 0.95]} c="#784b2c" />
+      <CraftedBox p={[0, 2.15, 0.06]} s={[2.5, 0.16, 0.85]} c="#563a29" />
+      <CraftedBox p={[0, 2.43, -0.05]} s={[2.7, 0.14, 1.02]} c="#b27c40" />
+      <Box p={[0, 3.5, -0.35]} s={[1.6, 2.1, 0.5]} c="#8b8777" />
+      {Array.from({ length: 9 }, (_, i) => (
+        <CraftedBox
+          key={i}
+          p={[-0.53 + (i % 3) * 0.53, 2.75 + Math.floor(i / 3) * 0.54, -0.06]}
+          s={[0.49, 0.49, 0.18]}
+          c={i % 2 ? "#a9a28c" : "#b9ad94"}
+        />
+      ))}
       <Fire p={[0, 0.25, 0.15]} large />
       <Cylinder p={[0, 2.48, 0]} s={[0.32, 0.16, 0.32]} c="#5a4936" />
       <Cylinder p={[0, 2.75, 0]} s={[0.09, 0.45, 0.09]} c="#d7aa45" />
@@ -108,7 +133,7 @@ function Fireplace() {
 }
 function Pennant({ x }: { x: number }) {
   return (
-    <group position={[x, 3, -5.52]}>
+    <group position={[x, 3, -11.5]} scale={1.25}>
       <Box s={[1.6, 2.1, 0.12]} c="#285c43" />
       <Box p={[0, 1.1, 0.04]} s={[1.85, 0.14, 0.2]} c="#c8a452" />
       <Box p={[0, -0.9, 0.08]} s={[1.42, 0.14, 0.04]} c="#c8a452" />
@@ -178,7 +203,7 @@ function DiceTable({ onReward }: InteriorGameProps) {
   };
   return (
     <>
-      <group position={[0, 0, -1.2]}>
+      <group position={[-1.2, 0, -2.6]} scale={1.4}>
         <Box p={[0, 0.12, 0]} s={[4.8, 0.06, 3.8]} c="#214d3a" />
         {[-2.26, 2.26].map((x) => (
           <Box key={x} p={[x, 0.16, 0]} s={[0.06, 0.025, 3.55]} c="#c3a05a" />
@@ -187,6 +212,12 @@ function DiceTable({ onReward }: InteriorGameProps) {
           <Box key={z} p={[0, 0.16, z]} s={[4.55, 0.025, 0.06]} c="#c3a05a" />
         ))}
         <Table size={[3.3, 2.3]} />
+        <CraftedBox p={[0, 1.1, 0]} s={[3.6, 0.36, 2.55]} c="#553321" />
+        {[-1.5, 1.5].flatMap((x) =>
+          [-1.1, 1.1].map((z) => (
+            <BrassStud key={`${x}${z}`} p={[x, 1.3, z]} radius={0.075} />
+          )),
+        )}
         <Box p={[0, 1.26, 0]} s={[3.05, 0.07, 2.05]} c="#225b43" />
         <Box p={[0, 1.31, 0]} s={[0.025, 0.015, 1.9]} c="#d7b966" />
         <Die
@@ -215,7 +246,7 @@ function DiceTable({ onReward }: InteriorGameProps) {
         <Stool p={[-1.05, 0, 2]} />
         <Stool p={[1.05, 0, -1.9]} color="#356248" />
       </group>
-      <GameControls name="Dice game">
+      <GameControls name="Dice game" position={[7.5, 0.6, 5]}>
         {!started ? (
           <button onClick={() => setStarted(true)}>Play dice</button>
         ) : (
@@ -260,15 +291,22 @@ function DiceTable({ onReward }: InteriorGameProps) {
   );
 }
 
-/** Furnishings/game only. Mount inside the shared 11×13 room shell. */
+/** Furnishings/game only. Mount inside the shared 22×26 room shell. */
 export function HouseInterior(props: InteriorGameProps) {
   return (
     <group>
       <Pennant x={0} />
+      <WallSconce p={[-2.5, 3, -11.5]} />
+      <WallSconce p={[2.5, 3, -11.5]} />
+      <group position={[-10.55, 2.65, 3.3]} rotation={[0, Math.PI / 2, 0]}>
+        <WallSconce p={[0, 0, 0]} />
+      </group>
       <Fireplace />
-      <Sofa p={[-4.15, 0, -1.6]} rotation={Math.PI / 2} />
-      <Sofa p={[3.65, 0, 0.6]} rotation={-Math.PI / 2} />
-      <group position={[-2.25, 0, -4.65]}>
+      <group scale={1.3}>
+        <Sofa p={[-6.3, 0, -2.6]} rotation={Math.PI / 2} />
+        <Sofa p={[2.8, 0, -4.4]} rotation={-Math.PI / 2} />
+      </group>
+      <group position={[-6, 0, -10.6]} scale={1.4}>
         <Box p={[0, 0.6, 0]} s={[3.8, 1.2, 0.85]} c="#36543c" />
         <Box p={[0, 1.26, 0]} s={[4.05, 0.18, 1.05]} c="#b47b42" />
         {[-1.35, -0.45, 0.45, 1.35].map((x) => (
@@ -297,10 +335,14 @@ export function HouseInterior(props: InteriorGameProps) {
         <Bottle p={[1.1, 2.2, -0.55]} />
         <Bottle p={[1.5, 2.2, -0.55]} color="#a35637" />
       </group>
-      <Barrel p={[-4.2, 0, 2.2]} />
-      <Bottle p={[-4.2, 1.32, 2.2]} />
-      <Plant p={[4.35, 0, 3.7]} />
-      <group position={[-5.16, 2.7, 1.7]} rotation={[0, Math.PI / 2, 0]}>
+      <Barrel p={[-8.7, 0, 2.2]} />
+      <Bottle p={[-8.7, 1.32, 2.2]} />
+      <Plant p={[9.5, 0, 8]} />
+      <group
+        position={[-10.6, 2.7, -2]}
+        rotation={[0, Math.PI / 2, 0]}
+        scale={1.5}
+      >
         <Cylinder s={[0.62, 0.1, 0.62]} r={[Math.PI / 2, 0, 0]} c="#d6bd7c" />
         <Ring
           p={[0, 0, 0.065]}
@@ -317,6 +359,41 @@ export function HouseInterior(props: InteriorGameProps) {
           r={[0, 0, 0]}
         />
         <Ball p={[0, 0, 0.1]} s={[0.09, 0.09, 0.04]} c="#a84937" />
+      </group>
+      <group position={[5.5, 0, 4.5]}>
+        <Table size={[5, 2.8]} />
+        <CraftedBox p={[0, 1.3, 0]} s={[5.3, 0.3, 3.1]} c="#603a24" />
+        <CraftedBox p={[0, 1.47, 0]} s={[4.7, 0.08, 2.5]} c="#265d43" />
+        {[-1, 1].flatMap((x) =>
+          [-1, 0, 1].map((z) => (
+            <Cylinder
+              key={`${x}${z}`}
+              p={[x * 2.28, 1.52, z * 1.15]}
+              s={[0.14, 0.035, 0.14]}
+              c="#272f25"
+            />
+          )),
+        )}
+        {[0, 1, 2, 3, 4].map((i) => (
+          <Ball
+            key={i}
+            p={[-0.8 + (i % 3) * 0.3, 1.62, -0.2 + Math.floor(i / 3) * 0.3]}
+            s={[0.13, 0.13, 0.13]}
+            c={["#dfb936", "#e4dbc0", "#9e4231", "#3d6b84", "#362c23"][i]}
+          />
+        ))}
+        <Cylinder
+          p={[0, 1.62, 0.8]}
+          s={[0.035, 4, 0.035]}
+          c="#c5a56b"
+          r={[0, 0, Math.PI / 2]}
+        />
+      </group>
+      <group position={[-6.5, 0, 6]} scale={1.2}>
+        <Sofa p={[0, 0, 0]} />
+        <Table p={[0, 0, 2]} size={[2.8, 1.5]} />
+        <Bottle p={[0.7, 1.25, 2]} />
+        <Cylinder p={[-0.5, 1.3, 2]} s={[0.3, 0.08, 0.3]} c="#ead4a0" />
       </group>
       <DiceTable {...props} />
     </group>

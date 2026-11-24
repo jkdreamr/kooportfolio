@@ -1,45 +1,48 @@
 .interior-game {
+  box-sizing: border-box;
   width: min(320px, calc(100vw - 36px));
-  padding: 14px 16px;
-  border: 2px solid #735434;
-  border-radius: 12px;
-  background: #fff6df;
+  padding: 12px 14px;
+  border: 1px solid #ae8b4a;
+  border-radius: 5px;
+  background: #243d32;
   box-shadow:
-    0 5px 0 #493725,
-    0 9px 24px #382f2630;
-  color: #403326;
-  font-family: "Trebuchet MS", sans-serif;
+    inset 0 0 0 3px #162d25,
+    0 5px 0 #17271f;
+  color: #eee1bb;
+  font-family: inherit;
   text-align: center;
   user-select: none;
 }
 .interior-game h2 {
-  font:
-    700 17px/1.2 "Trebuchet MS",
-    sans-serif;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
   margin: 0 0 8px;
 }
 .interior-game p {
   margin: 8px 0 0;
   font-size: 12px;
   line-height: 1.4;
-  min-height: 2.8em;
+  min-height: 0;
 }
 .interior-game button {
-  border: 1px solid #365c40;
+  border: 1px solid #77926d;
   border-bottom-width: 3px;
-  border-radius: 7px;
+  border-radius: 3px;
   padding: 10px 14px;
   min-height: 44px;
-  background: #42794d;
-  color: #fff7df;
-  font:
-    700 14px/1.2 "Trebuchet MS",
-    sans-serif;
+  background: #456547;
+  color: #fff2ca;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
   cursor: pointer;
   touch-action: manipulation;
 }
 .interior-game button:hover:not(:disabled) {
-  background: #32683e;
+  background: #55794f;
 }
 .interior-game button:focus-visible {
   outline: 3px solid #ce8a26;
@@ -70,7 +73,7 @@
   margin-left: 4px;
 }
 .interior-score span:nth-child(2) {
-  color: #9b5633;
+  color: #d4b46c;
 }
 .interior-ingredients {
   display: flex;
@@ -103,6 +106,54 @@
   background: #392e26;
   border-radius: 2px;
   transform: translateX(-50%);
+}
+.kitchen-shift {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+.kitchen-orders {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.kitchen-orders button {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 3px;
+  background: #314d3d;
+  color: #eee1bb;
+  border-color: #6c7853;
+  font-size: 12px;
+}
+.kitchen-orders button:disabled {
+  opacity: 0.75;
+}
+.kitchen-orders button.active {
+  background: #635d35;
+  opacity: 1;
+  border-color: #91632d;
+}
+.kitchen-orders button span {
+  display: block;
+  font-size: 10px;
+  margin-top: 3px;
+}
+.kitchen-orders meter {
+  display: block;
+  width: 90%;
+  height: 10px;
+  margin: 5px auto 0;
+}
+.interior-game .kitchen-end {
+  padding: 5px 10px;
+  min-height: 44px;
+  background: transparent;
+  border: 0;
+  color: #c4bd98;
+  font-size: 11px;
+  margin-top: 6px;
 }
 @media (max-width: 600px) {
   .interior-game {

@@ -32,8 +32,15 @@ export function launchBall(
   style: ShotStyle = "arc",
 ): BallState {
   const d = Math.max(1, Math.hypot(hoop.x - x, z - hoop.z));
-  const elevation = Math.PI * (style === "lob" ? 0.37 : 0.29);
   const h = hoop.y - 1.65;
+  // Clear the near rim on short gathers, and keep the arrival slope steeper
+  // than 45 degrees at midrange. Crossing the hoop center alone is not enough
+  // clearance for a ball with volume.
+  const elevation = Math.max(
+    Math.PI * (style === "lob" ? 0.37 : 0.29),
+    Math.atan2(2 * h + 1.6, Math.max(0.35, d - 0.5)),
+    Math.atan((2 * h) / d + 1.05),
+  );
   const base = Math.sqrt(
     (GRAVITY * d * d) /
       (2 *
@@ -57,44 +64,68 @@ export function launchBall(
   };
 }
 
-// Swept sphere against an expanded board box: endpoints alone miss high/fast shots.
+// Exact sphere/box sweep. Distance to a box is quadratic between crossings of
+// its face planes; solving those intervals avoids the expanded-box corner gap.
 function hitBoard(old: Vec, next: Vec, hoop: Vec) {
   const lo = {
-    x: hoop.x - BACKBOARD.width / 2 - BALL_RADIUS,
-    y: BACKBOARD.y - BACKBOARD.height / 2 - BALL_RADIUS,
-    z: BACKBOARD.z - BACKBOARD.depth / 2 - BALL_RADIUS,
+    x: hoop.x - BACKBOARD.width / 2,
+    y: BACKBOARD.y - BACKBOARD.height / 2,
+    z: BACKBOARD.z - BACKBOARD.depth / 2,
   };
   const hi = {
-    x: hoop.x + BACKBOARD.width / 2 + BALL_RADIUS,
-    y: BACKBOARD.y + BACKBOARD.height / 2 + BALL_RADIUS,
-    z: BACKBOARD.z + BACKBOARD.depth / 2 + BALL_RADIUS,
+    x: hoop.x + BACKBOARD.width / 2,
+    y: BACKBOARD.y + BACKBOARD.height / 2,
+    z: BACKBOARD.z + BACKBOARD.depth / 2,
   };
-  let enter = 0,
-    exit = 1;
-  let normal: Vec = { x: 0, y: 0, z: 0 };
-  for (const axis of ["x", "y", "z"] as const) {
-    const d = next[axis] - old[axis];
-    if (Math.abs(d) < 1e-9) {
-      if (old[axis] < lo[axis] || old[axis] > hi[axis]) return null;
-    } else {
-      const a = (lo[axis] - old[axis]) / d,
-        b = (hi[axis] - old[axis]) / d;
-      const near = Math.min(a, b),
-        far = Math.max(a, b);
-      if (near >= enter) {
-        enter = near;
-        normal = { x: 0, y: 0, z: 0 };
-        normal[axis] = d > 0 ? -1 : 1;
+  const axes = ["x", "y", "z"] as const;
+  const delta = { x: next.x - old.x, y: next.y - old.y, z: next.z - old.z };
+  const breaks = [0, 1];
+  for (const axis of axes) {
+    if (
+      Math.max(old[axis], next[axis]) < lo[axis] - BALL_RADIUS ||
+      Math.min(old[axis], next[axis]) > hi[axis] + BALL_RADIUS
+    )
+      return null;
+    if (Math.abs(delta[axis]) > 1e-9)
+      for (const bound of [lo[axis], hi[axis]]) {
+        const t = (bound - old[axis]) / delta[axis];
+        if (t > 0 && t < 1) breaks.push(t);
       }
-      exit = Math.min(exit, far);
-      if (enter > exit) return null;
-    }
   }
-  return enter >= 0 &&
-    enter <= 1 &&
-    Math.hypot(normal.x, normal.y, normal.z) > 0
-    ? { t: enter, normal }
-    : null;
+  breaks.sort((a, b) => a - b);
+  for (let i = 0; i < breaks.length - 1; i++) {
+    const start = breaks[i],
+      end = breaks[i + 1],
+      middle = (start + end) / 2;
+    let a = 0,
+      b = 0,
+      c = -(BALL_RADIUS ** 2);
+    for (const axis of axes) {
+      const p = old[axis] + delta[axis] * middle;
+      if (p >= lo[axis] && p <= hi[axis]) continue;
+      const offset = old[axis] - (p < lo[axis] ? lo[axis] : hi[axis]);
+      a += delta[axis] ** 2;
+      b += 2 * offset * delta[axis];
+      c += offset ** 2;
+    }
+    let t = start;
+    if (a * start ** 2 + b * start + c > 1e-10) {
+      const discriminant = b * b - 4 * a * c;
+      if (a < 1e-12 || discriminant < 0) continue;
+      t = (-b - Math.sqrt(discriminant)) / (2 * a);
+      if (t < start - 1e-9 || t > end + 1e-9) continue;
+    }
+    const normal = { x: 0, y: 0, z: 0 };
+    for (const axis of axes) {
+      const p = old[axis] + delta[axis] * t;
+      normal[axis] = p - Math.max(lo[axis], Math.min(hi[axis], p));
+    }
+    const length = Math.hypot(normal.x, normal.y, normal.z);
+    if (length < 1e-9) continue;
+    for (const axis of axes) normal[axis] /= length;
+    return { t, normal };
+  }
+  return null;
 }
 
 function integrate(ball: BallState, dt: number, hoop: Vec) {

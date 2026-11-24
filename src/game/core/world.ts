@@ -58,6 +58,22 @@ export const doors = [
     anchor: [8, 6.2, 17] as const,
     footprint: [8, 17, 2.85, 2.5] as const,
   },
+  {
+    id: "music",
+    name: "Beat Lab",
+    x: -11,
+    z: -22,
+    anchor: [-11, 7, -25] as const,
+    footprint: [-11, -25, 3.1, 2.1] as const,
+  },
+  {
+    id: "math",
+    name: "Math Lab",
+    x: 11,
+    z: -22,
+    anchor: [11, 7, -25] as const,
+    footprint: [11, -25, 3.1, 2.1] as const,
+  },
 ] as const;
 export type PlaceId = (typeof doors)[number]["id"];
 export function isInterior(scene: string) {
