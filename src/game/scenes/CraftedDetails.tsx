@@ -41,6 +41,7 @@ export function CraftedBox({
       material={materials.get(key)}
       castShadow
       receiveShadow
+      dispose={null}
     />
   );
 }

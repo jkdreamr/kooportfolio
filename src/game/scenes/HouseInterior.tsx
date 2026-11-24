@@ -246,7 +246,7 @@ function DiceTable({ onReward }: InteriorGameProps) {
         <Stool p={[-1.05, 0, 2]} />
         <Stool p={[1.05, 0, -1.9]} color="#356248" />
       </group>
-      <GameControls name="Dice game">
+      <GameControls name="Dice game" position={[7.5, 0.6, 5]}>
         {!started ? (
           <button onClick={() => setStarted(true)}>Play dice</button>
         ) : (
