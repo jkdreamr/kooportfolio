@@ -342,7 +342,19 @@ export function Hub() {
           <HooverKey />
         </group>
       )}
-      {world === "stanford" && <SkateParkBuilding />}
+      {world === "stanford" && (
+        <group
+          onPointerDown={(event) => {
+            event.stopPropagation();
+            const door = doorsInWorld(world).find(
+              (entry) => entry.id === "skate",
+            )!;
+            if (!build && !traveling) walkTo(door.x, door.z);
+          }}
+        >
+          <SkateParkBuilding />
+        </group>
+      )}
       {world === "korea" && (
         <group position={[-6, 0, -6.2]}>
           <PhotoBooth />
