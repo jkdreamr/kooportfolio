@@ -313,8 +313,11 @@ export function RegionalActivities({ world }: { world: WorldId }) {
       );
       if (!spot) return;
       selectActivity(spot.id, world);
-      // A parcel drop-off sits on a door: deliver and still let E enter.
-      if (spot.id.startsWith("parcel-")) return;
+      // Delivering at a door's own prompt still lets the same E enter it.
+      const door = spot.id.startsWith("parcel-")
+        ? PARCEL_DOORS[Number(spot.id.slice(7))]?.id
+        : undefined;
+      if (door && useGame.getState().near === door) return;
       e.preventDefault();
       e.stopImmediatePropagation();
     };
