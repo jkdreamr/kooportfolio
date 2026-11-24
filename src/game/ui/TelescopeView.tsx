@@ -135,7 +135,14 @@ export function TelescopeView({
             first?.focus();
           }
         }
-        if (!night || event.target instanceof HTMLSelectElement) return;
+        if (
+          !night ||
+          event.ctrlKey ||
+          event.metaKey ||
+          event.altKey ||
+          event.target instanceof HTMLSelectElement
+        )
+          return;
         if (event.key === "+" || event.key === "=" || event.key === "-") {
           event.preventDefault();
           zoomBy(event.key === "-" ? 1 / 1.25 : 1.25);
@@ -238,7 +245,8 @@ export function TelescopeView({
               pinch.current = null;
             }}
             onWheel={(event) => {
-              if (night) zoomBy(event.deltaY < 0 ? 1.12 : 1 / 1.12);
+              if (night && !event.ctrlKey && !event.metaKey)
+                zoomBy(event.deltaY < 0 ? 1.12 : 1 / 1.12);
             }}
           >
             <defs>
