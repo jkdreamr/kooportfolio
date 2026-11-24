@@ -88,6 +88,24 @@ describe("Beat Lab", () => {
     ).toBe(true);
     expect(beatRoundEnd(game)).toBeCloseTo(BEAT_COUNT_IN + 32 * BEAT_INTERVAL);
   });
+  it("starts a new combo on an early hit after skipping the preceding half beat", () => {
+    const initial = { ...newBeatGame(), phase: "playing" as const };
+    const [lead, skipped, next] = initial.notes.slice(17, 20);
+    const hitLead = hitBeat(advanceBeat(initial, lead.at), lead.lane);
+    const early = next.at - 0.13;
+    const overlap = advanceBeat(hitLead, early - hitLead.time);
+    expect(overlap.notes[18].missed).toBe(false);
+    const hitNext = hitBeat(overlap, next.lane);
+    expect(hitNext.combo).toBe(1);
+    expect(hitNext.best).toBe(1);
+    const expired = advanceBeat(
+      hitNext,
+      skipped.at + HIT_WINDOW + 0.001 - early,
+    );
+    expect(expired.notes[18].missed).toBe(true);
+    expect(expired.combo).toBe(1);
+    expect(hitBeat(hitNext, skipped.lane).combo).toBe(3);
+  });
 });
 
 describe("Math Lab", () => {
