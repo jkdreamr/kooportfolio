@@ -116,7 +116,7 @@
   place-items: center;
   isolation: isolate;
 }
-.go-board .go-point:hover, .go-board .go-point:focus-visible { background: transparent; outline: none; }
+.go-board .go-point:hover:not(:disabled), .go-board .go-point:focus-visible { background: transparent; outline: none; }
 .go-axis { position: absolute; font-size: clamp(9px, 1vw, 11px); line-height: 1; color: #49311f; pointer-events: none; }
 .go-axis-column { top: -5px; left: 50%; transform: translateX(-50%); }
 .go-axis-row { left: -5px; top: 50%; transform: translateY(-50%); }

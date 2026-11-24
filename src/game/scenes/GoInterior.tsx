@@ -328,9 +328,9 @@ export function GoInterior() {
                   </> : <>
                     <div className="go-score">
                       <div><span>Black <b>{score.black}</b></span>
-                        <small>{score.stones[0]} stones + {score.territory[0]} territory</small></div>
+                        <small>{score.stones[0]} {score.stones[0] === 1 ? "stone" : "stones"} + {score.territory[0]} territory</small></div>
                       <div><span>White <b>{score.white}</b></span>
-                        <small>{score.stones[1]} stones + {score.territory[1]} territory + {GO_KOMI} komi</small></div>
+                        <small>{score.stones[1]} {score.stones[1] === 1 ? "stone" : "stones"} + {score.territory[1]} territory + {GO_KOMI} komi</small></div>
                     </div>
                     <p className="go-caption go-legend"><i className="go-territory-1" /><i className="go-territory-2" />Squares show territory.</p>
                     {game.phase === "scoring" && <>
