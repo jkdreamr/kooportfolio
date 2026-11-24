@@ -123,7 +123,10 @@ function WritingDialog({ close }: { close: () => void }) {
     // Catch Escape before the game's window listener, regardless of focus;
     // a modal's other keys must never become movement or interaction inputs.
     const escape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
+      // Escape cancels an IME candidate before it dismisses the dialog.
+      // Some browsers report composition only through the legacy 229 code.
+      if (event.key !== "Escape" || event.isComposing || event.keyCode === 229)
+        return;
       event.preventDefault();
       event.stopImmediatePropagation();
       close();
