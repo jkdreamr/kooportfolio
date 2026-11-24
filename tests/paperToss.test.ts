@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
-  RIM_AGE, TOSS_LIMIT, binPosition, chargePower, launchPaper, newTossRound, shotPosition,
+  LANDING_TIME, RIM_AGE, TOSS_LIMIT, binPosition, canThrowPaper, chargePower, launchPaper, newTossRound, shotPosition,
   stepToss, swipeToss, throwPaper, type TossRound,
 } from "../src/game/core/paperToss";
 
 function finishShot(round: TossRound, aim: number, power: number, dt = 1 / 60) {
   let current = throwPaper(round, aim, power);
-  for (let i = 0; i < 150 && current.shot; i++) current = stepToss(current, dt);
+  for (let i = 0; i < 150 && (current.shot || current.landing); i++) current = stepToss(current, dt);
   return current;
 }
 
@@ -48,12 +48,25 @@ describe("paper toss", () => {
   });
 
   it("scores against the moving bin when the paper reaches it, not when released", () => {
-    const round = finishShot(newTossRound(), 0, 0.5);
-    expect(binPosition(round.railAngle)).toBe(0);
+    const landed = stepToss(throwPaper(newTossRound(), 0, 0.5), RIM_AGE);
+    expect(binPosition(landed.railAngle)).toBe(0);
+    const round = stepToss(landed, LANDING_TIME);
     expect(finishShot(round, 0, 0.5).result).toBe("miss");
     expect(finishShot(round, 1.3, 0.5)).toMatchObject({ attempts: 2, score: 2, result: "hit" });
     expect(stepToss({ ...round, attempts: 4 }, 0.3).railAngle)
       .toBeGreaterThan(stepToss(round, 0.3).railAngle);
+  });
+
+  it("keeps the next throw unavailable until the landing animation ends", () => {
+    const landed = stepToss(throwPaper(newTossRound(), 0, 0.5), RIM_AGE);
+    expect(landed).toMatchObject({ attempts: 1, score: 1, shot: null, landing: { age: 0 } });
+    const settling = stepToss(landed, LANDING_TIME / 2);
+    expect(canThrowPaper(settling)).toBe(false);
+    expect(throwPaper(settling, 0, 0.5)).toBe(settling);
+    const ready = stepToss(settling, LANDING_TIME / 2);
+    expect(ready.landing).toBeNull();
+    expect(canThrowPaper(ready)).toBe(true);
+    expect(throwPaper(ready, 0, 0.5).shot).not.toBeNull();
   });
 
   it("blocks overlapping throws, ends after six shots, and starts a clean rematch", () => {

@@ -3,8 +3,8 @@ import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { DoubleSide, Group, PerspectiveCamera, Vector3 } from "three";
 import {
-  AIM_LIMIT, BIN_RADIUS, BIN_RIM, BIN_Z, RIM_AGE, THROW_Y, THROW_Z, TOSS_LIMIT,
-  binPosition, chargePower, launchPaper, newTossRound, shotPosition, stepToss, swipeToss, throwPaper,
+  AIM_LIMIT, BIN_RADIUS, BIN_RIM, BIN_Z, LANDING_TIME, RIM_AGE, THROW_Y, THROW_Z, TOSS_LIMIT,
+  binPosition, canThrowPaper, chargePower, launchPaper, newTossRound, shotPosition, stepToss, swipeToss, throwPaper,
 } from "../core/paperToss";
 import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import { runtime, useGame } from "../core/store";
@@ -16,7 +16,6 @@ const STEEL = "#748692";
 const TRIM = "#9caab1";
 const LIGHT = "#e1e7e9";
 const ARC_DOTS = 8;
-const SETTLE_TIME = 0.28;
 
 function DeskSet() {
   return (
@@ -60,7 +59,6 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
   const round = useRef(newTossRound());
   const charge = useRef<{ source: "key" | "pointer" | "button"; start: number } | null>(null);
   const swipe = useRef<{ id: number; x: number; y: number; aim: number; power: number } | null>(null);
-  const settle = useRef<{ age: number; x: number; z: number } | null>(null);
   const power = useRef<HTMLProgressElement>(null);
   const bin = useRef<Group>(null);
   const paper = useRef<Group>(null);
@@ -72,7 +70,7 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
   const restoreLauncher = useRef(false);
   const [hud, setHud] = useState(newTossRound);
   const [lane, setLane] = useState(0);
-  const finished = hud.attempts >= TOSS_LIMIT;
+  const finished = hud.attempts >= TOSS_LIMIT && !hud.landing;
 
   const focusLauncher = useCallback((node: HTMLButtonElement | null) => {
     if (node && restoreLauncher.current) {
@@ -107,11 +105,10 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
     round.current = newTossRound();
     charge.current = null;
     swipe.current = null;
-    settle.current = null;
     setAim(0);
     setHud(round.current);
   };
-  const ready = () => playing && !hidden && !settle.current && !round.current.shot && round.current.attempts < TOSS_LIMIT;
+  const ready = () => playing && !hidden && canThrowPaper(round.current);
   const toss = (strength: number) => {
     if (!ready()) return;
     round.current = throwPaper(round.current, aim.current, strength);
@@ -163,13 +160,7 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
     const step = Math.min(dt, 0.1);
     const next = stepToss(before, step);
     round.current = next;
-    if (settle.current) {
-      settle.current.age += step;
-      if (settle.current.age >= SETTLE_TIME) settle.current = null;
-    }
-    if (next.attempts !== before.attempts && before.shot) {
-      const landing = shotPosition(before.shot, before.shot.age + step);
-      settle.current = { age: 0, x: landing.x, z: landing.z };
+    if (next.attempts !== before.attempts || (before.landing && !next.landing)) {
       setHud(next);
     }
     const binX = binPosition(next.railAngle);
@@ -180,7 +171,7 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
       ? chargePower((performance.now() - charge.current.start) / 1000)
       : null);
     if (arc.current) {
-      arc.current.visible = !next.shot && !settle.current && next.attempts < TOSS_LIMIT;
+      arc.current.visible = canThrowPaper(next);
       if (arc.current.visible) {
         const preview = launchPaper(aim.current, strength ?? 0.5);
         arc.current.children.forEach((dot, i) => {
@@ -194,9 +185,9 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
         const { x, y, z } = shotPosition(next.shot);
         paper.current.position.set(x, y, z);
         paper.current.rotation.set(next.shot.age * 5, next.shot.age * 4, 0.6);
-      } else if (settle.current) {
-        const { age, x, z } = settle.current;
-        const t = age / SETTLE_TIME;
+      } else if (next.landing) {
+        const { age, x, z } = next.landing;
+        const t = age / LANDING_TIME;
         if (next.result === "hit") {
           paper.current.position.set(binX, BIN_RIM - 1.15 * t ** 2, BIN_Z);
         } else {
@@ -207,7 +198,7 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
         paper.current.position.set(0, THROW_Y, THROW_Z);
         paper.current.rotation.set(0.3, aim.current * 0.3, 0.6);
       }
-      paper.current.visible = !!settle.current || next.attempts < TOSS_LIMIT;
+      paper.current.visible = !!next.landing || next.attempts < TOSS_LIMIT;
     }
     if (power.current) {
       power.current.value = strength ?? 0;
@@ -313,7 +304,7 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
                     </span>
                     <p className="toss-status" role="status">
                       {finished ? `${hud.score} of ${TOSS_LIMIT} made`
-                        : `Shot ${hud.attempts + 1} of ${TOSS_LIMIT}`}
+                        : !hud.landing && `Shot ${hud.attempts + 1} of ${TOSS_LIMIT}`}
                       {!finished && hud.result && <strong key={hud.attempts} data-result={hud.result}>{hud.result === "hit" ? "+1" : "Miss"}</strong>}
                     </p>
                   </div>
@@ -334,10 +325,10 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
                         aria-label="Aim left or right" /></label>
                       <div className="toss-power">
                         <progress ref={power} max={1} value={0} aria-label="Throw power" />
-                        <button data-toss="" aria-disabled={!!hud.shot}
+                        <button data-toss="" aria-disabled={!canThrowPaper(hud)}
                           onPointerDown={(e) => {
                             e.stopPropagation();
-                            if (e.button !== 0) return;
+                            if (e.button !== 0 || !ready()) return;
                             e.currentTarget.focus({ preventScroll: true });
                             e.currentTarget.setPointerCapture(e.pointerId);
                             begin("pointer");
