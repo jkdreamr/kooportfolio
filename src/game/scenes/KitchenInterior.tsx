@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
+import { roomFor } from "../core/room";
 import * as THREE from "three";
 import { Box, Ball, Cylinder, Ring } from "../world/Models";
 import {
@@ -25,6 +26,11 @@ import {
   gameIsActive,
   type InteriorGameProps,
 } from "./InteriorProps";
+
+const hall = roomFor("kitchen"),
+  backWall = 0.5 - hall.depth / 2,
+  leftWall = 0.5 - hall.width / 2,
+  tileColumns = Math.floor((hall.width - 1) / 0.83);
 
 function Produce({
   kind,
@@ -196,7 +202,7 @@ function Stove({
     });
   });
   return (
-    <group position={[5.8, 0, -18.3]} scale={1.3}>
+    <group position={[5.8, 0, backWall + 1.2]} scale={1.3}>
       <CraftedBox p={[0, 0.65, 0]} s={[2.5, 1.3, 1.6]} c="#a77e51" />
       <Box p={[0, 0.66, 0.84]} s={[1.75, 0.95, 0.09]} c="#3e453d" />
       <Box p={[0, 0.53, 0.91]} s={[1.3, 0.48, 0.05]} c="#252f2c" />
@@ -325,15 +331,19 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
     <group>
       {/* A ceramic backsplash, not another room shell. */}
       <HouseRooms scene="kitchen" />
-      {Array.from({ length: 80 }, (_, i) => (
+      {Array.from({ length: tileColumns * 2 }, (_, i) => (
         <CraftedBox
           key={i}
-          p={[-16.2 + (i % 40) * 0.83, 1.9 + Math.floor(i / 40) * 0.57, -19.55]}
+          p={[
+            ((i % tileColumns) - (tileColumns - 1) / 2) * 0.83,
+            1.9 + Math.floor(i / tileColumns) * 0.57,
+            backWall - 0.05,
+          ]}
           s={[0.78, 0.51, 0.14]}
           c={i % 3 === 0 ? "#7d9d8a" : "#e7d6aa"}
         />
       ))}
-      <group position={[-12, 0, -18.5]}>
+      <group position={[leftWall + 4.5, 0, backWall + 1]}>
         <Cabinet p={[0, 0, 0]} width={4.1} />
         {SOUP_INGREDIENTS.map((kind, i) => (
           <Crate
@@ -361,7 +371,7 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
         ))}
       </group>
       <group
-        position={[-15.6, 0, -4.7]}
+        position={[leftWall + 0.9, 0, -4.7]}
         scale={1.3}
         rotation={[0, Math.PI / 2, 0]}
       >
@@ -379,9 +389,13 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
         <Box p={[1.15, 1.4, 0]} s={[0.5, 0.08, 0.6]} c="#d3d5b6" />
         <Box p={[1.15, 1.45, 0]} s={[0.36, 0.02, 0.5]} c="#8aa695" />
       </group>
-      <CraftedBox p={[-16.5, 3.5, -4.7]} s={[0.18, 0.18, 5.5]} c="#674a32" />
+      <CraftedBox p={[leftWall, 3.5, -4.7]} s={[0.18, 0.18, 5.5]} c="#674a32" />
       {[-6.4, -4.7, -3].map((z, i) => (
-        <HangingPan key={z} p={[-16.4, 2.65, z]} radius={0.38 + i * 0.055} />
+        <HangingPan
+          key={z}
+          p={[leftWall + 0.1, 2.65, z]}
+          radius={0.38 + i * 0.055}
+        />
       ))}
       <Stove stage={game.stage} onFinish={finish} />
       <group position={[-1.8, 0, -4]} scale={1.45}>
@@ -465,11 +479,11 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
       </group>
       <Barrel p={[-9.1, 0, 0.5]} />
       <Plant p={[9.2, 0, 9]} />
-      <WallSconce p={[-1.6, 3.3, -19.5]} />
-      <WallSconce p={[9, 3.3, -19.5]} />
-      <SupplyRack p={[-16, 0, -12.5]} rotation={Math.PI / 2} />
-      <SupplyRack p={[16, 0, -7.5]} rotation={-Math.PI / 2} />
-      <group position={[12.5, 0, -18.5]}>
+      <WallSconce p={[-1.6, 3.3, backWall]} />
+      <WallSconce p={[9, 3.3, backWall]} />
+      <SupplyRack p={[leftWall + 0.5, 0, -12.5]} rotation={Math.PI / 2} />
+      <SupplyRack p={[-leftWall - 0.5, 0, -7.5]} rotation={-Math.PI / 2} />
+      <group position={[-leftWall - 4, 0, backWall + 1]}>
         <Cabinet p={[0, 0, 0]} width={4} />
         <Cylinder p={[-0.9, 1.7, 0]} s={[0.34, 0.65, 0.34]} c="#657d70" />
         <Cylinder p={[-0.9, 2.04, 0]} s={[0.38, 0.09, 0.38]} c="#c3a367" />
