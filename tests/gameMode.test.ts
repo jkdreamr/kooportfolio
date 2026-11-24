@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   endGameMode,
+  escapeGameMode,
   startGameMode,
   useGameMode,
 } from "../src/game/core/gameMode";
@@ -53,5 +54,23 @@ describe("optional immersive games", () => {
     runtime.z = -9;
     endGameMode();
     expect([runtime.x, runtime.z]).toEqual([-18, -9]);
+  });
+  it("preserves the active round and saved pose when Escape resumes a paused game", () => {
+    startGameMode("pong");
+    runtime.x = 9;
+    useGame.setState({ paused: true });
+    expect(escapeGameMode()).toBe(false);
+    expect(useGameMode.getState().active?.id).toBe("pong");
+    expect(runtime.x).toBe(9);
+    useGame.setState({ paused: false });
+    expect(escapeGameMode()).toBe(true);
+    expect(useGameMode.getState().active).toBeNull();
+    expect([runtime.x, runtime.z, runtime.heading]).toEqual([4, 7, 0.8]);
+  });
+  it("does not close a game behind an open settings panel", () => {
+    startGameMode("pong");
+    useGame.setState({ panel: "help" });
+    expect(escapeGameMode()).toBe(false);
+    expect(useGameMode.getState().active?.id).toBe("pong");
   });
 });

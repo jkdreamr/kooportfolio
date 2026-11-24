@@ -2,12 +2,14 @@ import { create } from "zustand";
 import {
   postcardFilename,
   type PhotoPose,
+  type PhotoResolution,
   type PostcardFrame,
 } from "./postcard";
 
 type Capture = {
   id: number;
   final: boolean;
+  resolution: PhotoResolution;
   pose: PhotoPose;
   frame: PostcardFrame;
   date: Date;
@@ -19,7 +21,7 @@ type PhotoState = {
   frame: PostcardFrame;
   stage: "posing" | "countdown" | "ready";
   request: Capture | null;
-  card: { url: string; filename: string } | null;
+  card: { url: string; filename: string; resolution: PhotoResolution } | null;
   error: string;
   x: number;
   z: number;
@@ -39,7 +41,16 @@ export const usePhotoBooth = create<PhotoState>(() => ({
 export function requestPhoto(final = false) {
   const { pose, frame, x, z } = usePhotoBooth.getState();
   usePhotoBooth.setState({
-    request: { id: ++sequence, final, pose, frame, date: new Date(), x, z },
+    request: {
+      id: ++sequence,
+      final,
+      resolution: final ? "full" : "preview",
+      pose,
+      frame,
+      date: new Date(),
+      x,
+      z,
+    },
     error: "",
   });
 }
@@ -66,6 +77,7 @@ export function finishPhoto(id: number, blob: Blob) {
     card: {
       url: URL.createObjectURL(blob),
       filename: postcardFilename(state.request.date),
+      resolution: state.request.resolution,
     },
     stage: state.request.final ? "ready" : "posing",
     request: null,
