@@ -2,6 +2,7 @@ import { WORLD_BOUNDS, WORLD_ELLIPSE } from "../../shared/world-bounds";
 import { forest } from "./scenery";
 import { campusObstacles } from "./campus";
 import { POND } from "./pond";
+import { belongsToWorld, type WorldId } from "./worlds";
 
 const villageDoors = [
   {
@@ -150,6 +151,20 @@ export const doors = villageDoors.map((door) => {
 });
 export const landmarks = [
   {
+    id: "airport",
+    name: "Airport",
+    x: 58,
+    z: 61,
+    anchor: [58, 8, 52] as const,
+  },
+  {
+    id: "bridge",
+    name: "Han River",
+    x: 26,
+    z: 34,
+    anchor: [45, 10, 34] as const,
+  },
+  {
     id: "photo",
     name: "Photo booth",
     x: -6,
@@ -186,6 +201,10 @@ export const landmarks = [
   },
 ] as const;
 export const destinations = [...doors, ...landmarks];
+export const doorsInWorld = (world: WorldId) =>
+  doors.filter((door) => belongsToWorld(door.id, world));
+export const destinationsInWorld = (world: WorldId) =>
+  destinations.filter((place) => belongsToWorld(place.id, world));
 export type PlaceId = (typeof doors)[number]["id"];
 export function isInterior(scene: string) {
   return (
@@ -193,17 +212,35 @@ export function isInterior(scene: string) {
     doors.some((door) => door.id === scene && scene !== "basketball")
   );
 }
-const obstacles: ReadonlyArray<readonly number[]> = [
-  ...doors.map((door) => door.footprint),
+const sharedObstacles: ReadonlyArray<readonly number[]> = [
   ...forest.map((tree) => [tree.x, tree.z, 0.4, 0.4]),
-  ...campusObstacles,
   [POND.x, POND.z, POND.radiusX, POND.radiusZ],
   [0, -6.6, 2.1, 0.4],
   [0, 0, 1.5, 1.5],
-  [-6, -6.2, 1.2, 0.8],
   [-19, -38, 6, 6],
+  [58, 52, 9, 7],
 ];
-export function canWalk(x: number, z: number) {
+const obstaclesFor = (world?: WorldId): ReadonlyArray<readonly number[]> => [
+  ...sharedObstacles,
+  ...(world ? doorsInWorld(world) : doors).map((door) => door.footprint),
+  ...(world === undefined || world === "stanford" ? campusObstacles : []),
+  ...(world === undefined || world === "korea" ? [[-6, -6.2, 1.2, 0.8]] : []),
+  ...(world === "korea"
+    ? [
+        [45, 26, 13, 4],
+        [45, 41, 13, 3],
+        [45, 30.38, 19, 0.18],
+        [45, 37.62, 19, 0.18],
+      ]
+    : []),
+];
+const regionalObstacles = {
+  home: obstaclesFor("home"),
+  stanford: obstaclesFor("stanford"),
+  korea: obstaclesFor("korea"),
+  all: obstaclesFor(),
+};
+export function canWalk(x: number, z: number, world?: WorldId) {
   if (
     x < WORLD_BOUNDS.minX ||
     x > WORLD_BOUNDS.maxX ||
@@ -214,7 +251,7 @@ export function canWalk(x: number, z: number) {
       1
   )
     return false;
-  return !obstacles.some(
+  return !regionalObstacles[world ?? "all"].some(
     ([cx, cz, w, d]) =>
       Math.abs(x - cx) < w + 0.3 && Math.abs(z - cz) < d + 0.3,
   );
@@ -224,18 +261,20 @@ export function moveWorld(
   z: number,
   dx: number,
   dz: number,
+  world?: WorldId,
 ): [number, number] {
   // Small substeps prevent tunnelling even after a long frame.
   const steps = Math.max(1, Math.ceil(Math.hypot(dx, dz) / 0.15));
   for (let i = 0; i < steps; i++) {
-    if (canWalk(x + dx / steps, z)) x += dx / steps;
-    if (canWalk(x, z + dz / steps)) z += dz / steps;
+    if (canWalk(x + dx / steps, z, world)) x += dx / steps;
+    if (canWalk(x, z + dz / steps, world)) z += dz / steps;
   }
   return [x, z];
 }
 export function findPath(
   start: [number, number],
   end: [number, number],
+  world?: WorldId,
 ): [number, number][] {
   const grid = 0.6,
     key = (x: number, z: number) => `${x},${z}`;
@@ -273,7 +312,10 @@ export function findPath(
         z = cur.z + dz,
         k = key(x, z),
         cost = cur.cost + 1;
-      if (!canWalk(x * grid, z * grid) || (seen.get(k) ?? Infinity) <= cost)
+      if (
+        !canWalk(x * grid, z * grid, world) ||
+        (seen.get(k) ?? Infinity) <= cost
+      )
         continue;
       seen.set(k, cost);
       parents.set(k, ck);

@@ -535,7 +535,23 @@
 }
 
 /* A board is its own touch surface; a second movement control only obscures it. */
-.game-shell:has(.go-card-open, .writing-modal, .theater-dialog) .joystick {
+.world-name {
+  position: absolute;
+  top: max(83px, calc(env(safe-area-inset-top) + 68px));
+  left: max(24px, env(safe-area-inset-left));
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  text-shadow: 0 1px 4px #173741;
+  pointer-events: none;
+}
+.game-shell:has(
+    [data-interior-game-open="true"],
+    .go-card-open,
+    .writing-modal,
+    .theater-dialog
+  )
+  .joystick {
   display: none;
 }
 @media (max-height: 650px) and (orientation: landscape) {
