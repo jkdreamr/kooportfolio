@@ -18,6 +18,7 @@ import { canWalk, doors, moveWorld } from "../core/world";
 import { LabelProjection } from "./Labels";
 import { Landscape } from "./Landscape";
 import { ROOM } from "../core/room";
+import { BeatLabShell, MathLabShell } from "./LabBuildings";
 import {
   KappaShell,
   CognitionShell,
@@ -254,9 +255,8 @@ export function Hub() {
             <House p={[0, 0, 0]} level={save.upgrades.boathouse} />
           )}
           {door.id === "office" && <House p={[0, 0, 0]} kind="study" />}
-          {(door.id === "music" || door.id === "math") && (
-            <House p={[0, 0, 0]} kind="study" />
-          )}
+          {door.id === "music" && <BeatLabShell />}
+          {door.id === "math" && <MathLabShell />}
           {door.id === "basketball" && <CourtPavilion />}
           {door.id === "kappa" && <KappaShell />}
           {door.id === "cognition" && <CognitionShell />}
