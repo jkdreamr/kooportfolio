@@ -720,11 +720,22 @@ function BasketballCourt({ playing }: { playing: boolean }) {
       marker.current.position.set(spot.x, 0.17, spot.z);
       marker.current.scale.setScalar(1 + Math.sin(elapsed.current * 3) * 0.035);
     }
-    desiredCamera.set(runtime.x * 0.22 + 4.8, 7.8, 12.5 + runtime.z * 0.12);
-    camera.position.lerp(desiredCamera, 1 - Math.exp(-dt * 3));
-    camera.lookAt(0, 1.2, -0.8);
+    const aspect = camera instanceof THREE.PerspectiveCamera ? camera.aspect : 1;
+    const portrait = aspect < 0.85;
+    // Keep both ends of the shot in view, rather than aiming at a fixed
+    // center while the player walks out of a narrow portrait frustum.
+    const focusX = (runtime.x + hoop.x) / 2;
+    const focusZ = (runtime.z + hoop.z) / 2;
+    const distance = portrait ? Math.max(19, 11 / Math.max(0.25, aspect)) : 14;
+    desiredCamera.set(
+      focusX + (portrait ? 0 : 4.8),
+      portrait ? distance * 0.6 : 7.8,
+      focusZ + distance,
+    );
+    camera.position.lerp(desiredCamera, 1 - Math.exp(-dt * 7));
+    camera.lookAt(focusX, 1.5, focusZ);
     if (camera instanceof THREE.PerspectiveCamera) {
-      const fov = window.innerWidth < 700 ? 72 : 52;
+      const fov = portrait ? 72 : 52;
       if (camera.fov !== fov) {
         camera.fov = fov;
         camera.updateProjectionMatrix();
