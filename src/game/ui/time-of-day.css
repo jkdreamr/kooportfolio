@@ -1,52 +1,45 @@
 .time-of-day-control {
-  position: absolute;
   z-index: 24;
-  right: max(24px, env(safe-area-inset-right));
-  bottom: calc(52px + env(safe-area-inset-bottom));
-  display: flex;
+  bottom: var(--world-control-bottom);
   align-items: center;
-  gap: 8px;
-  height: 46px;
-  padding: 0 12px;
-  color: #f3d891;
-  background: #283e37;
-  border: 2px solid #53624a;
-  border-top-color: #81906a;
-  border-bottom: 4px solid #172e29;
-  border-radius: 12px;
-  box-shadow: 0 3px 0 #14282140;
+  gap: 6px;
+  padding: 0 8px;
   pointer-events: auto;
 }
+.time-of-day-control svg {
+  flex: 0 0 16px;
+}
 .time-of-day-control select {
-  min-height: 40px;
-  max-width: 91px;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
   padding: 0 2px;
-  color: #fff3cf;
-  background: #283e37;
+  color: inherit;
+  color-scheme: dark;
+  background: transparent;
   border: 0;
   font: inherit;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
-.time-of-day-control select:focus-visible {
-  outline: 2px solid #f3d891;
-  outline-offset: 3px;
-  border-radius: 3px;
+.game-shell .time-of-day-control select:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -3px;
+  border-radius: 4px;
 }
 .time-of-day-control time {
-  font: 500 11px/1 monospace;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
   font-variant-numeric: tabular-nums;
-  color: #d7e1c4;
+  color: var(--hud-muted);
   white-space: nowrap;
 }
 @media (max-width: 900px), (max-height: 500px) {
   .time-of-day-control {
-    right: max(16px, env(safe-area-inset-right));
     top: calc(85px + env(safe-area-inset-top));
     bottom: auto;
-    gap: 6px;
-    padding: 0 9px;
   }
 }
 @media (max-height: 500px) {

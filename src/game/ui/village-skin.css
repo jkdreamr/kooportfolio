@@ -10,6 +10,10 @@
   --hud-gold: #e7c27e;
   --hud-shadow: 0 4px 12px #071b2824;
   --hud-raised: var(--hud-shadow);
+  --world-control-right: max(24px, env(safe-area-inset-right));
+  --world-control-width: 164px;
+  --world-control-height: 38px;
+  --world-control-bottom: calc(52px + env(safe-area-inset-bottom));
   font-family: Arial, Helvetica, sans-serif;
 }
 .game-shell .game-ui {
@@ -473,22 +477,45 @@
 .game-shell .game-toast button {
   color: var(--hud-muted);
 }
-.game-shell .time-of-day-control {
-  color: var(--hud-gold);
-  background: var(--hud-face);
-  border-color: #6a7b7f;
-  border-top-color: #9caaa6;
-  border-bottom-color: #172d37;
+.game-shell :is(.time-of-day-control, .world-zoom) {
+  position: absolute;
+  right: var(--world-control-right);
+  display: flex;
+  width: var(--world-control-width);
+  height: var(--world-control-height);
+  color: #fff;
+  background: var(--hud-low);
+  border: 1px solid var(--hud-edge);
+  border-radius: 6px;
   box-shadow: var(--hud-shadow);
 }
-.game-shell .time-of-day-control select {
-  min-height: 44px;
-  color: var(--hud-ink);
-  background: var(--hud-face);
+@media (max-width: 900px), (max-height: 500px) {
+  .game-shell {
+    --world-control-right: max(16px, env(safe-area-inset-right));
+    --world-control-height: 46px;
+  }
 }
-.game-shell .time-of-day-control time {
-  color: var(--hud-muted);
-  font-family: inherit;
+@media (max-width: 700px) {
+  .game-shell:has(.world-zoom) .game-footer {
+    padding-right: var(--world-control-right);
+  }
+}
+@media (min-width: 901px) and (min-height: 501px) {
+  .game-shell:has(.world-zoom) .game-footer {
+    padding-right: var(--world-control-right);
+    padding-bottom: calc(14px + env(safe-area-inset-bottom));
+  }
+  .game-shell:has(.world-zoom) .game-footer button {
+    justify-content: center;
+    width: var(--world-control-width);
+    min-height: 28px;
+    font-size: 11px;
+  }
+}
+@media (pointer: coarse) {
+  .game-shell {
+    --world-control-height: 46px;
+  }
 }
 .game-shell :is(button, a, input, select):focus-visible {
   outline: 2px solid #e7c27e;
