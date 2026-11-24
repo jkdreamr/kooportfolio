@@ -207,7 +207,16 @@ export function SkateParkInterior() {
   const follow = useRef(new THREE.Vector3(0, 0, 16));
   const cameraTarget = useRef(new THREE.Vector3());
   const cameraOffset = useMemo(() => new THREE.Vector3(22, 30, 34), []);
-  const active = () => gameIsActive() && runtime.active;
+  const active = () => {
+    const state = useGame.getState();
+    // Other minigames pause at an exit prompt; walking must still leave it.
+    return (
+      runtime.active &&
+      (riding
+        ? gameIsActive()
+        : !state.paused && !state.build && state.panel === "none")
+    );
+  };
 
   useEffect(() => {
     runtime.x = 0;
@@ -366,6 +375,9 @@ export function SkateParkInterior() {
     runtime.target = null;
     runtime.path = [];
     runtime.moving = false;
+    runtime.x = game.current.x * S;
+    runtime.z = game.current.z * S;
+    useGame.getState().setNear("");
     setMode(nextMode);
     setView(snapshot(game.current));
     setRiding(true);
@@ -374,10 +386,13 @@ export function SkateParkInterior() {
   const leaveBoard = () => {
     setRiding(false);
     setOverview(true);
-    runtime.x = 0;
-    runtime.z = 23.5;
+    // Stay beside the board, clear of the gate's exit-proximity strip.
+    runtime.x = THREE.MathUtils.clamp(game.current.x * S, -20.5, 20.5);
+    runtime.z = THREE.MathUtils.clamp(game.current.z * S, -24.5, 22);
     runtime.target = null;
     runtime.path = [];
+    runtime.moving = false;
+    useGame.getState().setNear("");
   };
   const hold = (control: Hold) => ({
     onPointerDown: (e: PointerEvent<HTMLButtonElement>) => {
