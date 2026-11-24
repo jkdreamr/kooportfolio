@@ -84,6 +84,19 @@ describe("whole-island camera", () => {
     expect(useWorldView.getState().zoom).toBe(1);
   });
 
+  it("keeps Korea within half the area of the shared island ellipse", () => {
+    const area =
+      Math.abs(
+        KOREA_SHORE.reduce((sum, [x, z], i) => {
+          const [nextX, nextZ] = KOREA_SHORE[(i + 1) % KOREA_SHORE.length];
+          return sum + x * nextZ - z * nextX;
+        }, 0),
+      ) / 2;
+    expect(area).toBeLessThan(
+      (Math.PI * WORLD_ELLIPSE.radiusX * WORLD_ELLIPSE.radiusZ) / 2,
+    );
+  });
+
   it.each([
     [1280, 800],
     [390, 844],

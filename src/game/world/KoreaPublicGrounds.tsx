@@ -17,15 +17,16 @@ function ground(name: string, color: string, outline: readonly Point[]) {
 
 const grounds = [
   ground("namsan-terrace", "#789172", [
-    [-53, -28],
-    [-39, -39],
-    [-17, -46],
-    [25, -41],
-    [45, -34],
-    [45, -28.4],
-    [-28, -28.4],
+    [-47, -24],
+    [-39, -34.5],
+    [-27.8, -45.1],
+    [-21, -45.6],
+    [-11.4, -44.6],
+    [-10.4, -29],
+    [49, -29],
+    [49, -25.6],
+    [-28, -25.6],
     [-35, -24],
-    [-53, -24],
   ]),
   ground("gwanghwamun-square", "#b8a897", [
     [-31.8, -13],
@@ -38,12 +39,12 @@ const grounds = [
     [-31.8, 5],
   ]),
   ground("bukchon-courts", "#9c9b82", [
-    [-57.3, -13],
+    [-55.5, -13],
     [-47, -13],
     [-47, -7.5],
     [-31, -7.5],
     [-31, 11],
-    [-57.5, 11],
+    [-55.5, 11],
   ]),
   ground("market-court", "#b29279", [
     [7.5, -13],
@@ -54,27 +55,28 @@ const grounds = [
     [7.5, 8.8],
   ]),
   ground("market-edge-grove", "#748c71", [
-    [52, -22],
-    [56, -21],
-    [63, -6],
-    [67.5, 10],
-    [51, 10],
-    [51, -14],
+    [50.8, -23.7],
+    [52.6, -23.7],
+    [52.6, 10],
+    [54.5, 12.5],
+    [50.8, 12.5],
   ]),
   ground("pond-garden", "#798a6d", [
-    [-54.5, 14],
+    [-54, 14],
     [-17, 14],
-    [-17, 55.5],
-    [-39, 49.5],
-    [-52, 38],
-    [-56.5, 24],
+    [-17, 55.2],
+    [-33.8, 49.1],
+    [-38.6, 43.8],
+    [-40.7, 37.2],
+    [-50.6, 35.4],
+    [-51.6, 20.9],
   ]),
   ground("hangang-bank-park", "#7d9277", [
     [-15, 51.5],
-    [46, 51.5],
-    [48, 74],
-    [27.5, 64],
-    [-14, 58],
+    [42, 51.5],
+    [44, 57.8],
+    [-12, 57.1],
+    [-15, 56],
   ]),
 ];
 
@@ -104,7 +106,7 @@ for (let i = 0; i < 14; i++) {
 // Stop just short of the water; the deck joins the two west bank approaches.
 const [pondX, pondZ] = [POND.x, POND.z];
 tile(pondX - 4, 0.196, pondZ - 5.2, 13.2, 0.105, 2, "#886e55");
-tile(pondX - 9.6, 0.196, pondZ, 2, 0.105, 10.4, "#886e55");
+tile(pondX - 9.6, 0.196, pondZ - 0.4, 2, 0.105, 9.6, "#886e55");
 for (let i = 0; i < 22; i++)
   tile(
     pondX - 10.3 + i * 0.6,
@@ -115,7 +117,7 @@ for (let i = 0; i < 22; i++)
     1.95,
     "#6f5a49",
   );
-for (let i = 0; i < 17; i++)
+for (let i = 0; i < 16; i++)
   tile(pondX - 9.6, 0.252, pondZ - 4.8 + i * 0.6, 1.95, 0.014, 0.07, "#6f5a49");
 for (let i = 0; i < 9; i++) {
   const a = 1.15 + i * 0.77;
@@ -137,19 +139,14 @@ for (let i = 0; i < 9; i++) {
 }
 
 export const KOREA_PUBLIC_TREES: readonly TreePlacement[] = [
-  { p: [-51, 0, -24], size: 0.85, variant: 2 },
-  { p: [-49, 0, -29], size: 1, variant: 2 },
-  { p: [2, 0, -35], size: 1.05, variant: 1 },
-  { p: [11, 0, -37], size: 0.95, variant: 2 },
-  { p: [23, 0, -34], size: 0.96, variant: 2 },
-  { p: [32, 0, -32], size: 0.9, variant: 1 },
-  { p: [53, 0, -17], size: 0.86, variant: 1 },
-  { p: [57, 0, -11], size: 0.95, variant: 2 },
-  { p: [59, 0, -3], size: 0.95, variant: 2 },
-  { p: [62, 0, 6], size: 1, variant: 1 },
+  { p: [-47, 0, -23], size: 0.85, variant: 2 },
+  { p: [-37, 0, -33.5], size: 0.9, variant: 2 },
+  { p: [4, 0, -28.8], size: 0.8, variant: 1 },
+  { p: [27, 0, -28.8], size: 0.85, variant: 2 },
+  { p: [51.4, 0, -17], size: 0.86, variant: 1 },
+  { p: [51.4, 0, 6], size: 1, variant: 1 },
   { p: [-47, 0, 32], size: 0.9, variant: 2 },
-  { p: [-43, 0, 42], size: 1.05, variant: 1 },
-  { p: [-39, 0, 45], size: 0.85, variant: 2 },
+  { p: [-38, 0, 39.5], size: 1.05, variant: 1 },
 ];
 
 function MonumentPart({

@@ -203,6 +203,14 @@ describe("separate worlds", () => {
       expect(canWalk(x, z, "korea")).toBe(false);
       expect(canWalk(x, z, "home")).toBe(true);
     }
+    for (const [x, z] of [
+      [-48, 40],
+      [23, -35],
+      [60, -3],
+      [28, 62],
+    ]) {
+      expect(canWalk(x, z, "korea"), `former lawn at ${x}, ${z}`).toBe(false);
+    }
     const plots = villageGardenPlots("korea");
     expect(plots.every(({ x, z }) => isOnKoreaLand(x, z, 1.8))).toBe(true);
     const beds = plots.filter(({ orchard }) => !orchard);
