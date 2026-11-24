@@ -2,28 +2,26 @@ import { describe, expect, it } from "vitest";
 import {
   advanceHour,
   clockText,
-  DAY_SECONDS,
   sampleDaylight,
   TIME_PRESETS,
   wrapHour,
 } from "../src/game/core/daylight";
 
 describe("village daylight", () => {
-  it("completes a full auto day without a midnight discontinuity", () => {
-    let hour = 0;
-    for (let i = 0; i < DAY_SECONDS * 10; i++)
-      hour = advanceHour(hour, 0.1, "auto");
-    expect(Math.min(hour, 24 - hour)).toBeLessThan(1e-8);
+  it("uses actual regional time in Auto without a midnight discontinuity", () => {
+    expect(advanceHour(12, 0.1, "auto", 23.99)).toBeCloseTo(23.99);
+    expect(advanceHour(23.99, 0.1, "auto", 0)).toBe(0);
     const midnight = sampleDaylight(0);
     const before = sampleDaylight(24 - 1e-6);
     for (const key of ["key", "hemi", "ambient", "fill", "night"] as const)
       expect(before[key]).toBeCloseTo(midnight[key], 5);
   });
 
-  it("does not catch up inactive tabs or move on a zero-time frame", () => {
-    expect(advanceHour(12, 0, "auto")).toBe(12);
-    expect(advanceHour(12, 900, "auto")).toBe(advanceHour(12, 0.1, "auto"));
-    expect(advanceHour(12, -1, "auto")).toBe(12);
+  it("holds inactive frames and resynchronizes Auto without accelerating time", () => {
+    expect(advanceHour(12, 0, "auto", 18)).toBe(12);
+    expect(advanceHour(12, -1, "auto", 18)).toBe(12);
+    expect(advanceHour(12, 900, "auto", 18)).toBe(18);
+    expect(advanceHour(12, 900, "night")).toBe(advanceHour(12, 0.1, "night"));
   });
 
   it("smoothly reaches every selected time, taking the short way over midnight", () => {
