@@ -91,7 +91,7 @@ export function CourtDeck() {
       <CourtBlock p={[0, -0.1, 0]} s={[17.45, 0.4, 21.25]} c="#c6b18a" />
       <CourtBlock p={[0, 0.005, 0]} s={[14.25, 0.23, 17.25]} c="#823f2c" />
       <mesh
-        position={[0, 0.115, 0]}
+        position={[0, 0.122, 0]}
         rotation={[-Math.PI / 2, 0, 0]}
         material={paint}
         receiveShadow
