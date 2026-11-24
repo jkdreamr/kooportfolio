@@ -264,6 +264,13 @@ export function GoInterior() {
         <div className={`go-room-ui${started ? " go-room-ui--playing" : ""}`}>
           <section className={`go-card${started ? " go-card-playing" : ""}`} aria-label="Go game"
             role={started ? "dialog" : undefined} aria-modal={started ? true : undefined}
+            onPointerDownCapture={(event) => {
+              // Inert prevents background actions, but clicking it can still
+              // blur the modal's button. Keep that native focus change inside.
+              if (confirmNew && !(event.target instanceof Element && event.target.closest(".go-confirm button"))) {
+                event.preventDefault(); event.stopPropagation();
+              }
+            }}
             onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
             onKeyDown={panelKey}>
