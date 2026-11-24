@@ -2,6 +2,13 @@ import { describe, expect, it } from "vitest";
 import { badmintonGesture } from "../src/game/core/badminton-gesture";
 
 describe("badminton touch shots", () => {
+  it.each(["touch", "pen"])("keeps all gesture shots and centered aim available to %s", (pointerType) => {
+    const selected = { aim: 1 as const, shot: "smash" as const };
+    expect(badmintonGesture(4, -8, selected, pointerType)).toEqual({ aim: 0, shot: "drop" });
+    expect(badmintonGesture(0, -40, selected, pointerType)).toEqual({ aim: 0, shot: "clear" });
+    expect(badmintonGesture(-40, 0, selected, pointerType)).toEqual({ aim: -1, shot: "drop" });
+    expect(badmintonGesture(-40, 40, selected, pointerType)).toEqual({ aim: -1, shot: "smash" });
+  });
   it("keeps a small finger wobble a centered drop", () => {
     expect(badmintonGesture(10, -12)).toEqual({ aim: 0, shot: "drop" });
   });
