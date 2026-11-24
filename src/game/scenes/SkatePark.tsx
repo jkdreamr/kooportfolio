@@ -552,14 +552,17 @@ export function SkateParkInterior() {
               <>
                 <section className="skate-score" aria-label="Skate score">
                   <span>{mode === "run" ? `${view.time}s` : "Free skate"}</span>
-                  <strong>{view.score.toLocaleString()}</strong>
+                  <div className="skate-banked">
+                    <span>Banked</span>
+                    <strong>{view.score.toLocaleString()}</strong>
+                  </div>
                   <span>{view.speed} km/h</span>
                   {view.combo > 0 && (
                     <div className="skate-combo">
-                      <b>
-                        {view.combo.toLocaleString()}{" "}
-                        <small>×{view.multiplier}</small>
-                      </b>
+                      <span className="skate-combo-label">
+                        Unbanked <small>×{view.multiplier}</small>
+                      </span>
+                      <b>{view.combo.toLocaleString()}</b>
                       <meter
                         aria-label="Combo link time"
                         min={0}
