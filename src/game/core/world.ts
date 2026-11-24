@@ -3,6 +3,7 @@ import { ISLAND_RAIL } from "./islandRail";
 import { forest } from "./scenery";
 import { campusObstacles } from "./campus";
 import { POND } from "./pond";
+import { PHOTO_BOOTH_ENTRY, PHOTO_BOOTH_OBSTACLES, PHOTO_BOOTH_ORIGIN } from "./photoBoothLayout";
 import { belongsToWorld, type WorldId } from "./worlds";
 import { HOME_COMMUNITY_OBSTACLES } from "../world/CommunityScenery";
 import { villageGardenSolids } from "./villageGardens";
@@ -186,9 +187,9 @@ export const landmarks = [
   {
     id: "photo",
     name: "Photo booth",
-    x: -6,
-    z: -4.4,
-    anchor: [-6, 4.2, -6.2] as const,
+    x: PHOTO_BOOTH_ENTRY[0],
+    z: PHOTO_BOOTH_ENTRY[1],
+    anchor: [PHOTO_BOOTH_ORIGIN[0], 4.2, PHOTO_BOOTH_ORIGIN[2]] as const,
   },
   {
     id: "stargazing",
@@ -244,7 +245,7 @@ const obstaclesFor = (world?: WorldId): ReadonlyArray<readonly number[]> => [
   ...(world ? villageGardenSolids(world) : []),
   ...(world ? doorsInWorld(world) : doors).map((door) => door.footprint),
   ...(world === undefined || world === "stanford" ? campusObstacles : []),
-  ...(world === undefined || world === "korea" ? [[-6, -6.2, 1.2, 0.8]] : []),
+  ...(world === undefined || world === "korea" ? PHOTO_BOOTH_OBSTACLES : []),
   ...(world === "korea"
     ? [
         ...KOREA_WATER_OBSTACLES,

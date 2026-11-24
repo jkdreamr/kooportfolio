@@ -88,7 +88,6 @@ type State = {
     | "travel"
     | "leaderboard"
     | "npc"
-    | "photo"
     | "telescope"
     | "desk";
   near: string;
