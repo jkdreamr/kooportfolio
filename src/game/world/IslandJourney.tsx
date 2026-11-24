@@ -2,7 +2,8 @@ import { useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { useGame } from "../core/store";
-import { findPath, moveWorld } from "../core/world";
+import { findPath } from "../core/world";
+import { moveJourneyApproach } from "../core/journeyApproach";
 import { journeyGate, journeyPose } from "../core/journey";
 import type { TravelOption, TravelWorld } from "../core/travel";
 import { Character } from "./Models";
@@ -58,24 +59,19 @@ export function IslandJourney({
     let pose = initial;
     time.current += dt;
     if (phase.current === "approach") {
-      const target = route.current[0];
-      if (target) {
-        const dx = target[0] - position.current.x,
-          dz = target[1] - position.current.z;
-        const distance = Math.hypot(dx, dz),
-          step = Math.min(distance, dt * 10);
-        if (distance < 0.2) route.current.shift();
-        else {
-          const [x, z] = moveWorld(
-            position.current.x,
-            position.current.z,
-            (dx / distance) * step,
-            (dz / distance) * step,
-            trip.from,
-          );
-          position.current.set(x, 0.3, z);
-          if (actor.current) actor.current.rotation.y = Math.atan2(dx, dz);
-        }
+      if (route.current.length) {
+        const [x, z] = moveJourneyApproach(
+          position.current.x,
+          position.current.z,
+          route.current,
+          dt,
+          trip.from,
+        );
+        const dx = x - position.current.x,
+          dz = z - position.current.z;
+        if (actor.current && Math.hypot(dx, dz) > 0.0001)
+          actor.current.rotation.y = Math.atan2(dx, dz);
+        position.current.set(x, 0.3, z);
       } else {
         phase.current = "board";
         time.current = 0;
