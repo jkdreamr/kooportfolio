@@ -1,0 +1,343 @@
+.badminton-ui {
+  position: absolute;
+  inset: 0;
+  color: var(--hud-ink, #f5f4e9);
+  pointer-events: none;
+  font-family: Arial, Helvetica, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.badminton-ui button {
+  pointer-events: auto;
+  min-height: 44px;
+  border: 1px solid var(--hud-edge, #536971);
+  border-radius: 6px;
+  background: var(--hud-face, #293f49);
+  box-shadow: 0 3px 10px #10242c30;
+  color: var(--hud-ink, #f5f4e9);
+  font:
+    600 13px Arial,
+    Helvetica,
+    sans-serif;
+  padding: 10px 16px;
+  cursor: pointer;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.badminton-ui button:hover {
+  background: #3b5560;
+}
+.badminton-ui button:active,
+.badminton-ui button[aria-pressed="true"] {
+  background: #506c43;
+  border-color: var(--hud-rim, #72847f);
+  box-shadow: inset 0 2px 4px #0b202a44;
+}
+.badminton-ui button:focus-visible {
+  outline: 2px solid var(--hud-gold, #e7c27e);
+  outline-offset: 3px;
+}
+.badminton-ui button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.badminton-ui h2 {
+  font:
+    600 24px Arial,
+    Helvetica,
+    sans-serif;
+  margin: 0;
+}
+.badminton-ui p {
+  margin: 8px 0 14px;
+  font-size: 13px;
+}
+.badminton-tap-hint {
+  display: none;
+}
+.badminton-start,
+.badminton-result {
+  position: absolute;
+  bottom: 88px;
+  right: 24px;
+  width: 238px;
+  max-width: calc(100% - 32px);
+  padding: 18px;
+  text-align: center;
+  border-radius: 6px;
+  background: var(--hud-low, #21353e);
+  border: 1px solid var(--hud-edge, #536971);
+  box-shadow: 0 8px 26px #10242c30;
+  pointer-events: auto;
+}
+.badminton-start button {
+  background: #506c43;
+  width: 100%;
+}
+.badminton-score {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-width: 220px;
+  padding: 6px 16px 24px;
+  border: 1px solid var(--hud-edge, #536971);
+  border-radius: 6px;
+  background: var(--hud-low, #21353e);
+  box-shadow: 0 4px 14px #10242c20;
+  font-size: 12px;
+}
+.badminton-score b {
+  font-size: 27px;
+  margin: 0 5px;
+  font-variant-numeric: tabular-nums;
+}
+.badminton-score i {
+  font-style: normal;
+  color: var(--hud-muted, #c3d0d0);
+}
+.badminton-score small {
+  position: absolute;
+  bottom: 6px;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  color: var(--hud-muted, #c3d0d0);
+  font-size: 10px;
+}
+.badminton-result {
+  top: 50%;
+  left: 50%;
+  right: auto;
+  bottom: auto;
+  transform: translate(-50%, -50%);
+}
+.badminton-result button {
+  margin: 4px;
+}
+.badminton-actions {
+  position: absolute;
+  right: 24px;
+  bottom: 32px;
+  width: 210px;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+.badminton-shots {
+  display: flex;
+  gap: 4px;
+}
+.badminton-shots button {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 12px;
+}
+.badminton-selection {
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--hud-low, #21353e);
+  font-size: 11px;
+  text-transform: capitalize;
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 5px #10242c;
+}
+.badminton-selection span {
+  margin-left: 5px;
+  color: var(--hud-gold, #e7c27e);
+}
+.badminton-ui .badminton-hit {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: #506c43;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 8px;
+}
+.badminton-ui .badminton-hit:active {
+  background: #6b8559;
+}
+.badminton-hit svg {
+  width: 35px;
+  height: 35px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.badminton-hit span {
+  font-size: 12px;
+}
+.badminton-gesture-hint {
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: var(--hud-low, #21353e);
+  color: var(--hud-muted, #c3d0d0);
+  font-size: 10px;
+  white-space: nowrap;
+  text-shadow: 0 1px 5px #10242c;
+}
+.badminton-ui .badminton-move {
+  position: absolute;
+  bottom: 56px;
+  left: 32px;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  padding: 0;
+  background: var(--hud-low, #21353e);
+  overflow: hidden;
+}
+.badminton-move svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: var(--hud-muted, #c3d0d0);
+  stroke-width: 1.5;
+}
+.badminton-move svg circle {
+  opacity: 0.23;
+  stroke-width: 1;
+}
+.badminton-stick {
+  position: absolute;
+  top: calc(50% - 18px);
+  left: calc(50% - 18px);
+  width: 36px;
+  height: 36px;
+  background: var(--hud-face, #293f49);
+  border: 1px solid var(--hud-rim, #72847f);
+  border-radius: 50%;
+  box-shadow: 0 2px 5px #10242c44;
+  pointer-events: none;
+}
+.badminton-ui .badminton-move:active .badminton-stick {
+  background: #506c43;
+}
+.badminton-hint {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  color: var(--hud-muted, #c3d0d0);
+  text-shadow: 0 1px 5px #10242c;
+}
+.badminton-ui .badminton-quiet {
+  background: var(--hud-low, #21353e);
+  color: var(--hud-muted, #c3d0d0);
+}
+.badminton-leave {
+  position: absolute;
+  left: 24px;
+  top: 16px;
+}
+/* The match has one move pad and one hit surface, never a second room joystick. */
+.game-shell:has(.badminton-ui.is-playing) .joystick,
+.game-shell:has(.badminton-ui.is-playing) .context-action,
+.game-shell:has(.badminton-ui.is-playing) .interior-heading {
+  display: none;
+}
+@media (max-width: 700px), (pointer: coarse) {
+  .badminton-tap-hint {
+    display: inline;
+  }
+  .badminton-start {
+    right: 16px;
+    bottom: 75px;
+    width: 180px;
+    padding: 14px;
+  }
+  .badminton-score {
+    top: 16px;
+    min-width: 176px;
+    gap: 6px;
+    padding: 3px 10px 21px;
+  }
+  .badminton-score b {
+    font-size: 24px;
+  }
+  .badminton-actions {
+    right: 14px;
+    bottom: max(18px, env(safe-area-inset-bottom));
+    width: 130px;
+    gap: 5px;
+  }
+  .badminton-shots,
+  .badminton-hint {
+    display: none;
+  }
+  .badminton-ui .badminton-hit {
+    width: 78px;
+    height: 78px;
+  }
+  .badminton-ui .badminton-move {
+    left: 16px;
+    bottom: max(34px, env(safe-area-inset-bottom));
+    width: 92px;
+    height: 92px;
+  }
+  .badminton-leave {
+    left: 12px;
+    top: 16px;
+    max-width: 66px;
+    padding: 8px !important;
+    font-size: 11px !important;
+  }
+}
+@media (max-width: 360px) {
+  .badminton-score {
+    left: auto;
+    right: 12px;
+    transform: none;
+  }
+}
+@media (max-height: 500px) and (min-width: 600px) {
+  .badminton-tap-hint {
+    display: inline;
+  }
+  .badminton-score {
+    top: 12px;
+    min-width: 180px;
+    padding-top: 2px;
+    padding-bottom: 20px;
+  }
+  .badminton-actions {
+    right: 14px;
+    bottom: 18px;
+    width: 130px;
+    gap: 4px;
+  }
+  .badminton-shots,
+  .badminton-hint {
+    display: none;
+  }
+  .badminton-ui .badminton-hit {
+    width: 72px;
+    height: 72px;
+  }
+  .badminton-ui .badminton-move {
+    left: 16px;
+    bottom: 32px;
+    width: 88px;
+    height: 88px;
+  }
+  .badminton-leave {
+    top: 16px;
+    left: 12px;
+  }
+  .badminton-start {
+    bottom: 62px;
+    padding: 12px;
+  }
+}

@@ -1,0 +1,314 @@
+.skate-ui {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: #f5f4e9;
+  font-family: inherit;
+  user-select: none;
+}
+.skate-ui button {
+  pointer-events: auto;
+  min-height: 44px;
+  padding: 9px 12px;
+  border: 1px solid #a59268;
+  border-bottom: 3px solid #21353f;
+  border-radius: 6px;
+  background: #304650;
+  box-shadow: inset 0 1px #536873;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: none;
+}
+.skate-ui button:hover {
+  background: #486832;
+}
+.skate-ui button:active,
+.skate-ui .is-grinding {
+  background: #a56b36;
+}
+.skate-ui button:focus-visible {
+  outline: 3px solid #f1c76b;
+  outline-offset: 3px;
+}
+.skate-ui kbd {
+  margin-left: 5px;
+  color: #c3d0d0;
+  font: inherit;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.skate-card {
+  position: absolute;
+  right: 22px;
+  bottom: 92px;
+  width: 280px;
+  max-width: calc(100% - 32px);
+  box-sizing: border-box;
+  padding: 18px;
+  border: 1px solid #b39b66;
+  border-radius: 8px;
+  background: #304650;
+  box-shadow: 0 4px #21353f;
+  pointer-events: auto;
+}
+.skate-eyebrow {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #d6b77a;
+}
+.skate-card h2 {
+  margin: 6px 0 10px;
+  font: inherit;
+  font-size: 24px;
+  font-weight: 800;
+}
+.skate-card p {
+  margin: 0 0 15px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.skate-modes {
+  display: flex;
+  gap: 7px;
+}
+.skate-modes button {
+  flex: 1;
+}
+.skate-modes button:first-child {
+  background: #a26139;
+  border-color: #d7ab67;
+}
+.skate-view-controls {
+  position: absolute;
+  right: 22px;
+  top: 100px;
+  display: flex;
+  gap: 6px;
+}
+.skate-score {
+  position: absolute;
+  top: 94px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 8px 17px;
+  border: 1px solid #b39b66;
+  border-radius: 7px;
+  background: #304650;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.skate-score > strong {
+  font-size: 28px;
+}
+.skate-combo {
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 170px;
+  text-align: center;
+  color: #f6d081;
+}
+.skate-combo b {
+  font-size: 23px;
+  text-shadow: 0 2px 2px #20352a;
+}
+.skate-combo small {
+  font-size: 14px;
+}
+.skate-combo meter {
+  display: block;
+  height: 8px;
+  width: 100%;
+  accent-color: #d5a859;
+}
+.skate-feedback {
+  position: absolute;
+  top: 202px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  white-space: nowrap;
+  text-shadow:
+    0 2px 3px #233e30,
+    1px 0 3px #233e30;
+  font-size: 17px;
+  font-weight: 800;
+}
+.skate-steer {
+  position: absolute;
+  left: 22px;
+  bottom: 94px;
+  display: grid;
+  grid-template-columns: repeat(3, 58px);
+  gap: 5px;
+}
+.skate-steer button {
+  padding: 8px 3px;
+}
+.skate-push {
+  grid-column: 1 / 4;
+}
+.skate-steer kbd {
+  display: block;
+  margin-left: 0;
+}
+.skate-tricks {
+  position: absolute;
+  right: 22px;
+  bottom: 94px;
+  width: 234px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 5px;
+}
+.skate-tricks button {
+  padding: 8px 5px;
+}
+.skate-tricks .skate-ollie {
+  grid-column: 1 / 3;
+  background: #a26139;
+  border-color: #d7ab67;
+}
+.skate-tricks > button:nth-last-child(2) {
+  grid-column: 1 / 3;
+}
+.skate-tricks .skate-stepoff {
+  grid-column: 1 / 3;
+  min-height: 32px;
+  background: #21353f;
+  font-size: 11px;
+}
+.skate-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 65px;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 28px);
+  margin: 0;
+  padding: 5px 8px;
+  border-radius: 4px;
+  background: #21353f;
+  font-size: 10px;
+  text-align: center;
+}
+.scene-skate .joystick {
+  display: none;
+}
+@media (max-width: 700px) {
+  .skate-view-controls {
+    top: 150px;
+    right: 12px;
+  }
+  .skate-view-controls button {
+    font-size: 10px !important;
+    padding: 6px !important;
+  }
+  .skate-card {
+    right: 12px;
+    bottom: 85px;
+    width: 258px;
+    padding: 14px;
+  }
+  .skate-score {
+    top: 87px;
+    gap: 10px;
+    padding: 6px 12px;
+  }
+  .skate-score > strong {
+    font-size: 23px;
+  }
+  .skate-score > span {
+    white-space: nowrap;
+    font-size: 10px;
+  }
+  .skate-steer {
+    left: 10px;
+    bottom: 90px;
+    grid-template-columns: repeat(3, 44px);
+    gap: 4px;
+  }
+  .skate-tricks {
+    right: 10px;
+    bottom: 90px;
+    width: 166px;
+    gap: 4px;
+  }
+  .skate-tricks button {
+    font-size: 11px;
+    padding: 7px 2px;
+  }
+  .skate-tricks kbd {
+    display: none;
+  }
+  .skate-hint {
+    bottom: 66px;
+    font-size: 9px;
+  }
+  .skate-feedback {
+    top: 207px;
+    font-size: 14px;
+  }
+}
+@media (max-height: 520px) {
+  .skate-card {
+    bottom: 72px;
+    padding: 10px;
+    max-height: calc(100dvh - 150px);
+    overflow-y: auto;
+  }
+  .skate-card h2 {
+    font-size: 18px;
+    margin: 4px 0;
+  }
+  .skate-card p {
+    margin-bottom: 7px;
+  }
+  .skate-steer,
+  .skate-tricks {
+    bottom: 75px;
+  }
+  .skate-tricks {
+    width: 200px;
+    gap: 3px;
+  }
+  .skate-tricks button {
+    min-height: 36px;
+    padding: 4px;
+  }
+  .skate-tricks .skate-stepoff {
+    min-height: 28px;
+  }
+  .skate-score {
+    top: 80px;
+  }
+  .skate-view-controls {
+    top: 80px;
+  }
+  /* The focused stage has no host header. Keep its top controls above the
+     four-row trick deck, even with only 300px of landscape height. */
+  .skate-ui.is-riding .skate-score,
+  .skate-ui.is-riding .skate-view-controls {
+    top: 12px;
+  }
+  .skate-feedback {
+    top: 180px;
+    font-size: 13px;
+  }
+  .skate-hint {
+    bottom: 54px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skate-ui * {
+    scroll-behavior: auto;
+  }
+}

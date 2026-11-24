@@ -1,0 +1,276 @@
+.writing-dialog {
+  box-sizing: border-box;
+  width: min(900px, calc(100vw - 28px));
+  max-width: none;
+  height: min(680px, calc(100dvh - 36px));
+  max-height: none;
+  margin: auto;
+  padding: 0;
+  border: 1px solid #657b86;
+  border-radius: 9px;
+  background: var(--hud-face, #304650);
+  color: var(--hud-ink, #f5f4e9);
+  box-shadow:
+    inset 0 1px 0 #7c919766,
+    0 7px 0 #13262f,
+    0 20px 80px #0e202ab3;
+  font-family: "Trebuchet MS", Arial, sans-serif;
+  text-align: left;
+  user-select: text;
+}
+.writing-dialog::backdrop {
+  background: #102735b3;
+}
+.writing-frame {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.writing-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #657b86;
+  background: #3a515c;
+}
+.writing-dialog .writing-header h2 {
+  margin: 0;
+  font-size: 21px;
+}
+.writing-dialog .writing-header button {
+  min-width: 44px;
+  padding: 3px;
+  font-size: 26px;
+  background: var(--hud-low, #21353f);
+  border-color: var(--hud-edge, #536873);
+}
+.writing-toolbar {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+}
+.writing-dialog .writing-toolbar button[aria-pressed="false"] {
+  background: transparent;
+  border-color: var(--hud-edge, #536873);
+}
+.writing-toolbar .writing-refresh {
+  margin-left: auto;
+}
+.writing-dialog button {
+  font-family: inherit;
+}
+.game-shell .writing-dialog button {
+  color: var(--hud-ink, #f5f4e9);
+  background: linear-gradient(#415d69, #2b4452);
+  border-color: #8a9b9d;
+}
+.writing-dialog :is(h2, h3) {
+  font-family: inherit;
+}
+.game-shell .writing-dialog button:focus-visible,
+.game-shell .writing-dialog summary:focus-visible,
+.game-shell .writing-dialog input:focus-visible,
+.game-shell .writing-dialog textarea:focus-visible {
+  outline: 2px solid #b3d0de;
+  outline-offset: 2px;
+}
+.writing-dialog .writing-notice {
+  margin: 0 16px 10px;
+  color: var(--hud-muted, #c3d0d0);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.writing-reader {
+  display: grid;
+  grid-template-columns: 235px 1fr;
+  flex: 1;
+  min-height: 0;
+  border-top: 1px solid var(--hud-edge, #536873);
+}
+.writing-list {
+  overflow-y: auto;
+  padding: 8px;
+  background: var(--hud-low, #21353f);
+  border-right: 1px solid var(--hud-edge, #536873);
+}
+.writing-dialog .writing-list > p {
+  margin: 12px;
+  line-height: 1.6;
+}
+.game-shell .writing-dialog .writing-post-link {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 12px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  margin: 0 0 4px;
+  overflow-wrap: anywhere;
+}
+.writing-post-link strong,
+.writing-post-link span {
+  display: block;
+}
+.writing-dialog .writing-post-link span {
+  margin-top: 6px;
+  color: var(--hud-muted, #c3d0d0);
+  font-size: 12px;
+  font-weight: 400;
+}
+.game-shell .writing-dialog .writing-post-link[aria-current="true"] {
+  background: #425f6c;
+  box-shadow: inset 2px 0 #a6c2d0;
+}
+.writing-page {
+  padding: 22px 28px;
+  overflow: auto;
+  min-width: 0;
+}
+.writing-page h3 {
+  margin: 0 0 8px;
+  font-size: 25px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.writing-dialog .writing-byline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 0 0 24px;
+  color: var(--hud-muted, #c3d0d0);
+  font-size: 12px;
+}
+.writing-dialog .writing-body {
+  font: inherit;
+  font-size: 17px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 0;
+}
+.writing-dialog .writing-back {
+  display: none;
+}
+.writing-remove {
+  margin-top: 30px;
+  font-size: 12px;
+}
+.writing-remove summary {
+  cursor: pointer;
+  width: fit-content;
+  padding: 10px 0;
+}
+.writing-remove button {
+  margin-top: 8px;
+}
+.writing-compose {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 22px 20px;
+  min-height: 0;
+  overflow-y: auto;
+}
+.writing-fields {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 14px;
+}
+.writing-compose label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.writing-compose input,
+.writing-compose textarea {
+  box-sizing: border-box;
+  width: 100%;
+  border: 1px solid #81949d;
+  border-radius: 4px;
+  background: #1b303c;
+  color: var(--hud-ink, #f5f4e9);
+  padding: 10px 12px;
+  font: inherit;
+  font-weight: 400;
+  min-width: 0;
+}
+.writing-compose input {
+  min-height: 44px;
+}
+.writing-compose .writing-text-label {
+  flex: 1;
+  min-height: 150px;
+}
+.writing-compose textarea {
+  flex: 1;
+  resize: vertical;
+  min-height: 130px;
+  font-size: 16px;
+  line-height: 1.6;
+}
+.writing-compose footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.writing-compose footer span {
+  font-size: 12px;
+  color: var(--hud-muted, #c3d0d0);
+}
+@media (max-width: 600px) {
+  .writing-dialog {
+    width: calc(100vw - 16px);
+    height: calc(100dvh - 20px);
+  }
+  .writing-reader {
+    display: flex;
+    flex-direction: column;
+  }
+  .writing-list {
+    flex: 1;
+    border-right: 0;
+  }
+  .writing-page {
+    display: none;
+    padding: 12px 18px 24px;
+  }
+  .writing-reader.has-selection .writing-list {
+    display: none;
+  }
+  .writing-reader.has-selection .writing-page {
+    display: block;
+    flex: 1;
+  }
+  .writing-dialog .writing-back {
+    display: block;
+    margin: 0 0 18px;
+  }
+  .writing-fields {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .writing-compose {
+    padding: 4px 16px 16px;
+  }
+}
+@media (max-height: 480px) {
+  .writing-dialog {
+    height: calc(100dvh - 12px);
+  }
+  .writing-header {
+    padding: 4px 12px;
+  }
+  .writing-toolbar {
+    padding: 4px 12px;
+  }
+  .writing-compose .writing-text-label {
+    flex: none;
+  }
+}
