@@ -169,3 +169,45 @@ export function StoneFooting({
   }, [width, depth]);
   return <Pieces pieces={pieces} masonry />;
 }
+
+export function GableRoof({
+  width,
+  depth,
+  y,
+  rise,
+  color,
+}: {
+  width: number;
+  depth: number;
+  y: number;
+  rise: number;
+  color: string;
+}) {
+  const geometry = useMemo(() => {
+    const w = width / 2,
+      d = depth / 2;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute(
+      "position",
+      new THREE.Float32BufferAttribute(
+        [-w, 0, -d, w, 0, -d, 0, rise, -d, -w, 0, d, w, 0, d, 0, rise, d],
+        3,
+      ),
+    );
+    g.setIndex([
+      0, 2, 1, 3, 4, 5, 0, 3, 5, 0, 5, 2, 1, 2, 5, 1, 5, 4, 0, 1, 4, 0, 4, 3,
+    ]);
+    const solid = g.toNonIndexed();
+    g.dispose();
+    solid.computeVertexNormals();
+    return solid;
+  }, [width, depth, rise]);
+  return (
+    <group>
+      <mesh position={[0, y, 0]} geometry={geometry} castShadow receiveShadow>
+        <meshStandardMaterial color={color} roughness={0.82} />
+      </mesh>
+      <RoofShingles {...{ width, depth, y, rise, color }} hip={false} />
+    </group>
+  );
+}

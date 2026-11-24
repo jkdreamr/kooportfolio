@@ -93,11 +93,12 @@ function Sun() {
   const target = useMemo(() => new THREE.Object3D(), []);
   const quality = useGame((s) => s.quality);
   useFrame(({ camera }) => {
-    const race = useGame.getState().scene === "rowing";
+    const scene = useGame.getState().scene;
+    const race = scene === "rowing";
     target.position.set(
-      race ? camera.position.x : 0,
+      race ? camera.position.x : scene === "hub" ? runtime.x : 0,
       0,
-      race ? camera.position.z - 18 : 0,
+      race ? camera.position.z - 18 : scene === "hub" ? runtime.z : 0,
     );
     target.updateMatrixWorld();
     light.current?.position.set(
@@ -110,6 +111,7 @@ function Sun() {
     <>
       <primitive object={target} />
       <directionalLight
+        name="world-sun"
         ref={light}
         target={target}
         intensity={3.1}
@@ -162,9 +164,13 @@ function World() {
           scene === "rowing" ? 120 : 160,
         ]}
       />
-      <hemisphereLight args={["#dceaff", "#465638", 0.95]} />
-      <ambientLight intensity={0.16} color="#f1e2c8" />
+      <hemisphereLight
+        name="world-hemisphere"
+        args={["#dceaff", "#465638", 0.95]}
+      />
+      <ambientLight name="world-ambient" intensity={0.16} color="#f1e2c8" />
       <directionalLight
+        name="world-fill"
         position={[16, 15, -24]}
         intensity={0.8}
         color="#c7e6ff"

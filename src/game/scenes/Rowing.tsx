@@ -26,6 +26,8 @@ import {
   type RaceRecord,
 } from "../core/rowingRecords";
 import { RowingShell } from "./RowingShell";
+import { RowingWater } from "./RowingWater";
+import { RowingBanks } from "./RowingBanks";
 export const useRaceHud = create<{
   race: RaceState;
   place: number;
@@ -86,55 +88,19 @@ function CurrentFlow({
     </instancedMesh>
   );
 }
-function River({ length, seed }: { length: number; seed: number }) {
-  const geometry = useMemo(() => {
-    const vertices = [],
-      indices = [];
-    for (let s = -30; s <= length + 80; s += 5) {
-      const c = riverCenter(Math.max(0, s), seed);
-      vertices.push(c - 12, -0.1, -s, c + 12, -0.1, -s);
-    }
-    for (let i = 0; i < vertices.length / 3 - 2; i += 2)
-      indices.push(i, i + 1, i + 2, i + 1, i + 3, i + 2);
-    const g = new THREE.BufferGeometry();
-    g.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
-    g.setIndex(indices);
-    g.computeVertexNormals();
-    return g;
-  }, [length, seed]);
-  const channel = useMemo(() => {
-    const vertices = [],
-      indices = [];
-    for (let s = -30; s <= length + 80; s += 4) {
-      const c = currentLine(Math.max(0, s), seed);
-      vertices.push(c - 2.4, -0.08, -s, c + 2.4, -0.08, -s);
-    }
-    for (let i = 0; i < vertices.length / 3 - 2; i += 2)
-      indices.push(i, i + 1, i + 2, i + 1, i + 3, i + 2);
-    const g = new THREE.BufferGeometry();
-    g.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
-    g.setIndex(indices);
-    return g;
-  }, [length, seed]);
+function River({
+  length,
+  seed,
+  state,
+}: {
+  length: number;
+  seed: number;
+  state: () => RaceState;
+}) {
   return (
     <group>
-      <mesh geometry={geometry} receiveShadow>
-        <meshStandardMaterial
-          color="#237f88"
-          roughness={0.36}
-          metalness={0.18}
-          side={THREE.DoubleSide}
-        />
-      </mesh>
-      <mesh geometry={channel}>
-        <meshBasicMaterial
-          color="#71d6c4"
-          transparent
-          opacity={0.21}
-          side={THREE.DoubleSide}
-          depthWrite={false}
-        />
-      </mesh>
+      <RowingWater length={length} seed={seed} state={state} />
+      <RowingBanks length={length} seed={seed} />
       {Array.from({ length: Math.ceil(length / 9) + 8 }, (_, i) => {
         const s = i * 9 - 20,
           c = riverCenter(Math.max(0, s), seed);
@@ -143,14 +109,14 @@ function River({ length, seed }: { length: number; seed: number }) {
             {[-1, 1].map((side) => (
               <group key={side}>
                 <Box
-                  p={[c + side * 21, -0.5, -s]}
-                  s={[18, 1, 9.2]}
-                  c={i % 3 ? "#86ac64" : "#96b671"}
+                  p={[c + side * 21, -0.8, -s]}
+                  s={[18, 1.6, 9.2]}
+                  c={i % 3 ? "#659a4d" : "#6d9e50"}
                 />
                 <Box
-                  p={[c + side * 12.7, -0.12, -s]}
-                  s={[1.3, 0.7, 9.2]}
-                  c="#c8b98a"
+                  p={[c + side * 12.7, -0.35, -s]}
+                  s={[1.3, 0.65, 9.2]}
+                  c="#777d58"
                 />
                 {i % 2 === 0 && (
                   <Tree
@@ -243,7 +209,9 @@ export function Rowing() {
     id = useRef(newRunId());
   const length = runtime.raceLength,
     seed = runtime.raceSeed;
-  const record = useRef(readRaceRecord(length, seed));
+  const record = useRef(
+    readRaceRecord(length, seed, undefined, useGame.getState().save.bestRace),
+  );
   const look = useRef(new THREE.Vector3(0, 0, -8));
   const desired = useMemo(() => new THREE.Vector3(), []);
   useFrame(({ camera }, delta) => {
@@ -303,7 +271,9 @@ export function Rowing() {
       done.current = true;
       const coins = 45 + (4 - place) * 10 + (length > 400 ? 25 : 0),
         best = game.save.bestRace;
-      const personalBest = saveRaceRecord(s, length, seed);
+      const personalBest =
+        (!record.current || s.time < record.current.time) &&
+        saveRaceRecord(s, length, seed);
       game.award(id.current, coins, 30, {
         bestRace:
           length === 360 && seed === 1
@@ -324,7 +294,7 @@ export function Rowing() {
   });
   return (
     <>
-      <River length={length} seed={seed} />
+      <River length={length} seed={seed} state={() => state.current} />
       <CurrentFlow state={() => state.current} seed={seed} />
       <RowingShell state={() => state.current} color="#efc259" player />
       {["#dc7656", "#4a9485", "#7186bd"].map((color, i) => (
