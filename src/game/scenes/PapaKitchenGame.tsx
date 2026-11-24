@@ -663,6 +663,7 @@ export function PapaKitchenGame({ onReward }: InteriorGameProps) {
             <button
               className="papa-play"
               ref={focusElement}
+              onPointerDown={(event) => event.stopPropagation()}
               onKeyDown={(event) => {
                 if (event.key === " " || event.key === "Enter")
                   event.stopPropagation();
@@ -671,7 +672,8 @@ export function PapaKitchenGame({ onReward }: InteriorGameProps) {
                 if (event.key === " " || event.key === "Enter")
                   event.stopPropagation();
               }}
-              onClick={() => {
+              onClick={(event) => {
+                event.stopPropagation();
                 pendingFocus.current = true;
                 if (startGameMode("kitchen")) {
                   dispatch({ type: "start" });
