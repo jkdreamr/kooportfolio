@@ -56,7 +56,7 @@ export const villagers: {
     skin: "#a77151",
     hat: false,
     place: "basketball",
-    lines: ["You play?", "Meet me at the court. I'll rebound."],
+    lines: ["You play?", "Court's free if you want to shoot."],
     route: [
       [19, 9],
       [13, 8],
