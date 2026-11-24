@@ -3,7 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { runtime, useGame } from "../core/store";
-import { GableRoof, StoneFooting } from "./ArchitectureDetail";
+import { GableRoof, StoneFooting, WindowDetail } from "./ArchitectureDetail";
 import { sculptedMaterial } from "./Surface";
 import { NationalFlag } from "./NationalFlag";
 
@@ -309,11 +309,7 @@ export function Window({
 }) {
   return (
     <group position={p}>
-      <Box s={[width + 0.18, 1.15, 0.13]} c="#80715a" />
-      <Box p={[0, 0, 0.08]} s={[width, 1, 0.08]} c="#efc982" />
-      <Box p={[0, 0, 0.14]} s={[0.06, 1.05, 0.07]} c="#faf0d4" />
-      <Box p={[0, 0, 0.14]} s={[width, 0.06, 0.07]} c="#faf0d4" />
-      <Box p={[0, -0.6, 0.14]} s={[width + 0.35, 0.14, 0.38]} c="#e3d6b7" />
+      <WindowDetail width={width} />
     </group>
   );
 }
