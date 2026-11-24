@@ -3,7 +3,11 @@ import { ISLAND_RAIL } from "./islandRail";
 import { forest } from "./scenery";
 import { campusObstacles } from "./campus";
 import { POND } from "./pond";
-import { PHOTO_BOOTH_ENTRY, PHOTO_BOOTH_OBSTACLES, PHOTO_BOOTH_ORIGIN } from "./photoBoothLayout";
+import {
+  PHOTO_BOOTH_ENTRY,
+  PHOTO_BOOTH_OBSTACLES,
+  PHOTO_BOOTH_ORIGIN,
+} from "./photoBoothLayout";
 import { belongsToWorld, type WorldId } from "./worlds";
 import { HOME_COMMUNITY_OBSTACLES } from "../world/CommunityScenery";
 import { villageGardenSolids } from "./villageGardens";
@@ -300,10 +304,41 @@ export function findPath(
 ): [number, number][] {
   const grid = 0.6,
     key = (x: number, z: number) => `${x},${z}`;
-  const sx = Math.round(start[0] / grid),
-    sz = Math.round(start[1] / grid),
-    ex = Math.round(end[0] / grid),
+  let sx = Math.round(start[0] / grid),
+    sz = Math.round(start[1] / grid);
+  const ex = Math.round(end[0] / grid),
     ez = Math.round(end[1] / grid);
+  const connected = (x: number, z: number) => {
+    const dx = x * grid - start[0],
+      dz = z * grid - start[1];
+    const steps = Math.max(1, Math.ceil(Math.hypot(dx, dz) / 0.05));
+    for (let step = 1; step <= steps; step++)
+      if (
+        !canWalk(
+          start[0] + (dx * step) / steps,
+          start[1] + (dz * step) / steps,
+          world,
+        )
+      )
+        return false;
+    return true;
+  };
+  if (!connected(sx, sz)) {
+    // A valid off-grid position can round into two adjoining walls (e.g. the
+    // photo booth's back corner). Seed A* on the same walkable side instead.
+    const nearby = Array.from({ length: 25 }, (_, i) => [
+      sx + (i % 5) - 2,
+      sz + Math.floor(i / 5) - 2,
+    ]);
+    nearby.sort(
+      (a, b) =>
+        Math.hypot(a[0] * grid - start[0], a[1] * grid - start[1]) -
+        Math.hypot(b[0] * grid - start[0], b[1] * grid - start[1]),
+    );
+    const seed = nearby.find(([x, z]) => connected(x, z));
+    if (!seed) return [];
+    [sx, sz] = seed;
+  }
   type Node = { x: number; z: number; cost: number; f: number };
   const open: Node[] = [],
     seen = new Map<string, number>(),
@@ -356,7 +391,10 @@ export function findPath(
         const [x, z] = k.split(",").map(Number);
         out.unshift([x * grid, z * grid]);
       }
-      return out.slice(1);
+      // Keep the entry segment; skipping it can cut back through the corner.
+      return Math.hypot(start[0] - sx * grid, start[1] - sz * grid) > 0.0001
+        ? out
+        : out.slice(1);
     }
     for (const [dx, dz] of [
       [1, 0],

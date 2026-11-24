@@ -9,6 +9,30 @@ import { canWalk, findPath } from "../src/game/core/world";
 import { WORLD_ELLIPSE } from "../src/shared/world-bounds";
 
 describe("world-space transport", () => {
+  it("can reach the airport from a photo-booth corner off the pathfinding grid", () => {
+    let position: [number, number] = [-4.91, -7.04];
+    expect(canWalk(...position, "korea")).toBe(true);
+    const route = findPath(position, [...journeyGate("plane")], "korea");
+    expect(route.length).toBeGreaterThan(0);
+    for (const target of route) {
+      const distance = Math.hypot(
+        target[0] - position[0],
+        target[1] - position[1],
+      );
+      const steps = Math.max(1, Math.ceil(distance / 0.05));
+      for (let step = 1; step <= steps; step++) {
+        const t = step / steps;
+        expect(
+          canWalk(
+            position[0] + (target[0] - position[0]) * t,
+            position[1] + (target[1] - position[1]) * t,
+            "korea",
+          ),
+        ).toBe(true);
+      }
+      position = target;
+    }
+  });
   it("boards at reachable gates in each region", () => {
     for (const world of ["home", "stanford", "korea"] as const) {
       for (const mode of world === "korea"
