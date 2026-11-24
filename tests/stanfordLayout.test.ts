@@ -9,8 +9,22 @@ import { campusStops } from "../src/game/core/campus";
 import { HOOVER } from "../src/game/core/hoover";
 import { STANFORD_WALKS } from "../src/game/core/stanfordLayout";
 import { villageGardenPlots } from "../src/game/core/villageGardens";
+import { createNpcActors, nearestNpc, villagers } from "../src/game/core/npcs";
+import { belongsToWorld } from "../src/game/core/worlds";
 
 describe("compact Stanford village", () => {
+  it("keeps every resident individually reachable for a conversation", () => {
+    const ids = new Set(
+      villagers
+        .filter((npc) => belongsToWorld(npc.place, "stanford"))
+        .map((npc) => npc.id),
+    );
+    const actors = createNpcActors().filter((actor) => ids.has(actor.id));
+    for (const actor of actors)
+      expect(nearestNpc(actors, actor.x, actor.z, "stanford")?.id).toBe(
+        actor.id,
+      );
+  });
   it("keeps retained gardens out of the storefronts and new walking streets", () => {
     const plots = villageGardenPlots("stanford");
     expect(plots.length).toBeGreaterThan(0);

@@ -334,14 +334,18 @@ const locals: Villager[] = [
   },
 ];
 
+const stanfordRouteCounts = new Map<string, number>();
 export const villagers: Villager[] = [
   ...locals.map((npc) => ({ ...npc, ...routines[npc.id] })),
   ...extraLocals,
   ...islandLocals,
-].map((npc, i) => {
-  const walk = STANFORD_NPC_WALKS[npc.id] ?? STANFORD_NPC_WALKS[npc.place];
+].map((npc) => {
+  const routeId = STANFORD_NPC_WALKS[npc.id] ? npc.id : npc.place;
+  const walk = STANFORD_NPC_WALKS[routeId];
   if (!walk) return npc;
-  const offset = i % walk.length;
+  const count = stanfordRouteCounts.get(routeId) ?? 0;
+  stanfordRouteCounts.set(routeId, count + 1);
+  const offset = count % walk.length;
   return { ...npc, route: [...walk.slice(offset), ...walk.slice(0, offset)] };
 });
 
