@@ -14,6 +14,7 @@ import {
 } from "../core/fieldGoal";
 import { GameControls, gameIsActive } from "./InteriorProps";
 import { StadiumArchitecture } from "./StadiumArchitecture";
+import { StadiumView } from "./StadiumView";
 import "./stadium.css";
 
 export { StadiumBuilding } from "./StadiumArchitecture";
@@ -216,7 +217,7 @@ export function StadiumInterior() {
         </group>
       ))}
       {!nearExit && (
-        <GameControls name="49ers field goals" position={[0, 0.5, 7]}>
+        <GameControls name="49ers field goals" position={[0, 0.5, 13.5]}>
           <div className="stadium-controls">
             <div className="stadium-score">
               <strong>49ERS</strong>
@@ -271,7 +272,8 @@ export function StadiumInterior() {
           </div>
         </GameControls>
       )}
-      <Walker interior />
+      <Walker interior followCamera={false} />
+      <StadiumView />
     </group>
   );
 }
