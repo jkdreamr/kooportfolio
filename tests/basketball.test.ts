@@ -27,6 +27,19 @@ function flight(ball: BallState, hoop = HOOP, dt = 1 / 120) {
   return { ball, scores };
 }
 describe("court collision regressions", () => {
+  it("clears rounded board corners without a phantom bank contact", () => {
+    const clear = stepBall(
+      ballAt({ x: 1.525, y: 5.175, z: -5.3 }, { x: 0, y: 0, z: -35 }),
+      1 / 30,
+    );
+    expect(clear.ball.contacts?.board).toBe(0);
+    expect(clear.ball.v.z).toBeLessThan(0);
+    const edge = stepBall(
+      ballAt({ x: 1.4, y: 5, z: -5.3 }, { x: 0, y: 0, z: -35 }),
+      1 / 30,
+    );
+    expect(edge.ball.contacts?.board).toBeGreaterThan(0);
+  });
   it("catches high shots at the real upper backboard and fast crossings", () => {
     const high = stepBall(
       ballAt({ x: 0, y: 4.96, z: -5.3 }, { x: 0, y: 0, z: -35 }),
@@ -64,6 +77,15 @@ describe("court collision regressions", () => {
       stepBall(ballAt({ x: 0, y: 2.9, z: -5 }, { x: 0, y: 2, z: 0 }), 0.1)
         .score,
     ).toBe(false);
+  });
+  it("clears the front rim across the playable range on a perfect release", () => {
+    for (let distance = 1.2; distance <= 12.7; distance += 0.25) {
+      for (const style of ["arc", "lob"] as const) {
+        expect(
+          flight(launchBall(0, HOOP.z + distance, 0.62, 0, HOOP, style)).scores,
+        ).toBe(1);
+      }
+    }
   });
   it("has consistent scoring at 30 and 120 Hz and never scores twice", () => {
     expect(flight(launchBall(0, 5, 0.62), HOOP, 1 / 30).scores).toBe(1);

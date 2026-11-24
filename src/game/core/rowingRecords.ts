@@ -38,12 +38,22 @@ export function readRaceRecord(
   length: number,
   seed: number,
   storage?: RecordStorage,
+  legacySprint: number | null = null,
 ): RaceRecord | null {
+  let record: RaceRecord | null = null;
   try {
-    return read(storage ?? localStorage)?.[keyFor(length, seed)] ?? null;
+    record = read(storage ?? localStorage)?.[keyFor(length, seed)] ?? null;
   } catch {
-    return null;
+    // The main save may still contain a valid record when this file is absent.
   }
+  if (
+    length === 360 &&
+    seed === 1 &&
+    validTime(legacySprint) &&
+    (!record || legacySprint < record.time)
+  )
+    return { time: legacySprint, splits: [], strokes: 0 };
+  return record;
 }
 
 export function saveRaceRecord(
