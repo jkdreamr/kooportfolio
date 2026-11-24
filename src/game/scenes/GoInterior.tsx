@@ -140,7 +140,8 @@ export function GoInterior() {
     const row = Math.floor(point / GO_SIZE), col = point % GO_SIZE;
     const next = ({ ArrowLeft: row * GO_SIZE + Math.max(0, col - 1),
       ArrowRight: row * GO_SIZE + Math.min(GO_SIZE - 1, col + 1),
-      ArrowUp: Math.max(0, point - GO_SIZE), ArrowDown: Math.min(80, point + GO_SIZE),
+      ArrowUp: Math.max(0, row - 1) * GO_SIZE + col,
+      ArrowDown: Math.min(GO_SIZE - 1, row + 1) * GO_SIZE + col,
       Home: row * GO_SIZE, End: row * GO_SIZE + GO_SIZE - 1 } as Record<string, number>)[event.key];
     if (next !== undefined) {
       event.preventDefault(); setFocus(next); buttons.current[next]?.focus();
@@ -179,12 +180,15 @@ export function GoInterior() {
             {game.last === point && <Cylinder p={[0, 0.125, 0]} s={[0.055, 0.012, 0.055]} c="#d18443" />}
           </group>
         ) : null)}
-        <mesh position={[0, 1.72, 0]} rotation={[-Math.PI / 2, 0, 0]} onClick={tableClick}>
+        {/* Pick on the grid itself: a raised plane shifts hits in an angled camera. */}
+        <mesh position={[0, 1.45, 0]} rotation={[-Math.PI / 2, 0, 0]} onClick={tableClick}>
           <planeGeometry args={[4.95, 4.95]} />
           <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         </mesh>
       </group>
-      {!hidden && <Html fullscreen portal={portal} zIndexRange={[25, 0]}>
+      {!hidden && <Html fullscreen portal={portal} zIndexRange={[25, 0]}
+        calculatePosition={(_, __, size) => [size.width / 2, size.height / 2]}
+        style={{ pointerEvents: "none" }}>
         <div className="go-room-ui">
           <section className={`go-card${started ? " go-card-open" : ""}`} aria-label="Go game"
             onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}

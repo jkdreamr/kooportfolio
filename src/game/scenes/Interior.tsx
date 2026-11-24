@@ -23,6 +23,8 @@ import { useState } from "react";
 import { BadmintonCourt } from "./BadmintonCourt";
 import { GoInterior } from "./GoInterior";
 import { WritingInterior } from "./WritingInterior";
+import { StadiumInterior } from "./Stadium";
+import { MovieTheaterInterior, useTheater } from "./MovieTheater";
 
 const rewardInterior = (game: "dice" | "cooking", coins: number) =>
   useGame
@@ -31,9 +33,12 @@ const rewardInterior = (game: "dice" | "cooking", coins: number) =>
 
 export function Interior() {
   const [badmintonActive, setBadmintonActive] = useState(false);
+  const theaterSeated = useTheater((s) => s.seated);
   const scene = useGame((s) => s.scene),
-    office = scene === "office";
+    office = scene === "office",
+    theater = scene === "theater";
   const name = doors.find((door) => door.id === scene)?.name ?? "";
+  if (scene === "stadium") return <StadiumInterior />;
   return (
     <group>
       <Box
@@ -62,17 +67,25 @@ export function Interior() {
       <Box p={[0, 5.6, -12.5]} s={[22.5, 0.38, 0.65]} c="#785a39" />
       <Box p={[0, 0.35, -12.5]} s={[22, 0.45, 0.4]} c="#967347" />
       <Box p={[-10.5, 0.35, 0]} s={[0.4, 0.45, 26]} c="#967347" />
-      {[-7.8, -2.6, 2.6, 7.8].map((x) => (
-        <Window key={x} p={[x, 3.5, -12.5]} width={2.4} />
-      ))}
-      <Sign text={name.toUpperCase()} p={[0, 4.4, -12.25]} size={[4.5, 0.65]} />
-      {[-7.5, 7.5].map((x) => (
-        <group key={x}>
-          <Bench p={[x, 0, 7.8]} />
-          <Flowers p={[x, 0, 10.5]} />
-        </group>
-      ))}
-      {scene !== "badminton" && scene !== "go" && (
+      {!theater &&
+        [-7.8, -2.6, 2.6, 7.8].map((x) => (
+          <Window key={x} p={[x, 3.5, -12.5]} width={2.4} />
+        ))}
+      {!theater && (
+        <Sign
+          text={name.toUpperCase()}
+          p={[0, 4.4, -12.25]}
+          size={[4.5, 0.65]}
+        />
+      )}
+      {!theater &&
+        [-7.5, 7.5].map((x) => (
+          <group key={x}>
+            <Bench p={[x, 0, 7.8]} />
+            <Flowers p={[x, 0, 10.5]} />
+          </group>
+        ))}
+      {scene !== "badminton" && scene !== "go" && !theater && (
         <>
           <Box
             p={[0, 0.1, -2]}
@@ -129,13 +142,16 @@ export function Interior() {
       )}
       {scene === "go" && <GoInterior />}
       {scene === "writing" && <WritingInterior />}
-      <RoomDressing scene={scene as PlaceId} />
+      {theater && <MovieTheaterInterior />}
+      {!theater && <RoomDressing scene={scene as PlaceId} />}
       <Box p={[0, 0.1, ROOM.doorZ]} s={[3, 0.12, 2]} c="#4f7966" />
       <Box p={[-1.7, 1.6, 12.3]} s={[0.35, 3.2, 0.4]} c="#8c6947" />
       <Box p={[1.7, 1.6, 12.3]} s={[0.35, 3.2, 0.4]} c="#8c6947" />
       <Box p={[0, 3.2, 12.3]} s={[3.8, 0.38, 0.5]} c="#8c6947" />
       <Sign text="← VILLAGE" p={[0, 3.55, 12.35]} size={[2.8, 0.55]} />
-      {!badmintonActive && <Walker interior />}
+      {!badmintonActive && (
+        <Walker interior locked={theater && theaterSeated} />
+      )}
     </group>
   );
 }

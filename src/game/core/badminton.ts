@@ -35,7 +35,7 @@ export type BadmintonGame = {
   rally: number;
   longestRally: number;
   pointTime: number;
-  cooldown: number;
+  playerCooldown: number;
   flightTime: number;
   message: string;
 };
@@ -52,7 +52,7 @@ export function newBadmintonGame(): BadmintonGame {
     rally: 0,
     longestRally: 0,
     pointTime: 0,
-    cooldown: 0,
+    playerCooldown: 0,
     flightTime: 0,
     message: "Your serve",
   };
@@ -79,7 +79,7 @@ function launch(
   s.vy = (0.9 - s.y + 0.5 * BADMINTON.gravity * time * time) / time;
   game.lastHit = side;
   game[side].swing = 0.28;
-  game.cooldown = 0.27;
+  if (side === "player") game.playerCooldown = 0.27;
   game.flightTime = 0;
   game.rally++;
   game.longestRally = Math.max(game.longestRally, game.rally);
@@ -132,7 +132,7 @@ export function stepBadminton(
       }
       continue;
     }
-    game.cooldown = Math.max(0, game.cooldown - dt);
+    game.playerCooldown = Math.max(0, game.playerCooldown - dt);
     game.player.swing = Math.max(0, game.player.swing - dt);
     game.opponent.swing = Math.max(0, game.opponent.swing - dt);
     if (game.phase === "ready") {
@@ -169,9 +169,9 @@ export function stepBadminton(
       8.3,
     );
     const s = game.shuttle;
-    if (swing && game.cooldown === 0) {
+    if (swing && game.playerCooldown === 0) {
       game.player.swing = 0.28;
-      game.cooldown = 0.27;
+      game.playerCooldown = 0.27;
       if (
         game.lastHit === "opponent" &&
         s.z > 0.25 &&
@@ -206,7 +206,6 @@ export function stepBadminton(
     }
     if (
       attacking &&
-      game.cooldown === 0 &&
       s.z < -0.3 &&
       s.vy < 0 &&
       s.y < 2.8 &&
