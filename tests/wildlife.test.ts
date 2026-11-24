@@ -33,7 +33,7 @@ describe("ambient wildlife", () => {
       for (const duck of ANIMALS.filter((a) => a.kind === "duck")) {
         const pose = animalPose(duck, t);
         expect(
-          ((pose.x + 9) / 39.2) ** 2 + ((pose.z - 37) / 13.2) ** 2,
+          ((pose.x + 26) / 5.5) ** 2 + ((pose.z - 42) / 3.5) ** 2,
         ).toBeLessThan(1);
       }
       for (let i = 0; i < 7; i++) expect(birdPose(t, i).y).toBeGreaterThan(8);
@@ -54,10 +54,11 @@ describe("outdoor sound mix", () => {
     expect(ambientMix(24, 0, 5, "hub")).toEqual(ambientMix(0, 0, 5, "hub"));
   });
   it("localizes water and leaves all interiors silent", () => {
-    expect(ambientMix(12, 0, 35, "hub").water).toBeGreaterThan(
+    expect(ambientMix(12, -26, 42, "hub").water).toBeGreaterThan(
       ambientMix(12, 0, 5, "hub").water,
     );
     expect(ambientMix(12, 0, -30, "hub").water).toBe(0);
+    expect(ambientMix(12, 5, 35, "hub").water).toBe(0);
     expect(ambientMix(12, 0, 0, "rowing").water).toBeGreaterThan(0);
     for (const scene of [
       "office",
