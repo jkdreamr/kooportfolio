@@ -326,6 +326,9 @@ function Modal({
         aria-label={title}
         tabIndex={-1}
         ref={ref}
+        onKeyDown={(event) => {
+          if (event.key === " ") event.stopPropagation();
+        }}
       >
         <button
           className="close-button"
