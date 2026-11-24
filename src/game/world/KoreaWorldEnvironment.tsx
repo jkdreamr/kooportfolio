@@ -7,6 +7,11 @@ import { HanRiverBridge } from "./HanRiverBridge";
 import { SeoulSkyline } from "./SeoulSkyline";
 import { NaturalTrees, type TreePlacement } from "./TreeArt";
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
+import { RegionalActivities } from "./RegionalActivities";
+import {
+  KoreaRiversideLife,
+  KOREA_ACTIVITY_OBSTACLES,
+} from "./CommunityScenery";
 
 const paving: SceneryPart[] = [],
   park: SceneryPart[] = [];
@@ -62,17 +67,17 @@ for (let x = -6; x < 7; x += 1.6)
     });
 for (const z of [21.55, 44.45]) slab(25, z, 74.8, 0.55, "#cbc7b7");
 
-export const KOREA_PARK_OBSTACLES: readonly (readonly [
-  number,
-  number,
-  number,
-  number,
-])[] = [
-  [-5, 53.5, 1.7, 0.55],
-  [13, 53.5, 1.7, 0.55],
-  [31, 53.5, 1.7, 0.55],
-];
-for (const [x, z] of KOREA_PARK_OBSTACLES) {
+const benchFootprints: readonly (readonly [number, number, number, number])[] =
+  [
+    [-5, 53.5, 1.7, 0.55],
+    [13, 53.5, 1.7, 0.55],
+    [31, 53.5, 1.7, 0.55],
+  ];
+export const KOREA_PARK_OBSTACLES = [
+  ...benchFootprints,
+  ...KOREA_ACTIVITY_OBSTACLES,
+] as const;
+for (const [x, z] of benchFootprints) {
   for (const dx of [-1.2, 1.2])
     park.push({
       p: [x + dx, 0.55, z],
@@ -188,6 +193,8 @@ export function KoreaWorldEnvironment() {
       <SeoulSkyline />
       <HangangWater />
       <HanRiverBridge />
+      <KoreaRiversideLife />
+      <RegionalActivities world="korea" />
     </group>
   );
 }

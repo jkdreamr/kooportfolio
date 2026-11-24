@@ -1,16 +1,19 @@
 import { NaturalTrees, type TreePlacement } from "./TreeArt";
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
+import { HomeCommunity, HOME_COMMUNITY_OBSTACLES } from "./CommunityScenery";
+import { RegionalActivities } from "./RegionalActivities";
 
 const parts: SceneryPart[] = [];
 const shrubs: SceneryPart[] = [];
 const trees: TreePlacement[] = [];
 export const HOME_SCENERY_TREES: readonly TreePlacement[] = trees;
 /** Solid decorative footprints passed to the integrator; lanes and gates stay open. */
-const homeObstacles: [number, number, number, number][] = [
+const homeObstacles: (readonly [number, number, number, number])[] = [
   [-58, -25, 8.5, 6.5],
   [57, -25, 8.5, 6.5],
   [-57, 24, 8.5, 6.5],
   [58, 27, 8.5, 6.5],
+  ...HOME_COMMUNITY_OBSTACLES,
 ];
 export const HOME_YARD_OBSTACLES: readonly (readonly [
   number,
@@ -177,6 +180,8 @@ export function HomeNeighborhood() {
       <WorldSceneryParts parts={parts} />
       <WorldSceneryParts parts={shrubs} />
       <NaturalTrees trees={trees} />
+      <HomeCommunity />
+      <RegionalActivities world="home" />
     </group>
   );
 }
