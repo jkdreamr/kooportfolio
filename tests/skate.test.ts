@@ -86,7 +86,7 @@ describe("free-skating park", () => {
       }
     },
   );
-  it("lets one flip pop out of a held grind without snapping back to the rail", () => {
+  it("chains a one-action flip out of a held grind", () => {
     const g = newSkateGame(),
       rail = SKATE_RAILS[0];
     Object.assign(g, { x: rail.x, z: 1.5, speed: 4 });
@@ -97,7 +97,8 @@ describe("free-skating park", () => {
     expect(g.grounded).toBe(false);
     expect(g.trick).toBe("kickflip");
     expect(g.railLock).toBeGreaterThan(0);
-    advance(g, 4, { grind: true });
+    // Keep holding through the next rail catch, exit and ground link timeout.
+    advance(g, 6, { grind: true });
     expect(g.score).toBeGreaterThan(660);
     expect(g.bailTime).toBe(0);
   });
