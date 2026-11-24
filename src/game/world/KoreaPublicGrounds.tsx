@@ -277,7 +277,6 @@ export function KoreaPublicGrounds({
           geometry={geometry}
           position-y={0.168}
           receiveShadow
-          dispose={null}
         >
           <meshStandardMaterial color={color} roughness={1} />
         </mesh>
