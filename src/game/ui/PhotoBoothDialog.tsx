@@ -38,10 +38,12 @@ type Shoot = { shots: HTMLCanvasElement[]; date: Date };
 
 function Camera({
   autoStart,
+  onCameraRequested,
   onShoot,
   onWall,
 }: {
   autoStart: boolean;
+  onCameraRequested: () => void;
   onShoot: (shoot: Shoot) => void;
   onWall: () => void;
 }) {
@@ -212,7 +214,10 @@ function Camera({
             type="button"
             className="photo-booth-primary"
             disabled={state === "opening"}
-            onClick={enable}
+            onClick={() => {
+              onCameraRequested();
+              void enable();
+            }}
           >
             Enable camera
           </button>
@@ -227,11 +232,13 @@ function Camera({
 
 function Decorate({
   shoot,
+  posted,
   onRetake,
   onScrap,
   onPosted,
 }: {
   shoot: Shoot;
+  posted: boolean;
   onRetake: () => void;
   onScrap: () => void;
   onPosted: () => void;
@@ -445,11 +452,11 @@ function Decorate({
           </button>
           <button
             type="button"
-            disabled={busy}
+            disabled={busy || posted}
             aria-describedby="booth-public"
             onClick={() => void save(true)}
           >
-            Post to wall
+            {posted ? "Posted" : "Post to wall"}
           </button>
         </div>
         <p id="booth-public">Posted strips are visible to everyone.</p>
@@ -504,24 +511,27 @@ function Wall({ onBack, posted }: { onBack: () => void; posted: boolean }) {
       )}
       <div className="photo-booth-actions">
         <button type="button" onClick={onBack}>
-          Back to booth
+          {posted ? "Back to strip" : "Back to booth"}
         </button>
       </div>
     </>
   );
 }
 
-function BoothSession() {
+function BoothSession({ paused }: { paused: boolean }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [shoot, setShoot] = useState<Shoot>();
   const [wall, setWall] = useState(false);
   const [posted, setPosted] = useState(false);
-  const [retake, setRetake] = useState(false);
-  useEffect(() => {
+  const [cameraRequested, setCameraRequested] = useState(false);
+  useLayoutEffect(() => {
     const modal = dialog.current;
-    modal?.showModal();
-    return () => {
-      modal?.close();
+    if (!paused) modal?.showModal();
+    return () => modal?.close();
+  }, [paused]);
+
+  useEffect(
+    () => () => {
       if (useGameMode.getState().active?.id === "photo-booth") return;
       const launcher = boothLauncher;
       boothLauncher = null;
@@ -529,14 +539,15 @@ function BoothSession() {
         if (launcher?.isConnected && !useGameMode.getState().active)
           launcher.focus({ preventScroll: true });
       });
-    };
-  }, []);
+    },
+    [],
+  );
 
   function reset() {
     setShoot(undefined);
     setWall(false);
     setPosted(false);
-    setRetake(false);
+    setCameraRequested(false);
   }
 
   return (
@@ -570,25 +581,34 @@ function BoothSession() {
             ×
           </button>
         </header>
-        {wall ? (
-          <Wall onBack={reset} posted={posted} />
-        ) : shoot ? (
-          <Decorate
-            shoot={shoot}
-            onRetake={() => {
-              setShoot(undefined);
-              setRetake(true);
-            }}
-            onScrap={reset}
-            onPosted={() => {
-              setShoot(undefined);
-              setPosted(true);
-              setWall(true);
-            }}
+        {wall && (
+          <Wall
+            onBack={() => (shoot ? setWall(false) : reset())}
+            posted={posted}
           />
-        ) : (
+        )}
+        {shoot && (
+          <div hidden={wall}>
+            <Decorate
+              shoot={shoot}
+              posted={posted}
+              onRetake={() => {
+                setShoot(undefined);
+                setPosted(false);
+                setCameraRequested(true);
+              }}
+              onScrap={reset}
+              onPosted={() => {
+                setPosted(true);
+                setWall(true);
+              }}
+            />
+          </div>
+        )}
+        {!paused && !wall && !shoot && (
           <Camera
-            autoStart={retake}
+            autoStart={cameraRequested}
+            onCameraRequested={() => setCameraRequested(true)}
             onShoot={setShoot}
             onWall={() => setWall(true)}
           />
@@ -601,5 +621,5 @@ function BoothSession() {
 export function PhotoBoothDialog() {
   const playing = useGameMode((state) => state.active?.id === "photo-booth");
   const paused = useGame((game) => game.paused);
-  return playing && !paused ? <BoothSession /> : null;
+  return playing ? <BoothSession paused={paused} /> : null;
 }
