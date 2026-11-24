@@ -83,9 +83,12 @@
 }
 
 @media (max-width: 699px) and (orientation: portrait) {
+  .interior-game:has(.stadium-controls) {
+    width: min(250px, calc(100vw - 144px));
+  }
   .stadium-controls {
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     column-gap: 12px;
   }
   .stadium-score,
@@ -95,6 +98,17 @@
   }
   .stadium-score {
     margin-bottom: 0;
+    gap: 6px;
+  }
+  .stadium-score strong {
+    font-size: 13px;
+  }
+  .stadium-score span {
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .stadium-score b {
+    padding: 0 2px;
   }
   .stadium-power {
     margin-bottom: 6px;
@@ -102,7 +116,7 @@
   .interior-game .stadium-controls button {
     grid-column: 2;
     grid-row: 4;
-    width: 110px;
+    width: 90px;
   }
   .interior-game .stadium-controls p {
     grid-column: 1;
@@ -110,6 +124,7 @@
     align-self: center;
     text-align: left;
     margin: 0;
+    overflow-wrap: anywhere;
   }
   .game-shell .scene-stadium .context-action {
     right: 18px;
