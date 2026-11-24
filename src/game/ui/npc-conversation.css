@@ -76,8 +76,9 @@
   margin: 0;
   padding: 5px 5px 4px;
   border-radius: 2px;
-  background: #ecdfbc;
-  color: #4c4636;
+  border: 1px solid var(--hud-edge, #536873);
+  background: var(--hud-low, #21353f);
+  color: var(--hud-ink, #f5f4e9);
 }
 .npc-picture svg {
   display: block;
