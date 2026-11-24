@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import { sculptedMaterial } from "./Surface";
 
 type Piece = {
   p: [number, number, number];
@@ -8,12 +9,12 @@ type Piece = {
   r?: [number, number, number];
   c: string;
 };
-const clay = new RoundedBoxGeometry(1, 1, 1, 1, 0.12);
-const ceramic = new THREE.MeshStandardMaterial({
-  roughness: 0.72,
-  metalness: 0.04,
+const clay = new RoundedBoxGeometry(1, 1, 1, 2, 0.1);
+const ceramic = sculptedMaterial({
+  roughness: 0.67,
+  metalness: 0.02,
 });
-const stone = new THREE.MeshStandardMaterial({ roughness: 0.94 });
+const stone = sculptedMaterial({ roughness: 0.9 });
 
 function Pieces({
   pieces,

@@ -63,6 +63,7 @@ const skyFragment = `
 /** Drives the named world lights; the world builder retains shadow/position ownership. */
 export function TimeOfDayLighting() {
   const sky = useRef<THREE.Mesh>(null);
+  const skyMaterial = useRef<THREE.ShaderMaterial>(null);
   const lights = useRef<{
     sun: THREE.DirectionalLight;
     fill: THREE.DirectionalLight;
@@ -150,13 +151,15 @@ export function TimeOfDayLighting() {
       fill.color.copy(colors.sky);
       fill.intensity = interior ? 0.65 : light.fill;
     }
-    uniforms.night.value = light.night;
-    uniforms.aspect.value = size.width / size.height;
-    uniforms.stars.value = quality === "high" ? 1 : 0.6;
-    uniforms.sunPosition.value.set(
-      0.2 + (daylightClock.hour / 24) * 0.55,
-      0.78,
-    );
+    // R3F copies uniform wrappers into the material. Update that live object,
+    // not the memo's numeric values (Color/Vector values happen to be shared).
+    const live = skyMaterial.current?.uniforms;
+    if (live) {
+      live.night.value = light.night;
+      live.aspect.value = size.width / size.height;
+      live.stars.value = quality === "high" ? 1 : 0.6;
+      live.sunPosition.value.set(0.2 + (daylightClock.hour / 24) * 0.55, 0.78);
+    }
     if (sky.current) sky.current.visible = !interior;
   }, -1);
 
@@ -170,6 +173,7 @@ export function TimeOfDayLighting() {
       >
         <planeGeometry args={[2, 2]} />
         <shaderMaterial
+          ref={skyMaterial}
           uniforms={uniforms}
           vertexShader={skyVertex}
           fragmentShader={skyFragment}

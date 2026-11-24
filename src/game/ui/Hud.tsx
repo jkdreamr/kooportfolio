@@ -12,6 +12,7 @@ import { WorldLabels } from "../world/Labels";
 import { ROOM } from "../core/room";
 import { RoomStory } from "./RoomStory";
 import type { PlaceId } from "../core/world";
+import { npcName } from "../core/npcState";
 
 export function Joystick() {
   const pad = useRef<HTMLDivElement>(null),
@@ -98,32 +99,32 @@ export function RaceHud() {
         <div
           style={{ width: `${(race.distance / runtime.raceLength) * 100}%` }}
         />
-        <span>START</span>
+        <span>Start</span>
         <span>
           {Math.floor(race.distance)} / {runtime.raceLength} m
         </span>
-        <span>FINISH</span>
+        <span>Finish</span>
       </div>
       {race.time < 0 && (
         <div className="countdown">
           <span>{Math.ceil(-race.time)}</span>
-          <small>Hands on the oars.</small>
+          <small>Ready</small>
         </div>
       )}
       <div className="race-instruments">
         <div>
-          <small>YOUR TIME</small>
+          <small>Time</small>
           <strong>{raceTime(race.time)}</strong>
         </div>
         <div>
-          <small>PLACE</small>
+          <small>Place</small>
           <strong>
             {place}
             <em> / 4</em>
           </strong>
         </div>
         <div>
-          <small>BOAT SPEED</small>
+          <small>Speed</small>
           <strong>
             {race.speed.toFixed(1)}
             <em> m/s</em>
@@ -132,7 +133,7 @@ export function RaceHud() {
       </div>
       <div className="race-control-panel">
         <div className="stamina-label">
-          <span>CREW ENERGY</span>
+          <span>Crew energy</span>
           <b>{Math.round(race.stamina)}%</b>
         </div>
         <div className="energy-track">
@@ -161,12 +162,12 @@ export function RaceHud() {
             ? "Shallows — steer inside the buoys."
             : race.stamina < 20
               ? "Low energy — settle the pace."
-              : "Pale water runs faster."}
+              : "Stay in the pale current."}
         </p>
       </div>
       {race.splits.length > 0 && (
         <div className="last-split">
-          {race.splits.length * 100} M SPLIT{" "}
+          {race.splits.length * 100} m split{" "}
           <b>{raceTime(race.splits[race.splits.length - 1])}</b>
         </div>
       )}
@@ -175,7 +176,7 @@ export function RaceHud() {
           ←
         </button>
         <button className="burst" {...touchButton("burst")}>
-          BURST
+          Burst
         </button>
         <button aria-label="Steer right" {...touchButton("right")}>
           →
@@ -190,19 +191,19 @@ export function BasketHud() {
     <>
       <div className="challenge-heading">
         <h1>Court</h1>
-        <p className="keyboard-hint">
-          WASD move · hold & release Space to shoot · Q / E adjust aim
-        </p>
         <p className="touch-hint">Drag to move · hold & release to shoot</p>
       </div>
+      <p className="court-keyboard-hint keyboard-hint">
+        WASD move · Hold Space to charge, release to shoot · Q / E aim
+      </p>
       <div className="basket-score">
         <div>
-          <small>SCORE</small>
+          <small>Score</small>
           <strong>{hud.score.toString().padStart(2, "0")}</strong>
         </div>
         <span />
         <div>
-          <small>ON THE CLOCK</small>
+          <small>Time</small>
           <strong>
             {Math.ceil(hud.time)}
             <em>s</em>
@@ -214,8 +215,8 @@ export function BasketHud() {
       </div>
       <div className="shot-panel">
         <div className="stamina-label">
-          <span>{hud.holding ? "SHOT POWER" : "CHASING A REBOUND"}</span>
-          <span>{hud.holding ? "HOLD → RELEASE" : "NEW BALL IN A MOMENT"}</span>
+          <span>{hud.holding ? "Shot power" : "Rebound"}</span>
+          <span>{hud.holding ? "Hold & release" : "Next ball soon"}</span>
         </div>
         <div className="power-track">
           <i style={{ width: `${hud.charge * 100}%` }} />
@@ -223,7 +224,7 @@ export function BasketHud() {
         </div>
         <p className="shot-instruction">Release in gold. Closer is easier.</p>
         <label className="aim-label">
-          AIM{" "}
+          Aim{" "}
           <input
             aria-label="Adjust shot aim"
             type="range"
@@ -361,9 +362,6 @@ export function Hud({ interact }: { interact: () => void }) {
     <div className={`game-ui scene-${g.scene}`}>
       <header className="game-header">
         <a className="game-brand" href="/">
-          <span className="brand-glyph">
-            j<span>k</span>.
-          </span>
           <div>
             <b>
               JOSHUA<span>.EXE</span>
@@ -371,11 +369,14 @@ export function Hud({ interact }: { interact: () => void }) {
           </div>
         </a>
         <div className="resources">
-          <div className="resource coins">
+          <div className="resource coins" aria-label={`${g.save.coins} coins`}>
             <Icon name="coin" />
             <b>{g.save.coins}</b>
           </div>
-          <div className="resource level">
+          <div
+            className="resource level"
+            aria-label={`Level ${1 + Math.floor(g.save.xp / 100)}`}
+          >
             <Icon name="star" />
             <b>Lv. {1 + Math.floor(g.save.xp / 100)}</b>
           </div>
@@ -426,7 +427,10 @@ export function Hud({ interact }: { interact: () => void }) {
       )}
       {(hub || interior) && !g.build && (
         <>
-          <div className={`context-action ${g.near ? "visible" : ""}`}>
+          <div
+            className={`context-action ${g.near ? "visible" : ""}`}
+            style={{ zIndex: 20 }}
+          >
             <div>
               <strong>
                 {g.near === "exit"
@@ -439,7 +443,9 @@ export function Hud({ interact }: { interact: () => void }) {
                         ? "Desk"
                         : g.near === "lift"
                           ? `${reps} reps`
-                          : doors.find((d) => d.id === g.near)?.name}
+                          : g.near === "npc"
+                            ? npcName()
+                            : doors.find((d) => d.id === g.near)?.name}
               </strong>
             </div>
             <button onClick={interact}>
@@ -454,7 +460,9 @@ export function Hud({ interact }: { interact: () => void }) {
                       ? "Open"
                       : g.near === "lift"
                         ? "Lift"
-                        : "Enter"}{" "}
+                        : g.near === "npc"
+                          ? "Talk"
+                          : "Enter"}{" "}
               <Icon name="arrow" size={17} />
             </button>
           </div>
@@ -542,8 +550,8 @@ export function Hud({ interact }: { interact: () => void }) {
                           <Icon name="coin" size={16} /> {cost}{" "}
                           <span>
                             {g.save.coins < cost
-                              ? "Keep playing to earn"
-                              : "Preview upgrade →"}
+                              ? "Not enough coins"
+                              : "Upgrade"}
                           </span>
                         </>
                       )}
@@ -553,7 +561,7 @@ export function Hud({ interact }: { interact: () => void }) {
               );
             })}
             <p className="local-note">
-              Cosmetic upgrades never give an unfair race advantage.
+              Upgrades change the village, not your scores.
             </p>
             <button
               className="primary-button"
@@ -644,10 +652,9 @@ export function Hud({ interact }: { interact: () => void }) {
         <Modal eyebrow="" title="Upgrade?" close={() => setConfirmBuild(null)}>
           <p>
             {confirmBuild === "boathouse"
-              ? "Add a new architectural tier to the boathouse."
-              : "Bring more flowers and a new gathering spot to the garden."}{" "}
-            This will spend {g.save.upgrades[confirmBuild] === 1 ? 60 : 120}{" "}
-            local coins.
+              ? "Expand the boathouse"
+              : "Add garden planting and seating"}{" "}
+            for {g.save.upgrades[confirmBuild] === 1 ? 60 : 120} coins?
           </p>
           <button
             className="primary-button"
@@ -706,14 +713,12 @@ export function Hud({ interact }: { interact: () => void }) {
             <Icon name="oar" size={28} />
             <div>
               <b>Coxswain</b>
-              <small>PUBLIC BIO · JOSHUAKOO.XYZ</small>
             </div>
           </div>
           <div className="memory-card">
             <Icon name="memories" size={28} />
             <div>
               <b>Stanford CS + math</b>
-              <small>PUBLIC BIO · JOSHUAKOO.XYZ</small>
             </div>
           </div>
         </Modal>
@@ -739,8 +744,7 @@ export function Hud({ interact }: { interact: () => void }) {
             <b>{g.quality === "high" ? "Full detail" : "Low power"}</b>
           </button>
           <p className="local-note">
-            Progress is saved only in this browser. Cloud sync and global
-            rankings are not enabled. No accounts, no tracking, no purchases.
+            Saved in this browser only. Back up your save to keep a copy.
           </p>
           <button
             className="setting-row"
@@ -887,7 +891,6 @@ export function Hud({ interact }: { interact: () => void }) {
       )}
       {g.result && (
         <Modal
-          eyebrow="RESULT"
           title={g.result.title}
           close={() => g.go(g.scene === "rowing" ? "boathouse" : "hub")}
         >

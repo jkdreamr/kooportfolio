@@ -279,7 +279,7 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
   const heat = useRef(0),
     tick = useRef(0),
     marker = useRef<HTMLElement>(null),
-    rewarded = useRef(false),
+    paidTips = useRef(0),
     knife = useRef<THREE.Group>(null);
   const finish = () => dispatch({ type: "finish", heat: heat.current });
   useFrame((_, dt) => {
@@ -305,14 +305,16 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
       );
   });
   useEffect(() => {
-    if (shift.status === "over" && !rewarded.current) {
-      rewarded.current = true;
-      if (shift.tips > 0) onReward?.("cooking", shift.tips);
+    // Bank served orders immediately: the shared village exit can unmount us.
+    if (shift.tips > paidTips.current) {
+      const earned = shift.tips - paidTips.current;
+      paidTips.current = shift.tips;
+      onReward?.("cooking", earned);
     }
-  }, [shift.status, shift.tips, onReward]);
+  }, [shift.tips, onReward]);
   const start = () => {
     heat.current = 0;
-    rewarded.current = false;
+    paidTips.current = 0;
     tick.current = 0;
     shiftDispatch({ type: "open" });
   };
