@@ -1,0 +1,158 @@
+.leaderboard {
+  box-sizing: border-box;
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 22px;
+  background: #20353d;
+  color: #f5f4e9;
+  border: 2px solid #b39b66;
+  border-radius: 8px;
+  box-shadow:
+    inset 0 1px #7c919766,
+    0 5px #11252f,
+    0 15px 40px #11252f75;
+  font:
+    14px/1.4 ui-monospace,
+    Consolas,
+    monospace;
+}
+
+.leaderboard::backdrop {
+  background: #101b24a8;
+}
+
+.leaderboard-header,
+.leaderboard-picker,
+.leaderboard-caption,
+.leaderboard-submit div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.leaderboard-header {
+  margin-bottom: 18px;
+}
+
+.leaderboard h2 {
+  margin: 0;
+  color: #f0c56b;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.leaderboard :is(button, select, input) {
+  box-sizing: border-box;
+  min-height: 40px;
+  padding: 7px 10px;
+  color: inherit;
+  background: #2c444e;
+  border: 1px solid #647984;
+  border-radius: 4px;
+  font: inherit;
+}
+
+.leaderboard button {
+  cursor: pointer;
+}
+
+.leaderboard button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.leaderboard :focus-visible {
+  outline: 2px solid #f0c56b;
+  outline-offset: 2px;
+}
+
+.leaderboard-header button {
+  min-width: 40px;
+  font-size: 21px;
+  line-height: 1;
+}
+
+.leaderboard-picker select {
+  flex: 1;
+  min-width: 0;
+}
+
+.leaderboard-caption {
+  margin: 14px 0 8px;
+  min-height: 40px;
+  color: #c3d0d0;
+  font-size: 12px;
+}
+
+.leaderboard table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  background: #172a33;
+  font-variant-numeric: tabular-nums;
+}
+
+.leaderboard :is(th, td) {
+  padding: 8px 9px;
+  border-bottom: 1px solid #39525d;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.leaderboard th,
+.leaderboard td:first-child:not(.leaderboard-empty) {
+  color: #f0c56b;
+}
+
+.leaderboard th:first-child {
+  width: 22px;
+}
+
+.leaderboard th:last-child {
+  width: 78px;
+}
+
+.leaderboard tr :last-child:not(.leaderboard-empty) {
+  text-align: right;
+}
+
+.leaderboard .leaderboard-empty {
+  padding: 20px 9px;
+  color: #c3d0d0;
+  text-align: center;
+}
+
+.leaderboard-submit,
+.leaderboard-instruction {
+  margin: 16px 0 0;
+  color: #c3d0d0;
+}
+
+.leaderboard-submit div {
+  margin-top: 7px;
+}
+
+.leaderboard-submit p {
+  margin: 0;
+}
+
+.leaderboard-sr-only {
+  position: absolute;
+  clip-path: inset(50%);
+}
+
+.leaderboard-submit input {
+  flex: 1;
+  min-width: 0;
+  background: #172a33;
+  font-size: 16px;
+}
+
+.leaderboard-submit button {
+  flex-shrink: 0;
+  background: #e8c579;
+  color: #152830;
+  border-color: #f0d294;
+  font-weight: 700;
+}
