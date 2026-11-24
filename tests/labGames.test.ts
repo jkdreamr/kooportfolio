@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   advanceBeat,
+  beatCue,
   beatPadLane,
+  beatRoundEnd,
+  BEAT_COUNT_IN,
+  BEAT_INTERVAL,
   newBeatGame,
   hitBeat,
   HIT_WINDOW,
@@ -59,6 +63,58 @@ describe("Beat Lab", () => {
     expect(idle.phase).toBe("done");
     expect(idle.notes.every((n) => n.missed)).toBe(true);
     expect(advanceBeat(idle, 1)).toBe(idle);
+  });
+  it("lets players try pads in the count-in, then cues only scoring windows", () => {
+    const start = { ...newBeatGame(), phase: "playing" as const };
+    const countIn = advanceBeat(start, BEAT_COUNT_IN - HIT_WINDOW - 0.01);
+    expect(hitBeat(countIn, 0)).toBe(countIn);
+    expect(beatCue(countIn, 0)).toBe(false);
+    const first = advanceBeat(countIn, 0.02);
+    expect(beatCue(first, 0)).toBe(true);
+    expect(beatCue(first, 1)).toBe(false);
+    expect(beatCue(hitBeat(first, 0), 0)).toBe(false);
+    expect(beatCue(advanceBeat(first, 0.5), 0)).toBe(false);
+  });
+  it("does not deduct points for a wrong pad after an early hit in the count-in", () => {
+    const start = { ...newBeatGame(), phase: "playing" as const };
+    const early = advanceBeat(start, BEAT_COUNT_IN - 0.1);
+    const hit = hitBeat(early, 0);
+    expect(hit.points).toBe(60);
+    expect(hitBeat(hit, 1)).toBe(hit);
+    expect(hitBeat(hit, 0)).toBe(hit);
+    const onBeat = advanceBeat(hit, BEAT_COUNT_IN - hit.time);
+    expect(hitBeat(onBeat, 1).points).toBe(25);
+  });
+  it("introduces the rhythm before faster pairs without extending the round", () => {
+    const game = newBeatGame();
+    const gaps = game.notes
+      .slice(1)
+      .map((note, i) => note.at - game.notes[i].at);
+    expect(
+      gaps.slice(0, 15).every((gap) => Math.abs(gap - BEAT_INTERVAL) < 0.001),
+    ).toBe(true);
+    expect(
+      gaps.slice(15).some((gap) => Math.abs(gap - BEAT_INTERVAL / 2) < 0.001),
+    ).toBe(true);
+    expect(beatRoundEnd(game)).toBeCloseTo(BEAT_COUNT_IN + 32 * BEAT_INTERVAL);
+  });
+  it("starts a new combo on an early hit after skipping the preceding half beat", () => {
+    const initial = { ...newBeatGame(), phase: "playing" as const };
+    const [lead, skipped, next] = initial.notes.slice(17, 20);
+    const hitLead = hitBeat(advanceBeat(initial, lead.at), lead.lane);
+    const early = next.at - 0.13;
+    const overlap = advanceBeat(hitLead, early - hitLead.time);
+    expect(overlap.notes[18].missed).toBe(false);
+    const hitNext = hitBeat(overlap, next.lane);
+    expect(hitNext.combo).toBe(1);
+    expect(hitNext.best).toBe(1);
+    const expired = advanceBeat(
+      hitNext,
+      skipped.at + HIT_WINDOW + 0.001 - early,
+    );
+    expect(expired.notes[18].missed).toBe(true);
+    expect(expired.combo).toBe(1);
+    expect(hitBeat(hitNext, skipped.lane).combo).toBe(3);
   });
 });
 
