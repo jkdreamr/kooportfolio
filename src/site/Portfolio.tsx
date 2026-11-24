@@ -97,12 +97,6 @@ export function Portfolio() {
         <nav className="portfolio-nav" aria-label="Portfolio">
           <a
             href="/about"
-            onClick={(e) => {
-              if (path === "/") {
-                e.preventDefault();
-                setLoose(true);
-              }
-            }}
             className={path === "/about" ? "active" : ""}
           >
             About <span>01</span>

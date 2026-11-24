@@ -231,6 +231,8 @@ export function SkateParkInterior() {
   }, []);
   useEffect(() => {
     const close = () => {
+      const state = useGame.getState();
+      if (state.paused || state.panel !== "none") return;
       // Escape abandons the current line/run without evaluating rewards.
       game.current = newSkateGame();
       input.current = idleSkateInput();

@@ -253,7 +253,7 @@ export function WorldTravel({
         event.stopImmediatePropagation();
         cancel();
       } else if (
-        /^(w|a|s|d|e| |ArrowUp|ArrowDown|ArrowLeft|ArrowRight)$/i.test(
+        /^(w|a|s|d|e|ArrowUp|ArrowDown|ArrowLeft|ArrowRight)$/i.test(
           event.key,
         )
       ) {

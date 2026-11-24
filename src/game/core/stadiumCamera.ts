@@ -8,11 +8,16 @@ export function stadiumCameraFrame(
   ball: V3,
   portrait: boolean,
 ): { position: V3; target: V3 } {
-  if (!playing)
+  if (!playing) {
+    // On the outer west concourse, view from outside the suite tower instead
+    // of putting its opaque wall between the camera and the walking avatar.
+    const edge = Math.max(0, Math.min(1, (-player.x - 14) / 3));
+    const offset = 5 - 10 * edge * edge * (3 - 2 * edge);
     return {
-      position: [player.x + 5, 10, player.z + 6],
+      position: [player.x + offset, 10, player.z + 6],
       target: [player.x, 1, player.z - 3],
     };
+  }
   return {
     position: [
       portrait ? 0 : 6,
