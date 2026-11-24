@@ -347,7 +347,9 @@ export function BadmintonCourt({
       const target = e.target as HTMLElement;
       if (
         target.matches("input,textarea,select") ||
-        (e.key === " " && target.closest("button,a"))
+        (e.key === " " &&
+          target.closest("button,a") &&
+          !target.closest("[data-badminton-shortcuts]"))
       )
         return;
       e.preventDefault();
@@ -561,6 +563,7 @@ export function BadmintonCourt({
                     <section
                       className="badminton-actions"
                       aria-label="Racket controls"
+                      data-badminton-shortcuts
                     >
                       <div
                         className="badminton-aim"
