@@ -405,9 +405,6 @@ export function Basketball() {
   const close = useCallback(() => {
     if (useGameMode.getState().active?.id !== "basketball") return;
     endGameMode();
-    // Escape closes the session even from Pause; do not leave a stale
-    // "Keep playing" dialog over the restored walking room.
-    useGame.setState({ paused: false });
     runtime.aim = 0;
     requestAnimationFrame(() =>
       document.querySelector<HTMLButtonElement>(".basketball-play")?.focus(),
