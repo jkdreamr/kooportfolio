@@ -27,13 +27,14 @@ export type BeatNote = {
   hit: boolean;
   missed: boolean;
 };
+type BeatPress = { at: number; lane: number };
 export type BeatGame = {
   phase: "ready" | "playing" | "done";
   time: number;
   notes: BeatNote[];
   points: number;
   offBeatPresses: number;
-  pendingPress: { at: number; lane: number; count: number } | null;
+  pendingPresses: BeatPress[];
   combo: number;
   comboHits: number[];
   best: number;
@@ -46,7 +47,7 @@ export function newBeatGame(): BeatGame {
     time: 0,
     points: 0,
     offBeatPresses: 0,
-    pendingPress: null,
+    pendingPresses: [],
     combo: 0,
     comboHits: [],
     best: 0,
@@ -104,13 +105,10 @@ export function advanceBeat(game: BeatGame, dt: number): BeatGame {
   if (game.phase !== "playing" || !Number.isFinite(dt) || dt <= 0) return game;
   const time = game.time + dt;
   const done = time >= beatRoundEnd(game);
-  const press = game.pendingPress;
-  if (press && (done || time >= press.at + PAD_BURST_WINDOW)) {
-    const atPress = { ...game, time: press.at, pendingPress: null };
-    game =
-      press.count > 1 ? offBeat(atPress, press.count) : hitBeat(atPress, press.lane);
-  }
-  const expireAt = game.pendingPress?.at ?? time;
+  const first = game.pendingPresses[0];
+  if (first && (done || time >= first.at + PAD_BURST_WINDOW))
+    game = scoreBeatBurst(game, game.pendingPresses);
+  const expireAt = game.pendingPresses[0]?.at ?? time;
   let missed = false;
   const notes = game.notes.map((note) => {
     if (!note.hit && !note.missed && expireAt - note.at > HIT_WINDOW) {
@@ -142,13 +140,21 @@ function canPressBeat(game: BeatGame, lane: number): boolean {
 
 export function queueBeatPad(game: BeatGame, lane: number): BeatGame {
   if (!canPressBeat(game, lane)) return game;
-  const press = game.pendingPress;
   return {
     ...game,
-    pendingPress: press
-      ? { ...press, count: press.count + 1 }
-      : { at: game.time, lane, count: 1 },
+    pendingPresses: [...game.pendingPresses, { at: game.time, lane }],
   };
+}
+
+function scoreBeatBurst(game: BeatGame, presses: BeatPress[]): BeatGame {
+  const start = { ...game, time: presses[0].at, pendingPresses: [] };
+  let scored: BeatGame = start;
+  for (const { at, lane } of presses) {
+    const next = hitBeat({ ...scored, time: at }, lane);
+    if (next.notes === scored.notes) return offBeat(start, presses.length);
+    scored = next;
+  }
+  return scored;
 }
 
 function offBeat(game: BeatGame, count = 1): BeatGame {

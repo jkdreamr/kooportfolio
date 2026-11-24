@@ -157,6 +157,22 @@ describe("Beat Lab", () => {
     expect(judged.notes[0].hit).toBe(true);
     expect(judged.points).toBe(60);
   });
+  it("scores two rapid taps when each matches a distinct live half-beat note", () => {
+    const start = { ...newBeatGame(), phase: "playing" as const };
+    const [first, second] = start.notes.slice(18, 20);
+    const overlap = advanceBeat(start, first.at + 0.14);
+    expect(beatCue(overlap, first.lane)).toBe(true);
+    expect(beatCue(overlap, second.lane)).toBe(true);
+    const pressed = queueBeatPad(overlap, first.lane);
+    const both = queueBeatPad(advanceBeat(pressed, 0.02), second.lane);
+    const judged = advanceBeat(both, 0.07);
+    expect(judged.notes.slice(18, 20).map((note) => note.hit)).toEqual([
+      true,
+      true,
+    ]);
+    expect(judged.combo).toBe(2);
+    expect(judged.points).toBe(120);
+  });
   it.each([
     { cleanHits: 20, delay: 0.1, mistakes: 0, coins: 12 },
     { cleanHits: 20, delay: 0.1, mistakes: 1, coins: 0 },
