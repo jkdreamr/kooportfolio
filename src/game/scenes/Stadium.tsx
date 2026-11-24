@@ -131,6 +131,7 @@ export function StadiumInterior() {
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
+      if (useGame.getState().near === "exit") return;
       const target = event.target;
       if (
         target instanceof HTMLElement &&
