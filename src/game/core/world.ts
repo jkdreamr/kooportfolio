@@ -17,7 +17,7 @@ import {
 import { belongsToWorld, type WorldId } from "./worlds";
 import { HOME_COMMUNITY_OBSTACLES } from "../world/CommunityScenery";
 import { villageGardenSolids } from "./villageGardens";
-import { STANFORD_BUILDINGS, isStanfordTownSpace } from "./stanfordLayout";
+import { STANFORD_BUILDINGS, isStanfordTreeSite } from "./stanfordLayout";
 import {
   KOREA_WATER_OBSTACLES,
   KOREA_BRIDGE_RAILS,
@@ -269,7 +269,7 @@ const sharedObstacles: ReadonlyArray<readonly number[]> = [
 const obstaclesFor = (world?: WorldId): ReadonlyArray<readonly number[]> => [
   ...sharedObstacles,
   ...(world === "korea" ? koreaForest : forest)
-    .filter(({ x, z }) => world !== "stanford" || !isStanfordTownSpace(x, z, 3))
+    .filter(({ x, z }) => world !== "stanford" || isStanfordTreeSite(x, z))
     .map((tree) => [tree.x, tree.z, 0.4, 0.4]),
   ...(world ? villageGardenSolids(world) : []),
   ...(world ? doorsInWorld(world) : doors).map((door) => door.footprint),

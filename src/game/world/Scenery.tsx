@@ -11,7 +11,10 @@ import { isKoreaGardenWalk, isKoreaLandmarkArea } from "../core/koreaLandmarks";
 import type { WorldId } from "../core/worlds";
 import { NaturalTrees } from "./TreeArt";
 import { sculptedMaterial } from "./Surface";
-import { isStanfordTownSpace } from "../core/stanfordLayout";
+import {
+  isStanfordTownSpace,
+  isStanfordTreeSite,
+} from "../core/stanfordLayout";
 
 type Part = {
   p: [number, number, number];
@@ -91,10 +94,7 @@ export function GroundGrass({
   );
   return <Instances parts={parts} geometry={reed} />;
 }
-const stanfordTrees = trees.filter(
-  ({ p }) =>
-    !isStanfordTownSpace(p[0], p[2], 3) && onStanfordLand(p[0], p[2], 5),
-);
+const stanfordTrees = trees.filter(({ p }) => isStanfordTreeSite(p[0], p[2]));
 const stanfordRocks = rocks.filter(
   ({ p }) =>
     !isStanfordTownSpace(p[0], p[2], 3) && onStanfordLand(p[0], p[2], 2),

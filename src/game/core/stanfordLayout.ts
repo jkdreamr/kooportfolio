@@ -1,3 +1,5 @@
+import { onStanfordLand } from "../../shared/stanford-ground";
+
 /** Full-size destinations share the campus frontage, rather than a village-wide grid. */
 export const STANFORD_BUILDINGS = {
   gym: [5, 14.5],
@@ -48,6 +50,10 @@ export function isStanfordTownSpace(x: number, z: number, margin = 0) {
     )
   );
 }
+
+/** Rendering and trunk collision must agree when clearing trees off the shore. */
+export const isStanfordTreeSite = (x: number, z: number) =>
+  !isStanfordTownSpace(x, z, 3) && onStanfordLand(x, z, 5);
 
 // Residents stay by the moved destinations; other islands keep their authored routines.
 export const STANFORD_NPC_WALKS: Record<string, [number, number][]> = {

@@ -8,7 +8,11 @@ import {
 } from "../src/game/core/world";
 import { campusStops } from "../src/game/core/campus";
 import { HOOVER } from "../src/game/core/hoover";
-import { STANFORD_WALKS } from "../src/game/core/stanfordLayout";
+import {
+  STANFORD_WALKS,
+  isStanfordTownSpace,
+} from "../src/game/core/stanfordLayout";
+import { forest } from "../src/game/core/scenery";
 import { villageGardenPlots } from "../src/game/core/villageGardens";
 import { createNpcActors, nearestNpc, villagers } from "../src/game/core/npcs";
 import { belongsToWorld } from "../src/game/core/worlds";
@@ -19,6 +23,17 @@ import { freshSave, parseSave } from "../src/shared/save";
 import { animalsInWorld, animalPose } from "../src/game/core/wildlife";
 
 describe("compact Stanford village", () => {
+  it("does not retain invisible trunk collisions where shore-edge trees were removed", () => {
+    const clearings = forest.filter(
+      ({ x, z }) =>
+        !isStanfordTownSpace(x, z, 3) &&
+        onStanfordLand(x, z, 1) &&
+        !onStanfordLand(x, z, 5),
+    );
+    expect(clearings.length).toBeGreaterThan(0);
+    for (const { x, z } of clearings)
+      expect(canWalk(x, z, "stanford"), `shore clearing: ${x},${z}`).toBe(true);
+  });
   it("cuts the vacant grass behind Math/Badminton instead of filling it with props", () => {
     for (const [x, z] of [
       [28.5, 0],
