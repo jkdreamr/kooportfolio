@@ -1,4 +1,6 @@
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
+import { HomeNeighborhood } from "./HomeNeighborhood";
+import { RegionalTerrain } from "./RegionalTerrain";
 
 const paths: SceneryPart[] = [];
 function path(x: number, z: number, width: number, depth: number) {
@@ -94,25 +96,14 @@ for (const [x, z, width, depth] of [
   }
 }
 
-// The far horizon is outside the walkable ellipse: no decorative object can
-// create an unregistered obstruction or obscure a door at player scale.
-const hills: SceneryPart[] = [];
-for (let i = 0; i < 11; i++) {
-  hills.push({
-    p: [-112 + i * 23, -6, -104 - (i % 3) * 6],
-    s: [24 + (i % 3) * 4, 13 + ((i * 7) % 12), 19],
-    c: ["#879075", "#8e967a", "#9ca085"][i % 3],
-    shape: "rock",
-  });
-}
-
 /** Home yard dressing only: no duplicate rooms, ground, travel or telescope. */
 export function HomeWorldEnvironment() {
   return (
     <group name="home-environment">
       <WorldSceneryParts parts={gardens} />
       <WorldSceneryParts parts={paths} />
-      <WorldSceneryParts parts={hills} />
+      <RegionalTerrain region="bay" />
+      <HomeNeighborhood />
     </group>
   );
 }

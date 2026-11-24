@@ -7,7 +7,6 @@ import { CourtControls, useBasketHud } from "../scenes/Basketball";
 import { Icon } from "./Icon";
 import { destinationsInWorld, doors, isInterior } from "../core/world";
 import { WORLDS } from "../core/worlds";
-import { useGym } from "../scenes/CognitionGym";
 import { profile } from "../../content/profile";
 import { WorldLabels } from "../world/Labels";
 import { roomFor } from "../core/room";
@@ -381,9 +380,8 @@ export function Hud({ interact }: { interact: () => void }) {
       pendingExit.current = null;
     if (!g.overlayLocked && pendingExit.current === g.scene) {
       const frame = requestAnimationFrame(() => {
-        runtime.path = [];
-        runtime.target =
-          g.scene === "skate" ? [...SKATE_EXIT] : [0, roomFor(g.scene).doorZ];
+        const exit = g.scene === "skate" ? SKATE_EXIT : [0, roomFor(g.scene).doorZ];
+        walkTo(exit[0], exit[1]);
         pendingExit.current = null;
       });
       return () => cancelAnimationFrame(frame);
@@ -392,7 +390,6 @@ export function Hud({ interact }: { interact: () => void }) {
   const hub = g.scene === "hub",
     interior = isInterior(g.scene),
     game = g.scene === "rowing" || g.scene === "basketball";
-  const reps = useGym((s) => s.reps);
   const closePanel = () => useGame.setState({ panel: "none" });
   useEffect(() => {
     if (
@@ -458,11 +455,8 @@ export function Hud({ interact }: { interact: () => void }) {
               pendingExit.current = g.scene;
               window.dispatchEvent(new Event("interior-game-close"));
               if (!useGame.getState().overlayLocked) {
-                runtime.path = [];
-                runtime.target =
-                  g.scene === "skate"
-                    ? [...SKATE_EXIT]
-                    : [0, roomFor(g.scene).doorZ];
+                const exit = g.scene === "skate" ? SKATE_EXIT : [0, roomFor(g.scene).doorZ];
+                walkTo(exit[0], exit[1]);
                 pendingExit.current = null;
               }
             }}
@@ -520,7 +514,7 @@ export function Hud({ interact }: { interact: () => void }) {
                                   : g.near === "desk"
                                     ? "Desk"
                                     : g.near === "lift"
-                                      ? `${reps} reps`
+                                      ? "Bench press"
                                       : g.near === "npc"
                                         ? npcName()
                                         : doors.find((d) => d.id === g.near)
@@ -548,7 +542,7 @@ export function Hud({ interact }: { interact: () => void }) {
                                 : g.near === "desk"
                                   ? "Open"
                                   : g.near === "lift"
-                                    ? "Lift"
+                                    ? "Play"
                                     : g.near === "npc"
                                       ? "Talk"
                                       : "Enter"}{" "}

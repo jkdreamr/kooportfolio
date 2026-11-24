@@ -1,4 +1,5 @@
 import { roomFor } from "./room";
+import { STADIUM_SOLIDS } from "./stadiumLayout";
 
 const hall = roomFor("kappa");
 const innerEdge = hall.width / 2 - 0.2;
@@ -15,6 +16,7 @@ export type RoomDoor = {
 // Furnishings and collision share these exact footprints. Door openings are
 // deliberately wide enough for both touch steering and the avatar's radius.
 export const HOUSE_PARTITIONS: Record<string, readonly Partition[]> = {
+  stadium: STADIUM_SOLIDS,
   secret: [{ x: 0, z: -3, width: 4.8, depth: 3.1 }],
   kappa: [
     { x: -(innerEdge + 2) / 2, z: 1.2, width: innerEdge - 2, depth: 0.4 },
@@ -81,4 +83,58 @@ export function moveInterior(
     if (!blocked(x, nextZ)) z = nextZ;
   }
   return [x, z];
+}
+
+// Floor taps and Exit use the same collision geometry as manual walking.
+// A half-unit grid fits through every door; edges are checked by the mover,
+// so a route can never cut diagonally through a partition or seating corner.
+export function findInteriorPath(
+  scene: string,
+  start: [number, number],
+  end: [number, number],
+): [number, number][] {
+  const room = roomFor(scene);
+  const goal: [number, number] = [
+    clamp(end[0], -room.walkX, room.walkX),
+    clamp(end[1], room.minZ, room.maxZ),
+  ];
+  const reaches = (from: [number, number], to: [number, number]) => {
+    const moved = moveInterior(scene, ...from, to[0] - from[0], to[1] - from[1]);
+    return Math.hypot(moved[0] - to[0], moved[1] - to[1]) < 0.00001;
+  };
+  if (reaches(start, goal)) return [goal];
+  if ((HOUSE_PARTITIONS[scene] ?? []).some((wall) =>
+    Math.abs(goal[0] - wall.x) < wall.width / 2 + 0.34 &&
+    Math.abs(goal[1] - wall.z) < wall.depth / 2 + 0.34,
+  )) return [];
+
+  const grid = 0.5;
+  const queue: [number, number][] = [[0, 0]];
+  const key = (x: number, z: number) => `${x},${z}`;
+  const parents = new Map<string, [number, number] | null>([["0,0", null]]);
+  const point = ([x, z]: [number, number]): [number, number] =>
+    [start[0] + x * grid, start[1] + z * grid];
+  for (let head = 0; head < queue.length && head < 12000; head++) {
+    const node = queue[head];
+    const from = point(node);
+    if (Math.hypot(from[0] - goal[0], from[1] - goal[1]) <= grid && reaches(from, goal)) {
+      const route: [number, number][] = [goal];
+      let current: [number, number] | null = node;
+      while (current && parents.get(key(...current))) {
+        route.unshift(point(current));
+        current = parents.get(key(...current))!;
+      }
+      return route;
+    }
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const next: [number, number] = [node[0] + dx, node[1] + dz];
+      const nextKey = key(...next);
+      if (parents.has(nextKey)) continue;
+      const to = point(next);
+      if (to[0] < -room.walkX || to[0] > room.walkX || to[1] < room.minZ || to[1] > room.maxZ || !reaches(from, to)) continue;
+      parents.set(nextKey, node);
+      queue.push(next);
+    }
+  }
+  return [];
 }

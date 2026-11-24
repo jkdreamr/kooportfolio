@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { Ball, Box, Cylinder } from "../world/Models";
@@ -15,6 +15,8 @@ import {
 import { GameControls, gameIsActive } from "./InteriorProps";
 import { StadiumArchitecture } from "./StadiumArchitecture";
 import { StadiumView } from "./StadiumView";
+import { StadiumGameHud } from "./StadiumGameHud";
+import { startGameMode, endGameMode, useGameMode } from "../core/gameMode";
 import "./stadium.css";
 
 export { StadiumBuilding } from "./StadiumArchitecture";
@@ -90,6 +92,7 @@ type Flight = { kick: Kick; time: number; judged: boolean };
 /** Complete room-sized outdoor stadium. Mount instead of the generic room shell. */
 export function StadiumInterior() {
   const nearExit = useGame((state) => state.near === "exit");
+  const playing = useGameMode((state) => state.active?.id === "stadium");
   const [aim, setAim] = useState(0);
   const [attempt, setAttempt] = useState(0);
   const [score, setScore] = useState(0);
@@ -106,6 +109,7 @@ export function StadiumInterior() {
 
   function kick() {
     if (
+      !playing ||
       !gameIsActive() ||
       !runtime.active ||
       flight.current ||
@@ -131,9 +135,32 @@ export function StadiumInterior() {
     clock.current = 0;
   }
 
+  function play() {
+    if (startGameMode("stadium")) reset();
+  }
+
+  const cancelFlight = useCallback(() => {
+    flight.current = null;
+    setFlying(false);
+    if (ball.current) {
+      ball.current.position.set(0, 0.48, FIELD_GOAL.startZ);
+      ball.current.rotation.set(0, 0, 0);
+    }
+  }, []);
+
+  function close() {
+    cancelFlight();
+    endGameMode();
+  }
+
+  useEffect(() => {
+    window.addEventListener("interior-game-close", cancelFlight);
+    return () => window.removeEventListener("interior-game-close", cancelFlight);
+  }, [cancelFlight]);
+
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      if (useGame.getState().near === "exit") return;
+      if (!playing || useGame.getState().near === "exit") return;
       const target = event.target;
       if (
         target instanceof HTMLElement &&
@@ -156,7 +183,10 @@ export function StadiumInterior() {
   });
 
   useFrame((_, delta) => {
-    if (!gameIsActive() || !runtime.active) return;
+    if (aimMarker.current)
+      aimMarker.current.visible =
+        playing && !flight.current && attempt < FIELD_GOAL.attempts;
+    if (!playing || !gameIsActive() || !runtime.active) return;
     const dt = Math.min(delta, 0.04);
     const current = flight.current;
     if (current) {
@@ -187,8 +217,6 @@ export function StadiumInterior() {
         ball.current.rotation.set(0, 0, 0);
       }
     }
-    if (aimMarker.current)
-      aimMarker.current.visible = !current && attempt < FIELD_GOAL.attempts;
   });
 
   return (
@@ -220,66 +248,31 @@ export function StadiumInterior() {
           <FootballPlayer p={[side * 7.5, 0.17, -8]} />
         </group>
       ))}
-      <Walker interior followCamera={false} />
-      <StadiumView ballRef={ball} flying={flying} controlsRef={controls} />
+      <Walker interior locked={playing} followCamera={false} />
+      <StadiumView ballRef={ball} playing={playing} controlsRef={controls} />
       <group ref={controls}>
-        {!nearExit && (
+        {!nearExit && !playing && (
           <GameControls name="49ers field goals" position={[0, 0, 0]}>
-            <div className="stadium-controls">
-              <div className="stadium-score">
-                <strong>49ERS</strong>
-                <span>
-                  {score * 3} PTS <b>·</b> {attempt}/{FIELD_GOAL.attempts}
-                </span>
-              </div>
-              <label className="stadium-aim">
-                Aim
-                <input
-                  aria-label="Kick aim"
-                  type="range"
-                  min={-18}
-                  max={18}
-                  step={0.5}
-                  value={aim}
-                  disabled={flying || finished}
-                  onChange={(event) => setAim(Number(event.target.value))}
-                />
-              </label>
-              <div className="stadium-power">
-                <span>Power</span>
-                <meter
-                  ref={meter}
-                  aria-label="Kick power"
-                  min={0}
-                  max={1}
-                  low={0.55}
-                  high={0.9}
-                  optimum={0.7}
-                  defaultValue={power.current}
-                />
-              </div>
-              <button
-                type="button"
-                disabled={flying}
-                onClick={finished ? reset : kick}
-              >
-                {flying
-                  ? "In flight"
-                  : finished
-                    ? "Play again"
-                    : attempt === 0
-                      ? "Kick"
-                      : "Next kick"}
-              </button>
-              <p role="status" aria-live="polite">
-                {finished
-                  ? `${message}. ${score} of ${FIELD_GOAL.attempts} made.`
-                  : message}
-              </p>
-            </div>
+            <button className="stadium-play" type="button" onClick={play}>
+              Play
+            </button>
           </GameControls>
         )}
       </group>
+      {playing && (
+        <StadiumGameHud
+          aim={aim}
+          onAim={setAim}
+          score={score}
+          attempt={attempt}
+          flying={flying}
+          finished={finished}
+          message={message}
+          meter={meter}
+          onKick={finished ? reset : kick}
+          onClose={close}
+        />
+      )}
     </group>
   );
 }

@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { RegionalActivities } from "./RegionalActivities";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import {
@@ -21,6 +22,7 @@ import { KoreaWorldEnvironment } from "./KoreaWorldEnvironment";
 import { Bulletin } from "./Bulletin";
 import { roomFor } from "../core/room";
 import { useGameMode } from "../core/gameMode";
+import { useWorldView } from "../core/worldView";
 import { NpcCrowd } from "./VillageNpcs";
 import { nearbyNpcId } from "../core/npcState";
 import { BadmintonPavilion } from "../scenes/BadmintonCourt";
@@ -57,6 +59,7 @@ export function Walker({
 }) {
   const avatar = useRef<THREE.Group>(null),
     save = useGame((s) => s.save);
+  const playing = useGameMode((s) => !!s.active);
   const { camera, size } = useThree();
   const follow = useRef(new THREE.Vector3()),
     desired = useRef(new THREE.Vector3()),
@@ -221,12 +224,13 @@ export function Walker({
           : mobile
             ? 24
             : 28;
-      camera.zoom = THREE.MathUtils.damp(camera.zoom, targetZoom, 5, dt);
+      const zoom = !interior && !state.build ? useWorldView.getState().zoom : 1;
+      camera.zoom = THREE.MathUtils.damp(camera.zoom, targetZoom * zoom, 5, dt);
       camera.updateProjectionMatrix();
     }
   });
   return (
-    <group ref={avatar} name="village-player" visible={!locked}>
+    <group ref={avatar} name="village-player" visible={!locked && !playing}>
       <Character color={save.color} hat={save.hat} scale={0.65} />
     </group>
   );
@@ -318,6 +322,7 @@ export function Hub() {
   return (
     <group>
       <Landscape world={world} />
+      {world !== "stanford" && <RegionalActivities world={world} />}
       {world === "home" && <HomeWorldEnvironment />}
       {world === "korea" && <KoreaWorldEnvironment />}
       <Bulletin />

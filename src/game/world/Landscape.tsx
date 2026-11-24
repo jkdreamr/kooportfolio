@@ -1,6 +1,8 @@
 import { useLayoutEffect, useRef } from "react";
 import * as THREE from "three";
-import { Box, Cylinder, Ball, Tree, Bench, Boat, Cone, Sign } from "./Models";
+import { Box, Cylinder, Ball, Bench, Boat, Cone, Sign } from "./Models";
+import { NaturalTrees, type TreePlacement } from "./TreeArt";
+import { KoreaRiverGround } from "./KoreaRiverGround";
 import { Scenery } from "./Scenery";
 import { NationalFlag } from "./NationalFlag";
 import { CampusDistrict } from "./CampusDistrict";
@@ -47,28 +49,19 @@ function Blocks({
   );
 }
 
-const tiles: Block[] = [];
-for (let ix = -40; ix <= 40; ix++)
-  for (let iz = -43; iz <= 43; iz++) {
-    const x = ix * 2.12,
-      z = iz * 2.12 + WORLD_ELLIPSE.centerZ;
-    if (
-      (x / WORLD_ELLIPSE.radiusX) ** 2 +
-        ((z - WORLD_ELLIPSE.centerZ) / WORLD_ELLIPSE.radiusZ) ** 2 <
-      1
-    )
-      tiles.push([
-        x,
-        0.13,
-        z,
-        2.08,
-        0.025,
-        2.08,
-        ["#5d963d", "#639b3f", "#679e43", "#60963b"][
-          Math.abs(ix * 13 + iz * 7) % 4
-        ],
-      ]);
-  }
+// A single lawn avoids thousands of near-coplanar tile edges shimmering as
+// the camera moves. Keep coastal foliage a full canopy clear of the railway.
+const rimTrees: TreePlacement[] = Array.from({ length: 40 }, (_, i) => {
+  const angle = Math.PI + (i / 39) * Math.PI;
+  return {
+    p: [Math.cos(angle) * 78, 0, Math.sin(angle) * 83 + 12],
+    size: 0.8 + (i % 3) * 0.15,
+    variant: i % 3 === 0 ? 0 : 2,
+  };
+});
+const rimGroves = Array.from({ length: 8 }, (_, i) =>
+  rimTrees.slice(i * 5, i * 5 + 5),
+);
 const masonry: Block[] = [];
 for (let i = 0; i < 125; i++) {
   const angle = Math.PI + (i / 124) * Math.PI;
@@ -130,9 +123,15 @@ for (let i = 0; i < 108; i++)
 export function Landscape({ world = "stanford" }: { world?: WorldId }) {
   return (
     <group>
-      <Cylinder p={[0, -2.1, 12]} s={[86.8, 4.2, 91.8]} c="#655e3e" />
-      <Cylinder p={[0, -0.5, 12]} s={[87, 1, 92]} c="#a49564" />
-      <Cylinder p={[0, -0.01, 12]} s={[86.5, 0.3, 91.5]} c="#568f38" />
+      {world === "korea" ? (
+        <KoreaRiverGround />
+      ) : (
+        <>
+          <Cylinder p={[0, -2.1, 12]} s={[86.8, 4.2, 91.8]} c="#655e3e" />
+          <Cylinder p={[0, -0.5, 12]} s={[87, 1, 92]} c="#a49564" />
+          <Cylinder p={[0, -0.01, 12]} s={[86.5, 0.3, 91.5]} c="#639343" />
+        </>
+      )}
       <Scenery />
       {world === "stanford" && (
         <group position={[campus.x, 0, campus.z]} rotation={[0, Math.PI, 0]}>
@@ -152,10 +151,15 @@ export function Landscape({ world = "stanford" }: { world?: WorldId }) {
           />
         );
       })}
-      <Blocks items={tiles} />
       <Blocks items={masonry} shadow />
-      <Blocks items={roads} />
-      <Blocks items={paving} />
+      {/* Home and Korea own their paths. Stacking Stanford's grid beneath
+          them produced coplanar intersections and paths through the river. */}
+      {world === "stanford" && (
+        <>
+          <Blocks items={roads} />
+          <Blocks items={paving} />
+        </>
+      )}
       <Cylinder p={[-9, -1.1, 98]} s={[55, 1.8, 13.5]} c="#387b78" />
       <Cylinder p={[-9, -0.12, 98]} s={[54.2, 0.25, 13.2]} c="#459d96" />
       {Array.from({ length: 17 }, (_, i) => (
@@ -190,17 +194,9 @@ export function Landscape({ world = "stanford" }: { world?: WorldId }) {
       <group position={[-23, 0.1, 98]} rotation={[0, 1.4, 0]}>
         <Boat pace={0} color="#edc96e" />
       </group>
-      {Array.from({ length: 40 }, (_, i) => {
-        const a = Math.PI + (i / 39) * Math.PI;
-        return (
-          <Tree
-            key={i}
-            p={[Math.cos(a) * 86, 0, Math.sin(a) * 91 + 12]}
-            size={0.8 + (i % 3) * 0.15}
-            variant={i % 3 === 0 ? 0 : 2}
-          />
-        );
-      })}
+      {rimGroves.map((trees, i) => (
+        <NaturalTrees key={i} trees={trees} />
+      ))}
       {world === "home" && (
         <>
           <Orchard />

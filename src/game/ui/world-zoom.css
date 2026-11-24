@@ -1,0 +1,51 @@
+.world-zoom {
+  position: absolute;
+  z-index: 23;
+  right: max(24px, env(safe-area-inset-right));
+  bottom: calc(108px + env(safe-area-inset-bottom));
+  display: flex;
+  overflow: hidden;
+  border: 1px solid #ffffff26;
+  border-radius: 9px;
+  background: #20302de8;
+  box-shadow: 0 2px 8px #0002;
+}
+.world-zoom button {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: #f4f1e7;
+  background: transparent;
+  font:
+    400 24px/1 system-ui,
+    sans-serif;
+  cursor: pointer;
+}
+.world-zoom button + button {
+  border-left: 1px solid #ffffff26;
+}
+.world-zoom button:hover {
+  background: #ffffff12;
+}
+.world-zoom button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.world-zoom button:focus-visible {
+  outline: 2px solid #d4be87;
+  outline-offset: -4px;
+}
+@media (max-width: 900px), (max-height: 500px) {
+  .world-zoom {
+    right: max(16px, env(safe-area-inset-right));
+    bottom: auto;
+    top: calc(141px + env(safe-area-inset-top));
+  }
+}
+@media (max-height: 500px) {
+  .world-zoom {
+    top: calc(116px + env(safe-area-inset-top));
+  }
+}
