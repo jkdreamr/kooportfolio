@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { clockText, TIME_PRESETS, type TimeMode } from "../core/daylight";
 import { useTimeOfDay } from "../core/timeOfDay";
 import { useGame } from "../core/store";
@@ -5,6 +6,7 @@ import "./time-of-day.css";
 
 /** A single native select keeps keyboard/touch access without another HUD panel. */
 export function TimeOfDayControls() {
+  const pointerSelection = useRef(false);
   const { hour, mode, setMode } = useTimeOfDay();
   const visible = useGame(
     (state) =>
@@ -44,10 +46,20 @@ export function TimeOfDayControls() {
         aria-label="Time of day"
         title="Time of day"
         value={mode}
+        onPointerDown={() => {
+          pointerSelection.current = true;
+        }}
+        onKeyDown={() => {
+          pointerSelection.current = false;
+        }}
+        onBlur={() => {
+          pointerSelection.current = false;
+        }}
         onChange={(event) => {
           setMode(event.target.value as TimeMode);
-          // Return keys to walking/interacting after a time selection.
-          event.currentTarget.blur();
+          // Pointer choices return to gameplay. Keyboard users keep native
+          // arrow-key browsing and Tab out when finished, like any select.
+          if (pointerSelection.current) event.currentTarget.blur();
         }}
       >
         <option value="auto">Auto</option>
