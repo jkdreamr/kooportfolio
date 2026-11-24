@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type ReactNode,
   type RefObject,
 } from "react";
@@ -18,6 +19,8 @@ import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import {
   advanceBeat,
   BEAT_INTERVAL,
+  BEAT_PAD_KEYS,
+  beatPadLane,
   flipLights,
   hitBeat,
   LIGHTS_TARGET,
@@ -30,8 +33,9 @@ import { newRunId } from "../../shared/run-id";
 import { labTone } from "./labAudio";
 import "./lab-rooms.css";
 
-const colors = ["#ed9c43", "#5cb9a6", "#d26754", "#9c9ed1"];
+const colors = ["#7699bb", "#75a59a", "#bf8791", "#aa9cc0"];
 const laneX = [-3.3, -1.1, 1.1, 3.3];
+const PAD_FLASH_MS = 220;
 
 function labZoom(id: "music" | "math", width: number, height: number) {
   return id === "math"
@@ -89,10 +93,12 @@ function useLabClose(id: "music" | "math", cancelRound: () => void) {
 function LabControls({
   name,
   active = false,
+  tone,
   children,
 }: {
   name: string;
   active?: boolean;
+  tone?: "beat";
   children: ReactNode;
 }) {
   const gl = useThree((s) => s.gl);
@@ -118,7 +124,7 @@ function LabControls({
     >
       <section
         key={active ? "game" : "room"}
-        className={`lab-controls${active ? " lab-game" : ""}`}
+        className={`lab-controls${active ? " lab-game" : ""}${tone ? ` lab-${tone}` : ""}`}
         aria-label={name}
         tabIndex={-1}
         ref={focusGame}
@@ -161,23 +167,23 @@ function WalkFloor() {
 function Speaker({ x, z = -8 }: { x: number; z?: number }) {
   return (
     <group position={[x, 0, z]}>
-      <Box p={[0, 0.18, 0]} s={[2.7, 0.36, 2]} c="#4a352c" />
-      <Box p={[0, 2.2, 0]} s={[2.1, 4.1, 1.65]} c="#393e3c" />
-      <Box p={[0, 2.2, 0.85]} s={[1.85, 3.8, 0.14]} c="#252e2c" />
+      <Box p={[0, 0.18, 0]} s={[2.7, 0.36, 2]} c="#343e4a" />
+      <Box p={[0, 2.2, 0]} s={[2.1, 4.1, 1.65]} c="#3b4654" />
+      <Box p={[0, 2.2, 0.85]} s={[1.85, 3.8, 0.14]} c="#242c37" />
       {[1.4, 3.1].map((y, i) => (
         <group key={y} position={[0, y, 1]}>
           <Cylinder
             s={[i ? 0.42 : 0.72, 0.18, i ? 0.42 : 0.72]}
             r={[Math.PI / 2, 0, 0]}
-            c="#b38949"
+            c="#7d8b9a"
           />
           <Cylinder
             p={[0, 0, 0.12]}
             s={[i ? 0.31 : 0.59, 0.12, i ? 0.31 : 0.59]}
             r={[Math.PI / 2, 0, 0]}
-            c="#27302e"
+            c="#273241"
           />
-          <Ball p={[0, 0, 0.2]} s={[0.2, 0.2, 0.1]} c="#5f716c" />
+          <Ball p={[0, 0, 0.2]} s={[0.2, 0.2, 0.1]} c="#627486" />
         </group>
       ))}
       {[-0.85, 0.85].flatMap((sx) =>
@@ -186,7 +192,7 @@ function Speaker({ x, z = -8 }: { x: number; z?: number }) {
             key={`${sx}${y}`}
             p={[sx, y, 0.96]}
             s={[0.07, 0.07, 0.05]}
-            c="#d4ae64"
+            c="#a6b3c1"
           />
         )),
       )}
@@ -198,10 +204,10 @@ function StudioDressing() {
   const room = roomFor("music");
   return (
     <>
-      <Box p={[0, 0.18, -4.6]} s={[11.2, 0.2, 14]} c="#493b35" />
-      <Box p={[0, 0.3, -4.6]} s={[10.7, 0.1, 13.7]} c="#3d514e" />
+      <Box p={[0, 0.18, -4.6]} s={[11.2, 0.2, 14]} c="#262e39" />
+      <Box p={[0, 0.3, -4.6]} s={[10.7, 0.1, 13.7]} c="#414d5c" />
       {[-5.4, 5.4].map((x) => (
-        <Box key={x} p={[x, 0.32, -4.6]} s={[0.15, 0.15, 14]} c="#b58a43" />
+        <Box key={x} p={[x, 0.32, -4.6]} s={[0.08, 0.07, 14]} c="#8894a1" />
       ))}
       <Speaker x={-7.7} />
       <Speaker x={7.7} />
@@ -231,7 +237,7 @@ function StudioDressing() {
             <Box
               p={[-1.8 + i * 0.32, 1.58, 0.4]}
               s={[0.26, 0.1, 0.65]}
-              c="#decfaa"
+              c="#e6ebf1"
             />
             <Cylinder
               p={[-1.8 + i * 0.32, 1.64, -0.35]}
@@ -244,24 +250,24 @@ function StudioDressing() {
       </group>
       <group position={[room.width / 2 - 2.5, 0, 0.8]}>
         <Cylinder p={[0, 0.15, 0]} s={[0.9, 0.25, 0.9]} c="#4e5448" />
-        <Cylinder p={[0, 1.8, 0]} s={[0.08, 3.5, 0.08]} c="#a69773" />
+        <Cylinder p={[0, 1.8, 0]} s={[0.08, 3.5, 0.08]} c="#8894a1" />
         <Cylinder p={[0, 3.7, 0]} s={[0.22, 0.65, 0.22]} c="#343c37" />
         <Ring
           p={[0, 3.6, 0.4]}
           radius={0.5}
           tube={0.04}
-          c="#a69773"
+          c="#8894a1"
           r={[0, 0, 0]}
         />
       </group>
       <Plant p={[-room.width / 2 + 2, 0, 8]} />
       <Plant p={[room.width / 2 - 2, 0, 8]} />
       <Sign
-        text="1     2     3     4"
+        text={BEAT_PAD_KEYS.join("     ")}
         p={[0, 1.8, -10.8]}
         size={[7, 0.8]}
-        color="#293e38"
-        ink="#eed294"
+        color="#2b3543"
+        ink="#f8fafc"
       />
     </>
   );
@@ -269,9 +275,11 @@ function StudioDressing() {
 
 function BeatVisuals({
   game,
+  lit,
   onHit,
 }: {
   game: RefObject<BeatGame>;
+  lit: readonly boolean[];
   onHit: (lane: number) => void;
 }) {
   const notes = useRef<Group>(null),
@@ -300,28 +308,36 @@ function BeatVisuals({
     <>
       {laneX.map((x, lane) => (
         <group key={x}>
-          <Box p={[x, 0.4, -6]} s={[0.08, 0.06, 9.8]} c={colors[lane]} />
+          <Box p={[x, 0.4, -6]} s={[0.055, 0.04, 9.8]} c="#8894a1" />
           <group
             position={[x, 0.4, -2]}
             onPointerDown={(e) => {
               if (
                 !gameIsActive() ||
                 useGameMode.getState().active?.id !== "music" ||
-                game.current.phase !== "playing"
+                e.button !== 0
               )
                 return;
               e.stopPropagation();
               onHit(lane);
             }}
           >
-            <Cylinder p={[0, 0.14, 0]} s={[0.95, 0.28, 0.95]} c="#242e2c" />
+            <Cylinder p={[0, 0.14, 0]} s={[0.95, 0.28, 0.95]} c="#25303d" />
             <Cylinder p={[0, 0.33, 0]} s={[0.79, 0.2, 0.79]} c={colors[lane]} />
-            <Ring p={[0, 0.46, 0]} radius={0.61} tube={0.045} c="#f0d9a4" />
+            <Ring p={[0, 0.46, 0]} radius={0.61} tube={0.025} c="#d7e0e9" />
+            <mesh
+              position={[0, 0.445, 0]}
+              rotation={[-Math.PI / 2, 0, 0]}
+              visible={!!lit[lane]}
+            >
+              <circleGeometry args={[0.59, 24]} />
+              <meshBasicMaterial color={colors[lane]} toneMapped={false} />
+            </mesh>
           </group>
         </group>
       ))}
       <group ref={pulse} position={[0, 0.43, 1.3]}>
-        <Ring radius={0.8} tube={0.08} c="#e4ba64" />
+        <Ring radius={0.8} tube={0.045} c="#b1bdca" />
       </group>
       <group ref={notes}>
         {game.current.notes.map((note, i) => (
@@ -331,13 +347,15 @@ function BeatVisuals({
             visible={false}
           >
             <Box s={[1.4, 0.27, 0.55]} c={colors[note.lane]} />
-            <Box p={[0, 0.18, 0]} s={[0.9, 0.06, 0.25]} c="#f3db9e" />
+            <Box p={[0, 0.18, 0]} s={[0.9, 0.06, 0.25]} c="#eef2f6" />
           </group>
         ))}
       </group>
     </>
   );
 }
+
+type BeatLaunch = "ready" | "playing";
 
 export function BeatLabInterior() {
   const active = useGameMode((s) => s.active?.id === "music");
@@ -346,36 +364,77 @@ export function BeatLabInterior() {
     lastPulse = useRef(-1);
   const [view, setView] = useState(game.current),
     [near, setNear] = useState(false);
+  const [lit, setLit] = useState<readonly boolean[]>([]);
+  const flashTimers = useRef<(number | undefined)[]>([]);
+  const launcher = useRef<BeatLaunch | null>(null);
+  const returnFocus = useRef<BeatLaunch | null>(null);
+  const focusLauncher = useCallback((button: HTMLButtonElement | null) => {
+    if (button && button.dataset.beatLauncher === returnFocus.current) {
+      returnFocus.current = null;
+      button.focus({ preventScroll: true });
+    }
+  }, []);
+  const clearFlashTimers = useCallback(() => {
+    flashTimers.current.forEach((timer) => window.clearTimeout(timer));
+    flashTimers.current = [];
+  }, []);
+  useEffect(() => clearFlashTimers, [clearFlashTimers]);
   const refresh = useRef(0);
   const cancelRound = useCallback(() => {
     game.current = newBeatGame();
     rewarded.current = false;
     lastPulse.current = -1;
     setView(game.current);
-  }, []);
-  const close = useLabClose("music", cancelRound);
+    clearFlashTimers();
+    setLit([]);
+  }, [clearFlashTimers]);
+  const close = useLabClose(
+    "music",
+    useCallback(() => {
+      if (useGameMode.getState().active?.id === "music")
+        returnFocus.current = launcher.current;
+      cancelRound();
+    }, [cancelRound]),
+  );
   const play = useCallback((lane: number) => {
-    if (
-      !gameIsActive() ||
-      useGameMode.getState().active?.id !== "music" ||
-      game.current.phase !== "playing"
-    )
+    if (!gameIsActive() || useGameMode.getState().active?.id !== "music")
       return;
-    game.current = hitBeat(game.current, lane);
     labTone(lane);
-    setView(game.current);
+    if (game.current.phase === "playing") {
+      game.current = hitBeat(game.current, lane);
+      setView(game.current);
+    }
+    const setPadLit = (value: boolean) =>
+      setLit((previous) => {
+        const next = [...previous];
+        next[lane] = value;
+        return next;
+      });
+    setPadLit(true);
+    window.clearTimeout(flashTimers.current[lane]);
+    flashTimers.current[lane] = window.setTimeout(
+      () => setPadLit(false),
+      PAD_FLASH_MS,
+    );
   }, []);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
+      if (!gameIsActive() || useGameMode.getState().active?.id !== "music")
+        return;
+      const target = e.target;
       if (
-        e.repeat ||
-        (e.target as HTMLElement).closest("input,textarea,select")
+        target instanceof HTMLElement &&
+        (target.isContentEditable || target.closest("input,textarea,select"))
       )
         return;
-      if (/^[1-4]$/.test(e.key)) play(Number(e.key) - 1);
+      const lane = beatPadLane(e);
+      if (lane < 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (!e.repeat) play(lane);
     };
-    window.addEventListener("keydown", key);
-    return () => window.removeEventListener("keydown", key);
+    document.addEventListener("keydown", key);
+    return () => document.removeEventListener("keydown", key);
   }, [play]);
   useFrame((_, dt) => {
     if (!gameIsActive() || !runtime.active) return;
@@ -405,80 +464,95 @@ export function BeatLabInterior() {
       setView(g);
     }
   });
-  const start = () => {
+  const start = (phase: BeatLaunch) => {
     if (!gameIsActive()) return;
-    if (!active && (!near || !startGameMode("music"))) return;
-    rewarded.current = false;
-    lastPulse.current = -1;
-    game.current = { ...newBeatGame(), phase: "playing" };
+    if (!active) {
+      if (!near || !startGameMode("music")) return;
+      launcher.current = phase;
+    }
+    cancelRound();
+    if (phase === "playing") {
+      game.current = { ...game.current, phase };
+      lastPulse.current = 0;
+      setView(game.current);
+    }
     labTone(0, true);
-    setView(game.current);
   };
+  const hits = view.notes.filter((note) => note.hit).length;
   return (
     <>
       {active && <LabCamera id="music" />}
       <WalkFloor />
       <StudioDressing />
-      <BeatVisuals game={game} onHit={play} />
-      <LabControls name="Beat Lab controls" active={active}>
+      <BeatVisuals game={game} lit={lit} onHit={play} />
+      <LabControls name="Beat Lab controls" active={active} tone="beat">
         {active ? (
           <>
             <header className="lab-game-topbar">
               <div>
                 <strong>Beat Lab</strong>
                 <span>
-                  {view.points} points · {view.combo}×
+                  {view.phase === "ready"
+                    ? "Freestyle"
+                    : `${view.points} points · ${view.combo}×`}
                 </span>
               </div>
               <LabGameActions onClose={close} />
             </header>
             <div className="lab-game-bottom">
-              {view.phase === "done" ? (
-                <>
-                  <p role="status">
-                    {view.notes.filter((n) => n.hit).length}/32 hits · best{" "}
-                    {view.best}×
-                    {view.notes.filter((n) => n.hit).length >= 20
-                      ? ` · +${view.points >= 2600 ? 20 : 12} coins`
-                      : " · 20 hits earns coins"}
-                  </p>
-                  <button className="lab-primary" onClick={start}>
-                    Again
-                  </button>
-                </>
-              ) : (
-                <>
+              <div className="beat-toolbar">
+                {view.phase !== "ready" && (
                   <p className="lab-feedback" role="status">
-                    {view.time < 2.4
-                      ? `Ready · ${Math.ceil((2.4 - view.time) / BEAT_INTERVAL)}`
-                      : view.feedback || "Hit 1–4 as notes reach the pads"}
+                    {view.phase === "done"
+                      ? `${hits}/32 hits · best ${view.best}×${hits >= 20 ? ` · +${view.points >= 2600 ? 20 : 12} coins` : " · 20 hits earns coins"}`
+                      : view.time < 2.4
+                        ? `Ready · ${Math.ceil((2.4 - view.time) / BEAT_INTERVAL)}`
+                        : view.feedback || "Hit the pads on beat"}
                   </p>
-                  <div className="beat-buttons">
-                    {colors.map((c, lane) => (
-                      <button
-                        key={lane}
-                        style={{ borderColor: c }}
-                        onPointerDown={(e) => {
-                          e.preventDefault();
-                          play(lane);
-                        }}
-                        onClick={(e) => {
-                          if (e.detail === 0) play(lane);
-                        }}
-                        aria-label={`Play pad ${lane + 1}`}
-                      >
-                        {lane + 1}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="beat-track" aria-hidden="true">
-                    <i
-                      style={{
-                        width: `${Math.min(100, (view.time / 21.6) * 100)}%`,
-                      }}
-                    />
-                  </div>
-                </>
+                )}
+                <button
+                  className="lab-primary"
+                  onClick={() =>
+                    start(view.phase === "playing" ? "ready" : "playing")
+                  }
+                >
+                  {view.phase === "playing"
+                    ? "Freestyle"
+                    : view.phase === "done"
+                      ? "Again"
+                      : "Play round"}
+                </button>
+              </div>
+              <div className="beat-buttons">
+                {BEAT_PAD_KEYS.map((key, lane) => (
+                  <button
+                    key={key}
+                    style={{ "--pad-color": colors[lane] } as CSSProperties}
+                    data-lit={lit[lane] || undefined}
+                    onPointerDown={(e) => {
+                      if (e.button !== 0) return;
+                      e.preventDefault();
+                      play(lane);
+                    }}
+                    onClick={(e) => {
+                      if (e.detail === 0) play(lane);
+                    }}
+                    aria-label={`Pad ${lane + 1}, ${key}`}
+                    aria-keyshortcuts={`${key} ${lane + 1}`}
+                  >
+                    <kbd>{key}</kbd>
+                    <span>{lane + 1}</span>
+                  </button>
+                ))}
+              </div>
+              {view.phase === "playing" && (
+                <div className="beat-track" aria-hidden="true">
+                  <i
+                    style={{
+                      width: `${Math.min(100, (view.time / 21.6) * 100)}%`,
+                    }}
+                  />
+                </div>
               )}
             </div>
           </>
@@ -490,13 +564,27 @@ export function BeatLabInterior() {
             </header>
             {near ? (
               <>
-                <p>Hit 1–4 as notes reach the pads.</p>
-                <button className="lab-primary" onClick={start}>
-                  Play
-                </button>
+                <p>F G H J or 1–4</p>
+                <footer className="beat-launch">
+                  <button
+                    className="lab-primary"
+                    data-beat-launcher="playing"
+                    ref={focusLauncher}
+                    onClick={() => start("playing")}
+                  >
+                    Play
+                  </button>
+                  <button
+                    data-beat-launcher="ready"
+                    ref={focusLauncher}
+                    onClick={() => start("ready")}
+                  >
+                    Freestyle
+                  </button>
+                </footer>
               </>
             ) : (
-              <p>Walk up to the brass ring.</p>
+              <p>Walk up to the ring.</p>
             )}
           </>
         )}
