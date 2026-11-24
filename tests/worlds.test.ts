@@ -205,6 +205,7 @@ describe("separate worlds", () => {
     }
     for (const [x, z] of [
       [-48, 40],
+      [-44, 24],
       [23, -35],
       [60, -3],
       [28, 62],
@@ -213,11 +214,6 @@ describe("separate worlds", () => {
     }
     const plots = villageGardenPlots("korea");
     expect(plots.every(({ x, z }) => isOnKoreaLand(x, z, 1.8))).toBe(true);
-    const beds = plots.filter(({ orchard }) => !orchard);
-    expect(beds.length).toBeGreaterThan(0);
-    expect(
-      beds.every(({ x, z }) => x > -50 && x < -38 && z > 18 && z < 30),
-    ).toBe(true);
   });
   it("keeps the western pond deck and the covered picnic deck open", () => {
     for (const [x, z] of [

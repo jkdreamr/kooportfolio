@@ -88,11 +88,8 @@ for (const [cx, cz, cols, rows, orchard, worlds] of districts) {
     }
 }
 
-// Keep one kitchen garden by the pond and the orchard on Namsan.
-const koreaGardenDistricts = [
-  [-42, -29, 3, 2, true],
-  [-44, 24, 3, 2, false],
-] as const;
+// Keep the small orchard on Namsan.
+const koreaGardenDistricts = [[-42, -29, 3, 2, true]] as const;
 for (const [cx, cz, cols, rows, orchard] of koreaGardenDistricts) {
   for (let col = 0; col < cols; col++)
     for (let row = 0; row < rows; row++) {
