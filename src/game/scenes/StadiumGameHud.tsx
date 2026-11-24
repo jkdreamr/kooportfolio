@@ -43,7 +43,18 @@ export function StadiumGameHud({
         size.height / 2,
       ]}
     >
-      <section className="stadium-game-stage" aria-label="49ers field goals">
+      <section
+        className="stadium-game-stage"
+        aria-label="49ers field goals"
+        onKeyDown={(event) => {
+          if (
+            event.key === " " &&
+            event.target instanceof HTMLElement &&
+            event.target.closest("button")
+          )
+            event.stopPropagation();
+        }}
+      >
         <div className="stadium-game-score">
           <strong>49ERS</strong>
           <span>{score * 3} PTS</span>

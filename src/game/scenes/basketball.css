@@ -287,6 +287,10 @@
 .court-finished button + button {
   margin-left: 8px;
 }
+.court-finished .court-records {
+  display: block;
+  margin: 12px auto 0;
+}
 @media (hover: hover) and (pointer: fine) {
   .court-pad {
     display: none;
