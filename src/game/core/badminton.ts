@@ -117,7 +117,7 @@ export function stepBadminton(
   let remaining = Math.min(elapsed, 0.1);
   let swing = input.swing;
   while (remaining > 0.00001) {
-    if (game.phase === "over") break;
+    if (game.winner) break;
     const dt = Math.min(1 / 120, remaining);
     remaining -= dt;
     if (game.phase === "point") {
