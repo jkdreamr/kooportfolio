@@ -25,6 +25,7 @@ import {
   stepBall,
   type BallState,
 } from "../src/game/core/basketball";
+import { campusObstacles, campusStops } from "../src/game/core/campus";
 
 describe("guest save trust boundary", () => {
   it("keeps earned progress after exploring the expanded village edges", () => {
@@ -137,13 +138,40 @@ describe("walkable physical world", () => {
       ).toBeLessThan(1.2);
     }
   });
-  it("walks through the miniature quad while respecting its wings and fountain", () => {
-    expect(canWalk(23, 24)).toBe(true);
-    expect(canWalk(23, 20.3)).toBe(false);
-    expect(canWalk(14.5, 19.5)).toBe(false);
-    const path = findPath([23, 27.5], [23, 17]);
-    expect(path.length).toBeGreaterThan(0);
-    expect(path.every((p) => canWalk(...p))).toBe(true);
+  it("reaches every rotated campus stop without crossing its buildings", () => {
+    for (const [x, z] of campusObstacles) expect(canWalk(x, z)).toBe(false);
+    for (const [name, target] of Object.entries(campusStops)) {
+      expect(canWalk(...target), name).toBe(true);
+      const path = findPath([0, 5], target);
+      expect(path.length, name).toBeGreaterThan(0);
+      expect(
+        path.every((p) => canWalk(...p)),
+        name,
+      ).toBe(true);
+      let position: [number, number] = [0, 5];
+      for (const waypoint of path) {
+        for (let frame = 0; frame < 120; frame++) {
+          const dx = waypoint[0] - position[0],
+            dz = waypoint[1] - position[1];
+          const distance = Math.hypot(dx, dz);
+          if (distance < 0.0001) break;
+          const step = Math.min(4.6 / 60, distance);
+          position = moveWorld(
+            ...position,
+            (dx / distance) * step,
+            (dz / distance) * step,
+          );
+        }
+        expect(
+          Math.hypot(position[0] - waypoint[0], position[1] - waypoint[1]),
+          name,
+        ).toBeLessThan(0.001);
+      }
+      expect(
+        Math.hypot(position[0] - target[0], position[1] - target[1]),
+        name,
+      ).toBeLessThan(1.2);
+    }
   });
   it("can navigate between distant districts and keeps every destination reachable", () => {
     for (const start of doors)
