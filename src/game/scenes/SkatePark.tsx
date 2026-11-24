@@ -280,7 +280,7 @@ export function SkateParkInterior() {
         input.current.brake =
           h.has("s") || h.has("arrowdown") || has("brake") || touch.z > 0.3;
         input.current.grind = h.has("shift") || has("grind");
-        stepSkate(g, input.current, dt);
+        stepSkate(g, input.current, delta);
         input.current.jump = false;
         input.current.trick = null;
         runtime.x = g.x * S;
