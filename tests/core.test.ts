@@ -7,7 +7,13 @@ import {
   writeGuestSave,
   SAVE_KEY,
 } from "../src/shared/save";
-import { canWalk, doors, findPath, moveWorld } from "../src/game/core/world";
+import {
+  canWalk,
+  destinations,
+  doors,
+  findPath,
+  moveWorld,
+} from "../src/game/core/world";
 import {
   dailySeed,
   newRace,
@@ -19,6 +25,7 @@ import {
   stepBall,
   type BallState,
 } from "../src/game/core/basketball";
+import { campusObstacles, campusStops } from "../src/game/core/campus";
 
 describe("guest save trust boundary", () => {
   it("keeps earned progress after exploring the expanded village edges", () => {
@@ -81,6 +88,38 @@ describe("guest save trust boundary", () => {
   });
 });
 describe("walkable physical world", () => {
+  it("follows the Kitchen marker from the plaza without a perimeter stall", () => {
+    const kitchen = doors.find((door) => door.id === "kitchen")!;
+    for (const start of [
+      [0, 5],
+      [-5.2, 14.1],
+      [-10.7, 9.8],
+    ] as [number, number][]) {
+      let position = start;
+      const path = findPath(position, [kitchen.x, kitchen.z]);
+      expect(path.length).toBeGreaterThan(0);
+      for (const target of path) {
+        for (let frame = 0; frame < 120; frame++) {
+          const dx = target[0] - position[0],
+            dz = target[1] - position[1];
+          const distance = Math.hypot(dx, dz);
+          if (distance < 0.0001) break;
+          const step = Math.min(4.6 / 60, distance);
+          position = moveWorld(
+            ...position,
+            (dx / distance) * step,
+            (dz / distance) * step,
+          );
+        }
+        expect(
+          Math.hypot(position[0] - target[0], position[1] - target[1]),
+        ).toBeLessThan(0.001);
+      }
+      expect(
+        Math.hypot(position[0] - kitchen.x, position[1] - kitchen.z),
+      ).toBeLessThan(1.9);
+    }
+  });
   it("cannot tunnel through a building or leave the island", () => {
     const house = doors.find((door) => door.id === "boathouse")!;
     expect(moveWorld(house.x, house.z + 2, 0, -8)[1]).toBeGreaterThan(
@@ -90,12 +129,47 @@ describe("walkable physical world", () => {
     expect(canWalk(...p)).toBe(true);
   });
   it("finds collision-free paths to every door", () => {
-    for (const door of doors) {
+    for (const door of destinations) {
       const path = findPath([0, 5], [door.x, door.z]);
       expect(path.length).toBeGreaterThan(0);
       expect(path.every((p) => canWalk(...p))).toBe(true);
       expect(
         Math.hypot(path.at(-1)![0] - door.x, path.at(-1)![1] - door.z),
+      ).toBeLessThan(1.2);
+    }
+  });
+  it("reaches every rotated campus stop without crossing its buildings", () => {
+    for (const [x, z] of campusObstacles) expect(canWalk(x, z)).toBe(false);
+    for (const [name, target] of Object.entries(campusStops)) {
+      expect(canWalk(...target), name).toBe(true);
+      const path = findPath([0, 5], target);
+      expect(path.length, name).toBeGreaterThan(0);
+      expect(
+        path.every((p) => canWalk(...p)),
+        name,
+      ).toBe(true);
+      let position: [number, number] = [0, 5];
+      for (const waypoint of path) {
+        for (let frame = 0; frame < 120; frame++) {
+          const dx = waypoint[0] - position[0],
+            dz = waypoint[1] - position[1];
+          const distance = Math.hypot(dx, dz);
+          if (distance < 0.0001) break;
+          const step = Math.min(4.6 / 60, distance);
+          position = moveWorld(
+            ...position,
+            (dx / distance) * step,
+            (dz / distance) * step,
+          );
+        }
+        expect(
+          Math.hypot(position[0] - waypoint[0], position[1] - waypoint[1]),
+          name,
+        ).toBeLessThan(0.001);
+      }
+      expect(
+        Math.hypot(position[0] - target[0], position[1] - target[1]),
+        name,
       ).toBeLessThan(1.2);
     }
   });

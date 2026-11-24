@@ -9,7 +9,7 @@ Checked 2026-11-23. This document is an audit, not an account-side spending cap.
 | D1, R2, KV, Durable Objects, AI, auth providers | **Not provisioned / not used** | No bindings, secrets or vendor accounts | Cloud saves and rankings explicitly unavailable |
 | npm packages / local tools | Open-source libraries, local build/tests | License files in dependencies, lockfile committed | No subscriptions or hosted test runner |
 | GitHub | Source + PR, public repository confirmed with API | Standard GitHub-hosted Linux runners in public repos are free; no larger runners, cache or uploaded artifacts | Local equivalents remain available; no paid CI services |
-| Assets / fonts / sound | Original procedural art, system fonts, original WebAudio synthesis | No asset marketplaces, models, remote textures, font calls or paid media API | Everything ships as static source/bundles |
+| Assets / fonts / sound | Original procedural art, system fonts, WebAudio effects and CC0 nature recordings | No paid models, remote textures, font calls or paid media API; recording licenses in `public/audio/LICENSES.md` | Everything ships as static source/bundles |
 | Devin | User authorized **existing plan usage** in chat | Contract/remaining credits unavailable to this repo; no claim of a technical cap | No paid external models/tools or additional sessions launched by this child |
 
 ## Account verification status

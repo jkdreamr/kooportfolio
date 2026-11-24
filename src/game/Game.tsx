@@ -19,10 +19,15 @@ import { Interior } from "./scenes/Interior";
 import { Rowing } from "./scenes/Rowing";
 import { Basketball } from "./scenes/Basketball";
 import { Hud } from "./ui/Hud";
+import { TimeOfDayLighting } from "./world/TimeOfDayLighting";
+import { TimeOfDayControls } from "./ui/TimeOfDayControls";
 import { runtime, useGame, type Scene } from "./core/store";
 import { useInput } from "./core/input";
 import { doors, isInterior } from "./core/world";
 import { useGym } from "./scenes/CognitionGym";
+import { interactWithNpc } from "./core/npcState";
+import { NpcDialog } from "./ui/NpcConversation";
+import { WorldAmbience } from "./world/WorldAmbience";
 import "./game.css";
 
 class WorldBoundary extends Component<
@@ -176,6 +181,8 @@ function World() {
         color="#c7e6ff"
       />
       <Sun />
+      <TimeOfDayLighting />
+      <WorldAmbience />
       {scene !== "rowing" && (
         <mesh
           rotation={[-Math.PI / 2, 0, 0]}
@@ -208,6 +215,7 @@ export default function Game() {
     paused = useGame((s) => s.paused);
   const interact = useCallback(() => {
     const g = useGame.getState();
+    if (interactWithNpc()) return;
     if (g.paused || g.build || g.panel !== "none") return;
     if (g.scene === "hub" && doors.some((door) => door.id === g.near))
       g.go(g.near as Scene);
@@ -279,6 +287,8 @@ export default function Game() {
         </Canvas>
       </WorldBoundary>
       <Hud interact={interact} />
+      <TimeOfDayControls />
+      <NpcDialog />
     </div>
   );
 }

@@ -72,6 +72,12 @@ export function CourtControls() {
     <div
       className="basketball-controls"
       data-mode={mode}
+      onClick={(event) => {
+        // Pointer-selected controls must give Space back to shooting. Keep
+        // keyboard-activated controls focused for native Tab/Space navigation.
+        if (event.detail > 0 && event.target instanceof HTMLButtonElement)
+          event.target.blur();
+      }}
       onKeyDown={(event) => {
         if (event.key === " ") event.stopPropagation();
       }}
