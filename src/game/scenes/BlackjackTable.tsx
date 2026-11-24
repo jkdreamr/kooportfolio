@@ -118,7 +118,18 @@ export function BlackjackTable({ onReward }: InteriorGameProps) {
     newBlackjack,
   );
   const timer = useRef(0),
-    paidRound = useRef(0);
+    paidRound = useRef(0),
+    focusDeal = useRef(true);
+  useEffect(() => {
+    if (!active) focusDeal.current = true;
+  }, [active]);
+  // Opening the table focuses Close; move it to Deal once so Enter deals.
+  const dealRef = (button: HTMLButtonElement | null) => {
+    if (button && focusDeal.current && !button.disabled) {
+      button.focus({ preventScroll: true });
+      focusDeal.current = false;
+    }
+  };
   useFrame((_, dt) => {
     if (!gameIsActive() || !active || game.phase !== "dealer") {
       timer.current = 0;
@@ -156,10 +167,7 @@ export function BlackjackTable({ onReward }: InteriorGameProps) {
             : key === "d"
               ? ({ type: "double" } as const)
               : key === "enter" &&
-                  !(
-                    event.target instanceof HTMLButtonElement &&
-                    event.target.closest(".interior-game-content")
-                  ) &&
+                  !(event.target instanceof HTMLButtonElement) &&
                   (game.phase === "bet" || game.phase === "over")
                 ? ({ type: "deal", deck: shuffledDeck() } as const)
                 : null;
@@ -303,6 +311,7 @@ export function BlackjackTable({ onReward }: InteriorGameProps) {
                 </button>
               ))}
               <button
+                ref={dealRef}
                 className="blackjack-deal"
                 disabled={game.bank < game.bet}
                 onClick={() => dispatch({ type: "deal", deck: shuffledDeck() })}
