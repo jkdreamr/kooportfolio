@@ -115,8 +115,10 @@ function TheaterViewer({
   const filmId = useTheater((s) => s.filmId);
   const hidden = useGame((s) => s.paused || s.build || s.panel !== "none");
   const selected = program.find((film) => film.id === filmId);
+  const close = useRef<HTMLButtonElement>(null);
   // Html owns a separate DOM root; focus when its button actually mounts.
   const focusClose = useCallback((button: HTMLButtonElement | null) => {
+    close.current = button;
     button?.focus();
   }, []);
   const dialog = useRef<HTMLElement>(null);
@@ -145,6 +147,11 @@ function TheaterViewer({
         if (!controls?.length) return;
         const first = controls[0],
           last = controls[controls.length - 1];
+        if (!dialog.current?.contains(document.activeElement)) {
+          (event.shiftKey ? last : first).focus();
+          event.preventDefault();
+          return;
+        }
         if (event.shiftKey && document.activeElement === first) {
           last.focus();
           event.preventDefault();
@@ -215,7 +222,12 @@ function TheaterViewer({
             >
               Open on YouTube ↗
             </a>
-            <button onClick={() => useTheater.setState({ filmId: null })}>
+            <button
+              onClick={() => {
+                useTheater.setState({ filmId: null });
+                close.current?.focus();
+              }}
+            >
               Stop
             </button>
           </div>
