@@ -209,7 +209,8 @@ export function Walker({
     );
     const cameraKey = `${state.scene}:${state.world}`;
     const changedScene = cameraScene.current !== cameraKey;
-    if (changedScene) {
+    const wholeIsland = !interior && worldZoom === 1 && !state.build;
+    if (changedScene || wholeIsland) {
       follow.current.copy(desired.current);
       cameraScene.current = cameraKey;
     }
@@ -234,9 +235,10 @@ export function Walker({
           ? fitted * 0.9
           : fitted;
       const zoom = !interior && !state.build ? worldZoom : 1;
-      camera.zoom = changedScene
-        ? targetZoom * zoom
-        : THREE.MathUtils.damp(camera.zoom, targetZoom * zoom, 5, dt);
+      camera.zoom =
+        changedScene || wholeIsland
+          ? targetZoom * zoom
+          : THREE.MathUtils.damp(camera.zoom, targetZoom * zoom, 5, dt);
       camera.updateProjectionMatrix();
     }
   });

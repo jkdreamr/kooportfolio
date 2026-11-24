@@ -16,6 +16,8 @@ import {
 import { belongsToWorld, type WorldId } from "./worlds";
 import { HOME_COMMUNITY_OBSTACLES } from "../world/CommunityScenery";
 import { villageGardenSolids } from "./villageGardens";
+import { HOME_GARDEN_OBSTACLES } from "./homeGardens";
+import { HOME_DESTINATION_CENTERS } from "./homeLayout";
 import { STANFORD_BUILDINGS, isStanfordTownSpace } from "./stanfordLayout";
 import {
   KOREA_WATER_OBSTACLES,
@@ -246,7 +248,22 @@ const koreaDoors = doors
 export const doorsInWorld = (world: WorldId) =>
   world === "korea"
     ? koreaDoors
-    : doors.filter((door) => belongsToWorld(door.id, world));
+    : doors
+        .filter((door) => belongsToWorld(door.id, world))
+        .map((door) => {
+          const center = world === "home" && HOME_DESTINATION_CENTERS[door.id];
+          if (!center) return door;
+          const [x, z] = center;
+          const dx = x - door.footprint[0],
+            dz = z - door.footprint[1];
+          return {
+            ...door,
+            x: door.x + dx,
+            z: door.z + dz,
+            anchor: [x, door.anchor[1], z] as const,
+            footprint: [x, z, door.footprint[2], door.footprint[3]] as const,
+          };
+        });
 export const destinationsInWorld = (world: WorldId) => [
   ...doorsInWorld(world),
   ...landmarks.filter((place) => belongsToWorld(place.id, world)),
@@ -283,7 +300,9 @@ const obstaclesFor = (world?: WorldId): ReadonlyArray<readonly number[]> => [
         ...KOREA_PARK_TREES.map(({ p }) => [p[0], p[2], 0.4, 0.4]),
       ]
     : []),
-  ...(world === "home" ? [...HOME_COMMUNITY_OBSTACLES] : []),
+  ...(world === "home"
+    ? [...HOME_COMMUNITY_OBSTACLES, ...HOME_GARDEN_OBSTACLES]
+    : []),
 ];
 const regionalObstacles = {
   home: obstaclesFor("home"),
