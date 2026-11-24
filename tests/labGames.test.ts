@@ -133,6 +133,20 @@ describe("Beat Lab", () => {
     expect(game.points).toBe(0);
     expect(beatRewardCoins(game)).toBe(0);
   });
+  it("counts every press in an off-beat burst against reward accuracy", () => {
+    let game: BeatGame = { ...newBeatGame(), phase: "playing" };
+    for (const [index, note] of game.notes.entries()) {
+      game = queueBeatPad(advanceBeat(game, note.at - game.time), note.lane);
+      if (index >= 9) continue;
+      game = advanceBeat(game, 0.23);
+      for (const lane of [0, 1, 2, 3]) game = queueBeatPad(game, lane);
+    }
+    game = advanceBeat(game, 1);
+    expect(game.notes.filter((note) => note.hit)).toHaveLength(32);
+    expect(game.points).toBe(2885);
+    expect(game.offBeatPresses).toBe(36);
+    expect(beatRewardCoins(game)).toBe(0);
+  });
   it("scores a single press at its original time even while the hit window closes", () => {
     const start = { ...newBeatGame(), phase: "playing" as const };
     const late = advanceBeat(start, BEAT_COUNT_IN + HIT_WINDOW - 0.01);

@@ -33,7 +33,7 @@ export type BeatGame = {
   notes: BeatNote[];
   points: number;
   offBeatPresses: number;
-  pendingPress: { at: number; lane: number | null } | null;
+  pendingPress: { at: number; lane: number; count: number } | null;
   combo: number;
   comboHits: number[];
   best: number;
@@ -107,7 +107,8 @@ export function advanceBeat(game: BeatGame, dt: number): BeatGame {
   const press = game.pendingPress;
   if (press && (done || time >= press.at + PAD_BURST_WINDOW)) {
     const atPress = { ...game, time: press.at, pendingPress: null };
-    game = press.lane === null ? offBeat(atPress) : hitBeat(atPress, press.lane);
+    game =
+      press.count > 1 ? offBeat(atPress, press.count) : hitBeat(atPress, press.lane);
   }
   const expireAt = game.pendingPress?.at ?? time;
   let missed = false;
@@ -142,21 +143,22 @@ function canPressBeat(game: BeatGame, lane: number): boolean {
 export function queueBeatPad(game: BeatGame, lane: number): BeatGame {
   if (!canPressBeat(game, lane)) return game;
   const press = game.pendingPress;
-  if (press?.lane === null) return game;
   return {
     ...game,
-    pendingPress: press ? { ...press, lane: null } : { at: game.time, lane },
+    pendingPress: press
+      ? { ...press, count: press.count + 1 }
+      : { at: game.time, lane, count: 1 },
   };
 }
 
-function offBeat(game: BeatGame): BeatGame {
+function offBeat(game: BeatGame, count = 1): BeatGame {
   if (game.time < BEAT_COUNT_IN) return game;
   return {
     ...game,
     combo: 0,
     comboHits: [],
     points: Math.max(0, game.points - 35),
-    offBeatPresses: game.offBeatPresses + 1,
+    offBeatPresses: game.offBeatPresses + count,
     feedback: "Off beat",
     feedbackAt: game.time,
   };
