@@ -77,14 +77,21 @@ export function HitPad({
   serve: boolean;
   onShot: (selection: Pick<BadmintonInput, "aim" | "shot">) => void;
 }) {
-  const drag = useRef<({ id: number; x: number; y: number } & Pick<BadmintonInput, "aim" | "shot">) | null>(null);
+  const drag = useRef<{
+    id: number;
+    x: number;
+    y: number;
+    selection: Pick<BadmintonInput, "aim" | "shot">;
+  } | null>(null);
   const select = (e: PointerEvent<HTMLButtonElement>) => {
     const start = drag.current;
     if (!start || start.id !== e.pointerId) return null;
-    return badmintonGesture(e.clientX - start.x, e.clientY - start.y, start);
+    return badmintonGesture(e.clientX - start.x, e.clientY - start.y, start.selection);
   };
   const cancel = () => {
+    const start = drag.current;
     drag.current = null;
+    if (start) onShot(start.selection);
   };
   useEffect(() => {
     window.addEventListener("blur", cancel);
@@ -105,7 +112,12 @@ export function HitPad({
       onContextMenu={(e) => e.preventDefault()}
       onPointerDown={(e) => {
         if (drag.current) return;
-        drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, aim: input.current.aim, shot: input.current.shot };
+        drag.current = {
+          id: e.pointerId,
+          x: e.clientX,
+          y: e.clientY,
+          selection: { aim: input.current.aim, shot: input.current.shot },
+        };
         e.currentTarget.setPointerCapture(e.pointerId);
       }}
       onPointerMove={(e) => {
@@ -117,10 +129,14 @@ export function HitPad({
         if (!selection) return;
         Object.assign(input.current, selection, { swing: true });
         onShot(selection);
-        cancel();
+        drag.current = null;
       }}
-      onPointerCancel={cancel}
-      onLostPointerCapture={cancel}
+      onPointerCancel={(e) => {
+        if (drag.current?.id === e.pointerId) cancel();
+      }}
+      onLostPointerCapture={(e) => {
+        if (drag.current?.id === e.pointerId) cancel();
+      }}
       onClick={(e) => {
         // Native keyboard / assistive activation; pointer shots commit on release.
         if (e.detail === 0) input.current.swing = true;
