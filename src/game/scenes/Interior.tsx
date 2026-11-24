@@ -17,7 +17,12 @@ import { KitchenInterior } from "./KitchenInterior";
 import { newRunId } from "../../shared/run-id";
 import { ROOM } from "../core/room";
 import { RoomDressing } from "./RoomDressing";
+import { BeatLabInterior, MathLabInterior } from "./LabRooms";
 import type { PlaceId } from "../core/world";
+import { useState } from "react";
+import { BadmintonCourt } from "./BadmintonCourt";
+import { GoInterior } from "./GoInterior";
+import { WritingInterior } from "./WritingInterior";
 
 const rewardInterior = (game: "dice" | "cooking", coins: number) =>
   useGame
@@ -25,6 +30,7 @@ const rewardInterior = (game: "dice" | "cooking", coins: number) =>
     .award(`${game}-${newRunId()}`, coins, Math.ceil(coins / 2));
 
 export function Interior() {
+  const [badmintonActive, setBadmintonActive] = useState(false);
   const scene = useGame((s) => s.scene),
     office = scene === "office";
   const name = doors.find((door) => door.id === scene)?.name ?? "";
@@ -66,12 +72,16 @@ export function Interior() {
           <Flowers p={[x, 0, 10.5]} />
         </group>
       ))}
-      <Box
-        p={[0, 0.1, -2]}
-        s={[4.2, 0.1, 3]}
-        c={office ? "#768973" : "#758f8a"}
-      />
-      <Ring p={[0, 0.17, -2]} radius={1.2} tube={0.035} c="#e6d2a8" />
+      {scene !== "badminton" && scene !== "go" && (
+        <>
+          <Box
+            p={[0, 0.1, -2]}
+            s={[4.2, 0.1, 3]}
+            c={office ? "#768973" : "#758f8a"}
+          />
+          <Ring p={[0, 0.17, -2]} radius={1.2} tube={0.035} c="#e6d2a8" />
+        </>
+      )}
       {office ? (
         <>
           <Box p={[-2.5, 1.1, -4]} s={[4, 0.18, 1.3]} c="#927650" />
@@ -112,13 +122,20 @@ export function Interior() {
       {scene === "kappa" && <HouseInterior onReward={rewardInterior} />}
       {scene === "kitchen" && <KitchenInterior onReward={rewardInterior} />}
       {scene === "gym" && <GymFurnishings />}
+      {scene === "music" && <BeatLabInterior />}
+      {scene === "math" && <MathLabInterior />}
+      {scene === "badminton" && (
+        <BadmintonCourt onPlayingChange={setBadmintonActive} />
+      )}
+      {scene === "go" && <GoInterior />}
+      {scene === "writing" && <WritingInterior />}
       <RoomDressing scene={scene as PlaceId} />
       <Box p={[0, 0.1, ROOM.doorZ]} s={[3, 0.12, 2]} c="#4f7966" />
       <Box p={[-1.7, 1.6, 12.3]} s={[0.35, 3.2, 0.4]} c="#8c6947" />
       <Box p={[1.7, 1.6, 12.3]} s={[0.35, 3.2, 0.4]} c="#8c6947" />
       <Box p={[0, 3.2, 12.3]} s={[3.8, 0.38, 0.5]} c="#8c6947" />
       <Sign text="← VILLAGE" p={[0, 3.55, 12.35]} size={[2.8, 0.55]} />
-      <Walker interior />
+      {!badmintonActive && <Walker interior />}
     </group>
   );
 }

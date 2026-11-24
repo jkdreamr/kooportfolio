@@ -26,3 +26,12 @@ test("API health and explicit unavailable cloud features", async ({
   expect(result.status()).toBe(503);
   expect(await result.text()).toContain("not enabled");
 });
+test("unprovisioned public writing never reports local-only publication as public", async ({
+  request,
+}) => {
+  const result = await request.get("/api/writing");
+  expect(result.status()).toBe(503);
+  expect(await result.json()).toMatchObject({
+    error: expect.stringContaining("isn’t connected"),
+  });
+});

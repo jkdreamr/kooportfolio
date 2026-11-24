@@ -46,7 +46,14 @@ export function GameControls({
         const halfHeight = (panel.current?.offsetHeight ?? 160) / 2;
         // Wide screens have room for a side card; keep the customers/table clear.
         if (size.width >= 900)
-          return [size.width - halfWidth - 24, size.height - halfHeight - 96];
+          return [
+            size.width - halfWidth - 24,
+            THREE.MathUtils.clamp(
+              size.height - halfHeight - (size.height < 600 ? 24 : 96),
+              halfHeight + 12,
+              size.height - halfHeight - 12,
+            ),
+          ];
         // Keep a room-anchored panel on screen even with a narrow camera crop.
         return [
           THREE.MathUtils.clamp(x, halfWidth + 12, size.width - halfWidth - 12),
