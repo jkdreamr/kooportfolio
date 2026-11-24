@@ -88,6 +88,16 @@ describe("Beat Lab", () => {
     const onBeat = advanceBeat(hit, BEAT_COUNT_IN - hit.time);
     expect(hitBeat(onBeat, 1).points).toBe(25);
   });
+  it("keeps late practice taps out of the opening note's burst", () => {
+    const start = { ...newBeatGame(), phase: "playing" as const };
+    const practice = advanceBeat(start, BEAT_COUNT_IN - 0.03);
+    expect(queueBeatPad(practice, 1)).toBe(practice);
+    const opening = advanceBeat(queueBeatPad(practice, 1), 0.03);
+    const judged = advanceBeat(queueBeatPad(opening, 0), 0.07);
+    expect(judged.notes[0].hit).toBe(true);
+    expect(judged.points).toBe(100);
+    expect(judged.offBeatPresses).toBe(0);
+  });
   it("introduces the rhythm before faster pairs without extending the round", () => {
     const game = newBeatGame();
     const gaps = game.notes

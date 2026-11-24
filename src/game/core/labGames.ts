@@ -140,6 +140,7 @@ function canPressBeat(game: BeatGame, lane: number): boolean {
 
 export function queueBeatPad(game: BeatGame, lane: number): BeatGame {
   if (!canPressBeat(game, lane)) return game;
+  if (game.time < BEAT_COUNT_IN) return hitBeat(game, lane);
   return {
     ...game,
     pendingPresses: [...game.pendingPresses, { at: game.time, lane }],
