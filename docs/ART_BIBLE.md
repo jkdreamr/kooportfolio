@@ -19,7 +19,7 @@ The expanded map uses seven distinct silhouettes: the oar-framed Boathouse, open
 - One world unit is approximately one metre; avatar height 1.6 units, doors 2.1. Orthographic three-quarter hub camera, chase race camera, wider court camera. Directional sun, cool sky fill and readable grounded shadows; shared surface shading retains the lighting rig's time-of-day colors.
 - Keep the world legible: boathouse gable and oars, open court silhouette, quiet green study roof. Upgrade geometry must be visible: balcony then tower, pergola then garden seating.
 - Gentle character bob, alternating walking limbs and synchronized oar recovery. No flashing, camera shake or compulsory sound. Respect reduced motion in the editorial reveal; gameplay remains manually controlled.
-- Art references in Joshua’s handoff are direction only and are not redistributed as authored assets. All shipped geometry, UI, favicon and WebAudio sounds are original in this repository. System fonts only.
+- Art references in Joshua’s handoff are direction only and are not redistributed as authored assets. Shipped geometry, UI and WebAudio effects are original. Nature ambience uses locally bundled CC0 recordings documented in `public/audio/LICENSES.md`. System fonts only; no logo or favicon monogram.
 
 ## Solid-material and interface standard
 
