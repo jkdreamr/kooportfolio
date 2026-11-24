@@ -1,6 +1,7 @@
 import { canWalk, findPath, moveWorld, type PlaceId } from "./world";
 import type { WorldId } from "./worlds";
 import { extraLocals, routines } from "./npcRoutines";
+import { islandLocals } from "./npcPopulation";
 
 type Point = [number, number];
 export const TALK_DISTANCE = 2.7;
@@ -335,6 +336,7 @@ const locals: Villager[] = [
 export const villagers: Villager[] = [
   ...locals.map((npc) => ({ ...npc, ...routines[npc.id] })),
   ...extraLocals,
+  ...islandLocals,
 ];
 
 export type NpcActor = {
