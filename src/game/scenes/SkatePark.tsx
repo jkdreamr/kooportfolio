@@ -486,12 +486,19 @@ export function SkateParkInterior() {
                 e.target.blur();
             }}
           >
-            <button
-              className="skate-view"
-              onClick={() => setOverview(!overview)}
-            >
-              {overview ? "Follow view" : "Park view"}
-            </button>
+            <div className="skate-view-controls">
+              <button
+                className="skate-view"
+                onClick={() => setOverview(!overview)}
+              >
+                {overview ? "Follow view" : "Park view"}
+              </button>
+              {riding && (
+                <button onClick={() => useGame.setState({ paused: true })}>
+                  Pause
+                </button>
+              )}
+            </div>
             {!riding ? (
               <section className="skate-card" aria-label="Skate park">
                 <span className="skate-eyebrow">Bowl + street</span>
