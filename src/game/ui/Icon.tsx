@@ -1,5 +1,11 @@
 export function Icon({ name, size = 20 }: { name: string; size?: number }) {
   const paths: Record<string, React.ReactNode> = {
+    travel: (
+      <>
+        <path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Z" />
+        <path d="M9 3v16m6-14v16" />
+      </>
+    ),
     home: (
       <>
         <path d="m3 10 9-7 9 7v10H3Z" />

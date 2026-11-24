@@ -82,7 +82,8 @@ describe("separate worlds", () => {
     runtime.target = [1, 1];
     useGame.getState().travel("stanford", "train");
     expect(useGame.getState().world).toBe("stanford");
-    expect([runtime.x, runtime.z]).toEqual([-73, 12]);
+    expect([runtime.x, runtime.z]).toEqual([-73, 22]);
+    expect(canWalk(runtime.x, runtime.z, "stanford")).toBe(true);
     expect(runtime.path).toEqual([]);
     expect(runtime.target).toBe(null);
     useGame.getState().travel("korea", "plane");

@@ -6,6 +6,7 @@ import { runtime, useGame } from "../core/store";
 import { keys, touch } from "../core/input";
 import {
   canTravel,
+  directJourney,
   travelOptions,
   WORLD_NAMES,
   type TravelMode,
@@ -16,6 +17,7 @@ import {
 import { Ball, Box, Cylinder, Sign } from "./Models";
 import { JourneyTrain, PassengerJet, RoadCar } from "./TravelVehicles";
 import "./world-travel.css";
+import { ISLAND_RAIL } from "../core/islandRail";
 
 export type { TravelWorld, TravelMode } from "../core/travel";
 type Journey = TravelOption & { from: TravelWorld };
@@ -219,6 +221,7 @@ export function WorldTravel({
 }) {
   const [stop, setStop] = useState<TravelStop | null>(null);
   const [trip, setTrip] = useState<Journey | null>(null);
+  const request = useGame((s) => s.travelRequest);
   const hidden =
     useGame((s) => s.paused || s.build || s.panel !== "none") || disabled;
   const gl = useThree((s) => s.gl);
@@ -253,9 +256,7 @@ export function WorldTravel({
         event.stopImmediatePropagation();
         cancel();
       } else if (
-        /^(w|a|s|d|e|ArrowUp|ArrowDown|ArrowLeft|ArrowRight)$/i.test(
-          event.key,
-        )
+        /^(w|a|s|d|e|ArrowUp|ArrowDown|ArrowLeft|ArrowRight)$/i.test(event.key)
       ) {
         event.preventDefault();
         event.stopImmediatePropagation();
@@ -278,22 +279,35 @@ export function WorldTravel({
     const next =
       Math.hypot(runtime.x - 58, runtime.z - 61) < 5
         ? "airport"
-        : world !== "korea" && Math.hypot(runtime.x + 76, runtime.z - 12) < 5
+        : world !== "korea" &&
+            Math.hypot(
+              runtime.x - ISLAND_RAIL.station[0],
+              runtime.z - ISLAND_RAIL.station[1],
+            ) < 5
           ? "station"
           : null;
     if (next !== stop) setStop(next);
   });
-  const depart = (option: TravelOption) => {
-    if (
-      hidden ||
-      traveling ||
-      !canTravel(world, option.destination, option.mode)
-    )
-      return;
-    clearTravelInput();
-    elapsed.current = 0;
-    setTrip({ ...option, from: world });
-  };
+  const depart = useCallback(
+    (option: TravelOption) => {
+      if (
+        hidden ||
+        traveling ||
+        !canTravel(world, option.destination, option.mode)
+      )
+        return;
+      clearTravelInput();
+      elapsed.current = 0;
+      setTrip({ ...option, from: world });
+    },
+    [hidden, traveling, world],
+  );
+  useEffect(() => {
+    if (!request) return;
+    useGame.setState({ travelRequest: null });
+    const option = directJourney(world, request);
+    if (option) depart(option);
+  }, [request, world, depart]);
   const arrive = () => {
     if (!trip) return;
     clearTravelInput();

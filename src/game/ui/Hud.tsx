@@ -16,6 +16,7 @@ import { RoomStory } from "./RoomStory";
 import type { PlaceId } from "../core/world";
 import { npcName } from "../core/npcState";
 import { Leaderboard } from "./Leaderboard";
+import { TravelMap } from "./TravelMap";
 
 export function Joystick() {
   const pad = useRef<HTMLDivElement>(null),
@@ -668,6 +669,11 @@ export function Hud({ interact }: { interact: () => void }) {
         <nav className="world-toolbar" aria-label="World tools">
           {[
             [
+              "travel",
+              "Travel",
+              () => useGame.setState({ build: false, panel: "travel" }),
+            ],
+            [
               "home",
               "Places",
               () => useGame.setState({ build: false, panel: "places" }),
@@ -923,6 +929,20 @@ export function Hud({ interact }: { interact: () => void }) {
               never paid advantages.
             </p>
           </div>
+        </Modal>
+      )}
+      {g.panel === "travel" && (
+        <Modal title="Travel" close={closePanel}>
+          <TravelMap
+            world={g.world}
+            onChoose={(destination) => {
+              keys.clear();
+              touch.x = touch.z = 0;
+              runtime.path = [];
+              runtime.target = null;
+              useGame.setState({ panel: "none", travelRequest: destination });
+            }}
+          />
         </Modal>
       )}
       {g.panel === "places" && (
