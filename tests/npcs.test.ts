@@ -11,6 +11,7 @@ import {
 import { canWalk, doors, findPath } from "../src/game/core/world";
 import {
   advanceConversation,
+  chooseNpcTopic,
   closeConversation,
   interactWithNpc,
   npcActors,
@@ -18,6 +19,7 @@ import {
   talkToNpc,
   useNpcs,
 } from "../src/game/core/npcState";
+import { topicsFor } from "../src/game/core/npcTopics";
 import { runtime, useGame } from "../src/game/core/store";
 import { belongsToWorld, WORLD_IDS } from "../src/game/core/worlds";
 
@@ -178,6 +180,30 @@ describe("NPC interaction boundaries", () => {
     useGame.setState({ panel: "help", near: "npc" });
     talkToNpc(npcActors[0].id);
     expect(useNpcs.getState().talking).toBeNull();
+  });
+  it("lets the player pick an illustrated reply, go back, and ask something else", () => {
+    const local = npcActors.find((actor) => actor.id === "mapmaker")!;
+    runtime.x = local.x - 1;
+    runtime.z = local.z;
+    talkToNpc(local.id);
+    expect(useNpcs.getState().talking).toBe(local.id);
+    expect(interactWithNpc()).toBe(true);
+    expect(useNpcs.getState().topic).toBeNull();
+    expect(useGame.getState().panel).toBe("npc");
+    chooseNpcTopic("missing");
+    expect(useNpcs.getState().topic).toBeNull();
+    chooseNpcTopic("campus");
+    expect(
+      topicsFor(local.id).find(({ id }) => id === useNpcs.getState().topic)?.picture,
+    ).toBe("campus");
+    expect(interactWithNpc()).toBe(true);
+    expect(useNpcs.getState().topic).toBeNull();
+    chooseNpcTopic("water");
+    expect(useNpcs.getState().topic).toBe("water");
+    closeConversation();
+    talkToNpc(local.id);
+    expect(useNpcs.getState().topic).toBeNull();
+    expect(useNpcs.getState().line).toBe(0);
   });
   it("walks to a distant local and cancels conversation cleanly", () => {
     runtime.x = 0;
