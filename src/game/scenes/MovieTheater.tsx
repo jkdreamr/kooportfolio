@@ -160,7 +160,16 @@ function TheaterViewer({
     };
   }, []);
   return (
-    <Html fullscreen portal={portal} zIndexRange={[80, 0]}>
+    <Html
+      fullscreen
+      calculatePosition={(_object, _camera, size) => [
+        size.width / 2,
+        size.height / 2,
+      ]}
+      onOcclude={() => undefined}
+      portal={portal}
+      zIndexRange={[80, 0]}
+    >
       <section
         ref={dialog}
         className="cinema-viewer"

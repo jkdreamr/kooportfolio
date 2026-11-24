@@ -27,6 +27,7 @@ function clearTravelInput() {
   runtime.target = null;
   runtime.moving = false;
   runtime.shooting = runtime.burst = false;
+  runtime.shoot = false;
 }
 
 function Airport() {
@@ -305,6 +306,11 @@ export function WorldTravel({
       {!hidden && !trip && stop && (
         <Html
           fullscreen
+          calculatePosition={(_object, _camera, size) => [
+            size.width / 2,
+            size.height / 2,
+          ]}
+          onOcclude={() => undefined}
           portal={portal}
           zIndexRange={[28, 0]}
           style={{ pointerEvents: "none" }}
@@ -338,7 +344,16 @@ export function WorldTravel({
         </Html>
       )}
       {!hidden && trip && (
-        <Html fullscreen portal={portal} zIndexRange={[110, 0]}>
+        <Html
+          fullscreen
+          calculatePosition={(_object, _camera, size) => [
+            size.width / 2,
+            size.height / 2,
+          ]}
+          onOcclude={() => undefined}
+          portal={portal}
+          zIndexRange={[110, 0]}
+        >
           <section
             className="world-journey"
             role="dialog"
