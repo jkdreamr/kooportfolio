@@ -100,14 +100,14 @@ export function WorldTravel({
   }, []);
   const cancel = useCallback(() => {
     if (trip) {
-      const p =
-        useGame.getState().world === trip.from
-          ? trip.origin
-          : journeyGate(trip.mode);
-      [runtime.x, runtime.z] = p;
+      // Crossing offshore changes the visible region, not what Cancel means.
+      if (useGame.getState().world !== trip.from)
+        onArrive(trip.from, trip.mode);
+      [runtime.x, runtime.z] = trip.origin;
+      useGame.getState().persist();
     }
     finish();
-  }, [trip, finish]);
+  }, [trip, finish, onArrive]);
   useEffect(() => {
     onTravelChange?.(traveling);
     return () => onTravelChange?.(false);
