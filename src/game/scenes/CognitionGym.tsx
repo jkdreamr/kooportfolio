@@ -7,6 +7,18 @@ import { Box, Cylinder, Ball, Bench, Flowers, Ring } from "../world/Models";
 import { runtime, useGame } from "../core/store";
 import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import { COGNITION_OFFICE_WALL } from "../core/houseRooms";
+import { sound } from "../core/sound";
+import {
+  GYM_GOAL,
+  GYM_PERFECT_RADIUS,
+  GYM_REP_MS,
+  GYM_TARGET_RADIUS,
+  gymMarker,
+  gymTarget,
+  judgeGymLift,
+  readGymBest,
+  saveGymBest,
+} from "./gymGame";
 import {
   CognitionDeskBadge,
   CognitionPlaque,
@@ -15,17 +27,23 @@ import {
 import { gameIsActive } from "./InteriorProps";
 import "./gym-room.css";
 
-const GYM_REP_MS = 900;
 type LiftPhase = "ready" | "pressing" | "lowering";
 
-export function gymRepMotion(liftedAt: number, now = performance.now()) {
+export function gymRepMotion(
+  liftedAt: number,
+  now = performance.now(),
+  judgment = "Perfect",
+) {
   const progress = Math.max(0, Math.min(1, (now - liftedAt) / GYM_REP_MS));
   const phase: LiftPhase =
     progress === 1 ? "ready" : progress < 0.5 ? "pressing" : "lowering";
   return {
     progress,
     phase,
-    height: 1.65 + (progress < 1 ? Math.sin(progress * Math.PI) * 0.9 : 0),
+    height:
+      1.65 +
+      (progress < 1 ? Math.sin(progress * Math.PI) * 0.9 : 0) *
+        (judgment === "Miss" ? 0.28 : judgment === "Clean" ? 0.78 : 1),
   };
 }
 
@@ -33,6 +51,16 @@ export const useGym = create<{
   reps: number;
   liftedAt: number;
   earned: number;
+  readyAt: number;
+  pausedAt: number | null;
+  strike: number;
+  score: number;
+  streak: number;
+  judgment: "Perfect" | "Clean" | "Miss" | "";
+  points: number;
+  best: number;
+  newBest: boolean;
+  syncClock: () => void;
   startSession: () => boolean;
   cancelSession: () => void;
   lift: () => void;
@@ -40,6 +68,34 @@ export const useGym = create<{
   reps: 0,
   liftedAt: -Infinity,
   earned: 0,
+  readyAt: 0,
+  pausedAt: null,
+  strike: 0,
+  score: 0,
+  streak: 0,
+  judgment: "",
+  points: 0,
+  best: readGymBest(),
+  newBest: false,
+  syncClock() {
+    if (useGameMode.getState().active?.id !== "gym") return;
+    const now = performance.now();
+    const running =
+      gameIsActive() &&
+      runtime.active &&
+      (typeof document === "undefined" || !document.hidden);
+    const { pausedAt, readyAt, liftedAt } = get();
+    if (!running) {
+      if (pausedAt === null) set({ pausedAt: now });
+    } else if (pausedAt !== null) {
+      const duration = now - pausedAt;
+      set({
+        pausedAt: null,
+        readyAt: readyAt + duration,
+        liftedAt: liftedAt + duration,
+      });
+    }
+  },
   startSession() {
     if (
       !gameIsActive() ||
@@ -47,49 +103,109 @@ export const useGym = create<{
       !startGameMode("gym")
     )
       return false;
-    set({ reps: 0, liftedAt: -Infinity, earned: 0 });
+    set({
+      reps: 0,
+      liftedAt: -Infinity,
+      earned: 0,
+      readyAt: performance.now(),
+      pausedAt: null,
+      strike: 0,
+      score: 0,
+      streak: 0,
+      judgment: "",
+      points: 0,
+      newBest: false,
+    });
     return true;
   },
   cancelSession() {
-    set({ reps: 0, liftedAt: -Infinity, earned: 0 });
+    set({
+      reps: 0,
+      liftedAt: -Infinity,
+      earned: 0,
+      readyAt: 0,
+      pausedAt: null,
+      strike: 0,
+      score: 0,
+      streak: 0,
+      judgment: "",
+      points: 0,
+      newBest: false,
+    });
     if (useGameMode.getState().active?.id === "gym") endGameMode();
   },
   lift() {
+    get().syncClock();
     if (
       useGameMode.getState().active?.id !== "gym" ||
       useGame.getState().scene !== "gym" ||
       !gameIsActive() ||
       !runtime.active ||
+      get().pausedAt !== null ||
       get().reps >= 8
     )
       return;
     const now = performance.now();
     if (now - get().liftedAt < GYM_REP_MS) return;
-    const reps = get().reps + 1;
-    set({ reps, liftedAt: now });
+    const state = get();
+    const strike = gymMarker(state.readyAt, now, state.reps);
+    const result = judgeGymLift(strike, gymTarget(state.reps), state.streak);
+    const reps = state.reps + 1;
+    const score = state.score + result.points;
+    set({
+      reps,
+      liftedAt: now,
+      readyAt: now + GYM_REP_MS,
+      strike,
+      score,
+      streak: result.streak,
+      judgment: result.judgment,
+      points: result.points,
+    });
+    sound(result.judgment === "Miss" ? "bounce" : "score");
     if (reps === 8) {
       const id = `gym-${new Date().toISOString().slice(0, 10)}`;
       const earned = useGame.getState().save.rewards.includes(id) ? 0 : 15;
-      set({ earned });
+      const best = Math.max(state.best, score);
+      set({ earned, best, newBest: score > state.best });
+      saveGymBest(best);
       useGame.getState().award(id, 15, 10);
     }
   },
 }));
 
+function currentGymMotion() {
+  const { liftedAt, pausedAt, judgment } = useGym.getState();
+  return gymRepMotion(liftedAt, pausedAt ?? performance.now(), judgment);
+}
+
 function GymCamera() {
   const size = useThree((s) => s.size);
+  const landscape = size.height <= 520 && size.width > 700;
   return (
     <OrthographicCamera
       makeDefault
       position={[8, 8, 11]}
       zoom={Math.max(
         6,
-        Math.min(82, (size.width - 32) / 9, (size.height - 200) / 7),
+        Math.min(
+          82,
+          (size.width - (landscape ? 320 : 32)) / 8,
+          (size.height - (landscape ? 64 : 320)) / 7,
+        ),
       )}
       near={0.1}
       far={100}
       onUpdate={(camera) => {
         camera.lookAt(0, 1.4, -2.5);
+        camera.setViewOffset(
+          size.width,
+          size.height,
+          landscape ? size.width * 0.16 : 0,
+          landscape ? 0 : 40,
+          size.width,
+          size.height,
+        );
         camera.updateProjectionMatrix();
       }}
     />
@@ -100,6 +216,12 @@ function GymControls() {
   const active = useGameMode((s) => s.active?.id === "gym");
   const reps = useGym((s) => s.reps),
     earned = useGym((s) => s.earned);
+  const score = useGym((s) => s.score),
+    best = useGym((s) => s.best),
+    streak = useGym((s) => s.streak),
+    judgment = useGym((s) => s.judgment),
+    points = useGym((s) => s.points),
+    newBest = useGym((s) => s.newBest);
   const hidden = useGame((s) => s.paused || s.panel !== "none" || s.build);
   const [near, setNear] = useState(false),
     [phase, setPhase] = useState<LiftPhase>("ready"),
@@ -107,6 +229,7 @@ function GymControls() {
       () => window.matchMedia("(pointer: coarse)").matches,
     );
   const recovery = useRef<HTMLSpanElement>(null);
+  const marker = useRef<HTMLSpanElement>(null);
   const ready = phase === "ready";
   const complete = reps === 8 && ready;
   const gl = useThree((s) => s.gl);
@@ -124,10 +247,19 @@ function GymControls() {
     const close = () => useGym.getState().cancelSession();
     // Observe the launch key too, without treating that event as a lift.
     const keyboard = () => setTouch(false);
+    const sync = () => useGym.getState().syncClock();
+    const unsubscribe = useGame.subscribe(sync);
     window.addEventListener("keydown", keyboard, true);
+    window.addEventListener("blur", sync);
+    window.addEventListener("focus", sync);
+    document.addEventListener("visibilitychange", sync);
     window.addEventListener("interior-game-close", close);
     return () => {
       window.removeEventListener("keydown", keyboard, true);
+      window.removeEventListener("blur", sync);
+      window.removeEventListener("focus", sync);
+      document.removeEventListener("visibilitychange", sync);
+      unsubscribe();
       window.removeEventListener("interior-game-close", close);
       close();
     };
@@ -135,7 +267,7 @@ function GymControls() {
   useEffect(() => {
     // Keep the first frame of an accepted rep in sync with the button too.
     return useGym.subscribe((state, previous) => {
-      if (state.liftedAt !== previous.liftedAt)
+      if (state.reps !== previous.reps || state.liftedAt === -Infinity)
         setPhase(Number.isFinite(state.liftedAt) ? "pressing" : "ready");
     });
   }, []);
@@ -159,15 +291,24 @@ function GymControls() {
     return () => window.removeEventListener("keydown", key);
   }, [active]);
   useFrame(() => {
+    useGym.getState().syncClock();
     if (!gameIsActive()) return;
     if (!active) {
       const nearby = Math.hypot(runtime.x, runtime.z + 2) <= 6;
       if (nearby !== near) setNear(nearby);
     }
-    const motion = gymRepMotion(useGym.getState().liftedAt);
+    const motion = currentGymMotion();
     if (motion.phase !== phase) setPhase(motion.phase);
     if (recovery.current)
       recovery.current.style.transform = `scaleX(${motion.progress})`;
+    if (marker.current) {
+      const state = useGym.getState();
+      const position =
+        ready && reps < 8
+          ? gymMarker(state.readyAt, performance.now(), reps)
+          : state.strike;
+      marker.current.style.left = `${position * 100}%`;
+    }
   });
   if (hidden) return null;
   return (
@@ -198,7 +339,7 @@ function GymControls() {
             <header className="gym-game-topbar">
               <div>
                 <strong>Bench press</strong>
-                <span>8 reps</span>
+                <span>8 timed lifts</span>
               </div>
               <button
                 className="gym-close"
@@ -208,10 +349,45 @@ function GymControls() {
               </button>
             </header>
             <div className="gym-game-bottom">
+              <div className="gym-scoreline">
+                <span>
+                  Score <strong>{score.toLocaleString()}</strong>
+                </span>
+                <span>
+                  {best ? "Best" : "Goal"}{" "}
+                  <strong>{(best || GYM_GOAL).toLocaleString()}</strong>
+                </span>
+                <span className="gym-streak">
+                  {streak > 1 ? `${streak} streak` : `${reps}/8`}
+                </span>
+              </div>
+              {!complete && (
+                <div
+                  className="gym-timing"
+                  aria-label="Lift when the white marker reaches the target"
+                  role="img"
+                >
+                  <span
+                    className="gym-target"
+                    style={{
+                      left: `${(gymTarget(ready ? reps : reps - 1) - GYM_TARGET_RADIUS) * 100}%`,
+                      width: `${GYM_TARGET_RADIUS * 200}%`,
+                    }}
+                  >
+                    <span className="gym-target-label">Target</span>
+                    <i
+                      style={{
+                        width: `${(GYM_PERFECT_RADIUS / GYM_TARGET_RADIUS) * 100}%`,
+                      }}
+                    />
+                  </span>
+                  <span className="gym-timing-marker" ref={marker} />
+                </div>
+              )}
               <div
                 className="gym-reps"
                 role="progressbar"
-                aria-label="Completed reps"
+                aria-label="Completed lifts"
                 aria-valuemin={0}
                 aria-valuemax={8}
                 aria-valuenow={reps}
@@ -222,8 +398,10 @@ function GymControls() {
               </div>
               <p role="status">
                 {complete
-                  ? `Set complete${earned ? ` · +${earned} coins` : " · Daily reward claimed"}`
-                  : `${reps}/8 · ${ready ? "Ready" : phase === "pressing" ? "Pressing…" : "Lowering…"}`}
+                  ? `${newBest ? "New best" : "Set complete"}${earned ? ` · +${earned} coins` : " · Daily reward claimed"}`
+                  : ready
+                    ? "Lift in the target"
+                    : `${judgment}${points ? ` +${points}` : ""} · ${phase === "pressing" ? "Pressing…" : "Lowering…"}`}
               </p>
               <button
                 className="gym-primary"
@@ -255,7 +433,7 @@ function GymControls() {
         ) : (
           <>
             <strong>Bench press</strong>
-            <p>{near ? "8 reps" : "Walk up to the bench."}</p>
+            <p>{near ? "8 timed lifts" : "Walk up to the bench."}</p>
             {near && (
               <button
                 className="gym-primary"
@@ -350,7 +528,7 @@ function GymArm({ side }: { side: -1 | 1 }) {
   useFrame(() => {
     if (!upper.current || !forearm.current || !hand.current) return;
     const { shoulder, grip, elbow, outward, direction } = pose;
-    grip.y = gymRepMotion(useGym.getState().liftedAt).height;
+    grip.y = currentGymMotion().height;
     direction.copy(grip).sub(shoulder);
     // Equal-length upper/forearms: elbows bend out, hands stay on the bar.
     const bend = Math.sqrt(Math.max(0, 0.8 ** 2 - direction.lengthSq() / 4));
@@ -434,7 +612,7 @@ export function GymFurnishings() {
   const bar = useRef<THREE.Group>(null);
   useFrame(() => {
     if (!bar.current) return;
-    bar.current.position.y = gymRepMotion(useGym.getState().liftedAt).height;
+    bar.current.position.y = currentGymMotion().height;
   });
   return (
     <group>
