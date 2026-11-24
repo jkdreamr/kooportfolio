@@ -975,7 +975,7 @@ export function MathLabInterior() {
             </header>
             <div
               className="lights-buttons"
-              role="grid"
+              role="group"
               aria-label="Light switches"
               style={{ width: zoom * 7.5, height: zoom * 7.5 }}
               onKeyDown={(e) => {
@@ -1000,7 +1000,6 @@ export function MathLabInterior() {
                 <button
                   key={tile}
                   ref={(node) => void (tileButtons.current[tile] = node)}
-                  role="gridcell"
                   tabIndex={tile === focusedTile.current ? 0 : -1}
                   aria-label={`Tile ${tile + 1}`}
                   aria-pressed={!!(board & (1 << tile))}
