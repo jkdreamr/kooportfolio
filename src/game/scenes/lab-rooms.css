@@ -336,27 +336,27 @@
   }
 }
 
-.lab-beat {
+.lab-slate {
   --beat-surface: #273241;
   --beat-edge: #657181;
   --beat-ink: #f8fafc;
   --beat-muted: #c1cad5;
   color: var(--beat-ink);
 }
-.lab-beat:not(.lab-game),
-.lab-beat .lab-game-topbar,
-.lab-beat .lab-game-bottom {
+.lab-slate:not(.lab-game),
+.lab-slate .lab-game-topbar,
+.lab-slate .lab-game-bottom {
   border: 1px solid var(--beat-edge);
   border-radius: 8px;
   background: var(--beat-surface);
   box-shadow: 0 4px 14px #11182240;
 }
-.lab-beat header span,
-.lab-beat .lab-feedback,
-.lab-beat .beat-buttons span {
+.lab-slate header span,
+.lab-slate .lab-feedback,
+.lab-slate .beat-buttons span {
   color: var(--beat-muted);
 }
-.lab-beat button {
+.lab-slate button {
   min-height: 36px;
   padding: 5px 10px;
   border: 1px solid var(--beat-edge);
@@ -366,20 +366,20 @@
   color: var(--beat-ink);
   font-weight: 600;
 }
-.lab-beat .lab-close {
+.lab-slate .lab-close {
   border-color: var(--beat-edge);
   background: transparent;
 }
-.lab-beat .lab-primary,
-.lab-beat .lab-primary:hover {
+.lab-slate .lab-primary,
+.lab-slate .lab-primary:hover {
   border-color: #d5dee8;
   background: #e6edf4;
   color: #273241;
 }
-.lab-beat button:hover {
+.lab-slate button:hover {
   border-color: var(--beat-ink);
 }
-.game-shell .lab-beat button:focus-visible {
+.game-shell .lab-slate button:focus-visible {
   outline: 2px solid var(--beat-ink);
   outline-offset: 2px;
 }
@@ -412,8 +412,65 @@
   background: #bdc9d7;
 }
 @media (pointer: coarse) {
-  .lab-beat button,
+  .lab-slate button,
   .lab-beat .beat-launch button {
     min-height: 44px;
+  }
+}
+
+.lab-slate kbd {
+  margin-left: 4px;
+  color: var(--beat-muted);
+  font: 500 11px ui-monospace, monospace;
+}
+.lab-slate .lab-primary kbd {
+  color: inherit;
+}
+.lab-slate button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.lab-slate button:disabled:hover {
+  border-color: var(--beat-edge);
+}
+.lab-math.lab-game .lights-buttons button {
+  position: relative;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--beat-ink);
+}
+.lab-math.lab-game .lights-buttons button kbd {
+  position: absolute;
+  top: 6%;
+  left: 8%;
+  margin: 0;
+  color: #c1cad5;
+  font-size: clamp(10px, 1.3vw, 13px);
+  text-shadow: none;
+}
+.lab-math.lab-game .lights-buttons button[aria-pressed="true"] kbd {
+  color: #4b5767;
+}
+.lab-math.lab-game .lights-buttons button[data-reach="true"] {
+  border-color: #c1cad599;
+}
+.lab-math.lab-game .lights-buttons button:hover:not(:disabled),
+.lab-math.lab-game .lights-buttons button:focus-visible {
+  border-color: var(--beat-ink);
+  outline: none;
+}
+.lab-math.lab-game .lights-buttons button:disabled {
+  opacity: 1;
+}
+.lab-math .lab-math-bottom {
+  gap: 10px 14px;
+}
+@media (pointer: coarse) {
+  .lab-slate kbd {
+    display: none;
+  }
+  .lab-math.lab-game .lights-buttons button kbd {
+    display: none;
   }
 }

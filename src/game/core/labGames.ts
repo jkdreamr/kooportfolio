@@ -122,30 +122,55 @@ export function flipLights(board: number, tile: number): number {
   }
   return board;
 }
-export function newLightsBoard(round: number): number {
-  // Scramble a solved board with legal moves; every puzzle is solvable.
-  const scrambles = [
-    [0, 4, 8],
-    [1, 3, 6, 8],
-    [0, 2, 4, 7, 8],
-  ];
-  const steps = scrambles[((Math.floor(round) % 3) + 3) % 3];
-  return steps.reduce(flipLights, LIGHTS_TARGET);
+const LIGHT_MOVES = Array.from({ length: 9 }, (_, tile) => flipLights(0, tile));
+const LIGHT_PARS = [2, 3, 4, 5, 5, 6];
+
+export function lightsPar(round: number): number {
+  const r = Math.max(0, Math.floor(round) || 0);
+  return LIGHT_PARS[Math.min(r, LIGHT_PARS.length - 1)];
 }
-export function lightsHint(board: number): number | null {
-  if (board === LIGHTS_TARGET) return null;
-  // Only 512 move combinations exist; XOR moves commute and cancel in pairs.
-  let shortest: number[] | null = null;
-  for (let mask = 1; mask < 512; mask++) {
-    let next = board;
-    const moves: number[] = [];
-    for (let tile = 0; tile < 9; tile++)
-      if (mask & (1 << tile)) {
-        next = flipLights(next, tile);
-        moves.push(tile);
-      }
-    if (next === LIGHTS_TARGET && (!shortest || moves.length < shortest.length))
-      shortest = moves;
+
+function seededRandom(seed: number) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), a | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+export function newLightsBoard(round: number, seed = 0): number {
+  // 3x3 presses are independent, so pressing k distinct tiles needs exactly k to undo.
+  const random = seededRandom(Math.imul(seed | 0, 9973) + Math.floor(round));
+  const tiles = Array.from({ length: 9 }, (_, tile) => tile);
+  for (let i = tiles.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
   }
-  return shortest?.[0] ?? null;
+  return tiles
+    .slice(0, lightsPar(round))
+    .reduce((board, tile) => board ^ LIGHT_MOVES[tile], LIGHTS_TARGET);
+}
+
+/** Bitmask of the tiles to press; on a 3x3 board it is unique. */
+export function lightsSolution(board: number): number {
+  for (let mask = 0; mask < 512; mask++) {
+    let next = board;
+    for (let tile = 0; tile < 9; tile++)
+      if (mask & (1 << tile)) next ^= LIGHT_MOVES[tile];
+    if (next === LIGHTS_TARGET) return mask;
+  }
+  return 0;
+}
+
+export function lightsHint(board: number): number | null {
+  const mask = lightsSolution(board);
+  if (!mask) return null;
+  return Math.log2(mask & -mask);
+}
+
+/** Tiles a press on `tile` flips, as a bitmask. */
+export function lightsReach(tile: number): number {
+  return LIGHT_MOVES[tile] ?? 0;
 }

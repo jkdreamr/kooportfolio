@@ -8,6 +8,9 @@ import {
   flipLights,
   newLightsBoard,
   LIGHTS_TARGET,
+  lightsPar,
+  lightsReach,
+  lightsSolution,
   lightsHint,
 } from "../src/game/core/labGames";
 
@@ -86,5 +89,28 @@ describe("Math Lab", () => {
       expect(board).toBe(LIGHTS_TARGET);
     }
     expect(lightsHint(LIGHTS_TARGET)).toBeNull();
+  });
+  it("ramps puzzles so the shortest solution always equals par", () => {
+    for (const seed of [0, 7, 123456]) {
+      for (let round = 0; round < 8; round++) {
+        const board = newLightsBoard(round, seed);
+        const solution = lightsSolution(board);
+        let solved = board;
+        for (let tile = 0; tile < 9; tile++)
+          if (solution & (1 << tile)) solved = flipLights(solved, tile);
+        expect(solved).toBe(LIGHTS_TARGET);
+        let presses = 0;
+        for (let m = solution; m; m &= m - 1) presses++;
+        expect(presses).toBe(lightsPar(round));
+        expect(newLightsBoard(round, seed)).toBe(board);
+      }
+    }
+    expect(lightsPar(0)).toBe(2);
+    expect(lightsPar(99)).toBe(6);
+    expect(newLightsBoard(3, 1)).not.toBe(newLightsBoard(3, 2));
+  });
+  it("reports which tiles a press flips", () => {
+    expect(lightsReach(4)).toBe(flipLights(0, 4));
+    expect(lightsReach(9)).toBe(0);
   });
 });
