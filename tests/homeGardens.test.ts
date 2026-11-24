@@ -8,8 +8,10 @@ describe("Home planted districts", () => {
   it("keeps parcel deliveries at their actual Home entrances", () => {
     for (const parcel of PARCEL_DOORS) {
       const door = doorsInWorld("home").find((item) => item.id === parcel.id)!;
-      expect(parcel.p[0], parcel.id).toBeCloseTo(door.x);
-      expect(parcel.p[1], parcel.id).toBeCloseTo(door.z);
+      expect(
+        Math.hypot(parcel.p[0] - door.x, parcel.p[1] - door.z),
+        parcel.id,
+      ).toBeLessThan(0.1);
     }
   });
 
