@@ -29,7 +29,8 @@ export function TelescopeView({
   const [aim, setAim] = useState(INITIAL_AIM);
   const [targetId, setTargetId] = useState<number | null>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
-  const drag = useRef<{ pointer: number; x: number; y: number } | null>(null);
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{ distance: number; zoom: number } | null>(null);
   const id = useId();
   const timestamp = preview
     ? tonightAtLocation(new Date(now), location).getTime()
@@ -134,7 +135,18 @@ export function TelescopeView({
             first?.focus();
           }
         }
-        if (!night || event.target instanceof HTMLSelectElement) return;
+        if (
+          !night ||
+          event.ctrlKey ||
+          event.metaKey ||
+          event.altKey ||
+          event.target instanceof HTMLSelectElement
+        )
+          return;
+        if (event.key === "+" || event.key === "=" || event.key === "-") {
+          event.preventDefault();
+          zoomBy(event.key === "-" ? 1 / 1.25 : 1.25);
+        }
         const direction: Record<string, [number, number]> = {
           ArrowLeft: [-8, 0],
           ArrowRight: [8, 0],
@@ -149,145 +161,173 @@ export function TelescopeView({
     >
       <header className="telescope-header">
         <div>
-          <h2 id={`${id}-title`}>
-            Telescope <span>— {location.label}</span>
-          </h2>
+          <h2 id={`${id}-title`}>{location.label}</h2>
           <p className="telescope-time">
-            {preview ? "Tonight preview" : "Live"} ·{" "}
+            <span className="telescope-sr-only">
+              {preview ? "Tonight preview: " : "Live sky: "}
+            </span>
             <time dateTime={new Date(timestamp).toISOString()}>
               {localTime}
             </time>
           </p>
         </div>
         <button
-          className="telescope-close"
+          className="quiet-button telescope-close"
           ref={closeButton}
           type="button"
           onClick={onClose}
         >
-          Back <span aria-hidden="true">×</span>
+          Back
         </button>
       </header>
 
-      <div className="telescope-aperture">
-        <svg
-          className="telescope-sky"
-          viewBox="-300 -300 600 600"
-          role="img"
-          aria-label={`${night ? "Star chart" : "Daylight sky"} above ${location.label}, ${localTime}`}
-          onPointerDown={(event) => {
-            if (!night) return;
-            event.currentTarget.setPointerCapture(event.pointerId);
-            drag.current = {
-              pointer: event.pointerId,
-              x: event.clientX,
-              y: event.clientY,
-            };
-          }}
-          onPointerMove={(event) => {
-            const previous = drag.current;
-            if (!previous || previous.pointer !== event.pointerId || !night)
-              return;
-            const scale =
-              70 / event.currentTarget.getBoundingClientRect().width;
-            pan(
-              (previous.x - event.clientX) * scale,
-              (event.clientY - previous.y) * scale,
-            );
-            drag.current = {
-              pointer: event.pointerId,
-              x: event.clientX,
-              y: event.clientY,
-            };
-          }}
-          onPointerUp={() => {
-            drag.current = null;
-          }}
-          onPointerCancel={() => {
-            drag.current = null;
-          }}
-          onLostPointerCapture={() => {
-            drag.current = null;
-          }}
-          onWheel={(event) => {
-            if (night) zoomBy(event.deltaY < 0 ? 1.12 : 1 / 1.12);
-          }}
-        >
-          <defs>
-            <radialGradient id={`${id}-glow`}>
-              <stop stopColor="#e5edff" stopOpacity="0.3" />
-              <stop offset="1" stopColor="#ccdfff" stopOpacity="0" />
-            </radialGradient>
-          </defs>
-          {projected.map((star) => {
-            const radius = Math.max(0.65, 2.8 - star.magnitude * 0.36);
-            return (
-              <g key={star.id} data-star-id={star.id}>
-                {star.magnitude < 2 && (
+      <div className="telescope-stage">
+        <div className="telescope-aperture">
+          <svg
+            className="telescope-sky"
+            viewBox="-300 -300 600 600"
+            role="img"
+            aria-label={`${night ? "Star chart" : "Daylight sky"} above ${location.label}, ${localTime}`}
+            onPointerDown={(event) => {
+              if (
+                !night ||
+                (event.pointerType === "mouse" && event.button !== 0)
+              )
+                return;
+              event.currentTarget.setPointerCapture(event.pointerId);
+              pointers.current.set(event.pointerId, {
+                x: event.clientX,
+                y: event.clientY,
+              });
+              if (pointers.current.size === 2) {
+                const [a, b] = [...pointers.current.values()];
+                pinch.current = {
+                  distance: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)),
+                  zoom: aim.zoom,
+                };
+              }
+            }}
+            onPointerMove={(event) => {
+              const previous = pointers.current.get(event.pointerId);
+              if (!previous || !night) return;
+              pointers.current.set(event.pointerId, {
+                x: event.clientX,
+                y: event.clientY,
+              });
+              if (pointers.current.size >= 2) {
+                const [a, b] = [...pointers.current.values()];
+                const distance = Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
+                const start = pinch.current ?? { distance, zoom: aim.zoom };
+                pinch.current = start;
+                setAim((current) => ({
+                  ...current,
+                  zoom: clampZoom((start.zoom * distance) / start.distance),
+                }));
+                return;
+              }
+              const scale =
+                70 / event.currentTarget.getBoundingClientRect().width;
+              pan(
+                (previous.x - event.clientX) * scale,
+                (event.clientY - previous.y) * scale,
+              );
+            }}
+            onPointerUp={(event) => {
+              pointers.current.delete(event.pointerId);
+              pinch.current = null;
+            }}
+            onPointerCancel={(event) => {
+              pointers.current.delete(event.pointerId);
+              pinch.current = null;
+            }}
+            onLostPointerCapture={(event) => {
+              pointers.current.delete(event.pointerId);
+              pinch.current = null;
+            }}
+            onWheel={(event) => {
+              if (night && !event.ctrlKey && !event.metaKey)
+                zoomBy(event.deltaY < 0 ? 1.12 : 1 / 1.12);
+            }}
+          >
+            <defs>
+              <radialGradient id={`${id}-glow`}>
+                <stop stopColor="#e5edff" stopOpacity="0.3" />
+                <stop offset="1" stopColor="#ccdfff" stopOpacity="0" />
+              </radialGradient>
+            </defs>
+            {projected.map((star) => {
+              const radius = Math.max(0.65, 2.8 - star.magnitude * 0.36);
+              return (
+                <g key={star.id} data-star-id={star.id}>
+                  {star.magnitude < 2 && (
+                    <circle
+                      cx={star.x}
+                      cy={star.y}
+                      r={radius * 5}
+                      fill={`url(#${id}-glow)`}
+                    />
+                  )}
                   <circle
                     cx={star.x}
                     cy={star.y}
-                    r={radius * 5}
-                    fill={`url(#${id}-glow)`}
+                    r={radius}
+                    fill={star.color}
+                    opacity={Math.max(0.4, 1 - star.magnitude * 0.08)}
                   />
-                )}
-                <circle
-                  cx={star.x}
-                  cy={star.y}
-                  r={radius}
-                  fill={star.color}
-                  opacity={Math.max(0.4, 1 - star.magnitude * 0.08)}
-                />
-                {guides && star.name && star.magnitude < 3 && (
-                  <text
-                    x={star.x + 8}
-                    y={star.y - 9}
-                    fill="#c5cbd1"
-                    fontSize="10"
-                    fontFamily="inherit"
-                  >
-                    {star.name}
-                  </text>
-                )}
-              </g>
-            );
-          })}
-        </svg>
-        <div className="telescope-reticle" aria-hidden="true" />
-        {!night && (
-          <p className="telescope-day-message" role="status">
-            {sunAltitude > 0 ? "Daylight" : "Twilight"} in {location.label}.
-            <br />
-            <span>Try tonight’s sky below.</span>
-          </p>
-        )}
+                  {guides && star.name && star.magnitude < 3 && (
+                    <text
+                      x={star.x + 8}
+                      y={star.y - 9}
+                      fill="#c5cbd1"
+                      fontSize="10"
+                      fontFamily="inherit"
+                    >
+                      {star.name}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
+          </svg>
+          <div className="telescope-reticle" aria-hidden="true" />
+          {!night && (
+            <p className="telescope-day-message" role="status">
+              {sunAltitude > 0 ? "Daylight" : "Twilight"} in {location.label}.
+              <br />
+              <span>Try tonight’s sky below.</span>
+            </p>
+          )}
+        </div>
       </div>
 
       <footer className="telescope-controls">
-        <div className="telescope-time-row" role="group" aria-label="Sky time">
-          <button
-            type="button"
-            aria-pressed={!preview}
-            onClick={() => changeTime(false)}
+        <div className="telescope-main-controls">
+          <div
+            className="telescope-time-row"
+            role="group"
+            aria-label="Sky time"
           >
-            Live
-          </button>
-          <button
-            type="button"
-            aria-pressed={preview}
-            onClick={() => changeTime(true)}
-          >
-            Tonight · 10 pm
-          </button>
-          <output aria-label="Telescope direction">
-            {Math.round(viewingAim.azimuth)}° az ·{" "}
-            {Math.round(viewingAim.altitude)}° alt
-          </output>
-        </div>
-        <div className="telescope-target-row">
-          <label>
+            <button
+              className="quiet-button"
+              type="button"
+              aria-pressed={!preview}
+              onClick={() => changeTime(false)}
+            >
+              Live
+            </button>
+            <button
+              className="quiet-button"
+              type="button"
+              aria-pressed={preview}
+              onClick={() => changeTime(true)}
+            >
+              Tonight
+            </button>
+          </div>
+          <label className="telescope-target">
             <span className="telescope-sr-only">Point telescope at</span>
             <select
+              className="quiet-button"
               value={target?.id ?? ""}
               disabled={!night}
               onChange={(event) => {
@@ -309,15 +349,19 @@ export function TelescopeView({
             </select>
           </label>
           <button
+            className="quiet-button telescope-names"
             type="button"
             disabled={!night}
             aria-pressed={guides}
             onClick={() => setGuides(!guides)}
           >
-            Star names
+            Names
           </button>
+        </div>
+        <div className="telescope-desktop-controls">
           <div className="telescope-zoom">
             <button
+              className="quiet-button"
               type="button"
               disabled={!night || aim.zoom <= MIN_ZOOM}
               aria-label="Zoom out"
@@ -329,6 +373,7 @@ export function TelescopeView({
               {Math.round(70 / aim.zoom)}°
             </output>
             <button
+              className="quiet-button"
               type="button"
               disabled={!night || aim.zoom >= MAX_ZOOM}
               aria-label="Zoom in"
@@ -337,15 +382,13 @@ export function TelescopeView({
               +
             </button>
           </div>
-        </div>
-        <div className="telescope-aim-row">
-          <span>Drag to aim</span>
           <div
             className="telescope-pan"
             role="group"
             aria-label="Aim telescope"
           >
             <button
+              className="quiet-button"
               type="button"
               disabled={!night}
               aria-label="Aim left"
@@ -354,6 +397,7 @@ export function TelescopeView({
               ←
             </button>
             <button
+              className="quiet-button"
               type="button"
               disabled={!night}
               aria-label="Aim up"
@@ -362,6 +406,7 @@ export function TelescopeView({
               ↑
             </button>
             <button
+              className="quiet-button"
               type="button"
               disabled={!night}
               aria-label="Aim down"
@@ -370,6 +415,7 @@ export function TelescopeView({
               ↓
             </button>
             <button
+              className="quiet-button"
               type="button"
               disabled={!night}
               aria-label="Aim right"
@@ -379,6 +425,7 @@ export function TelescopeView({
             </button>
           </div>
           <button
+            className="quiet-button"
             type="button"
             disabled={!night}
             onClick={() => {
@@ -389,14 +436,24 @@ export function TelescopeView({
             Recenter
           </button>
         </div>
+        <div className="telescope-readout">
+          <output aria-label="Telescope direction">
+            {Math.round(viewingAim.azimuth)}° az ·{" "}
+            {Math.round(viewingAim.altitude)}° alt
+          </output>
+          <output className="telescope-touch-fov" aria-label="Field of view">
+            {Math.round(70 / aim.zoom)}° field
+          </output>
+          <span className="telescope-desktop-hint">Drag · Scroll</span>
+          <span className="telescope-touch-hint">Drag · Pinch</span>
+        </div>
         <p className="telescope-attribution">
-          Clear-sky chart ·{" "}
           <a
             href={`${import.meta.env.BASE_URL}stargazing-data.txt`}
             target="_blank"
             rel="noopener noreferrer"
           >
-            HYG catalogue &amp; model
+            HYG catalogue
           </a>
         </p>
       </footer>
