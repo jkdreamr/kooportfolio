@@ -195,10 +195,10 @@ export const islandLocals: Villager[] = [
     place: "photo",
     lines: ["I blinked in every single one."],
     route: [
-      [1, 7],
-      [5, 8],
-      [8, 12],
-      [2, 12],
+      [13.4, -13.3],
+      [16, -13.3],
+      [18.5, -13.3],
+      [18.5, -11.7],
     ],
     stops: { 0: { duration: 14, heading: -Math.PI / 2 } },
   },
@@ -213,7 +213,7 @@ export const islandLocals: Villager[] = [
     route: [
       [7, 2],
       [10, -2],
-      [13, -1],
+      [11, 1],
       [10, 5],
     ],
   },
@@ -256,10 +256,10 @@ export const islandLocals: Villager[] = [
     place: "cognition",
     lines: ["I came out here to stop thinking about the puzzle."],
     route: [
-      [10, -12],
-      [10, -7],
-      [16, -6],
-      [14, -6],
+      [2, -13.5],
+      [4.5, -12.95],
+      [7.5, -13.3],
+      [7.5, -10.5],
     ],
   },
   {

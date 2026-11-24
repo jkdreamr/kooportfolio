@@ -79,8 +79,8 @@ export const routines: Record<string, Pick<Villager, "route" | "stops">> = {
   },
   maker: {
     route: [
-      [14, -8],
-      [8, -8],
+      [3.5, -12.6],
+      [0, -9],
       [11, -2],
       [27, 13],
       [23, 15],
@@ -216,11 +216,11 @@ export const extraLocals: Villager[] = [
       "The booth's good for a less blurry one.",
     ],
     route: [
-      [-6, -3.3],
-      [-3, 3],
-      [9, 3],
+      [11, -13.15],
+      [16, -13.15],
+      [21, -7],
       [18, 1],
-      [4, -3],
+      [21, -11],
     ],
     stops: {
       0: { duration: 10, heading: Math.PI },
