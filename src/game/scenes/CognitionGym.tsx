@@ -96,6 +96,15 @@ function GymControls() {
   );
   useEffect(() => {
     const close = () => useGym.getState().cancelSession();
+    window.addEventListener("interior-game-close", close);
+    return () => {
+      window.removeEventListener("interior-game-close", close);
+      close();
+    };
+  }, []);
+  useEffect(() => {
+    // The room's E shortcut opens Play; that same event must not lift too.
+    if (!active) return;
     const key = (e: KeyboardEvent) => {
       if (
         e.repeat ||
@@ -109,14 +118,9 @@ function GymControls() {
         useGym.getState().lift();
       }
     };
-    window.addEventListener("interior-game-close", close);
     window.addEventListener("keydown", key);
-    return () => {
-      window.removeEventListener("interior-game-close", close);
-      window.removeEventListener("keydown", key);
-      close();
-    };
-  }, []);
+    return () => window.removeEventListener("keydown", key);
+  }, [active]);
   useFrame(() => {
     if (!gameIsActive()) return;
     if (!active) {
