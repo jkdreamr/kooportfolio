@@ -116,6 +116,12 @@ function KitchenControls({
       aria-label="Kitchen service"
       data-interior-game-open="true"
       onPointerDown={(event) => event.stopPropagation()}
+      onKeyDown={(event) => {
+        if (event.key !== "Escape") event.stopPropagation();
+      }}
+      onKeyUp={(event) => {
+        if (event.key !== "Escape") event.stopPropagation();
+      }}
     >
       <header className="papa-top">
         <div>
@@ -640,6 +646,14 @@ export function PapaKitchenGame({ onReward }: InteriorGameProps) {
             <button
               className="papa-play"
               ref={focusElement}
+              onKeyDown={(event) => {
+                if (event.key === " " || event.key === "Enter")
+                  event.stopPropagation();
+              }}
+              onKeyUp={(event) => {
+                if (event.key === " " || event.key === "Enter")
+                  event.stopPropagation();
+              }}
               onClick={() => {
                 pendingFocus.current = true;
                 if (startGameMode("kitchen")) {
