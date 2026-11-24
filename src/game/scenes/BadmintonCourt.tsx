@@ -320,6 +320,7 @@ const moveKeys = new Set([
   "1",
   "2",
   "3",
+  "escape",
 ]);
 
 /** Furnishings for the shared 34×40 hall; the host hides Walker while playing. */
@@ -382,6 +383,12 @@ export function BadmintonCourt({
       e.preventDefault();
       e.stopImmediatePropagation();
       const key = e.key.toLowerCase();
+      if (key === "escape") {
+        setPlaying(false);
+        runtime.target = null;
+        runtime.path = [];
+        return;
+      }
       held.current.add(key);
       if (e.repeat) return;
       if (key === " ") input.current.swing = true;
@@ -649,9 +656,10 @@ export function BadmintonCourt({
                     </p>
                     <button
                       className="badminton-leave badminton-quiet"
+                      aria-label="Close match"
                       onClick={end}
                     >
-                      End match
+                      Close
                     </button>
                   </>
                 )}

@@ -206,8 +206,8 @@ export function BadmintonGym({ score }: { score: number[] }) {
                 c="#51666c"
               />
               <CraftedBox s={[2.5, 0.32, 0.8]} c="#253e48" metal />
-              <mesh position={[0, -0.18, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                <planeGeometry args={[2.2, 0.58]} />
+              <mesh position={[0, -0.18, 0]}>
+                <boxGeometry args={[2.2, 0.1, 0.58]} />
                 <meshStandardMaterial
                   color="#fff0cd"
                   emissive="#ffe0a6"
