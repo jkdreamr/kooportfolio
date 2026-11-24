@@ -3,6 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { advanceHour, DAYLIGHT_KEYS, sampleDaylight } from "../core/daylight";
 import { daylightClock, useTimeOfDay } from "../core/timeOfDay";
+import { readWorldHour } from "../core/worldTime";
 import { runtime, useGame } from "../core/store";
 import { isInterior } from "../core/world";
 
@@ -100,10 +101,12 @@ export function TimeOfDayLighting() {
   useFrame(({ scene: world, size }, delta) => {
     const state = useGame.getState();
     if (!state.paused && runtime.active) {
+      const time = useTimeOfDay.getState();
       daylightClock.hour = advanceHour(
         daylightClock.hour,
         delta,
-        useTimeOfDay.getState().mode,
+        time.mode,
+        time.mode === "auto" ? readWorldHour(time.timeZone) : undefined,
       );
       displayedAt.current += Math.min(delta, 0.1);
       if (displayedAt.current >= 0.25) {
