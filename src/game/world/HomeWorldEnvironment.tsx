@@ -36,11 +36,9 @@ function path(x: number, z: number, width: number, depth: number) {
 
 // Quiet domestic garden lanes connect the existing Home room thresholds.
 path(0, -5, 3.6, 53);
-path(-19, -34, 38, 3.4);
-path(-38, -34.5, 3.4, 9);
 path(-12, -18, 24, 3.4);
 path(-11, -20, 3.4, 4);
-path(-21, 10, 42, 3.6);
+path(-21, 7.5, 42, 3);
 path(-14, 18, 28, 3.4);
 path(-21, 29, 42, 3.6);
 path(21.5, -9, 43, 3.6);
@@ -51,7 +49,7 @@ path(-59, 12, 32, 3.6);
 path(28, 29, 56, 3.6);
 path(58, 43.5, 3.6, 35);
 path(58, 61, 10, 3.4);
-path(-19, -30, 38, 3.4);
+path(-9, -30, 18, 3.4);
 
 // Limestone at the Study and kitchen entrances; timber on the Go approach.
 for (let i = 0; i < 9; i++) {
@@ -64,7 +62,7 @@ for (let i = 0; i < 9; i++) {
 }
 for (let i = 0; i < 16; i++) {
   paths.push({
-    p: [-42, 0.22, 22.1 + i * 0.39],
+    p: [-20, 0.22, 15.1 + i * 0.39],
     s: [3.2, 0.045, 0.34],
     c: i % 3 ? "#88745b" : "#9b8467",
   });
