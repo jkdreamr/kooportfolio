@@ -173,25 +173,20 @@ describe("walkable physical world", () => {
       ).toBeLessThan(1.2);
     }
   });
-  it("can navigate between distant districts and keeps every destination reachable", () => {
-    for (const start of doors)
-      for (const destination of doors) {
-        if (start === destination) continue;
-        const path = findPath(
-          [start.x, start.z],
-          [destination.x, destination.z],
-        );
-        expect(path.length, `${start.id} → ${destination.id}`).toBeGreaterThan(
-          0,
-        );
-        expect(path.every((p) => canWalk(...p))).toBe(true);
-        expect(
-          Math.hypot(
-            path.at(-1)![0] - destination.x,
-            path.at(-1)![1] - destination.z,
-          ),
-        ).toBeLessThan(1.2);
-      }
+  // Keep exhaustive coverage without one quadratic case timing out as the island grows.
+  it.each(doors)("can navigate from $id to every distant district", (start) => {
+    for (const destination of doors) {
+      if (start === destination) continue;
+      const path = findPath([start.x, start.z], [destination.x, destination.z]);
+      expect(path.length, `${start.id} → ${destination.id}`).toBeGreaterThan(0);
+      expect(path.every((p) => canWalk(...p))).toBe(true);
+      expect(
+        Math.hypot(
+          path.at(-1)![0] - destination.x,
+          path.at(-1)![1] - destination.z,
+        ),
+      ).toBeLessThan(1.2);
+    }
   });
   it("traverses a Study-to-Court corner without cutting the collision edge", () => {
     const study = doors.find((door) => door.id === "office")!,
