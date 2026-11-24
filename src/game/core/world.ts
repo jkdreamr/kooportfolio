@@ -6,6 +6,7 @@ import { POND } from "./pond";
 import { belongsToWorld, type WorldId } from "./worlds";
 import { HOME_COMMUNITY_OBSTACLES } from "../world/CommunityScenery";
 import { villageGardenSolids } from "./villageGardens";
+import { HOME_GARDEN_OBSTACLES } from "./homeGardens";
 import {
   KOREA_WATER_OBSTACLES,
   KOREA_BRIDGE_RAILS,
@@ -253,7 +254,9 @@ const obstaclesFor = (world?: WorldId): ReadonlyArray<readonly number[]> => [
         ...KOREA_PARK_TREES.map(({ p }) => [p[0], p[2], 0.4, 0.4]),
       ]
     : []),
-  ...(world === "home" ? [...HOME_COMMUNITY_OBSTACLES] : []),
+  ...(world === "home"
+    ? [...HOME_COMMUNITY_OBSTACLES, ...HOME_GARDEN_OBSTACLES]
+    : []),
 ];
 const regionalObstacles = {
   home: obstaclesFor("home"),

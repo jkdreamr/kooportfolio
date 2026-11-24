@@ -3,6 +3,8 @@ import { HomeCommunity } from "./CommunityScenery";
 import { RegionalTerrain } from "./RegionalTerrain";
 import { GroundGrass } from "./Scenery";
 import type { GroundFootprint } from "../core/scenery";
+import { HOME_GARDEN_FOOTPRINTS } from "../core/homeGardens";
+import { HomeGardens } from "./HomeGardens";
 
 const paths: SceneryPart[] = [];
 function path(x: number, z: number, width: number, depth: number) {
@@ -67,48 +69,16 @@ for (let i = 0; i < 16; i++) {
     c: i % 3 ? "#88745b" : "#9b8467",
   });
 }
-export const HOME_PATH_FOOTPRINTS = paths.map<GroundFootprint>(({ p, s }) => [
-  p[0],
-  p[2],
-  s[0],
-  s[2],
-]);
-
-// Low garden beds remain below the movement plane. Planting is kept behind
-// existing walls/room footprints; the world retains all solid-object ownership.
-const gardens: SceneryPart[] = [];
-for (const [x, z, width, depth] of [
-  [-20, 1, 18, 12],
-  [18, 19, 21, 13],
-  [-18, 24, 13, 5],
-  [22, -22, 14, 12],
-] as const) {
-  gardens.push({
-    p: [x, 0.16, z],
-    s: [width, 0.045, depth],
-    c: "#78845b",
-    shape: "stone",
-  });
-  // Broad irregular patches replace high-frequency lawn checkerboards.
-  for (let i = 0; i < 6; i++) {
-    gardens.push({
-      p: [
-        x + Math.sin(i * 2.4) * width * 0.29,
-        0.19,
-        z + Math.cos(i * 2.4) * depth * 0.28,
-      ],
-      s: [width * 0.17, 0.02, depth * 0.14],
-      c: i % 2 ? "#7f8b61" : "#738057",
-      shape: "rock",
-    });
-  }
-}
+export const HOME_PATH_FOOTPRINTS: GroundFootprint[] = [
+  ...HOME_GARDEN_FOOTPRINTS,
+  ...paths.map<GroundFootprint>(({ p, s }) => [p[0], p[2], s[0], s[2]]),
+];
 
 /** Home yard dressing only: no duplicate rooms, ground, travel or telescope. */
 export function HomeWorldEnvironment() {
   return (
     <group name="home-environment">
-      <WorldSceneryParts parts={gardens} />
+      <HomeGardens />
       <WorldSceneryParts parts={paths} />
       <GroundGrass avoid={HOME_PATH_FOOTPRINTS} />
       <RegionalTerrain region="bay" />
