@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { KOREA_EXERCISE_YARD } from "../core/regionalActivities";
 import { beam, WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
 
 type Footprint = readonly [number, number, number, number];
@@ -238,7 +239,8 @@ picnic(korea, koreaSolids, 45, -0.3);
 
 // A calisthenics yard faces the main east-west path. Only the actual apparatus
 // is solid: visitors can enter the exercise pad instead of hitting a large box.
-part(korea, -43, 0.2, 3, 18, 0.1, 11, "#718986");
+const [yardX, yardZ, yardWidth, yardDepth] = KOREA_EXERCISE_YARD;
+part(korea, yardX, 0.2, yardZ, yardWidth, 0.1, yardDepth, "#718986");
 part(korea, -43, 0.26, 3, 13, 0.025, 7.7, "#81958e");
 part(korea, -43, 0.19, 10, 3, 0.05, 4, "#aaa99e");
 for (const [x, z, h] of [

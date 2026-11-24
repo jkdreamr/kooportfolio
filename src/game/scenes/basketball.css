@@ -144,6 +144,12 @@
   left: 24px;
   width: 205px;
 }
+.court-session .basketball-mode-select {
+  width: 100%;
+  min-width: 0;
+  flex: 0 0 100%;
+  color-scheme: dark;
+}
 .court-feedback {
   position: absolute;
   bottom: 196px;
@@ -191,18 +197,25 @@
   background: #f6d27c99;
   border-inline: 1px solid #ffe5a2;
 }
-.court-shot label {
-  display: flex;
+.court-aim {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   margin: 9px 0;
+  font-size: 11px;
+}
+.court-session .court-aim button {
+  padding: 6px;
+  min-width: 44px;
+  min-height: 44px;
   font-size: 11px;
 }
 .court-shot input {
   width: 100%;
   min-width: 0;
   accent-color: #dfb675;
-  height: 22px;
+  height: 44px;
 }
 .court-session .court-shoot {
   width: 100%;

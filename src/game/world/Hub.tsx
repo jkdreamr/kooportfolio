@@ -330,13 +330,20 @@ export function Hub() {
     build = useGame((s) => s.build),
     world = useGame((s) => s.world),
     traveling = useGame((s) => s.traveling);
+  const skate = doorsInWorld(world).find((door) => door.id === "skate");
   return (
     <group>
       <Landscape world={world} />
       <VillageGardens world={world} />
       <RegionalActivities world={world} />
       {world === "home" && <HomeWorldEnvironment />}
-      {world === "korea" && <KoreaWorldEnvironment />}
+      {world === "korea" && (
+        <KoreaWorldEnvironment
+          onVisitLandmark={(x, z) => {
+            if (!build && !traveling) walkTo(x, z);
+          }}
+        />
+      )}
       <Bulletin />
       <Wildlife />
       {world === "stanford" && !save.memories.includes(HOOVER_KEY) && (
@@ -344,7 +351,7 @@ export function Hub() {
           <HooverKey />
         </group>
       )}
-      {world === "stanford" && (
+      {world === "stanford" && skate && (
         <group
           onPointerDown={(event) => {
             event.stopPropagation();
@@ -354,7 +361,10 @@ export function Hub() {
             if (!build && !traveling) walkTo(door.x, door.z);
           }}
         >
-          <SkateParkBuilding />
+          <SkateParkBuilding
+            position={[skate.footprint[0], 0, skate.footprint[1]]}
+            rotation={skate.rotation}
+          />
         </group>
       )}
       {world === "korea" && (

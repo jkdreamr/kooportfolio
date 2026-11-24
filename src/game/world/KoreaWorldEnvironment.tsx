@@ -3,8 +3,16 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { daylightClock } from "../core/timeOfDay";
 import { sampleDaylight } from "../core/daylight";
+import {
+  KOREA_GARDEN_WALKS,
+  KOREA_LANDMARK_FOOTPRINTS,
+  KOREA_LANDMARKS,
+} from "../core/koreaLandmarks";
+import { KOREA_EXERCISE_YARD } from "../core/regionalActivities";
 import { HanRiverBridge } from "./HanRiverBridge";
-import { SeoulSkyline } from "./SeoulSkyline";
+import { RegionalTerrain } from "./RegionalTerrain";
+import { KoreaHistoricLandmarks } from "./KoreaHistoricLandmarks";
+import { NamsanTower } from "./NamsanTower";
 import { NaturalTrees, type TreePlacement } from "./TreeArt";
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
 import { GroundGrass } from "./Scenery";
@@ -32,6 +40,15 @@ slab(11.5, 10, 27, 3.4);
 slab(-6, -3, 3.3, 5);
 slab(-10, -30, 24, 3.5);
 slab(-19, -34, 38, 3);
+const [towerX, towerZ] = KOREA_LANDMARKS.namsan.origin;
+slab(towerX, towerZ + 1, 4.4, 4.2, "#b8b5a8");
+slab(towerX, towerZ + 7.8, 2.4, 9.4);
+slab(-48, -11.9, 2.25, 14);
+slab(-49.25, -5, 4.1, 2.15);
+slab(-53, 2.875, 2.25, 14.5);
+for (const [x, z, width, depth] of KOREA_GARDEN_WALKS) {
+  slab(x, z, width, depth, "#b3ab97");
+}
 slab(0, 12, 145, 3.3);
 slab(25, 18.7, 79, 3.2);
 slab(25, 15.8, 79, 1.9, "#a27d72");
@@ -70,6 +87,8 @@ for (let x = -6; x < 7; x += 1.6)
 for (const z of [21.55, 44.45]) slab(25, z, 74.8, 0.55, "#cbc7b7");
 const pavedFootprints = [
   KOREA_RIVER_FOOTPRINT,
+  KOREA_EXERCISE_YARD,
+  ...KOREA_LANDMARK_FOOTPRINTS,
   ...paving.map<GroundFootprint>(({ p, s }) => [p[0], p[2], s[0], s[2]]),
 ];
 
@@ -190,14 +209,20 @@ function HangangWater() {
 }
 
 /** Additive district. Mount KoreaRiverGround in place of the shared terrain. */
-export function KoreaWorldEnvironment() {
+export function KoreaWorldEnvironment({
+  onVisitLandmark,
+}: {
+  onVisitLandmark: (x: number, z: number) => void;
+}) {
   return (
     <group name="korea-environment">
       <WorldSceneryParts parts={paving} />
       <GroundGrass avoid={pavedFootprints} />
       <WorldSceneryParts parts={park} />
       <NaturalTrees trees={trees} />
-      <SeoulSkyline />
+      <RegionalTerrain region="seoul" />
+      <NamsanTower onVisit={onVisitLandmark} />
+      <KoreaHistoricLandmarks onVisit={onVisitLandmark} />
       <HangangWater />
       <HanRiverBridge />
       <KoreaRiversideLife />
