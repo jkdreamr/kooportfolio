@@ -78,21 +78,15 @@ describe("photo booth asynchronous captures", () => {
     requestPhoto();
     expect(usePhotoBooth.getState().error).toBe("");
   });
-  it("keeps the three-second shot lightweight and requests full resolution only on save", () => {
+  it("keeps pose previews lightweight and retains a single full-resolution approved shot", () => {
     expect(usePhotoBooth.getState().request?.resolution).toBe("preview");
     requestPhoto(true);
     const shot = usePhotoBooth.getState().request!;
-    expect(shot.resolution).toBe("preview");
+    expect(shot.resolution).toBe("full");
     finishPhoto(shot.id, new Blob());
     expect(usePhotoBooth.getState().stage).toBe("ready");
-    expect(usePhotoBooth.getState().card?.resolution).toBe("preview");
-    requestPhoto(true, "full");
-    const saving = usePhotoBooth.getState().request!;
-    expect(saving.resolution).toBe("full");
-    // A late preview cannot replace the requested full-resolution download.
-    finishPhoto(shot.id, new Blob());
-    expect(usePhotoBooth.getState().request?.id).toBe(saving.id);
-    finishPhoto(saving.id, new Blob());
     expect(usePhotoBooth.getState().card?.resolution).toBe("full");
+    expect(usePhotoBooth.getState().request).toBeNull();
+    expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
   });
 });
