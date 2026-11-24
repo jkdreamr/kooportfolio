@@ -1,5 +1,10 @@
 // Deterministic tree trunks are shared by scenery and collision/pathfinding.
 import { WORLD_ELLIPSE } from "../../shared/world-bounds";
+import {
+  isKoreaGardenWalk,
+  isKoreaLandmarkArea,
+  KOREA_LANDMARK_CANOPY_CLEARANCE,
+} from "./koreaLandmarks";
 
 export type GroundFootprint = readonly [
   x: number,
@@ -65,4 +70,10 @@ export const forest = Array.from({ length: 160 }, (_, i) => {
       (x > 25 && x < 66 && z > 20 && z < 45) ||
       (x > 47 && x < 69 && z > 42 && z < 63)
     ),
+);
+
+export const koreaForest = forest.filter(
+  ({ x, z }) =>
+    !isKoreaLandmarkArea(x, z, KOREA_LANDMARK_CANOPY_CLEARANCE) &&
+    !isKoreaGardenWalk(x, z, 0.6),
 );

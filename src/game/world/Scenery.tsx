@@ -1,10 +1,16 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { forest, grassSites, type GroundFootprint } from "../core/scenery";
+import {
+  forest,
+  grassSites,
+  koreaForest,
+  type GroundFootprint,
+} from "../core/scenery";
+import { isKoreaGardenWalk, isKoreaLandmarkArea } from "../core/koreaLandmarks";
+import type { WorldId } from "../core/worlds";
 import { NaturalTrees } from "./TreeArt";
 import { sculptedMaterial } from "./Surface";
 import { isStanfordTownSpace } from "../core/stanfordLayout";
-import type { WorldId } from "../core/worlds";
 
 type Part = {
   p: [number, number, number];
@@ -54,6 +60,8 @@ const trees = forest.map(({ x, z, height }, i) => ({
   size: (height + 1.8) / 4.8,
   variant: i % 7,
 }));
+const koreaTrunks = new Set(koreaForest);
+const koreaTrees = trees.filter((_, i) => koreaTrunks.has(forest[i]));
 forest.forEach(({ x, z }, i) => {
   if (i % 3 === 0)
     rocks.push({
@@ -80,12 +88,24 @@ const stanfordTrees = trees.filter(
 const stanfordRocks = rocks.filter(
   ({ p }) => !isStanfordTownSpace(p[0], p[2], 3),
 );
-export function Scenery({ world }: { world?: WorldId }) {
+const outsideLandmarks = ({ p: [x, , z] }: Part) =>
+  !isKoreaLandmarkArea(x, z, 0.6) && !isKoreaGardenWalk(x, z, 0.6);
+const koreaRocks = rocks.filter(outsideLandmarks);
+
+export function Scenery({ world }: { world: WorldId }) {
+  const korea = world === "korea";
   return (
     <>
-      <NaturalTrees trees={world === "stanford" ? stanfordTrees : trees} />
+      <NaturalTrees
+        trees={
+          korea ? koreaTrees : world === "stanford" ? stanfordTrees : trees
+        }
+      />
       <Instances
-        parts={world === "stanford" ? stanfordRocks : rocks}
+        key={`${world}-rocks`}
+        parts={
+          korea ? koreaRocks : world === "stanford" ? stanfordRocks : rocks
+        }
         geometry={crown}
       />
     </>
