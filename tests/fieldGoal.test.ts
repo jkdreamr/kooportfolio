@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   FIELD_GOAL,
   goalCrossingTime,
+  goalClearanceTime,
   judgeKick,
   kickPosition,
   kickPower,
@@ -27,6 +28,20 @@ describe("stadium field goals", () => {
         (FIELD_GOAL.startZ - FIELD_GOAL.goalZ),
     );
     expect(judgeKick({ angle, power: 0.7 })).toBe("Wide right");
+  });
+
+  it("rejects a descending ball that clips after its center crosses the bar", () => {
+    const kick = { angle: 0, power: 0.52206 };
+    const [, y] = kickPosition(kick, goalCrossingTime(kick));
+    expect(y - FIELD_GOAL.ballRadius - FIELD_GOAL.postRadius).toBeGreaterThan(
+      FIELD_GOAL.crossbar,
+    );
+    expect(judgeKick(kick)).toBe("Short");
+    expect(goalClearanceTime(kick)).toBeGreaterThan(goalCrossingTime(kick));
+    expect(kickPosition(kick, goalClearanceTime(kick))[2]).toBeCloseTo(
+      FIELD_GOAL.goalZ - FIELD_GOAL.ballRadius - FIELD_GOAL.postRadius,
+    );
+    expect(judgeKick({ angle: 0, power: 0.53 })).toBe("Good");
   });
   it("allows a high kick above the tops of the uprights", () => {
     expect(judgeKick({ angle: 0, power: 1 })).toBe("Good");

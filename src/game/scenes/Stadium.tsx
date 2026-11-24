@@ -6,7 +6,7 @@ import { Walker } from "../world/Hub";
 import { runtime } from "../core/store";
 import {
   FIELD_GOAL,
-  goalCrossingTime,
+  goalClearanceTime,
   judgeKick,
   kickPosition,
   kickPower,
@@ -162,7 +162,7 @@ export function StadiumInterior() {
         ball.current.position.set(x, Math.max(0.32, y), z);
         ball.current.rotation.x -= dt * 13;
       }
-      if (!current.judged && current.time >= goalCrossingTime(current.kick)) {
+      if (!current.judged && current.time >= goalClearanceTime(current.kick)) {
         current.judged = true;
         const result = judgeKick(current.kick);
         if (result === "Good") setScore((n) => n + 1);
@@ -241,7 +241,7 @@ export function StadiumInterior() {
               aria-label="Kick power"
               min={0}
               max={1}
-            low={0.55}
+              low={0.55}
               high={0.9}
               optimum={0.7}
               defaultValue={power.current}
