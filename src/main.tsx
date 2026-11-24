@@ -8,7 +8,6 @@ function App() {
     <Suspense
       fallback={
         <div className="loading-world">
-          <span className="loader-mark">jk.</span>
           <p>Loading village…</p>
           <a href="/">Back to the portfolio</a>
         </div>

@@ -1,8 +1,40 @@
-import { WORLD_BOUNDS } from "../../shared/world-bounds";
+import { WORLD_BOUNDS, WORLD_ELLIPSE } from "../../shared/world-bounds";
 import { forest } from "./scenery";
 import { campusObstacles } from "./campus";
 
 export const doors = [
+  {
+    id: "badminton",
+    name: "Badminton",
+    x: -42,
+    z: -14.8,
+    anchor: [-42, 7, -20] as const,
+    footprint: [-42, -20, 5.5, 4.2] as const,
+  },
+  {
+    id: "go",
+    name: "Go",
+    x: -42,
+    z: 23.2,
+    anchor: [-42, 7, 19] as const,
+    footprint: [-42, 19, 3.6, 2.7] as const,
+  },
+  {
+    id: "writing",
+    name: "Writing",
+    x: 0,
+    z: -42.5,
+    anchor: [0, 7.5, -46] as const,
+    footprint: [0, -46, 3.6, 2.5] as const,
+  },
+  {
+    id: "stadium",
+    name: "49ers Stadium",
+    x: 43,
+    z: -16.5,
+    anchor: [43, 8, -21] as const,
+    footprint: [43, -21, 4, 3.5] as const,
+  },
   {
     id: "boathouse",
     name: "Boathouse",
@@ -78,6 +110,13 @@ export const doors = [
 ] as const;
 export const landmarks = [
   {
+    id: "bulletin",
+    name: "Bulletin",
+    x: 0,
+    z: -4.6,
+    anchor: [0, 4.6, -6.6] as const,
+  },
+  {
     id: "campus",
     name: "Stanford",
     x: 23,
@@ -94,6 +133,7 @@ const obstacles: ReadonlyArray<readonly number[]> = [
   ...doors.map((door) => door.footprint),
   ...forest.map((tree) => [tree.x, tree.z, 0.4, 0.4]),
   ...campusObstacles,
+  [0, -6.6, 2.1, 0.4],
   [0, 0, 1.5, 1.5],
 ];
 export function canWalk(x: number, z: number) {
@@ -102,7 +142,9 @@ export function canWalk(x: number, z: number) {
     x > WORLD_BOUNDS.maxX ||
     z < WORLD_BOUNDS.minZ ||
     z > WORLD_BOUNDS.maxZ ||
-    (x / 49.5) ** 2 + ((z + 1) / 41.5) ** 2 > 1
+    (x / WORLD_ELLIPSE.radiusX) ** 2 +
+      ((z - WORLD_ELLIPSE.centerZ) / WORLD_ELLIPSE.radiusZ) ** 2 >
+      1
   )
     return false;
   return !obstacles.some(
@@ -139,7 +181,9 @@ export function findPath(
     parents = new Map<string, string>();
   seen.set(key(sx, sz), 0);
   for (let n = 0; n < 6000 && open.length; n++) {
-    open.sort((a, b) => a.f - b.f);
+    // Prefer progress toward the goal within the same A* contour. Otherwise
+    // long district routes exhaust the search budget exploring a flat rectangle.
+    open.sort((a, b) => a.f - b.f || b.cost - a.cost);
     const cur = open.shift()!,
       ck = key(cur.x, cur.z);
     if (Math.hypot(cur.x - ex, cur.z - ez) <= 1) {

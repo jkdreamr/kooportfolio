@@ -17,6 +17,7 @@ import { movement } from "../core/input";
 import { canWalk, doors, moveWorld } from "../core/world";
 import { LabelProjection } from "./Labels";
 import { Landscape } from "./Landscape";
+import { Bulletin } from "./Bulletin";
 import { ROOM } from "../core/room";
 import { BeatLabShell, MathLabShell } from "./LabBuildings";
 import {
@@ -108,10 +109,12 @@ export function Walker({ interior = false }: { interior?: boolean }) {
             } as Record<string, string>
           )[state.scene] ?? "";
       }
-    } else
+    } else {
       near =
         doors.find((d) => Math.hypot(d.x - runtime.x, d.z - runtime.z) < 1.9)
           ?.id ?? "";
+      if (Math.hypot(runtime.x, runtime.z + 4.6) < 1.9) near = "read";
+    }
     state.setNear(near);
     const mobile = size.width < 700 || size.height < 500;
     const closeInterior = interior && (mobile || size.height < 500);
@@ -234,6 +237,7 @@ export function Hub() {
   return (
     <group>
       <Landscape />
+      <Bulletin />
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
         position={[0, 0.24, -1]}
@@ -243,7 +247,7 @@ export function Hub() {
             walkTo(e.point.x, e.point.z);
         }}
       >
-        <planeGeometry args={[104, 90]} />
+        <planeGeometry args={[144, 122]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
       {doors.map((door) => (
@@ -255,6 +259,10 @@ export function Hub() {
             <House p={[0, 0, 0]} level={save.upgrades.boathouse} />
           )}
           {door.id === "office" && <House p={[0, 0, 0]} kind="study" />}
+          {(door.id === "go" ||
+            door.id === "writing" ||
+            door.id === "badminton" ||
+            door.id === "stadium") && <House p={[0, 0, 0]} kind="study" />}
           {door.id === "music" && <BeatLabShell />}
           {door.id === "math" && <MathLabShell />}
           {door.id === "basketball" && <CourtPavilion />}
