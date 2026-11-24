@@ -1,3 +1,5 @@
+import { KOREA_MARKET, KOREA_PICNIC } from "./koreaDistrict";
+
 export const KOREA_MAIN_STREET_Z = -14.4;
 export const KOREA_STREET_BUILDINGS = {
   theater: [-8, KOREA_MAIN_STREET_Z - 5.2],
@@ -28,12 +30,7 @@ const village = {
 } as const;
 
 export const KOREA_LANDMARKS = { namsan, palace, village };
-export const KOREA_MAIN_STREET = [
-  -5.85,
-  KOREA_MAIN_STREET_Z,
-  54.3,
-  3.2,
-] as const;
+export const KOREA_MAIN_STREET = [7.5, KOREA_MAIN_STREET_Z, 81, 3.2] as const;
 export const KOREA_GARDEN_WALKS = [
   KOREA_MAIN_STREET,
   [-50.6, KOREA_MAIN_STREET_Z, 6.8, 2.4],
@@ -43,9 +40,9 @@ export const KOREA_GARDEN_WALKS = [
   [-19, -28.55, 2.4, 2.9],
   [-23.5, -1.875, 2.6, 25.05],
   [21, 2.15, 2.4, 33.1],
-  [-69, 23.25, 2.4, 22.5],
-  [-42, 33.5, 54, 2.4],
-  [-44, 38.25, 2.4, 9.5],
+  [49, -1.2, 3, 26.4],
+  [35, -10, 30, 2.6],
+  [-34, 34, 39, 2.4],
 ] as const;
 
 export function isKoreaGardenWalk(x: number, z: number, mx = 0, mz = mx) {
@@ -85,6 +82,8 @@ const reserves = [
   [...KOREA_STREET_BUILDINGS.theater, 5.3, 4.3],
   [...KOREA_STREET_BUILDINGS.cognition, 5.6, 4.2],
   [...KOREA_STREET_BUILDINGS.photo, 1.7, 1.6],
+  ...KOREA_MARKET.stalls.map((x) => [x, KOREA_MARKET.z, 4.9, 3.4] as const),
+  [...KOREA_PICNIC, 10.5, 7.7],
 ] as const;
 export const KOREA_LANDMARK_FOOTPRINTS = reserves.map(
   ([x, z, hx, hz]) => [x, z, hx * 2, hz * 2] as const,

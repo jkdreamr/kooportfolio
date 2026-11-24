@@ -25,6 +25,7 @@ import { roomFor } from "../core/room";
 import { useGameMode } from "../core/gameMode";
 import { useWorldView } from "../core/worldView";
 import {
+  islandCenter,
   islandZoom,
   islandFollow,
   ISLAND_CAMERA_OFFSET,
@@ -196,16 +197,15 @@ export function Walker({
     const mobile = size.width < 700 || size.height < 500;
     const worldZoom = useWorldView.getState().zoom;
     const playerFollow = islandFollow(worldZoom);
+    const [centerX, centerZ] = islandCenter(state.world);
     desired.current.set(
-      interior ? runtime.x * 0.9 : runtime.x * 0.92 * playerFollow,
+      interior
+        ? runtime.x * 0.9
+        : THREE.MathUtils.lerp(centerX, runtime.x * 0.92, playerFollow),
       0,
       interior
         ? runtime.z * 0.9 - 2
-        : THREE.MathUtils.lerp(
-            WORLD_ELLIPSE.centerZ,
-            runtime.z * 0.92,
-            playerFollow,
-          ),
+        : THREE.MathUtils.lerp(centerZ, runtime.z * 0.92, playerFollow),
     );
     const cameraKey = `${state.scene}:${state.world}`;
     const changedScene = cameraScene.current !== cameraKey;
@@ -219,7 +219,7 @@ export function Walker({
     camera.position.copy(offset.current.add(follow.current));
     camera.lookAt(follow.current.x, interior ? 0.5 : 0.7, follow.current.z);
     if (camera instanceof THREE.OrthographicCamera) {
-      const fitted = islandZoom(size.width, size.height);
+      const fitted = islandZoom(size.width, size.height, state.world);
       const targetZoom = interior
         ? mobile
           ? Math.max(

@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { WORLD_ELLIPSE } from "../../shared/world-bounds";
+import { KOREA_SHORE } from "../core/koreaDistrict";
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
 import type { GroundFootprint } from "../core/scenery";
 
@@ -11,17 +11,10 @@ export const KOREA_RIVER_FOOTPRINT: GroundFootprint = [
   river.far - river.near,
 ];
 
-const land = new THREE.Shape();
-land.absellipse(
-  0,
-  WORLD_ELLIPSE.centerZ,
-  WORLD_ELLIPSE.radiusX,
-  WORLD_ELLIPSE.radiusZ,
-  0,
-  Math.PI * 2,
-  false,
-  0,
+const land = new THREE.Shape(
+  KOREA_SHORE.map(([x, z]) => new THREE.Vector2(x, z)),
 );
+land.closePath();
 const hole = new THREE.Path();
 hole.moveTo(river.left, river.near);
 hole.lineTo(river.left, river.far);
@@ -32,18 +25,17 @@ land.holes.push(hole);
 const terrain = new THREE.ExtrudeGeometry(land, {
   depth: 4.34,
   bevelEnabled: false,
-  curveSegments: 96,
 });
 // Shape lives in XY; map its Y to world Z and extrusion downward from .14.
 terrain.rotateX(Math.PI / 2);
 terrain.translate(0, 0.14, 0);
 terrain.computeVertexNormals();
 const groundMaterial = new THREE.MeshStandardMaterial({
-  color: "#78885f",
+  color: "#a7a28c",
   roughness: 1,
 });
 const soilMaterial = new THREE.MeshStandardMaterial({
-  color: "#706e50",
+  color: "#6f7569",
   roughness: 1,
 });
 const terrainMaterials = [groundMaterial, soilMaterial];

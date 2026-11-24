@@ -17,6 +17,7 @@ import { activitySpots } from "../src/game/core/regionalActivities";
 import { grassSites } from "../src/game/core/scenery";
 import { HOME_PATH_FOOTPRINTS } from "../src/game/world/HomeWorldEnvironment";
 import { KOREA_RIVER_FOOTPRINT } from "../src/game/world/KoreaRiverGround";
+import { isOnKoreaLand, KOREA_MARKET } from "../src/game/core/koreaDistrict";
 import {
   isKoreaLandmarkArea,
   KOREA_GARDEN_WALKS,
@@ -195,20 +196,41 @@ describe("separate worlds", () => {
       ).toBeGreaterThanOrEqual(12);
     }
   });
-  it("plants the west shore and connects its path to the picnic deck", () => {
+  it("reclaims the empty coastal apron without changing other worlds", () => {
+    for (const [x, z] of [
+      [-69, 12],
+      [51, -33],
+      [0, 83],
+    ]) {
+      expect(isOnKoreaLand(x, z)).toBe(false);
+      expect(canWalk(x, z, "korea")).toBe(false);
+      expect(canWalk(x, z, "home")).toBe(true);
+    }
     const plots = villageGardenPlots("korea");
-    expect(
-      plots.filter(
-        ({ x, z, orchard }) => orchard && x < -58 && z >= 36 && z < 49,
-      ).length,
-    ).toBeGreaterThan(8);
+    expect(plots.every(({ x, z }) => isOnKoreaLand(x, z, 1.8))).toBe(true);
     expect(
       plots.filter(
         ({ x, z, orchard }) =>
           !orchard && x > -54 && x < -42 && z > 16 && z < 32,
       ).length,
     ).toBeGreaterThan(4);
-    expect(findPath([-69, 12], [-44, 43], "korea").length).toBeGreaterThan(0);
+  });
+  it("extends the photo booth street to every market stall and links the picnic deck", () => {
+    const [photoX, , photoZ] = PHOTO_BOOTH_ORIGIN;
+    for (const x of KOREA_MARKET.stalls) {
+      expect(canWalk(x, KOREA_MARKET.z, "korea")).toBe(false);
+      expect(canWalk(x, KOREA_MAIN_STREET_Z, "korea")).toBe(true);
+      expect(
+        findPath([photoX, photoZ + 2], [x, KOREA_MAIN_STREET_Z], "korea")
+          .length,
+      ).toBeGreaterThan(0);
+    }
+    const ramen = activitySpots.find(({ id }) => id === "ramen")!;
+    const picnic = activitySpots.find(({ id }) => id === "picnic")!;
+    const route = findPath([...ramen.p], [...picnic.p], "korea");
+    expect(route.length).toBeGreaterThan(0);
+    const [x, z] = route.at(-1)!;
+    expect(Math.hypot(x - picnic.p[0], z - picnic.p[1])).toBeLessThan(1);
   });
   it("requires a plane for Korea and car/train for domestic travel", () => {
     expect(validJourney("home", "stanford", "train")).toBe(true);

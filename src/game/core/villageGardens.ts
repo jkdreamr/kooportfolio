@@ -1,4 +1,5 @@
 import { WORLD_ELLIPSE } from "../../shared/world-bounds";
+import { isOnKoreaLand } from "./koreaDistrict";
 import { isKoreaGardenWalk, isKoreaLandmarkArea } from "./koreaLandmarks";
 import type { WorldId } from "./worlds";
 import { POND } from "./pond";
@@ -91,7 +92,7 @@ for (const [cx, cz, cols, rows, orchard, worlds] of districts) {
 // Groves and allotments flank the landmark walks and the path to the picnic deck.
 const koreaGardenDistricts = [
   [-51, -27, 4, 3, true],
-  [-34, -45, 4, 2, true],
+  [9, -31, 5, 2, false],
   [-55, -5.5, 4, 3, false],
   [-35.5, -24.25, 4, 3, true],
   [-41.5, -7.5, 3, 2, false],
@@ -100,13 +101,13 @@ const koreaGardenDistricts = [
   [-15.1, -1, 2, 4, true],
   [-8.8, -1, 1, 4, false],
   [16, -7.5, 2, 3, false],
-  [30, -13, 4, 3, true],
-  [-75, 26, 1, 5, true],
-  [-65.2, 43, 4, 3, true],
-  [-54.6, 38.8, 2, 1, false],
-  [-48.5, 24, 3, 3, false],
-  [-31.6, 25, 5, 3, true],
-  [-36.1, 36.8, 2, 1, false],
+  [27, -9, 4, 1, false],
+  [44, -27, 4, 1, false],
+  [55, -4, 2, 4, false],
+  [-45, 24, 3, 3, false],
+  [-30, 25, 3, 3, true],
+  [3, 53.2, 3, 2, false],
+  [20, 54.8, 3, 2, true],
 ] as const;
 for (const [cx, cz, cols, rows, orchard] of koreaGardenDistricts) {
   for (let col = 0; col < cols; col++)
@@ -128,6 +129,7 @@ function koreaPlotClear(x: number, z: number, orchard: boolean) {
   const mx = orchard ? 0.65 : 0.85;
   const mz = orchard ? 0.65 : 1.5;
   return (
+    isOnKoreaLand(x, z, orchard ? 2.2 : 1.8) &&
     !isKoreaLandmarkArea(x, z, 2) &&
     !isKoreaGardenWalk(x, z, mx, mz) &&
     (Math.abs(x - yardX) >= yardWidth / 2 + mx ||

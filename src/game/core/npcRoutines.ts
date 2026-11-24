@@ -93,10 +93,10 @@ export const routines: Record<string, Pick<Villager, "route" | "stops">> = {
   researcher: {
     route: [
       [28, -12],
-      [30, -17],
+      [33, -13.5],
       [26, -23],
       [22, -26],
-      [19, -21],
+      [17, -24],
     ],
     stops: {
       0: { duration: 6, heading: -Math.PI / 2 },
@@ -152,7 +152,7 @@ export const extraLocals: Villager[] = [
     place: "photo",
     lines: ["Worth the wait.", "I'm getting the same thing as yesterday."],
     route: [
-      [27, 10.6],
+      [23, -13.7],
       [23, 15],
       [14, 10],
       [10, 3],
@@ -169,8 +169,8 @@ export const extraLocals: Villager[] = [
     place: "photo",
     lines: ["Found a spot in the shade.", "Saving the last bite for later."],
     route: [
-      [33, 2.3],
-      [29, 1.5],
+      [31, -3.9],
+      [31, -1.5],
       [23, -2],
       [18, 1],
       [21, 2],
@@ -179,7 +179,7 @@ export const extraLocals: Villager[] = [
       0: {
         duration: 23,
         heading: Math.PI,
-        seat: { position: [33, 0.9], height: 0.865 },
+        seat: { position: [31, -5.3], height: 0.865 },
       },
     },
   },

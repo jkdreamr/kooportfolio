@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { OrthographicCamera, Vector3 } from "three";
 import {
+  islandCenter,
   islandFollow,
   islandZoom,
   ISLAND_CAMERA_OFFSET,
@@ -13,6 +14,8 @@ import {
   zoomWorld,
 } from "../src/game/core/worldView";
 import { WORLD_ELLIPSE } from "../src/shared/world-bounds";
+import { KOREA_SHORE } from "../src/game/core/koreaDistrict";
+import { KOREA_LANDMARKS } from "../src/game/core/koreaLandmarks";
 import { POND_SURFACE } from "../src/game/core/pond";
 import { villageGardenPlots } from "../src/game/core/villageGardens";
 import { WORLD_IDS } from "../src/game/core/worlds";
@@ -79,6 +82,44 @@ describe("whole-island camera", () => {
     expect(useWorldView.getState().zoom).toBe(1);
     for (const factor of [NaN, Infinity, 0, -1]) zoomWorld(factor);
     expect(useWorldView.getState().zoom).toBe(1);
+  });
+
+  it.each([
+    [1280, 800],
+    [390, 844],
+    [844, 390],
+  ])("fits the Korea shoreline and tower at %s × %s", (width, height) => {
+    const [x, z] = islandCenter("korea");
+    const camera = new OrthographicCamera(
+      -width / 2,
+      width / 2,
+      height / 2,
+      -height / 2,
+      0.1,
+      350,
+    );
+    camera.position.set(
+      x + ISLAND_CAMERA_OFFSET[0],
+      ISLAND_CAMERA_OFFSET[1],
+      z + ISLAND_CAMERA_OFFSET[2],
+    );
+    camera.lookAt(x, 0.7, z);
+    camera.zoom = islandZoom(width, height, "korea");
+    camera.updateProjectionMatrix();
+    camera.updateMatrixWorld();
+    const {
+      origin: [towerX, towerZ],
+      height: towerHeight,
+    } = KOREA_LANDMARKS.namsan;
+    for (const point of [
+      ...KOREA_SHORE.map(([px, pz]) => new Vector3(px, -3.7, pz)),
+      new Vector3(towerX, towerHeight, towerZ),
+    ]) {
+      point.project(camera);
+      expect(Math.abs(point.x)).toBeLessThan(0.95);
+      expect(Math.abs(point.y)).toBeLessThan(0.9);
+      expect(Math.abs(point.z)).toBeLessThan(1);
+    }
   });
 });
 
