@@ -19,6 +19,7 @@ import {
 } from "../core/basketball";
 import { sound } from "../core/sound";
 import { newRunId } from "../../shared/run-id";
+import { recordLeaderboardResult } from "../core/leaderboard";
 import { BasketballPlayer } from "./BasketballPlayer";
 import {
   CourtBall,
@@ -412,6 +413,12 @@ export function Basketball() {
       (!ball.current || elapsed.current > duration + 5.5)
     ) {
       done.current = true;
+      if (mode === "attack")
+        recordLeaderboardResult({
+          id: id.current,
+          board: "basketball-attack",
+          score: score.current,
+        });
       const coins = Math.min(
         125,
         10 + score.current * 3 + challenge.current * 4,

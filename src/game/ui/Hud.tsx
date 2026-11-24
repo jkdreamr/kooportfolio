@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { runtime, useGame, walkTo, type Scene } from "../core/store";
-import { touch } from "../core/input";
+import { keys, touch } from "../core/input";
 import { dailySeed, raceTime } from "../core/rowing";
 import { useRaceHud } from "../scenes/Rowing";
 import { CourtControls, useBasketHud } from "../scenes/Basketball";
 import { Icon } from "./Icon";
-import { destinations, doors, isInterior } from "../core/world";
+import { destinationsInWorld, doors, isInterior } from "../core/world";
+import { WORLDS } from "../core/worlds";
 import { useGym } from "../scenes/CognitionGym";
 import { profile } from "../../content/profile";
 import { WorldLabels } from "../world/Labels";
@@ -13,6 +14,7 @@ import { ROOM } from "../core/room";
 import { RoomStory } from "./RoomStory";
 import type { PlaceId } from "../core/world";
 import { npcName } from "../core/npcState";
+import { Leaderboard } from "./Leaderboard";
 
 export function Joystick() {
   const pad = useRef<HTMLDivElement>(null),
@@ -338,6 +340,34 @@ function Modal({
   );
 }
 export function Hud({ interact }: { interact: () => void }) {
+  useEffect(() => {
+    const shell = document.querySelector(".game-shell");
+    if (!shell) return;
+    const sync = () => {
+      const overlayLocked = !!shell.querySelector(
+        '[data-interior-game-open="true"], .go-card-open, .writing-modal, .theater-dialog',
+      );
+      if (overlayLocked === useGame.getState().overlayLocked) return;
+      keys.clear();
+      touch.x = touch.z = 0;
+      runtime.path = [];
+      runtime.target = null;
+      runtime.moving = false;
+      useGame.setState({ overlayLocked });
+    };
+    const observer = new MutationObserver(sync);
+    observer.observe(shell, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["class", "data-interior-game-open"],
+    });
+    sync();
+    return () => {
+      observer.disconnect();
+      useGame.setState({ overlayLocked: false });
+    };
+  }, []);
   const g = useGame(),
     [confirmBuild, setConfirmBuild] = useState<"garden" | "boathouse" | null>(
       null,
@@ -359,7 +389,7 @@ export function Hud({ interact }: { interact: () => void }) {
     return () => clearTimeout(t);
   }, [g.notice]);
   return (
-    <div className={`game-ui scene-${g.scene}`}>
+    <div className={`game-ui scene-${g.scene} world-${g.world}`}>
       <header className="game-header">
         <a className="game-brand" href="/">
           <div>
@@ -397,6 +427,7 @@ export function Hud({ interact }: { interact: () => void }) {
         </div>
       </header>
       {hub && !g.build && <WorldLabels />}
+      {hub && <span className="world-name">{WORLDS[g.world].name}</span>}
       {interior && (
         <div className="interior-heading">
           <button
@@ -432,7 +463,7 @@ export function Hud({ interact }: { interact: () => void }) {
       {(hub || interior) && !g.build && (
         <>
           <div
-            className={`context-action ${g.near ? "visible" : ""}`}
+            className={`context-action ${g.scene === "stadium" ? "context-action--stadium" : ""} ${g.near ? "visible" : ""}`}
             style={{ zIndex: 20 }}
           >
             <div>
@@ -448,7 +479,7 @@ export function Hud({ interact }: { interact: () => void }) {
                         : g.near === "stargazing"
                           ? "Telescope"
                           : g.near === "exit"
-                            ? "Village door"
+                            ? "Exit"
                             : g.near === "race"
                               ? "Coxswain Regatta"
                               : g.near === "read"
@@ -491,7 +522,9 @@ export function Hud({ interact }: { interact: () => void }) {
               <Icon name="arrow" size={17} />
             </button>
           </div>
-          {g.panel === "none" && <Joystick />}
+          {g.panel === "none" && !g.overlayLocked && !g.traveling && (
+            <Joystick />
+          )}
         </>
       )}
       {interior && g.scene === "boathouse" && g.near === "race" && (
@@ -746,7 +779,25 @@ export function Hud({ interact }: { interact: () => void }) {
               <b>Stanford CS + math</b>
             </div>
           </div>
+          <button
+            className="setting-row"
+            onClick={() => useGame.setState({ panel: "leaderboard" })}
+          >
+            Records <Icon name="arrow" />
+          </button>
         </Modal>
+      )}
+      {g.panel === "leaderboard" && (
+        <Leaderboard
+          initialBoard={
+            g.scene === "basketball"
+              ? "basketball-attack"
+              : runtime.raceLength === 750
+                ? "rowing-regatta"
+                : "rowing-sprint"
+          }
+          onClose={closePanel}
+        />
       )}
       {g.panel === "settings" && (
         <Modal eyebrow="" title="Settings" close={closePanel}>
@@ -843,7 +894,7 @@ export function Hud({ interact }: { interact: () => void }) {
       {g.panel === "places" && (
         <Modal title="Places" close={closePanel}>
           <nav className="places-list" aria-label="Walk to a place">
-            {destinations.map((door) => (
+            {destinationsInWorld(g.world).map((door) => (
               <button
                 key={door.id}
                 onClick={() => {
@@ -914,7 +965,7 @@ export function Hud({ interact }: { interact: () => void }) {
           </a>
         </Modal>
       )}
-      {g.result && (
+      {g.result && g.panel !== "leaderboard" && (
         <Modal
           title={g.result.title}
           close={() => g.go(g.scene === "rowing" ? "boathouse" : "hub")}
@@ -947,6 +998,12 @@ export function Hud({ interact }: { interact: () => void }) {
           <small className="local-note">
             Local record only. No global rankings or cloud saves.
           </small>
+          <button
+            className="quiet-button"
+            onClick={() => useGame.setState({ panel: "leaderboard" })}
+          >
+            Records
+          </button>
         </Modal>
       )}
     </div>

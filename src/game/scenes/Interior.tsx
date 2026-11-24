@@ -27,6 +27,7 @@ import { StadiumInterior } from "./Stadium";
 import { MovieTheaterInterior, useTheater } from "./MovieTheater";
 import { SecretRoomInterior } from "./SecretRoom";
 import { HOOVER_STASH } from "../core/hoover";
+import { KOREA_THEATER_PROGRAM } from "../core/theaterProgram";
 
 const rewardInterior = (game: "dice" | "cooking", coins: number) =>
   useGame
@@ -34,6 +35,7 @@ const rewardInterior = (game: "dice" | "cooking", coins: number) =>
     .award(`${game}-${newRunId()}`, coins, Math.ceil(coins / 2));
 
 export function Interior() {
+  const world = useGame((s) => s.world);
   const [badmintonActive, setBadmintonActive] = useState(false);
   const theaterSeated = useTheater((s) => s.seated);
   const stashClaimed = useGame((s) => s.save.memories.includes(HOOVER_STASH));
@@ -148,7 +150,12 @@ export function Interior() {
       )}
       {scene === "go" && <GoInterior />}
       {scene === "writing" && <WritingInterior />}
-      {theater && <MovieTheaterInterior />}
+      {theater && (
+        <MovieTheaterInterior
+          program={world === "korea" ? KOREA_THEATER_PROGRAM : undefined}
+          title={world === "korea" ? "Seoul Cinema" : undefined}
+        />
+      )}
       {scene === "secret" && <SecretRoomInterior claimed={stashClaimed} />}
       {!theater && scene !== "secret" && (
         <RoomDressing scene={scene as PlaceId} />

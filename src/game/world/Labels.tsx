@@ -1,7 +1,7 @@
 import { useFrame } from "@react-three/fiber";
 import { Vector3 } from "three";
 import { runtime, useGame, walkTo } from "../core/store";
-import { destinations } from "../core/world";
+import { destinations, destinationsInWorld } from "../core/world";
 
 const elements = new Map<string, HTMLButtonElement>();
 const projected = new Vector3();
@@ -30,7 +30,7 @@ export function LabelProjection() {
     const compact = size.height < 500;
     const distance = (door: (typeof destinations)[number]) =>
       Math.hypot(door.x - runtime.x, door.z - runtime.z);
-    [...destinations]
+    destinationsInWorld(useGame.getState().world)
       .sort((a, b) => distance(a) - distance(b))
       .forEach((door) => {
         const element = elements.get(door.id);
@@ -64,9 +64,10 @@ export function LabelProjection() {
 
 export function WorldLabels() {
   const level = useGame((s) => s.save.upgrades.boathouse);
+  const world = useGame((s) => s.world);
   return (
     <nav className="world-labels" aria-label="Village places">
-      {destinations.map((door) => (
+      {destinationsInWorld(world).map((door) => (
         <button
           key={door.id}
           ref={(element) => {
