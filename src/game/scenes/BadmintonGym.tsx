@@ -170,11 +170,12 @@ export function BadmintonGym({ score }: { score: number[] }) {
             </group>
           ))}
           <CraftedBox p={[x, 8.15, 0]} s={[0.7, 0.6, 34]} c="#34515c" />
+          <CraftedBox p={[x, 6.2, 0]} s={[0.35, 0.28, 34]} c="#516a72" />
           {[-12.3, -4.1, 4.1, 12.3].map((z) => (
             <CraftedBox
               key={z}
               p={[x, 7.17, z]}
-              s={[0.22, 1.9, 8.45]}
+              s={[0.22, 0.22, 8.45]}
               r={[0.22, 0, 0]}
               c="#5b7378"
             />
