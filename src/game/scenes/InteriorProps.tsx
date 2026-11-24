@@ -145,6 +145,9 @@ export function GameControls({
         data-interior-game-open={open && gameOpen ? "true" : undefined}
         onPointerDown={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
+          // The launcher is not an open game: WASD/arrows and Escape still
+          // belong to the world, while Enter/Space only activate its button.
+          if (!open && e.key !== "Enter" && e.key !== " ") return;
           e.stopPropagation();
           if (e.key === "Escape" && collapsible) toggle(false);
         }}
