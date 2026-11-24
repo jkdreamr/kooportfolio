@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { runtime, useGame } from "../core/store";
 import { GableRoof, StoneFooting } from "./ArchitectureDetail";
+import { sculptedMaterial } from "./Surface";
 
 const rounded = new Map<string, RoundedBoxGeometry>();
 function roundedGeometry(size: [number, number, number]) {
@@ -13,8 +14,8 @@ function roundedGeometry(size: [number, number, number]) {
       key,
       new RoundedBoxGeometry(
         ...size,
-        1,
-        Math.min(0.13, Math.min(...size) * 0.24),
+        2,
+        Math.min(0.16, Math.min(...size) * 0.22),
       ),
     );
   return rounded.get(key)!;
@@ -26,7 +27,7 @@ const cone = new THREE.ConeGeometry(1, 1, 8);
 const mats = new Map<string, THREE.MeshStandardMaterial>();
 function material(color: string) {
   if (!mats.has(color))
-    mats.set(color, new THREE.MeshStandardMaterial({ color, roughness: 0.87 }));
+    mats.set(color, sculptedMaterial({ color }));
   return mats.get(color)!;
 }
 type Props = {
@@ -134,23 +135,33 @@ export function Sign({
     el.width = 512;
     el.height = 128;
     const ctx = el.getContext("2d")!;
+    ctx.clearRect(0, 0, 512, 128);
     ctx.fillStyle = color;
-    ctx.fillRect(0, 0, 512, 128);
+    ctx.fillRect(6, 6, 500, 116);
+    // Inset lettering sits on a solid, beveled plaque below.
+    ctx.strokeStyle = ink;
+    ctx.globalAlpha = 0.2;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(15, 15, 482, 98);
+    ctx.globalAlpha = 1;
     ctx.fillStyle = ink;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = "600 40px monospace";
-    ctx.fillText(text, 256, 68);
+    ctx.font = '700 42px "Trebuchet MS", sans-serif';
+    ctx.fillText(text, 256, 67, 458);
     const t = new THREE.CanvasTexture(el);
     t.colorSpace = THREE.SRGBColorSpace;
     return t;
   }, [text, color, ink]);
   useEffect(() => () => texture.dispose(), [texture]);
   return (
-    <mesh position={p}>
-      <planeGeometry args={size} />
-      <meshStandardMaterial map={texture} roughness={0.9} />
-    </mesh>
+    <group position={p}>
+      <Box s={[size[0] + 0.1, size[1] + 0.1, 0.14]} c="#493d2e" />
+      <mesh position={[0, 0, 0.076]}>
+        <planeGeometry args={size} />
+        <meshStandardMaterial map={texture} roughness={0.75} transparent />
+      </mesh>
+    </group>
   );
 }
 export function Character({
