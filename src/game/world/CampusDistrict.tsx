@@ -33,7 +33,7 @@ const plaques: CampusPlaque[] = [
     color: "#8c332b",
     ink: "#f0dba7",
   },
-  { text: "MAIN QUAD", p: [-7, 3.25, 5.65], size: [3.8, 0.6] },
+  { text: "MAIN QUAD", p: [-7, 4.8, 5.3], size: [3.8, 0.6] },
   { text: "MAIN QUAD", p: [9.6, 3.3, -25.4], size: [3.8, 0.6] },
   { text: "HOOVER TOWER", p: [23, 10.1, -18.2], size: [3.7, 0.55] },
   { text: "LIBRARY", p: [-23, 3, -5.9], size: [3.8, 0.6] },
