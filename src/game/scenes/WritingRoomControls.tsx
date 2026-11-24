@@ -118,10 +118,29 @@ function WritingDialog({
     touch.z = 0;
     runtime.path = [];
     runtime.target = null;
+    // Removing the focused post/button can leave focus on the document body.
+    // Catch Escape before the game's window listener, regardless of focus;
+    // a modal's other keys must never become movement or interaction inputs.
+    const escape = (event: KeyboardEvent) => {
+      // Escape cancels an IME candidate before it dismisses the dialog.
+      // Some browsers report composition only through the legacy 229 code.
+      if (event.key !== "Escape" || event.isComposing || event.keyCode === 229)
+        return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      close();
+    };
+    const contain = (event: KeyboardEvent) => event.stopPropagation();
+    window.addEventListener("keydown", escape, true);
+    document.addEventListener("keydown", contain);
+    document.addEventListener("keyup", contain);
     void load();
     return () => {
       alive.current = false;
       keys.clear();
+      window.removeEventListener("keydown", escape, true);
+      document.removeEventListener("keydown", contain);
+      document.removeEventListener("keyup", contain);
     };
   }, []);
   function change(key: keyof WritingDraft, value: string) {

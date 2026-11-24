@@ -81,12 +81,13 @@ export function HitPad({
     id: number;
     x: number;
     y: number;
+    pointerType: string;
     selection: Pick<BadmintonInput, "aim" | "shot">;
   } | null>(null);
   const select = (e: PointerEvent<HTMLButtonElement>) => {
     const start = drag.current;
     if (!start || start.id !== e.pointerId) return null;
-    return badmintonGesture(e.clientX - start.x, e.clientY - start.y);
+    return badmintonGesture(e.clientX - start.x, e.clientY - start.y, start.selection, start.pointerType);
   };
   const cancel = () => {
     const start = drag.current;
@@ -106,7 +107,7 @@ export function HitPad({
       aria-label={
         serve
           ? "Serve. Tap or swipe"
-          : "Hit. Tap for drop; swipe up for clear, down for smash, left or right to aim"
+          : "Hit. Mouse tap keeps selected shot; touch tap drops. Swipe up for clear, down for smash, left or right to aim"
       }
       disabled={disabled}
       onContextMenu={(e) => e.preventDefault()}
@@ -116,6 +117,7 @@ export function HitPad({
           id: e.pointerId,
           x: e.clientX,
           y: e.clientY,
+          pointerType: e.pointerType,
           selection: { aim: input.current.aim, shot: input.current.shot },
         };
         e.currentTarget.setPointerCapture(e.pointerId);

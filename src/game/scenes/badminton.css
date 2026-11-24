@@ -52,6 +52,11 @@
   margin: 8px 0 14px;
   font-size: 13px;
 }
+@media (hover: hover) and (pointer: fine) {
+  .badminton-tap-hint {
+    display: none;
+  }
+}
 .badminton-start,
 .badminton-result {
   position: absolute;
