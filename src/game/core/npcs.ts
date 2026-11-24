@@ -1,20 +1,29 @@
 import { canWalk, findPath, moveWorld, type PlaceId } from "./world";
 import type { WorldId } from "./worlds";
+import { extraLocals, routines } from "./npcRoutines";
 
 type Point = [number, number];
 export const TALK_DISTANCE = 2.7;
 
-// Fictional village locals, not claims about people in Joshua's life.
-export const villagers: {
+export type NpcSeat = { position: Point; height: number };
+export type NpcStop = {
+  duration: number;
+  heading: number;
+  seat?: NpcSeat;
+};
+export type Villager = {
   id: string;
   name: string;
   color: string;
   skin: string;
   hat: boolean;
-  place: PlaceId;
+  place: PlaceId | "photo";
   lines: string[];
   route: Point[];
-}[] = [
+  stops?: Record<number, NpcStop>;
+};
+// Fictional village locals, not claims about people in Joshua's life.
+const locals: Villager[] = [
   {
     id: "rower",
     name: "Rower",
@@ -323,7 +332,11 @@ export const villagers: {
   },
 ];
 
-export type Villager = (typeof villagers)[number];
+export const villagers: Villager[] = [
+  ...locals.map((npc) => ({ ...npc, ...routines[npc.id] })),
+  ...extraLocals,
+];
+
 export type NpcActor = {
   id: string;
   x: number;
@@ -334,27 +347,40 @@ export type NpcActor = {
   waypoint: number;
   wait: number;
   path: Point[];
+  stopIndex: number | null;
+  pose: "stand" | "sit";
+  posture: number;
+  seat: NpcSeat | null;
 };
 export function createNpcActors(): NpcActor[] {
   return villagers.map((npc, i) => ({
     id: npc.id,
     x: npc.route[0][0],
     z: npc.route[0][1],
-    heading: i,
+    heading: npc.stops?.[0]?.heading ?? i,
     moving: false,
     stride: i,
     waypoint: 1,
-    wait: i * 0.4,
+    wait: (npc.stops?.[0]?.duration ?? 0) + i * 0.4,
     path: [],
+    stopIndex: 0,
+    pose: npc.stops?.[0]?.seat ? "sit" : "stand",
+    posture: npc.stops?.[0]?.seat ? 1 : 0,
+    seat: npc.stops?.[0]?.seat ?? null,
   }));
 }
 
-export function nearestNpc(actors: NpcActor[], x: number, z: number) {
+export function nearestNpc(
+  actors: NpcActor[],
+  x: number,
+  z: number,
+  world?: WorldId,
+) {
   let best: NpcActor | undefined,
     distance = TALK_DISTANCE;
   for (const actor of actors) {
     const d = Math.hypot(actor.x - x, actor.z - z);
-    if (d < distance && canTalkToNpc(actor, x, z)) {
+    if (d < distance && canTalkToNpc(actor, x, z, world)) {
       best = actor;
       distance = d;
     }
@@ -362,13 +388,22 @@ export function nearestNpc(actors: NpcActor[], x: number, z: number) {
   return best;
 }
 
-export function canTalkToNpc(actor: NpcActor, x: number, z: number) {
+export function canTalkToNpc(
+  actor: NpcActor,
+  x: number,
+  z: number,
+  world?: WorldId,
+) {
   const distance = Math.hypot(actor.x - x, actor.z - z);
   if (distance >= TALK_DISTANCE) return false;
   const steps = Math.max(1, Math.ceil(distance / 0.2));
   for (let i = 1; i <= steps; i++) {
     if (
-      !canWalk(x + ((actor.x - x) * i) / steps, z + ((actor.z - z) * i) / steps)
+      !canWalk(
+        x + ((actor.x - x) * i) / steps,
+        z + ((actor.z - z) * i) / steps,
+        world,
+      )
     )
       return false;
   }
@@ -383,20 +418,33 @@ export function stepNpc(
   player: Point,
   frozen = false,
   selected = false,
+  world?: WorldId,
 ) {
   actor.moving = false;
   if (frozen) return;
   const dt = Math.max(0, Math.min(delta, 0.04));
-  if (selected || canTalkToNpc(actor, ...player)) {
+  const targetPosture = actor.pose === "sit" ? 1 : 0;
+  actor.posture +=
+    Math.sign(targetPosture - actor.posture) *
+    Math.min(Math.abs(targetPosture - actor.posture), dt * 3);
+  if (selected || canTalkToNpc(actor, ...player, world)) {
+    actor.pose = "stand";
     actor.heading = Math.atan2(player[0] - actor.x, player[1] - actor.z);
     return;
   }
   if (actor.wait > 0) {
     actor.wait -= dt;
+    const stop =
+      actor.stopIndex === null ? undefined : npc.stops?.[actor.stopIndex];
+    actor.pose = stop?.seat ? "sit" : "stand";
+    if (stop) actor.heading = stop.heading;
+    if (stop?.seat) actor.seat = stop.seat;
     return;
   }
+  actor.pose = "stand";
   if (!actor.path.length) {
-    actor.path = findPath([actor.x, actor.z], npc.route[actor.waypoint]);
+    actor.stopIndex = null;
+    actor.path = findPath([actor.x, actor.z], npc.route[actor.waypoint], world);
     actor.waypoint = (actor.waypoint + 1) % npc.route.length;
     if (!actor.path.length) actor.wait = 1.5;
     return;
@@ -407,7 +455,12 @@ export function stepNpc(
   const distance = Math.hypot(dx, dz);
   if (distance < 0.0001) {
     actor.path.shift();
-    if (!actor.path.length) actor.wait = 1.2 + npc.id.length * 0.17;
+    if (!actor.path.length) {
+      actor.stopIndex =
+        (actor.waypoint + npc.route.length - 1) % npc.route.length;
+      actor.wait =
+        npc.stops?.[actor.stopIndex]?.duration ?? 1.2 + npc.id.length * 0.17;
+    }
     return;
   }
   const step = Math.min(distance, dt * 1.35),
@@ -418,6 +471,7 @@ export function stepNpc(
     actor.z,
     (dx / distance) * step,
     (dz / distance) * step,
+    world,
   );
   actor.moving = Math.hypot(actor.x - oldX, actor.z - oldZ) > 0.00001;
   if (actor.moving) {
@@ -444,7 +498,7 @@ export function approachNpc(
     ];
     if (!canWalk(point[0], point[1], world)) continue;
     const path = findPath(player, point, world);
-    if (path.length && canTalkToNpc(actor, ...path.at(-1)!)) return path;
+    if (path.length && canTalkToNpc(actor, ...path.at(-1)!, world)) return path;
   }
   return [];
 }

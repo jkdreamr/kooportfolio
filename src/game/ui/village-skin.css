@@ -418,6 +418,10 @@
 .game-shell .room-story[hidden] {
   display: none;
 }
+/* Activity choices take priority; the entry biography returns off the race pad. */
+.game-shell:has(.race-select) .room-story {
+  display: none;
+}
 .game-shell .story-read {
   color: #fff8e1;
   background: #506c43;
@@ -705,6 +709,20 @@
   .joystick {
   display: none;
 }
+@media (max-width: 700px) and (max-height: 650px) {
+  .game-shell .interior-heading ~ .context-action {
+    left: auto;
+    right: max(16px, env(safe-area-inset-right));
+    bottom: max(96px, calc(env(safe-area-inset-bottom) + 88px));
+    transform: none;
+    min-width: 0;
+    width: min(230px, calc(100vw - 160px));
+  }
+  .game-shell .room-story {
+    max-height: max(78px, calc(100dvh - 338px - env(safe-area-inset-bottom)));
+    overflow: auto;
+  }
+}
 @media (max-height: 650px) and (orientation: landscape) {
   .game-shell .interior-heading {
     top: 78px;
@@ -721,7 +739,9 @@
     left: auto;
     right: max(20px, env(safe-area-inset-right));
     transform: none;
-    max-height: calc(100dvh - 150px);
+    width: min(280px, calc(100vw - 40px));
+    padding-block: 8px;
+    max-height: max(62px, calc(100dvh - 246px - env(safe-area-inset-bottom)));
     overflow: auto;
   }
   .game-shell:has(.room-story:not([hidden])) .interior-heading {
