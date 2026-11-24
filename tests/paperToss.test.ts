@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  TOSS_LIMIT, binPosition, chargePower, newTossRound, stepToss, throwPaper, type TossRound,
+  RIM_AGE, TOSS_LIMIT, binPosition, chargePower, launchPaper, newTossRound, shotPosition,
+  stepToss, swipeToss, throwPaper, type TossRound,
 } from "../src/game/core/paperToss";
 
 function finishShot(round: TossRound, aim: number, power: number, dt = 1 / 60) {
@@ -26,6 +27,24 @@ describe("paper toss", () => {
       expect(finishShot(round, 0, 0.1, dt)).toMatchObject({ attempts: 1, score: 0, result: "miss" });
       expect(finishShot(round, 0, 0.9, dt)).toMatchObject({ attempts: 1, score: 0, result: "miss" });
     }
+  });
+
+  it("forgives near-center power without making weak and strong throws land the same", () => {
+    const round = newTossRound();
+    expect(finishShot(round, 0, 0.38).result).toBe("hit");
+    expect(finishShot(round, 0, 0.62).result).toBe("hit");
+    expect(finishShot(round, 0, 0.25).result).toBe("miss");
+    expect(finishShot(round, 0, 0.75).result).toBe("miss");
+  });
+
+  it("maps a swipe to independent aim and power and previews the actual launch", () => {
+    expect(swipeToss(0, -0.1, -0.2)).toEqual({ aim: -0.48, power: 0 });
+    expect(swipeToss(1, 0.5, 1.3)).toEqual({ aim: 2.4, power: 1 });
+    const { aim, power } = swipeToss(0.4, -0.2, 0.5);
+    const launched = throwPaper(newTossRound(), aim, power);
+    expect(launched.shot).toEqual(launchPaper(aim, power));
+    expect(shotPosition(launched.shot!, RIM_AGE).y).toBeCloseTo(1.4);
+    expect(finishShot(newTossRound(), aim, power).result).toBe("miss");
   });
 
   it("scores against the moving bin when the paper reaches it, not when released", () => {

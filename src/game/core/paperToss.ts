@@ -7,6 +7,7 @@ export const BIN_RADIUS = 0.65;
 export const AIM_LIMIT = 2.4;
 const GRAVITY = 12;
 const UP_SPEED = 4.9;
+export const RIM_AGE = (UP_SPEED + Math.sqrt(UP_SPEED ** 2 + 2 * GRAVITY * (THROW_Y - BIN_RIM))) / GRAVITY;
 
 type Shot = { age: number; forward: number; side: number };
 export type TossRound = {
@@ -26,6 +27,13 @@ export function chargePower(seconds: number) {
   return cycle <= 1 ? cycle : 2 - cycle;
 }
 
+export function swipeToss(startAim: number, sideways: number, upward: number) {
+  return {
+    aim: Math.max(-AIM_LIMIT, Math.min(AIM_LIMIT, startAim + sideways * AIM_LIMIT * 2)),
+    power: Math.max(0, Math.min(1, upward)),
+  };
+}
+
 export function binPosition(angle: number) {
   return 1.82 * Math.sin(angle);
 }
@@ -38,21 +46,21 @@ export function shotPosition(shot: Shot, age = shot.age) {
   };
 }
 
-export function throwPaper(round: TossRound, aim: number, power: number): TossRound {
-  if (round.shot || round.attempts >= TOSS_LIMIT) return round;
-  const forward = 3.4 + 7.2 * Math.max(0, Math.min(1, power));
+export function launchPaper(aim: number, power: number): Shot {
+  const centeredPower = Math.max(-1, Math.min(1, power * 2 - 1));
+  const forward = 7 + 3.6 * Math.sign(centeredPower) * Math.abs(centeredPower) ** 1.4;
   const lane = Math.max(-AIM_LIMIT, Math.min(AIM_LIMIT, aim));
-  return {
-    ...round, result: null,
-    shot: { age: 0, forward, side: lane * forward / (THROW_Z - BIN_Z) },
-  };
+  return { age: 0, forward, side: lane * forward / (THROW_Z - BIN_Z) };
 }
 
-const rimAge = (UP_SPEED + Math.sqrt(UP_SPEED ** 2 + 2 * GRAVITY * (THROW_Y - BIN_RIM))) / GRAVITY;
+export function throwPaper(round: TossRound, aim: number, power: number): TossRound {
+  if (round.shot || round.attempts >= TOSS_LIMIT) return round;
+  return { ...round, result: null, shot: launchPaper(aim, power) };
+}
 
 export function stepToss(round: TossRound, dt: number): TossRound {
   if (round.attempts >= TOSS_LIMIT) return round;
-  const railSpeed = round.attempts === 0 ? 0 : 0.55 + round.attempts * 0.4;
+  const railSpeed = round.attempts === 0 ? 0 : 0.3 + round.attempts * 0.36;
   const railAngle = round.railAngle + railSpeed * dt;
   if (!round.shot) return { ...round, railAngle };
   const shot = { ...round.shot, age: round.shot.age + dt };
@@ -60,9 +68,9 @@ export function stepToss(round: TossRound, dt: number): TossRound {
     railAngle, attempts: round.attempts + 1, score: round.score + Number(hit),
     shot: null, result: hit ? "hit" : "miss",
   });
-  if (round.shot.age < rimAge && shot.age >= rimAge) {
-    const paper = shotPosition(shot, rimAge);
-    const binX = binPosition(round.railAngle + railSpeed * (rimAge - round.shot.age));
+  if (round.shot.age < RIM_AGE && shot.age >= RIM_AGE) {
+    const paper = shotPosition(shot, RIM_AGE);
+    const binX = binPosition(round.railAngle + railSpeed * (RIM_AGE - round.shot.age));
     if (Math.hypot(paper.x - binX, paper.z - BIN_Z) <= BIN_RADIUS - 0.12) return settle(true);
   }
   return shotPosition(shot).y <= 0.15 ? settle(false) : { ...round, railAngle, shot };
