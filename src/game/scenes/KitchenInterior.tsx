@@ -11,6 +11,7 @@ import {
 } from "../core/interiorGames";
 import { newRestaurant, restaurantReducer } from "../core/restaurant";
 import { CraftedBox, Customer, WallSconce } from "./CraftedDetails";
+import { HouseRooms } from "./HouseRooms";
 import {
   Barrel,
   Bottle,
@@ -322,6 +323,7 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
   return (
     <group>
       {/* A ceramic backsplash, not another room shell. */}
+      <HouseRooms scene="kitchen" />
       {Array.from({ length: 48 }, (_, i) => (
         <Box
           key={i}
@@ -330,7 +332,7 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
           c={i % 3 === 0 ? "#7d9d8a" : "#e7d6aa"}
         />
       ))}
-      <group position={[-5.8, 0, -10.5]} scale={1.35}>
+      <group position={[-8, 0, -10.5]}>
         <Cabinet p={[0, 0, 0]} width={4.1} />
         {SOUP_INGREDIENTS.map((kind, i) => (
           <Crate
