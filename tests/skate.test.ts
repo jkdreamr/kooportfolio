@@ -86,6 +86,37 @@ describe("free-skating park", () => {
       }
     },
   );
+  it.each([
+    { x: 9.8, z: 0, heading: Math.PI / 2 },
+    { x: -9.8, z: 0, heading: -Math.PI / 2 },
+    { x: 0, z: -11.8, heading: 0 },
+  ])(
+    "pops clear of an uphill bank at ($x, $z) without losing the line",
+    ({ x, z, heading }) => {
+      const g = newSkateGame();
+      Object.assign(g, {
+        x,
+        z,
+        heading,
+        speed: 8,
+        y: skateHeight(x, z),
+        score: 1234,
+        combo: 300,
+        count: 2,
+        comboTime: SKATE.comboWindow,
+      });
+      stepSkate(g, { ...idle, trick: "kickflip" }, 1 / 120);
+      expect(g.grounded).toBe(false);
+      expect(g.y).toBeGreaterThan(skateHeight(g.x, g.z));
+      expect(g.trick).toBe("kickflip");
+      expect(g.bailTime).toBe(0);
+      expect(g.combo).toBeGreaterThan(300);
+      expect(g.score).toBe(1234);
+      advance(g, 6);
+      expect(g.score).toBeGreaterThan(1234);
+      expect(g.bailTime).toBe(0);
+    },
+  );
   it("chains a one-action flip out of a held grind", () => {
     const g = newSkateGame(),
       rail = SKATE_RAILS[0];

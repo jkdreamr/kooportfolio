@@ -137,6 +137,16 @@ function bail(g: SkateState) {
   g.speed *= 0.15;
   feedback(g, "Bail — try an earlier flip");
 }
+function forwardSlope(g: SkateState) {
+  return (
+    (skateHeight(
+      g.x + Math.sin(g.heading) * 0.04,
+      g.z - Math.cos(g.heading) * 0.04,
+    ) -
+      skateHeight(g.x, g.z)) /
+    0.04
+  );
+}
 
 // Mutates one local simulation; substeps keep ramp contacts stable at low FPS.
 export function stepSkate(g: SkateState, input: SkateInput, delta: number) {
@@ -185,7 +195,9 @@ function integrate(g: SkateState, input: SkateInput, dt: number) {
     // A flip includes its own pop so keyboard and touch never need two timed
     // inputs just to start a trick. Airborne flips still risk a late landing.
     if ((input.jump || input.trick) && (g.grounded || g.rail >= 0)) {
-      g.vy = 7.2;
+      // Pop relative to the surface: an uphill bank can rise faster than the
+      // flat-ground impulse. Carry its lift rather than landing in this step.
+      g.vy = 7.2 + (g.grounded ? Math.max(0, forwardSlope(g) * g.speed) : 0);
       g.grounded = false;
       g.rail = -1;
       g.railLock = 0.22;
@@ -226,9 +238,7 @@ function integrate(g: SkateState, input: SkateInput, dt: number) {
   } else {
     const dx = Math.sin(g.heading),
       dz = -Math.cos(g.heading);
-    const previousHeight = skateHeight(g.x, g.z);
-    const slope =
-      (skateHeight(g.x + dx * 0.04, g.z + dz * 0.04) - previousHeight) / 0.04;
+    const slope = forwardSlope(g);
     if (g.grounded) g.speed = clamp(g.speed - slope * 9 * dt, 0, 10);
     g.x += dx * g.speed * dt;
     g.z += dz * g.speed * dt;
