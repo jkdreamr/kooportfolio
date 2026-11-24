@@ -14,8 +14,77 @@ import { createNpcActors, nearestNpc, villagers } from "../src/game/core/npcs";
 import { belongsToWorld } from "../src/game/core/worlds";
 import { runtime, useGame, walkTo } from "../src/game/core/store";
 import { ISLAND_RAIL } from "../src/game/core/islandRail";
+import { onStanfordLand } from "../src/shared/stanford-ground";
+import { freshSave, parseSave } from "../src/shared/save";
+import { animalsInWorld, animalPose } from "../src/game/core/wildlife";
 
 describe("compact Stanford village", () => {
+  it("cuts the vacant grass behind Math/Badminton instead of filling it with props", () => {
+    for (const [x, z] of [
+      [28.5, 0],
+      [55, 14.5],
+      [58, 30],
+      [20, -25],
+      [0, 90],
+    ]) {
+      expect(onStanfordLand(x, z), `${x},${z}`).toBe(false);
+      expect(canWalk(x, z, "stanford"), `${x},${z}`).toBe(false);
+    }
+    for (const {
+      footprint: [x, z, hx, hz],
+    } of doorsInWorld("stanford"))
+      for (const dx of [-hx, hx])
+        for (const dz of [-hz, hz])
+          expect(
+            onStanfordLand(x + dx, z + dz, 0.6),
+            `${x + dx},${z + dz}`,
+          ).toBe(true);
+    for (const [x, z, w, d] of STANFORD_WALKS)
+      for (const dx of [-w / 2, w / 2])
+        for (const dz of [-d / 2, d / 2])
+          expect(
+            onStanfordLand(x + dx, z + dz, 0.6),
+            `${x + dx},${z + dz}`,
+          ).toBe(true);
+  });
+  it("moves old Stanford lawn saves to the plaza without losing progress or changing other worlds", () => {
+    const previous = {
+      ...freshSave(),
+      coins: 75,
+      xp: 21,
+      memories: ["hoover-key"],
+      world: "stanford" as const,
+      position: [55, 14.5] as [number, number],
+    };
+    expect(parseSave(JSON.stringify(previous))).toEqual({
+      ...previous,
+      position: [0, 5],
+    });
+    expect(
+      parseSave(JSON.stringify({ ...previous, world: "home" })).position,
+    ).toEqual(previous.position);
+    for (const position of [
+      [-73, 22],
+      [58, 61],
+      [20, 21.6],
+    ])
+      expect(
+        parseSave(JSON.stringify({ ...previous, position })).position,
+      ).toEqual(position);
+  });
+  it("keeps Stanford's existing animals on land after the coastline is tightened", () => {
+    for (const animal of animalsInWorld("stanford"))
+      for (let t = 0; t < 180; t += 0.4) {
+        const { x, z } = animalPose(animal, t);
+        expect(onStanfordLand(x, z, 0.5), `${animal.kind}: ${x},${z}`).toBe(
+          true,
+        );
+        if (animal.kind !== "duck")
+          expect(canWalk(x, z, "stanford"), `${animal.kind}: ${x},${z}`).toBe(
+            true,
+          );
+      }
+  });
   it("gives Places a continuous Boathouse route from each relocated doorway", () => {
     const boat = destinationsInWorld("stanford").find(
       ({ id }) => id === "boathouse",
@@ -115,7 +184,7 @@ describe("compact Stanford village", () => {
 
   it("connects the entrance to every moved door, campus stop and hidden-key approach", () => {
     const targets = [
-      ...doorsInWorld("stanford").map(
+      ...destinationsInWorld("stanford").map(
         (door) => [door.x, door.z] as [number, number],
       ),
       ...Object.values(campusStops),

@@ -1,4 +1,5 @@
 import { WORLD_BOUNDS, WORLD_ELLIPSE } from "../../shared/world-bounds";
+import { onStanfordLand } from "../../shared/stanford-ground";
 import { ISLAND_RAIL } from "./islandRail";
 import { forest, koreaForest } from "./scenery";
 import {
@@ -293,6 +294,7 @@ const regionalObstacles = {
 };
 export function canWalk(x: number, z: number, world?: WorldId) {
   if (
+    (world === "stanford" && !onStanfordLand(x, z, 0.45)) ||
     x < WORLD_BOUNDS.minX ||
     x > WORLD_BOUNDS.maxX ||
     z < WORLD_BOUNDS.minZ ||

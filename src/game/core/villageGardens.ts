@@ -1,4 +1,5 @@
 import { WORLD_ELLIPSE } from "../../shared/world-bounds";
+import { onStanfordLand } from "../../shared/stanford-ground";
 import { isKoreaGardenWalk, isKoreaLandmarkArea } from "./koreaLandmarks";
 import type { WorldId } from "./worlds";
 import { POND } from "./pond";
@@ -53,6 +54,7 @@ const districts: readonly (readonly [
 
 function reserved(x: number, z: number, world: WorldId) {
   return (
+    (world === "stanford" && !onStanfordLand(x, z, 3)) ||
     (world === "stanford" && isStanfordTownSpace(x, z, 2)) ||
     Math.abs(x) < 4 ||
     Math.abs(z + 9) < 3 ||

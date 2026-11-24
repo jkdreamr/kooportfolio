@@ -213,7 +213,8 @@
   display: none;
 }
 .game-shell:has(.scene-skate .context-action.visible[data-action="exit"])
-  .skate-ui:not(.is-riding) .skate-card {
+  .skate-ui:not(.is-riding)
+  .skate-card {
   max-width: calc(100vw - 154px);
 }
 @media (max-width: 700px) {

@@ -1,6 +1,7 @@
 import { sampleDaylight } from "./daylight";
 import { POND } from "./pond";
 import { sampleWeather } from "./weather";
+import type { WorldId } from "./worlds";
 
 type Point = readonly [number, number];
 const DUCK_ROUTE: readonly Point[] = [
@@ -124,6 +125,22 @@ export const ANIMALS: readonly Animal[] = [
     color: "#c6aa70",
   },
 ];
+
+// Keep the existing animals on the compact Stanford parcels, not the removed lawn.
+const stanfordOffsets = [
+  [-8, 8],
+  [12, 8],
+  [-3, 16],
+  [0, 0],
+  [0, 11],
+  [-11, 19],
+];
+const stanfordAnimals = ANIMALS.map((animal, i): Animal => {
+  const [dx, dz] = stanfordOffsets[i] ?? [0, 0];
+  return { ...animal, route: animal.route.map(([x, z]) => [x + dx, z + dz]) };
+});
+export const animalsInWorld = (world: WorldId) =>
+  world === "stanford" ? stanfordAnimals : ANIMALS;
 
 /** Constant-speed legs with a sniff/graze at each waypoint; loops without teleporting. */
 export function animalPose(animal: Animal, seconds: number) {

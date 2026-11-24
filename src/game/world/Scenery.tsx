@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { onStanfordLand } from "../../shared/stanford-ground";
 import {
   forest,
   grassSites,
@@ -70,23 +71,33 @@ forest.forEach(({ x, z }, i) => {
       c: i % 2 ? "#8c9380" : "#aaa78c",
     });
 });
-export function GroundGrass({ avoid }: { avoid: readonly GroundFootprint[] }) {
+export function GroundGrass({
+  avoid,
+  stanford = false,
+}: {
+  avoid: readonly GroundFootprint[];
+  stanford?: boolean;
+}) {
   const parts = useMemo(
     () =>
-      grassSites(avoid).map<Part>(({ x, z, variant }) => ({
-        p: [x, 0.32, z],
-        s: [0.12, 0.35 + (variant % 4) * 0.1, 0.12],
-        c: variant % 3 ? "#638143" : "#8b9c59",
-      })),
-    [avoid],
+      grassSites(avoid)
+        .filter(({ x, z }) => !stanford || onStanfordLand(x, z, 0.3))
+        .map<Part>(({ x, z, variant }) => ({
+          p: [x, 0.32, z],
+          s: [0.12, 0.35 + (variant % 4) * 0.1, 0.12],
+          c: variant % 3 ? "#638143" : "#8b9c59",
+        })),
+    [avoid, stanford],
   );
   return <Instances parts={parts} geometry={reed} />;
 }
 const stanfordTrees = trees.filter(
-  ({ p }) => !isStanfordTownSpace(p[0], p[2], 3),
+  ({ p }) =>
+    !isStanfordTownSpace(p[0], p[2], 3) && onStanfordLand(p[0], p[2], 5),
 );
 const stanfordRocks = rocks.filter(
-  ({ p }) => !isStanfordTownSpace(p[0], p[2], 3),
+  ({ p }) =>
+    !isStanfordTownSpace(p[0], p[2], 3) && onStanfordLand(p[0], p[2], 2),
 );
 const outsideLandmarks = ({ p: [x, , z] }: Part) =>
   !isKoreaLandmarkArea(x, z, 0.6) && !isKoreaGardenWalk(x, z, 0.6);
