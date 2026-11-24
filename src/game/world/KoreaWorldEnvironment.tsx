@@ -7,6 +7,9 @@ import { HanRiverBridge } from "./HanRiverBridge";
 import { SeoulSkyline } from "./SeoulSkyline";
 import { NaturalTrees, type TreePlacement } from "./TreeArt";
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
+import { GroundGrass } from "./Scenery";
+import type { GroundFootprint } from "../core/scenery";
+import { KOREA_RIVER_FOOTPRINT } from "./KoreaRiverGround";
 import {
   KoreaRiversideLife,
   KOREA_ACTIVITY_OBSTACLES,
@@ -65,6 +68,10 @@ for (let x = -6; x < 7; x += 1.6)
       shape: "block",
     });
 for (const z of [21.55, 44.45]) slab(25, z, 74.8, 0.55, "#cbc7b7");
+const pavedFootprints = [
+  KOREA_RIVER_FOOTPRINT,
+  ...paving.map<GroundFootprint>(({ p, s }) => [p[0], p[2], s[0], s[2]]),
+];
 
 const benchFootprints: readonly (readonly [number, number, number, number])[] =
   [
@@ -187,6 +194,7 @@ export function KoreaWorldEnvironment() {
   return (
     <group name="korea-environment">
       <WorldSceneryParts parts={paving} />
+      <GroundGrass avoid={pavedFootprints} />
       <WorldSceneryParts parts={park} />
       <NaturalTrees trees={trees} />
       <SeoulSkyline />
