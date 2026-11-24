@@ -10,6 +10,7 @@ import { isKoreaGardenWalk, isKoreaLandmarkArea } from "../core/koreaLandmarks";
 import type { WorldId } from "../core/worlds";
 import { NaturalTrees } from "./TreeArt";
 import { sculptedMaterial } from "./Surface";
+import { isStanfordTownSpace } from "../core/stanfordLayout";
 
 type Part = {
   p: [number, number, number];
@@ -81,6 +82,12 @@ export function GroundGrass({ avoid }: { avoid: readonly GroundFootprint[] }) {
   );
   return <Instances parts={parts} geometry={reed} />;
 }
+const stanfordTrees = trees.filter(
+  ({ p }) => !isStanfordTownSpace(p[0], p[2], 3),
+);
+const stanfordRocks = rocks.filter(
+  ({ p }) => !isStanfordTownSpace(p[0], p[2], 3),
+);
 const outsideLandmarks = ({ p: [x, , z] }: Part) =>
   !isKoreaLandmarkArea(x, z, 0.6) && !isKoreaGardenWalk(x, z, 0.6);
 const koreaRocks = rocks.filter(outsideLandmarks);
@@ -89,10 +96,16 @@ export function Scenery({ world }: { world: WorldId }) {
   const korea = world === "korea";
   return (
     <>
-      <NaturalTrees trees={korea ? koreaTrees : trees} />
+      <NaturalTrees
+        trees={
+          korea ? koreaTrees : world === "stanford" ? stanfordTrees : trees
+        }
+      />
       <Instances
-        key={korea ? "korea-rocks" : "rocks"}
-        parts={korea ? koreaRocks : rocks}
+        key={`${world}-rocks`}
+        parts={
+          korea ? koreaRocks : world === "stanford" ? stanfordRocks : rocks
+        }
         geometry={crown}
       />
     </>

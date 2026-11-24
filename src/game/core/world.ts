@@ -17,6 +17,7 @@ import { HOME_COMMUNITY_OBSTACLES } from "../world/CommunityScenery";
 import { villageGardenSolids } from "./villageGardens";
 import { HOME_GARDEN_OBSTACLES } from "./homeGardens";
 import { HOME_DESTINATION_CENTERS } from "./homeLayout";
+import { STANFORD_BUILDINGS, isStanfordTownSpace } from "./stanfordLayout";
 import {
   KOREA_WATER_OBSTACLES,
   KOREA_BRIDGE_RAILS,
@@ -162,13 +163,19 @@ const largerHouses = new Set<string>([
 export const doors = villageDoors.map((door) => {
   const horizontal = largerHouses.has(door.id) ? 1.5 : 1;
   const vertical = horizontal > 1 ? 1.2 : 1;
-  const [cx, cz, hx, hz] = door.footprint;
+  const [oldX, oldZ, hx, hz] = door.footprint;
+  const [cx, cz] = STANFORD_BUILDINGS[
+    door.id as keyof typeof STANFORD_BUILDINGS
+  ] ?? [oldX, oldZ];
+  const rotation = door.id === "skate" ? Math.PI : 0;
   return {
     ...door,
-    z: cz + (door.z - cz) * horizontal,
+    x: cx + (door.x - oldX) * horizontal,
+    z: cz + (door.z - oldZ) * horizontal * (rotation ? -1 : 1),
     anchor: [cx, door.anchor[1] * vertical, cz] as const,
     footprint: [cx, cz, hx * horizontal, hz * horizontal] as const,
     scale: [horizontal, vertical, horizontal] as const,
+    rotation,
   };
 });
 export const landmarks = [
@@ -261,12 +268,9 @@ const sharedObstacles: ReadonlyArray<readonly number[]> = [
 ];
 const obstaclesFor = (world?: WorldId): ReadonlyArray<readonly number[]> => [
   ...sharedObstacles,
-  ...(world === "korea" ? koreaForest : forest).map(({ x, z }) => [
-    x,
-    z,
-    0.4,
-    0.4,
-  ]),
+  ...(world === "korea" ? koreaForest : forest)
+    .filter(({ x, z }) => world !== "stanford" || !isStanfordTownSpace(x, z, 3))
+    .map((tree) => [tree.x, tree.z, 0.4, 0.4]),
   ...(world ? villageGardenSolids(world) : []),
   ...(world ? doorsInWorld(world) : doors).map((door) => door.footprint),
   ...(world === undefined || world === "stanford" ? campusObstacles : []),

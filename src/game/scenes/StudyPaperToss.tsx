@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { DoubleSide, Group, PerspectiveCamera, Vector3 } from "three";
 import {
-  AIM_LIMIT, BIN_RADIUS, BIN_RIM, BIN_Z, THROW_Y, THROW_Z, TOSS_LIMIT,
-  binPosition, chargePower, newTossRound, shotPosition, stepToss, throwPaper,
+  AIM_LIMIT, BIN_RADIUS, BIN_RIM, BIN_Z, LANDING_TIME, RIM_AGE, THROW_Y, THROW_Z, TOSS_LIMIT,
+  binPosition, canThrowPaper, chargePower, launchPaper, newTossRound, shotPosition, stepToss, swipeToss, throwPaper,
 } from "../core/paperToss";
 import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import { runtime, useGame } from "../core/store";
@@ -15,6 +15,7 @@ const DESK = "#414f5b";
 const STEEL = "#748692";
 const TRIM = "#9caab1";
 const LIGHT = "#e1e7e9";
+const ARC_DOTS = 8;
 
 function DeskSet() {
   return (
@@ -57,10 +58,11 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
   const portal = useMemo(() => ({ current: gl.domElement.parentElement! }), [gl]);
   const round = useRef(newTossRound());
   const charge = useRef<{ source: "key" | "pointer" | "button"; start: number } | null>(null);
+  const swipe = useRef<{ id: number; x: number; y: number; aim: number; power: number } | null>(null);
   const power = useRef<HTMLProgressElement>(null);
   const bin = useRef<Group>(null);
   const paper = useRef<Group>(null);
-  const aimMark = useRef<Group>(null);
+  const arc = useRef<Group>(null);
   const hudRef = useRef<HTMLElement | null>(null);
   const aim = useRef(0);
   const desired = useMemo(() => new Vector3(), []);
@@ -68,7 +70,7 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
   const restoreLauncher = useRef(false);
   const [hud, setHud] = useState(newTossRound);
   const [lane, setLane] = useState(0);
-  const finished = hud.attempts >= TOSS_LIMIT;
+  const finished = hud.attempts >= TOSS_LIMIT && !hud.landing;
 
   const focusLauncher = useCallback((node: HTMLButtonElement | null) => {
     if (node && restoreLauncher.current) {
@@ -88,7 +90,7 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
   }, []);
   useEffect(() => {
     window.addEventListener("interior-game-close", close);
-    const cancel = () => { charge.current = null; };
+    const cancel = () => { charge.current = null; swipe.current = null; };
     window.addEventListener("blur", cancel);
     return () => {
       window.removeEventListener("interior-game-close", close);
@@ -102,11 +104,18 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
   const reset = () => {
     round.current = newTossRound();
     charge.current = null;
+    swipe.current = null;
     setAim(0);
     setHud(round.current);
   };
+  const ready = () => playing && !hidden && canThrowPaper(round.current);
+  const toss = (strength: number) => {
+    if (!ready()) return;
+    round.current = throwPaper(round.current, aim.current, strength);
+    setHud(round.current);
+  };
   const begin = (source: "key" | "pointer" | "button") => {
-    if (playing && !hidden && !charge.current && !round.current.shot && round.current.attempts < TOSS_LIMIT) {
+    if (ready() && !charge.current && !swipe.current) {
       charge.current = { source, start: performance.now() };
     }
   };
@@ -114,49 +123,85 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
     if (charge.current?.source !== source) return;
     const strength = chargePower((performance.now() - charge.current.start) / 1000);
     charge.current = null;
-    if (!playing || hidden) return;
-    round.current = throwPaper(round.current, aim.current, strength);
-    setHud(round.current);
+    toss(strength);
+  };
+
+  const moveSwipe = (event: PointerEvent<HTMLDivElement>) => {
+    const gesture = swipe.current;
+    if (!gesture || gesture.id !== event.pointerId) return;
+    const size = event.currentTarget.getBoundingClientRect();
+    const { aim: lane, power } = swipeToss(
+      gesture.aim, (event.clientX - gesture.x) / size.width,
+      (gesture.y - event.clientY) / Math.min(156, size.height * 0.32),
+    );
+    gesture.power = power;
+    setAim(lane);
   };
 
   useFrame(({ camera, size }, dt) => {
     if (!playing) return;
     if (hidden || !runtime.active) {
       charge.current = null;
+      swipe.current = null;
       return;
     }
+    const portrait = size.width / size.height < 0.9;
     const damping = 1 - Math.exp(-dt * 5);
-    desired.set(0, 6.15, 9.4);
+    desired.set(0, portrait ? 6.7 : 6.15, 9.4);
     camera.position.lerp(desired, damping);
+    look.set(0, portrait ? 0.65 : 0.9, portrait ? 0.15 : -1.1);
     camera.lookAt(look);
     if (camera instanceof PerspectiveCamera) {
-      const fov = size.width / size.height < 0.9 ? 66 : 48;
+      const fov = portrait ? 60 : 48;
       camera.fov += (fov - camera.fov) * damping;
       camera.updateProjectionMatrix();
     }
     const before = round.current;
-    const next = stepToss(before, Math.min(dt, 0.1));
+    const step = Math.min(dt, 0.1);
+    const next = stepToss(before, step);
     round.current = next;
-    if (next.attempts !== before.attempts) setHud(next);
-    if (bin.current) {
-      bin.current.position.x = binPosition(next.railAngle);
+    if (next.attempts !== before.attempts || (before.landing && !next.landing)) {
+      setHud(next);
     }
-    if (aimMark.current) aimMark.current.position.x = aim.current;
+    const binX = binPosition(next.railAngle);
+    if (bin.current) {
+      bin.current.position.x = binX;
+    }
+    const strength = swipe.current?.power ?? (charge.current
+      ? chargePower((performance.now() - charge.current.start) / 1000)
+      : null);
+    if (arc.current) {
+      arc.current.visible = canThrowPaper(next);
+      if (arc.current.visible) {
+        const preview = launchPaper(aim.current, strength ?? 0.5);
+        arc.current.children.forEach((dot, i) => {
+          const { x, y, z } = shotPosition(preview, RIM_AGE * (i + 1) / ARC_DOTS);
+          dot.position.set(x, y, z);
+        });
+      }
+    }
     if (paper.current) {
       if (next.shot) {
         const { x, y, z } = shotPosition(next.shot);
         paper.current.position.set(x, y, z);
         paper.current.rotation.set(next.shot.age * 5, next.shot.age * 4, 0.6);
+      } else if (next.landing) {
+        const { age, x, z } = next.landing;
+        const t = age / LANDING_TIME;
+        if (next.result === "hit") {
+          paper.current.position.set(binX, BIN_RIM - 1.15 * t ** 2, BIN_Z);
+        } else {
+          paper.current.position.set(x, 0.22 + Math.sin(t * Math.PI) * 0.2, z - t * 0.46);
+        }
+        paper.current.rotation.x += step * 7;
       } else {
         paper.current.position.set(0, THROW_Y, THROW_Z);
         paper.current.rotation.set(0.3, aim.current * 0.3, 0.6);
       }
-      paper.current.visible = next.attempts < TOSS_LIMIT;
+      paper.current.visible = !!next.landing || next.attempts < TOSS_LIMIT;
     }
     if (power.current) {
-      power.current.value = charge.current
-        ? chargePower((performance.now() - charge.current.start) / 1000)
-        : 0;
+      power.current.value = strength ?? 0;
     }
   });
 
@@ -180,8 +225,13 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
       {playing && (
         <>
           <DeskSet />
-          <group ref={aimMark} position={[0, 0.13, -4.01]}>
-            <Box s={[0.23, 0.06, 0.23]} c="#c1e0ef" r={[0, Math.PI / 4, 0]} />
+          <group ref={arc} visible={false} name="paper-toss-preview">
+            {Array.from({ length: ARC_DOTS }, (_, i) => (
+              <mesh key={i}>
+                <sphereGeometry args={[i === ARC_DOTS - 1 ? 0.085 : 0.051, 8, 6]} />
+                <meshBasicMaterial color={i === ARC_DOTS - 1 ? "#e5f1f7" : "#a0bbc9"} />
+              </mesh>
+            ))}
           </group>
           <group ref={bin} position={[0, 0, BIN_Z]}>
             <mesh position={[0, BIN_RIM / 2, 0]} castShadow receiveShadow>
@@ -226,32 +276,59 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
             }}>
             {playing ? (
               <>
+                {!finished && (
+                  <div className="toss-swipe" aria-hidden="true"
+                    onPointerDown={(event) => {
+                      if (event.pointerType !== "touch" || !event.isPrimary || !ready() || charge.current) return;
+                      event.currentTarget.setPointerCapture(event.pointerId);
+                      swipe.current = { id: event.pointerId, x: event.clientX, y: event.clientY, aim: aim.current, power: 0 };
+                      hudRef.current?.focus({ preventScroll: true });
+                    }}
+                    onPointerMove={moveSwipe}
+                    onPointerUp={(event) => {
+                      const gesture = swipe.current;
+                      if (!gesture || gesture.id !== event.pointerId) return;
+                      moveSwipe(event);
+                      swipe.current = null;
+                      if (gesture.power >= 0.12) toss(gesture.power);
+                    }}
+                    onLostPointerCapture={(event) => {
+                      if (swipe.current?.id === event.pointerId) swipe.current = null;
+                    }} />
+                )}
                 <header>
                   <div>
                     <h2>Paper Toss</h2>
                     <span aria-label={`Score ${hud.score}; shots ${hud.attempts} of ${TOSS_LIMIT}`}>
-                      {hud.score} / {TOSS_LIMIT} scored
+                      <b key={hud.score} className={hud.score ? "toss-score-pop" : undefined}>{hud.score}</b> / {TOSS_LIMIT} scored
                     </span>
+                    <p className="toss-status" role="status">
+                      {finished ? `${hud.score} of ${TOSS_LIMIT} made`
+                        : !hud.landing && `Shot ${hud.attempts + 1} of ${TOSS_LIMIT}`}
+                      {!finished && hud.result && <strong key={hud.attempts} data-result={hud.result}>{hud.result === "hit" ? "+1" : "Miss"}</strong>}
+                    </p>
                   </div>
                   <button onClick={close}>Close</button>
                 </header>
                 <div className="toss-controls">
-                  <p role="status">{finished ? `${hud.score} of ${TOSS_LIMIT} made` : hud.result === "hit" ? "In!" :
-                    hud.result === "miss" ? "Miss" : `Shot ${hud.attempts + 1} of ${TOSS_LIMIT}`}</p>
                   {finished ? <button ref={focusReplay} onClick={() => {
                     hudRef.current?.focus({ preventScroll: true });
                     reset();
                   }}>Play again</button> : (
                     <>
+                      <p className="toss-hint">
+                        <span className="toss-hint-keys">← → Aim · Hold Space, then release</span>
+                        <span className="toss-hint-touch">Drag sideways to aim · Swipe up to toss</span>
+                      </p>
                       <label>Aim <input type="range" min={-AIM_LIMIT} max={AIM_LIMIT}
-                        step={0.01} value={lane} onChange={(e) => setAim(Number(e.target.value))}
+                        step={0.04} value={lane} onChange={(e) => setAim(Number(e.target.value))}
                         aria-label="Aim left or right" /></label>
                       <div className="toss-power">
                         <progress ref={power} max={1} value={0} aria-label="Throw power" />
-                        <button data-toss="" aria-disabled={!!hud.shot}
+                        <button data-toss="" aria-disabled={!canThrowPaper(hud)}
                           onPointerDown={(e) => {
                             e.stopPropagation();
-                            if (e.button !== 0) return;
+                            if (e.button !== 0 || !ready()) return;
                             e.currentTarget.focus({ preventScroll: true });
                             e.currentTarget.setPointerCapture(e.pointerId);
                             begin("pointer");

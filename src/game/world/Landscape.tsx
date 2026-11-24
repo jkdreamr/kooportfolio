@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { Box, Cylinder, Ball, Bench, Boat, Cone } from "./Models";
 import { NaturalTrees, type TreePlacement } from "./TreeArt";
@@ -11,6 +11,8 @@ import { campus } from "../core/campus";
 import { POND, POND_SURFACE } from "../core/pond";
 import { WORLD_ELLIPSE } from "../../shared/world-bounds";
 import type { WorldId } from "../core/worlds";
+import { STANFORD_WALKS } from "../core/stanfordLayout";
+import { doorsInWorld } from "../core/world";
 import {
   isKoreaLandmarkArea,
   KOREA_LANDMARK_CANOPY_CLEARANCE,
@@ -96,49 +98,29 @@ for (let i = 0; i < 125; i++) {
   if (i % 5 === 0)
     masonry.push([x, 1.48, z, 0.72, 0.55, 0.8, "#b1b48f", -angle]);
 }
-const roads: Block[] = [
-  [0, 0.17, 24, 3, 0.1, 142, "#c9b381"],
-  [14, 0.17, 21, 28, 0.1, 3, "#c9b381"],
-  [-38, 0.17, -29, 2.5, 0.1, 10, "#c9b381"],
-  [-63, 0.17, 12, 28, 0.1, 2.5, "#c9b381"],
-  [0, 0.17, -9, 105, 0.1, 3, "#c9b381"],
-  [0, 0.17, 10, 105, 0.1, 3.5, "#c9b381"],
-  [-46, 0.17, 4, 2.5, 0.1, 51, "#c9b381"],
-  [46, 0.17, 4, 2.5, 0.1, 51, "#c9b381"],
-  [0, 0.17, 29, 110, 0.1, 3, "#c9b381"],
-  [-42, 0.17, -12, 2.5, 0.1, 6, "#c9b381"],
-  [-42, 0.17, 26, 2.5, 0.1, 7, "#c9b381"],
-  [43, 0.17, -13, 2.5, 0.1, 8, "#c9b381"],
-  [-18, 0.17, -10, 2.5, 0.1, 5, "#c9b381"],
-  [18, 0.17, -10, 2.5, 0.1, 5, "#c9b381"],
-  [-22, 0.17, 8.5, 2.5, 0.1, 4, "#c9b381"],
-  [23, 0.17, 8.5, 2.5, 0.1, 4, "#c9b381"],
-  [-4, 0.17, 15.5, 10, 0.1, 2.5, "#c9b381"],
-  [8, 0.17, 24, 2.5, 0.1, 9, "#c9b381"],
-  [-6, 0.17, -18, 13, 0.1, 2.5, "#c9b381"],
-  [6, 0.17, -18, 13, 0.1, 2.5, "#c9b381"],
-  [-11, 0.17, -20, 2.5, 0.1, 4.5, "#c9b381"],
-  [11, 0.17, -20, 2.5, 0.1, 4.5, "#c9b381"],
-  [-29, 0.17, 46, 2.5, 0.1, 34, "#c9b381"],
-  [-40, 0.17, 64, 24, 0.1, 3, "#c9b381"],
-  [-19, 0.17, -29, 2.5, 0.1, 7, "#c9b381"],
-];
-const paving: Block[] = [];
-for (let i = 0; i < 108; i++)
-  paving.push([
-    i % 2 ? -0.4 : 0.4,
-    0.235,
-    -30.5 + i * 0.56,
-    0.68,
-    0.025,
-    0.42,
-    i % 3 ? "#d9c99d" : "#b9a37b",
-  ]);
+const roads: Block[] = STANFORD_WALKS.map(([x, z, width, depth]) => [
+  x,
+  0.17,
+  z,
+  width,
+  0.1,
+  depth,
+  "#c9b381",
+]);
 const roadFootprints = roads.map<GroundFootprint>(
   ([x, , z, width, , depth]) => [x, z, width, depth],
 );
 
 export function Landscape({ world = "stanford" }: { world?: WorldId }) {
+  const grassAvoid = useMemo(
+    () => [
+      ...roadFootprints,
+      ...doorsInWorld("stanford").map<GroundFootprint>(
+        ({ footprint: [x, z, hx, hz] }) => [x, z, hx * 2 + 1, hz * 2 + 1],
+      ),
+    ],
+    [],
+  );
   return (
     <group>
       {world === "korea" ? (
@@ -195,8 +177,7 @@ export function Landscape({ world = "stanford" }: { world?: WorldId }) {
       {world === "stanford" && (
         <>
           <Blocks items={roads} />
-          <Blocks items={paving} />
-          <GroundGrass avoid={roadFootprints} />
+          <GroundGrass avoid={grassAvoid} />
         </>
       )}
       <Cylinder p={[-9, -1.1, 98]} s={[55, 1.8, 13.5]} c="#387b78" />

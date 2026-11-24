@@ -40,7 +40,7 @@ const topics: Record<string, readonly NpcTopic[]> = {
       id: "water",
       label: "Where's the water?",
       reply:
-        "Head west for the boathouse. If you hit the court, you've gone the other way.",
+        "Follow the campus walk past the court. The boathouse is beside the pond.",
     },
   ],
   dockhand: [
