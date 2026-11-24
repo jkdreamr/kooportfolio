@@ -2,10 +2,50 @@ import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { RaceState } from "../core/rowing";
-import { Box, Ball, Cylinder } from "../world/Models";
+import { Box, Cylinder } from "../world/Models";
+import { makeRower } from "./RowingCrew";
 
-const SEATS = [-1.65, -0.55, 0.55, 1.65];
+const SEATS = [-1.8, -0.6, 0.6, 1.8];
 const SKIN = ["#e6b28b", "#ae7354", "#f2c8a2", "#ca916e"];
+
+/** Original geometric S; no downloaded university artwork. */
+function DeckBadge() {
+  const geometry = useMemo(() => {
+    const points = [
+      [-0.5, 0.75],
+      [0.5, 0.75],
+      [0.5, 0.27],
+      [0.18, 0.27],
+      [0.18, 0.44],
+      [-0.18, 0.44],
+      [-0.18, 0.15],
+      [0.5, 0.15],
+      [0.5, -0.75],
+      [-0.5, -0.75],
+      [-0.5, -0.27],
+      [-0.18, -0.27],
+      [-0.18, -0.44],
+      [0.18, -0.44],
+      [0.18, -0.15],
+      [-0.5, -0.15],
+    ];
+    const shape = new THREE.Shape(
+      points.map(([x, y]) => new THREE.Vector2(x * 0.34, y * 0.6)),
+    );
+    const result = new THREE.ExtrudeGeometry(shape, {
+      depth: 0.012,
+      bevelEnabled: false,
+    });
+    result.rotateX(-Math.PI / 2);
+    return result;
+  }, []);
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  return (
+    <mesh geometry={geometry} position={[0, 0.32, -3.4]} receiveShadow>
+      <meshStandardMaterial color="#ffffff" roughness={0.55} />
+    </mesh>
+  );
+}
 
 /** Race-only model: the boathouse's static boat remains untouched. */
 export function RowingShell({
@@ -21,6 +61,17 @@ export function RowingShell({
   const crew = useRef<THREE.Group>(null);
   const oars = useRef<THREE.Group>(null);
   const wake = useRef<THREE.Group>(null);
+  const rowers = useMemo(
+    () =>
+      SKIN.map((skin) =>
+        makeRower(color, skin, player ? "#f4e9ce" : "#29434c"),
+      ),
+    [color, player],
+  );
+  useEffect(
+    () => () => rowers.forEach((geometry) => geometry.dispose()),
+    [rowers],
+  );
   const hull = useMemo(() => {
     const shape = new THREE.Shape();
     shape.moveTo(0, -4.8);
@@ -88,7 +139,7 @@ export function RowingShell({
         ripple.position.set(
           (i % 2 ? 1 : -1) * (0.35 + t * 1.6),
           -0.02,
-          3 + t * 9,
+          5 + t * 9,
         );
         ripple.scale.set(0.5 + t, 1, 0.3 + t * 0.5);
       });
@@ -112,7 +163,7 @@ export function RowingShell({
       <mesh
         geometry={hull}
         position={[0, -0.12, 0]}
-        scale={[0.98, 1.25, 0.99]}
+        scale={[0.98, 1.25, 1.02]}
         castShadow
         receiveShadow
       >
@@ -121,7 +172,7 @@ export function RowingShell({
       <mesh
         geometry={hull}
         position={[0, 0.13, 0]}
-        scale={[0.97, 0.3, 0.99]}
+        scale={[0.97, 0.3, 1.02]}
         castShadow
         receiveShadow
       >
@@ -132,7 +183,7 @@ export function RowingShell({
         />
       </mesh>
       <Box p={[0, 0.22, 0]} s={[0.64, 0.13, 5.7]} c="#17333a" />
-      {SEATS.map((z) => (
+      {SEATS.map((z, i) => (
         <group key={z}>
           <Box p={[0, 0.3, z]} s={[0.46, 0.07, 0.37]} c="#b27b43" />
           {[-1, 1].map((side) => (
@@ -142,17 +193,21 @@ export function RowingShell({
                 s={[0.035, 0.035, 0.75]}
                 c="#c5cbc1"
               />
-              <group
-                position={[side * 0.59, 0.34, z]}
-                rotation={[0, side * 0.42, 0]}
-              >
-                <Box p={[0, 0, 0]} s={[0.6, 0.045, 0.055]} c="#a4b7b5" />
-              </group>
-              <Cylinder
-                p={[side * 0.75, 0.42, z]}
-                s={[0.065, 0.13, 0.065]}
-                c="#273e44"
-              />
+              {side === (i % 2 ? 1 : -1) && (
+                <>
+                  <group
+                    position={[side * 0.59, 0.34, z]}
+                    rotation={[0, side * 0.42, 0]}
+                  >
+                    <Box p={[0, 0, 0]} s={[0.6, 0.045, 0.055]} c="#a4b7b5" />
+                  </group>
+                  <Cylinder
+                    p={[side * 0.75, 0.42, z]}
+                    s={[0.065, 0.13, 0.065]}
+                    c="#273e44"
+                  />
+                </>
+              )}
             </group>
           ))}
         </group>
@@ -161,81 +216,45 @@ export function RowingShell({
         <Box
           key={side}
           p={[side * 0.37, 0.29, 0]}
-          s={[0.065, 0.09, 6.3]}
+          s={[0.065, 0.09, 5.8]}
           c="#be8a47"
         />
       ))}
-      <Box p={[0, 0.23, -3.8]} s={[0.16, 0.04, 1.25]} c={color} />
-      <Box p={[0, 0.23, 3.8]} s={[0.16, 0.04, 1.25]} c={color} />
+      <Box
+        p={[0, 0.31, -4.1]}
+        s={[0.12, 0.04, 0.45]}
+        c={player ? "#ffffff" : color}
+      />
+      <Box
+        p={[0, 0.31, 3.8]}
+        s={[0.12, 0.04, 0.8]}
+        c={player ? "#ffffff" : color}
+      />
       <group ref={crew}>
         {SEATS.map((z, i) => (
           <group key={z} position={[0, 0.35, z]} userData={{ seat: i }}>
-            <Box p={[0, 0.02, 0]} s={[0.4, 0.13, 0.35]} c="#263e46" />
-            <Ball p={[0, 0.3, 0]} s={[0.26, 0.3, 0.2]} c={color} />
-            <Box p={[0, 0.15, 0]} s={[0.4, 0.22, 0.29]} c={color} />
-            <Box p={[0, 0.34, 0.18]} s={[0.38, 0.075, 0.045]} c="#eee3c6" />
-            <Cylinder p={[0, 0.54, 0]} s={[0.09, 0.16, 0.09]} c={SKIN[i]} />
-            <Ball p={[0, 0.65, 0]} s={[0.2, 0.23, 0.2]} c={SKIN[i]} />
-            <Ball p={[0, 0.64, 0.18]} s={[0.055, 0.06, 0.055]} c={SKIN[i]} />
-            {[-1, 1].map((side) => (
-              <Ball
-                key={side}
-                p={[side * 0.075, 0.7, 0.18]}
-                s={[0.025, 0.025, 0.018]}
-                c="#253b40"
-              />
-            ))}
-            <Ball
-              p={[0, 0.78, 0]}
-              s={[0.205, 0.12, 0.21]}
-              c={player ? "#f4e9ce" : "#29434c"}
-            />
-            <Box
-              p={[0, 0.79, 0.19]}
-              s={[0.32, 0.045, 0.23]}
-              c={player ? "#f4e9ce" : "#29434c"}
-            />
-            {[-1, 1].map((side) => (
-              <group key={side}>
-                <Ball
-                  p={[side * 0.24, 0.41, 0.04]}
-                  s={[0.135, 0.14, 0.145]}
-                  c={color}
-                />
-                <Box
-                  p={[side * 0.23, 0.3, 0.23]}
-                  s={[0.11, 0.13, 0.48]}
-                  c={SKIN[i]}
-                />
-                <Ball
-                  p={[side * 0.23, 0.3, 0.45]}
-                  s={[0.085, 0.085, 0.09]}
-                  c={SKIN[i]}
-                />
-                <Box
-                  p={[side * 0.13, 0.03, 0.3]}
-                  s={[0.13, 0.13, 0.51]}
-                  c="#29434c"
-                />
-                <Box
-                  p={[side * 0.13, 0.04, 0.58]}
-                  s={[0.15, 0.14, 0.23]}
-                  c="#e2d9bb"
-                />
-              </group>
-            ))}
+            <mesh geometry={rowers[i % SKIN.length]} castShadow receiveShadow>
+              <meshStandardMaterial vertexColors roughness={0.8} />
+            </mesh>
           </group>
         ))}
       </group>
+      {player && <DeckBadge />}
       <group ref={oars}>
-        {SEATS.flatMap((z) =>
-          [-1, 1].map((side) => (
+        {SEATS.map((z, i) => {
+          const side = i % 2 ? 1 : -1;
+          return (
             <group key={`${z}:${side}`} position={[side * 0.75, 0.4, z]}>
               <group
-                position={[side * 0.98, 0, 0]}
+                position={[side * 0.65, 0, 0]}
                 rotation={[0, 0, Math.PI / 2]}
               >
-                <Cylinder p={[0, 0, 0]} s={[0.035, 2.35, 0.035]} c="#c89b58" />
+                <Cylinder p={[0, 0, 0]} s={[0.035, 3.2, 0.035]} c="#c89b58" />
+                <Cylinder
+                  p={[0, side * 1.35, 0]}
+                  s={[0.045, 0.25, 0.045]}
+                  c="#263d43"
+                />
               </group>
               <group position={[side * 2.05, -0.035, 0]}>
                 <Box p={[0, 0, 0]} s={[0.65, 0.1, 0.33]} c={color} />
@@ -246,11 +265,11 @@ export function RowingShell({
                 />
               </group>
             </group>
-          )),
-        )}
+          );
+        })}
       </group>
       {player && (
-        <group position={[0, 0.25, -4.4]}>
+        <group position={[0, 0.3, -4.45]}>
           <Cylinder p={[0, 0.12, 0]} s={[0.025, 0.24, 0.025]} c="#f4e9ce" />
           <Box p={[0, 0.27, 0]} s={[0.28, 0.17, 0.035]} c="#f7c85b" />
         </group>
