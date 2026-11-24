@@ -6,7 +6,8 @@ import {
   useGameMode,
 } from "../src/game/core/gameMode";
 import { keys, touch } from "../src/game/core/input";
-import { runtime, useGame } from "../src/game/core/store";
+import { runtime, useGame, walkTo } from "../src/game/core/store";
+import { SKATE_EXIT } from "../src/game/core/skate";
 
 beforeEach(() => {
   useGameMode.setState({ active: null });
@@ -22,6 +23,14 @@ beforeEach(() => {
 });
 
 describe("optional immersive games", () => {
+  it.each([0, 23, 25])("routes the skate walker from z=%s to its own physical gate", (z) => {
+    useGame.setState({ scene: "skate" });
+    runtime.z = z;
+    walkTo(...SKATE_EXIT);
+    expect(runtime.target).toEqual(SKATE_EXIT);
+    expect(runtime.target![1]).toBeGreaterThan(23);
+    expect(runtime.path).toEqual([]);
+  });
   it("does not start on room entry and rejects a different room's game", () => {
     expect(useGameMode.getState().active).toBeNull();
     expect(startGameMode("badminton")).toBe(false);
@@ -63,6 +72,10 @@ describe("optional immersive games", () => {
     expect(useGameMode.getState().active?.id).toBe("pong");
     expect(runtime.x).toBe(9);
     useGame.setState({ paused: false });
+    // Holding the resume key is not a second deliberate press to leave.
+    expect(escapeGameMode(true)).toBe(false);
+    expect(useGameMode.getState().active?.id).toBe("pong");
+    expect(runtime.x).toBe(9);
     expect(escapeGameMode()).toBe(true);
     expect(useGameMode.getState().active).toBeNull();
     expect([runtime.x, runtime.z, runtime.heading]).toEqual([4, 7, 0.8]);

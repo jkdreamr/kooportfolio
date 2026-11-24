@@ -59,6 +59,7 @@ export function Walker({
 }) {
   const avatar = useRef<THREE.Group>(null),
     save = useGame((s) => s.save);
+  const playing = useGameMode((s) => !!s.active);
   const { camera, size } = useThree();
   const follow = useRef(new THREE.Vector3()),
     desired = useRef(new THREE.Vector3()),
@@ -229,7 +230,7 @@ export function Walker({
     }
   });
   return (
-    <group ref={avatar} name="village-player" visible={!locked}>
+    <group ref={avatar} name="village-player" visible={!locked && !playing}>
       <Character color={save.color} hat={save.hat} scale={0.65} />
     </group>
   );

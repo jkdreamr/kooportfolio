@@ -2,6 +2,11 @@ import { FIELD_GOAL } from "./fieldGoal";
 
 type V3 = [number, number, number];
 
+// Short landscape screens use a right-hand HUD rail, not a bottom overlay.
+export function stadiumViewOffset(width: number, height: number): number {
+  return height <= 500 && width > height ? Math.min(width * 0.15, 120) : 0;
+}
+
 export function stadiumCameraFrame(
   player: { x: number; z: number },
   playing: boolean,

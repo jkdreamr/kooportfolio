@@ -189,3 +189,44 @@
     grid-column: 3;
   }
 }
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .stadium-game-score,
+  .stadium-game-close,
+  .stadium-game-dock {
+    box-sizing: border-box;
+    left: auto;
+    right: 14px;
+    width: min(180px, 30%);
+    transform: none;
+  }
+  .stadium-game-score {
+    top: 8px;
+    min-height: 32px;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 10px;
+  }
+  .stadium-game-score strong {
+    display: none;
+  }
+  .stadium-game-close {
+    top: 48px;
+  }
+  .stadium-game-dock {
+    bottom: max(10px, env(safe-area-inset-bottom));
+  }
+  .stadium-game-controls {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+    padding: 8px 10px;
+  }
+  .stadium-game-controls button {
+    grid-row: auto;
+    grid-column: auto;
+  }
+  .stadium-game-aim,
+  .stadium-game-power {
+    gap: 8px;
+  }
+}

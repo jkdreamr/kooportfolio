@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { Ball, Box, Cylinder } from "../world/Models";
@@ -139,20 +139,24 @@ export function StadiumInterior() {
     if (startGameMode("stadium")) reset();
   }
 
-  function close() {
+  const cancelFlight = useCallback(() => {
     flight.current = null;
     setFlying(false);
+    if (ball.current) {
+      ball.current.position.set(0, 0.48, FIELD_GOAL.startZ);
+      ball.current.rotation.set(0, 0, 0);
+    }
+  }, []);
+
+  function close() {
+    cancelFlight();
     endGameMode();
   }
 
   useEffect(() => {
-    const cancel = () => {
-      flight.current = null;
-      setFlying(false);
-    };
-    window.addEventListener("interior-game-close", cancel);
-    return () => window.removeEventListener("interior-game-close", cancel);
-  }, []);
+    window.addEventListener("interior-game-close", cancelFlight);
+    return () => window.removeEventListener("interior-game-close", cancelFlight);
+  }, [cancelFlight]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {

@@ -9,7 +9,7 @@ import {
   Window,
 } from "../world/Models";
 import { Walker } from "../world/Hub";
-import { runtime, useGame } from "../core/store";
+import { useGame, walkTo } from "../core/store";
 import { useGameMode } from "../core/gameMode";
 import { doors } from "../core/world";
 import { CognitionFurnishings, GymFurnishings } from "./CognitionGym";
@@ -64,11 +64,7 @@ export function Interior() {
             state.overlayLocked || state.panel !== "none"
           ) return;
           event.stopPropagation();
-          runtime.path = [];
-          runtime.target = [
-            Math.max(-room.walkX, Math.min(room.walkX, event.point.x)),
-            Math.max(room.minZ, Math.min(room.maxZ, event.point.z)),
-          ];
+          walkTo(event.point.x, event.point.z);
         }}
       >
         <planeGeometry args={[room.width, room.depth]} />
