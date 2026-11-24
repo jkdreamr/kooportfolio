@@ -14,14 +14,20 @@ export function sculptedMaterial(
   });
   material.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader
-      .replace("#include <common>", "#include <common>\nvarying vec3 vSculptNormal;")
+      .replace(
+        "#include <common>",
+        "#include <common>\nvarying vec3 vSculptNormal;",
+      )
       .replace(
         "#include <defaultnormal_vertex>",
         `#include <defaultnormal_vertex>
         vSculptNormal = inverseTransformDirection(transformedNormal, viewMatrix);`,
       );
     shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", "#include <common>\nvarying vec3 vSculptNormal;")
+      .replace(
+        "#include <common>",
+        "#include <common>\nvarying vec3 vSculptNormal;",
+      )
       .replace(
         "#include <color_fragment>",
         `#include <color_fragment>
