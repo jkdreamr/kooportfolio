@@ -22,8 +22,20 @@ import {
 } from "../src/game/core/world";
 import { activitySpots } from "../src/game/core/regionalActivities";
 import { HOME_ANIMALS, animalPose } from "../src/game/core/wildlife";
+import { villagers } from "../src/game/core/npcs";
 
 describe("Home’s actual compact island", () => {
+  it("keeps the seated Reader on the relocated bench beside the talking approach", () => {
+    const reader = villagers.find(({ id }) => id === "reader")!;
+    const seat = reader.stops![0].seat!;
+    expect(seat.position).toEqual([10, 3.2]);
+    expect(
+      Math.hypot(
+        reader.route[0][0] - seat.position[0],
+        reader.route[0][1] - seat.position[1],
+      ),
+    ).toBeLessThan(1.5);
+  });
   it("removes four fifths of the old walkable land, not just the camera view", () => {
     expect(HOME_ISLAND.radiusX * HOME_ISLAND.radiusZ).toBeLessThan(
       WORLD_ELLIPSE.radiusX * WORLD_ELLIPSE.radiusZ * 0.21,

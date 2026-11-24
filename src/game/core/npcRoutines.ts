@@ -62,7 +62,7 @@ export const routines: Record<string, Pick<Villager, "route" | "stops">> = {
       0: {
         duration: 20,
         heading: Math.PI,
-        seat: { position: [39, 42.2], height: 0.865 },
+        seat: { position: [10, 3.2], height: 0.865 },
       },
       4: { duration: 9, heading: -Math.PI / 2 },
     },
