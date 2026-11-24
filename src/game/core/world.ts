@@ -1,6 +1,10 @@
 import { WORLD_BOUNDS, WORLD_ELLIPSE } from "../../shared/world-bounds";
 import { ISLAND_RAIL } from "./islandRail";
-import { forest } from "./scenery";
+import { forest, koreaForest } from "./scenery";
+import {
+  KOREA_LANDMARK_DESTINATIONS,
+  KOREA_LANDMARK_SOLIDS,
+} from "./koreaLandmarks";
 import { campusObstacles } from "./campus";
 import { POND } from "./pond";
 import { PHOTO_BOOTH_ENTRY, PHOTO_BOOTH_OBSTACLES, PHOTO_BOOTH_ORIGIN } from "./photoBoothLayout";
@@ -162,13 +166,7 @@ export const doors = villageDoors.map((door) => {
   };
 });
 export const landmarks = [
-  {
-    id: "namsan",
-    name: "N Seoul Tower",
-    x: -28,
-    z: -44.5,
-    anchor: [-28, 27, -48] as const,
-  },
+  ...KOREA_LANDMARK_DESTINATIONS,
   {
     id: "airport",
     name: "Airport",
@@ -232,7 +230,6 @@ export function isInterior(scene: string) {
   );
 }
 const sharedObstacles: ReadonlyArray<readonly number[]> = [
-  ...forest.map((tree) => [tree.x, tree.z, 0.4, 0.4]),
   [POND.x, POND.z, POND.radiusX, POND.radiusZ],
   [0, -6.6, 2.1, 0.4],
   [0, 0, 1.5, 1.5],
@@ -241,6 +238,12 @@ const sharedObstacles: ReadonlyArray<readonly number[]> = [
 ];
 const obstaclesFor = (world?: WorldId): ReadonlyArray<readonly number[]> => [
   ...sharedObstacles,
+  ...(world === "korea" ? koreaForest : forest).map(({ x, z }) => [
+    x,
+    z,
+    0.4,
+    0.4,
+  ]),
   ...(world ? villageGardenSolids(world) : []),
   ...(world ? doorsInWorld(world) : doors).map((door) => door.footprint),
   ...(world === undefined || world === "stanford" ? campusObstacles : []),
@@ -250,7 +253,7 @@ const obstaclesFor = (world?: WorldId): ReadonlyArray<readonly number[]> => [
         ...KOREA_WATER_OBSTACLES,
         ...KOREA_BRIDGE_RAILS,
         ...KOREA_PARK_OBSTACLES,
-        [-28, -48, 2.5, 2.5],
+        ...KOREA_LANDMARK_SOLIDS,
         ...KOREA_PARK_TREES.map(({ p }) => [p[0], p[2], 0.4, 0.4]),
       ]
     : []),

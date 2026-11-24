@@ -1,4 +1,5 @@
 export const BEAT_INTERVAL = 0.6;
+export const BEAT_COUNT_IN = 4 * BEAT_INTERVAL;
 export const HIT_WINDOW = 0.21;
 export const BEAT_PAD_KEYS = ["F", "G", "H", "J"] as const;
 
@@ -17,7 +18,8 @@ export function beatPadLane({
   return letter >= 0 ? letter : /^[1-4]$/.test(key) ? Number(key) - 1 : -1;
 }
 
-const phrase = [0, 2, 1, 2, 0, 3, 1, 2, 0, 1, 3, 2, 0, 2, 3, 1];
+const phrase = [0, 0, 2, 2, 0, 2, 1, 2, 0, 1, 3, 2, 0, 2, 3, 1];
+const variation = [0, 1, 2, 2.5, 4, 5, 6, 6.5, 8, 9, 10, 10.5, 12, 13, 14, 15];
 export type BeatNote = {
   lane: number;
   at: number;
@@ -30,8 +32,10 @@ export type BeatGame = {
   notes: BeatNote[];
   points: number;
   combo: number;
+  comboHits: number[];
   best: number;
   feedback: string;
+  feedbackAt: number;
 };
 export function newBeatGame(): BeatGame {
   return {
@@ -39,18 +43,51 @@ export function newBeatGame(): BeatGame {
     time: 0,
     points: 0,
     combo: 0,
+    comboHits: [],
     best: 0,
     feedback: "",
+    feedbackAt: 0,
     notes: [...phrase, ...phrase.map((lane) => (lane + 1) % 4)].map(
       (lane, i) => ({
         lane,
-        at: 2.4 + i * BEAT_INTERVAL,
+        at:
+          BEAT_COUNT_IN +
+          (i < phrase.length
+            ? i
+            : phrase.length + variation[i - phrase.length]) *
+            BEAT_INTERVAL,
         hit: false,
         missed: false,
       }),
     ),
   };
 }
+export function beatRoundEnd(game: BeatGame): number {
+  return game.notes[game.notes.length - 1].at + BEAT_INTERVAL;
+}
+
+export function beatCue(game: BeatGame, lane: number): boolean {
+  return (
+    game.phase === "playing" &&
+    game.notes.some(
+      (note) =>
+        note.lane === lane &&
+        !note.hit &&
+        !note.missed &&
+        Math.abs(note.at - game.time) <= HIT_WINDOW,
+    )
+  );
+}
+
+function consecutiveHits(notes: BeatNote[], hits: number[]): number {
+  if (!hits.length) return 0;
+  const lastHit = Math.max(...hits);
+  if (notes.slice(lastHit + 1).some((note) => note.missed)) return 0;
+  let combo = 0;
+  while (hits.includes(lastHit - combo)) combo++;
+  return combo;
+}
+
 export function advanceBeat(game: BeatGame, dt: number): BeatGame {
   if (game.phase !== "playing" || !Number.isFinite(dt) || dt <= 0) return game;
   const time = game.time + dt;
@@ -66,9 +103,10 @@ export function advanceBeat(game: BeatGame, dt: number): BeatGame {
     ...game,
     time,
     notes,
-    phase: time > notes[notes.length - 1].at + 0.6 ? "done" : "playing",
-    combo: missed ? 0 : game.combo,
+    phase: time >= beatRoundEnd(game) ? "done" : "playing",
+    combo: missed ? consecutiveHits(notes, game.comboHits) : game.combo,
     feedback: missed ? "Miss" : game.feedback,
+    feedbackAt: missed ? time : game.feedbackAt,
   };
 }
 export function hitBeat(game: BeatGame, lane: number): BeatGame {
@@ -76,7 +114,8 @@ export function hitBeat(game: BeatGame, lane: number): BeatGame {
     game.phase !== "playing" ||
     !Number.isInteger(lane) ||
     lane < 0 ||
-    lane > 3
+    lane > 3 ||
+    game.time < BEAT_COUNT_IN - HIT_WINDOW
   )
     return game;
   const candidates = game.notes.filter(
@@ -86,20 +125,27 @@ export function hitBeat(game: BeatGame, lane: number): BeatGame {
     (a, b) => Math.abs(a.at - game.time) - Math.abs(b.at - game.time),
   )[0];
   const error = note ? Math.abs(note.at - game.time) : Infinity;
-  if (error > HIT_WINDOW)
+  if (error > HIT_WINDOW) {
+    if (game.time < BEAT_COUNT_IN) return game;
     return {
       ...game,
       combo: 0,
+      comboHits: [],
       points: Math.max(0, game.points - 35),
       feedback: "Off beat",
+      feedbackAt: game.time,
     };
-  const combo = game.combo + 1;
+  }
+  const comboHits = [...game.comboHits, game.notes.indexOf(note)];
+  const combo = consecutiveHits(game.notes, comboHits);
   return {
     ...game,
     combo,
+    comboHits,
     best: Math.max(game.best, combo),
     points: game.points + (error <= 0.08 ? 100 : 60),
     feedback: error <= 0.08 ? "Perfect" : "Good",
+    feedbackAt: game.time,
     notes: game.notes.map((n) => (n === note ? { ...n, hit: true } : n)),
   };
 }
