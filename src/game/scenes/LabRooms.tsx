@@ -888,13 +888,14 @@ export function MathLabInterior() {
     setBoard(previous);
     setHistory(historyRef.current);
     setHint(null);
-    labTone(0, true);
+    labTone(0);
   }, []);
   const showHint = useCallback(() => {
     if (playing()) setHint(lightsHint(boardRef.current));
   }, []);
   const reset = useCallback(() => {
-    if (playing()) load(roundRef.current, seedRef.current);
+    if (playing() && boardRef.current !== LIGHTS_TARGET)
+      load(roundRef.current, seedRef.current);
   }, [load]);
   const next = useCallback(() => {
     if (playing()) load(roundRef.current + 1, seedRef.current);
