@@ -433,36 +433,44 @@ export function Hud({ interact }: { interact: () => void }) {
           >
             <div>
               <strong>
-                {g.near === "exit"
-                  ? "Village door"
-                  : g.near === "race"
-                    ? "Coxswain Regatta"
-                    : g.near === "read"
-                      ? "Meet Joshua"
-                      : g.near === "desk"
-                        ? "Desk"
-                        : g.near === "lift"
-                          ? `${reps} reps`
-                          : g.near === "npc"
-                            ? npcName()
-                            : doors.find((d) => d.id === g.near)?.name}
+                {g.near === "photo"
+                  ? "Photo booth"
+                  : g.near === "stargazing"
+                    ? "Telescope"
+                    : g.near === "exit"
+                      ? "Village door"
+                      : g.near === "race"
+                        ? "Coxswain Regatta"
+                        : g.near === "read"
+                          ? "Meet Joshua"
+                          : g.near === "desk"
+                            ? "Desk"
+                            : g.near === "lift"
+                              ? `${reps} reps`
+                              : g.near === "npc"
+                                ? npcName()
+                                : doors.find((d) => d.id === g.near)?.name}
               </strong>
             </div>
             <button onClick={interact}>
               <kbd>E</kbd>
-              {g.near === "exit"
-                ? "Exit"
-                : g.near === "race"
-                  ? "Race"
-                  : g.near === "read"
-                    ? "Read"
-                    : g.near === "desk"
-                      ? "Open"
-                      : g.near === "lift"
-                        ? "Lift"
-                        : g.near === "npc"
-                          ? "Talk"
-                          : "Enter"}{" "}
+              {g.near === "photo"
+                ? "Photo"
+                : g.near === "stargazing"
+                  ? "Look"
+                  : g.near === "exit"
+                    ? "Exit"
+                    : g.near === "race"
+                      ? "Race"
+                      : g.near === "read"
+                        ? "Read"
+                        : g.near === "desk"
+                          ? "Open"
+                          : g.near === "lift"
+                            ? "Lift"
+                            : g.near === "npc"
+                              ? "Talk"
+                              : "Enter"}{" "}
               <Icon name="arrow" size={17} />
             </button>
           </div>
