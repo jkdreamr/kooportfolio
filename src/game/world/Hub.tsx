@@ -112,20 +112,12 @@ export function Walker({ interior = false }: { interior?: boolean }) {
         doors.find((d) => Math.hypot(d.x - runtime.x, d.z - runtime.z) < 1.9)
           ?.id ?? "";
     state.setNear(near);
-    const mobile = size.width < 700;
+    const mobile = size.width < 700 || size.height < 500;
     const closeInterior = interior && (mobile || size.height < 500);
     desired.current.set(
-      interior
-        ? closeInterior
-          ? runtime.x * 0.8
-          : 0
-        : runtime.x * (mobile ? 0.92 : 0.12),
+      interior ? (closeInterior ? runtime.x * 0.8 : 0) : runtime.x * 0.92,
       0,
-      interior
-        ? closeInterior
-          ? runtime.z * 0.8
-          : 0
-        : runtime.z * (mobile ? 0.92 : 0.12),
+      interior ? (closeInterior ? runtime.z * 0.8 : 0) : runtime.z * 0.92,
     );
     follow.current.lerp(desired.current, 1 - Math.exp(-dt * 3));
     if (interior) offset.current.set(18, 23, 29);
@@ -136,19 +128,19 @@ export function Walker({ interior = false }: { interior?: boolean }) {
       const fitted = Math.max(
         3.5,
         Math.min(
-          (size.width - 70) / 57,
-          (size.height - (size.height < 500 ? 120 : 180)) / 39,
+          (size.width - 70) / 114,
+          (size.height - (size.height < 500 ? 100 : 150)) / 83,
         ),
       );
       const targetZoom = interior
         ? closeInterior
           ? 24
           : Math.min(38, (size.width - 35) / 35, (size.height - 170) / 29)
-        : mobile
-          ? state.build
-            ? 8
-            : 22
-          : fitted * (state.build ? 0.9 : 1);
+        : state.build
+          ? fitted * 0.9
+          : mobile
+            ? 24
+            : 28;
       camera.zoom = THREE.MathUtils.damp(camera.zoom, targetZoom, 5, dt);
       camera.updateProjectionMatrix();
     }
@@ -250,7 +242,7 @@ export function Hub() {
             walkTo(e.point.x, e.point.z);
         }}
       >
-        <circleGeometry args={[24, 64]} />
+        <planeGeometry args={[104, 90]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
       {doors.map((door) => (

@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef } from "react";
 import * as THREE from "three";
 import { Box, Cylinder, Ball, Tree, Bench, Boat, Cone, Sign } from "./Models";
+import { Scenery } from "./Scenery";
 
 type Block = [number, number, number, number, number, number, string, number?];
 function Blocks({
@@ -41,11 +42,11 @@ function Blocks({
 }
 
 const tiles: Block[] = [];
-for (let ix = -10; ix <= 10; ix++)
-  for (let iz = -8; iz <= 8; iz++) {
+for (let ix = -23; ix <= 23; ix++)
+  for (let iz = -19; iz <= 19; iz++) {
     const x = ix * 2.12,
       z = iz * 2.12 - 1;
-    if ((x / 22) ** 2 + ((z + 1) / 18.4) ** 2 < 1)
+    if ((x / 49.5) ** 2 + ((z + 1) / 41.5) ** 2 < 1)
       tiles.push([
         x,
         0.13,
@@ -53,14 +54,16 @@ for (let ix = -10; ix <= 10; ix++)
         2.08,
         0.025,
         2.08,
-        (ix + iz) % 2 ? "#5d963d" : "#659e42",
+        ["#5d963d", "#639b3f", "#679e43", "#60963b"][
+          Math.abs(ix * 13 + iz * 7) % 4
+        ],
       ]);
   }
 const masonry: Block[] = [];
-for (let i = 0; i < 55; i++) {
-  const angle = Math.PI + (i / 54) * Math.PI;
-  const x = Math.cos(angle) * 22,
-    z = Math.sin(angle) * 17.6 - 0.5;
+for (let i = 0; i < 125; i++) {
+  const angle = Math.PI + (i / 124) * Math.PI;
+  const x = Math.cos(angle) * 49.5,
+    z = Math.sin(angle) * 41 - 0.5;
   masonry.push([
     x,
     0.55,
@@ -76,25 +79,25 @@ for (let i = 0; i < 55; i++) {
     masonry.push([x, 1.48, z, 0.72, 0.55, 0.8, "#b1b48f", -angle]);
 }
 const roads: Block[] = [
-  [0, 0.17, -2, 2, 0.1, 27, "#c9b381"],
-  [0, 0.17, -4.25, 35, 0.1, 1.8, "#c9b381"],
-  [-17.2, 0.17, 3.5, 1.8, 0.1, 17, "#c9b381"],
-  [17.2, 0.17, 3.5, 1.8, 0.1, 17, "#c9b381"],
-  [0, 0.17, 13, 35.5, 0.1, 1.8, "#c9b381"],
-  [-11, 0.17, -5.7, 1.8, 0.1, 3.8, "#c9b381"],
-  [11, 0.17, -5.7, 1.8, 0.1, 3.8, "#c9b381"],
-  [-13, 0.17, 7.5, 1.8, 0.1, 4.5, "#c9b381"],
-  [-15.1, 0.17, 9, 4.2, 0.1, 1.8, "#c9b381"],
-  [14.1, 0.17, 6, 6.3, 0.1, 1.8, "#c9b381"],
-  [-5, 0.17, 11, 1.7, 0.1, 4.8, "#c9b381"],
-  [5.5, 0.17, 12.5, 1.8, 0.1, 2, "#c9b381"],
+  [0, 0.17, -1, 3, 0.1, 64, "#c9b381"],
+  [0, 0.17, -9, 70, 0.1, 3, "#c9b381"],
+  [0, 0.17, 10, 70, 0.1, 3.5, "#c9b381"],
+  [-34, 0.17, 4, 2.5, 0.1, 51, "#c9b381"],
+  [34, 0.17, 4, 2.5, 0.1, 51, "#c9b381"],
+  [0, 0.17, 29, 60, 0.1, 3, "#c9b381"],
+  [-18, 0.17, -10, 2.5, 0.1, 5, "#c9b381"],
+  [18, 0.17, -10, 2.5, 0.1, 5, "#c9b381"],
+  [-22, 0.17, 8.5, 2.5, 0.1, 4, "#c9b381"],
+  [23, 0.17, 8.5, 2.5, 0.1, 4, "#c9b381"],
+  [-4, 0.17, 15.5, 10, 0.1, 2.5, "#c9b381"],
+  [8, 0.17, 24, 2.5, 0.1, 9, "#c9b381"],
 ];
 const paving: Block[] = [];
-for (let i = 0; i < 48; i++)
+for (let i = 0; i < 108; i++)
   paving.push([
     i % 2 ? -0.4 : 0.4,
     0.235,
-    -14.8 + i * 0.56,
+    -30.5 + i * 0.56,
     0.68,
     0.025,
     0.42,
@@ -104,24 +107,25 @@ for (let i = 0; i < 48; i++)
 export function Landscape() {
   return (
     <group>
-      <Cylinder p={[0, -1.25, -1]} s={[23.5, 2.2, 20.2]} c="#655e3e" />
-      <Cylinder p={[0, -0.35, -1]} s={[23.7, 0.7, 20.4]} c="#b3aa77" />
-      <Cylinder p={[0, -0.01, -1]} s={[23.4, 0.3, 20]} c="#568f38" />
+      <Cylinder p={[0, -2.1, -1]} s={[51.8, 4.2, 43.8]} c="#655e3e" />
+      <Cylinder p={[0, -0.5, -1]} s={[52, 1, 44]} c="#a49564" />
+      <Cylinder p={[0, -0.01, -1]} s={[51.5, 0.3, 43.5]} c="#568f38" />
+      <Scenery />
       <Blocks items={tiles} />
       <Blocks items={masonry} shadow />
       <Blocks items={roads} />
       <Blocks items={paving} />
-      <Box p={[-3, -0.07, 18.2]} s={[43, 0.2, 6]} c="#4b9f9c" />
-      <Box p={[-3, -0.02, 18.2]} s={[43, 0.08, 5.7]} c="#64b3a7" />
+      <Cylinder p={[-9, -1.1, 37]} s={[40, 1.8, 13.5]} c="#387b78" />
+      <Cylinder p={[-9, -0.12, 37]} s={[39.2, 0.25, 13.2]} c="#459d96" />
       {Array.from({ length: 17 }, (_, i) => (
         <Box
           key={i}
-          p={[Math.sin(i * 3.2) * 19 - 3, 0.03, 16.2 + (i % 5)]}
+          p={[Math.sin(i * 3.2) * 30 - 9, 0.03, 36.2 + (i % 5)]}
           s={[1.1 + (i % 3), 0.01, 0.035]}
           c="#99d4bf"
         />
       ))}
-      <group position={[-13, 0.2, 15.7]}>
+      <group position={[-28, 0.2, 32]}>
         <Box s={[3.3, 0.25, 6.1]} c="#805d36" />
         {Array.from({ length: 14 }, (_, i) => (
           <Box
@@ -142,15 +146,15 @@ export function Landscape() {
           )),
         )}
       </group>
-      <group position={[-8.5, 0.1, 18.4]} rotation={[0, 1.4, 0]}>
+      <group position={[-23, 0.1, 37]} rotation={[0, 1.4, 0]}>
         <Boat pace={0} color="#edc96e" />
       </group>
-      {Array.from({ length: 24 }, (_, i) => {
-        const a = Math.PI + (i / 23) * Math.PI;
+      {Array.from({ length: 40 }, (_, i) => {
+        const a = Math.PI + (i / 39) * Math.PI;
         return (
           <Tree
             key={i}
-            p={[Math.cos(a) * 23, 0, Math.sin(a) * 18.8 - 0.6]}
+            p={[Math.cos(a) * 51, 0, Math.sin(a) * 43 - 0.6]}
             size={0.8 + (i % 3) * 0.15}
             variant={i % 3 === 0 ? 0 : 2}
           />
@@ -179,7 +183,7 @@ export function Landscape() {
 
 function Orchard() {
   return (
-    <group position={[-7, 0, 13.6]}>
+    <group position={[-18, 0, 26]}>
       {[-2.5, 0, 2.5].map((x) => (
         <group key={x}>
           <Box p={[x, 0.28, 0]} s={[1.5, 0.4, 3.2]} c="#705239" />
@@ -200,7 +204,7 @@ function Orchard() {
 }
 function MusicCorner() {
   return (
-    <group position={[14, 0, 12]}>
+    <group position={[24, 0, 25]}>
       <Cylinder p={[0, 0.24, 0]} s={[2.35, 0.45, 2.35]} c="#8c6b45" />
       <Box p={[0, 1.15, -0.5]} s={[2.7, 0.18, 1.1]} c="#b29a68" />
       {[-0.7, 0.7].map((x) => (
@@ -230,7 +234,7 @@ function MusicCorner() {
 }
 function Windmill() {
   return (
-    <group position={[-18, 0, -10.6]} scale={0.8}>
+    <group position={[-34, 0, -24]} scale={0.8}>
       <Cylinder p={[0, 1.9, 0]} s={[1.5, 3.8, 1.5]} c="#c5b188" />
       <Box p={[0, 4.2, 0]} s={[2.5, 1.6, 2.1]} c="#8d593b" />
       <Cone p={[0, 5.6, 0]} s={[2, 1.5, 1.8]} c="#c25132" />

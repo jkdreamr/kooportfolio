@@ -42,7 +42,6 @@ export function Joystick() {
       onLostPointerCapture={reset}
     >
       <span style={{ transform: `translate(${pos[0]}px,${pos[1]}px)` }} />
-      <i>MOVE</i>
     </div>
   );
 }

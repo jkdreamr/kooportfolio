@@ -3,7 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { runtime, useGame } from "../core/store";
-import { RoofShingles, StoneFooting } from "./ArchitectureDetail";
+import { GableRoof, StoneFooting } from "./ArchitectureDetail";
 
 const rounded = new Map<string, RoundedBoxGeometry>();
 function roundedGeometry(size: [number, number, number]) {
@@ -420,24 +420,7 @@ export function House({
       <Box p={[0, 0.19, 3]} s={[2.1, 0.18, 0.7]} c="#c6b99e" />
       <Box p={[0, 3.55, 0]} s={[6.6, 0.38, 4.85]} c="#795a3c" />
       <StoneFooting width={6} depth={4.2} />
-      <RoofShingles
-        width={6.6}
-        depth={4.95}
-        y={3.55}
-        rise={1.55}
-        color={roof}
-        hip={false}
-      />
-      {[-1, 1].map((side) => (
-        <group
-          key={side}
-          position={[side * 1.57, 4.32, 0]}
-          rotation={[0, 0, side * -0.45]}
-        >
-          <Box s={[3.5, 0.4, 4.95]} c={roof} />
-        </group>
-      ))}
-      <Box p={[0, 5.1, 0]} s={[0.36, 0.38, 5.1]} c={roof} />
+      <GableRoof width={6.6} depth={4.95} y={3.7} rise={1.55} color={roof} />
       <Box p={[1.8, 4.9, -0.9]} s={[0.63, 1.8, 0.65]} c="#b99b7a" />
       <Box p={[1.8, 5.85, -0.9]} s={[0.84, 0.15, 0.85]} c="#cdbc9d" />
       <Sign
