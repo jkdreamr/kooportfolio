@@ -223,7 +223,7 @@ function World() {
           <shadowMaterial transparent opacity={0.12} />
         </mesh>
       )}
-      {scene === "hub" && <Hub key={world} />}
+      {scene === "hub" && <Hub />}
       {isInterior(scene) && scene !== "skate" && <Interior key={scene} />}
       {scene === "skate" && <SkateParkInterior key={`skate-${run}`} />}
       {scene === "rowing" && <Rowing key={`race-${run}`} />}
@@ -329,9 +329,7 @@ export default function Game() {
             antialias: true,
             powerPreference: "high-performance",
           }}
-          frameloop={
-            paused || traveling || panel === "photo" ? "demand" : "always"
-          }
+          frameloop={paused || panel === "photo" ? "demand" : "always"}
           onCreated={({ gl }) => {
             gl.toneMapping = THREE.ACESFilmicToneMapping;
             gl.toneMappingExposure = 0.98;
@@ -353,7 +351,7 @@ export default function Game() {
         </Canvas>
       </WorldBoundary>
       <Hud interact={interact} />
-      {!gameMode && <TimeOfDayControls />}
+      {!gameMode && !traveling && <TimeOfDayControls />}
       {!gameMode && <WorldZoomControls />}
       <NpcDialog />
       <PhotoBoothDialog />

@@ -299,7 +299,7 @@ export function IslandTrain({
   return (
     <group>
       <CoastalTrack />
-      <group ref={coaches}>
+      <group ref={coaches} visible={!disabled}>
         {[0, 1, 2].map((i) => {
           const pose = railPose(0, i * 0.009);
           return (

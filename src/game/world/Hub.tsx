@@ -377,7 +377,7 @@ export function Hub() {
         position={[0, 0.24, WORLD_ELLIPSE.centerZ]}
         onPointerDown={(e) => {
           e.stopPropagation();
-          if (!build && canWalk(e.point.x, e.point.z, world))
+          if (!build && !traveling && canWalk(e.point.x, e.point.z, world))
             walkTo(e.point.x, e.point.z);
         }}
       >

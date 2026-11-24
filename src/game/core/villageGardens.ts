@@ -44,7 +44,7 @@ function reserved(x: number, z: number) {
     (Math.abs(x) < 7 && Math.abs(z + 46) < 6) ||
     (Math.abs(x + 19) < 9 && Math.abs(z + 38) < 9) ||
     (Math.abs(x + 28) < 5 && Math.abs(z + 48) < 5) ||
-    (Math.abs(x - 58) < 12 && Math.abs(z - 52) < 10) ||
+    (Math.abs(x - 58) < 12 && Math.abs(z - 57) < 15) ||
     (Math.abs(x + 50) < 19 && Math.abs(z - 50) < 16)
   );
 }

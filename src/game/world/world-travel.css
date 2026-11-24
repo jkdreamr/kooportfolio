@@ -1,3 +1,39 @@
+.game-ui.is-traveling {
+  visibility: hidden;
+  pointer-events: none;
+}
+.world-travel-status {
+  position: absolute;
+  bottom: max(24px, env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 8px 10px 8px 18px;
+  border: 1px solid #7a8d89;
+  border-radius: 9px;
+  background: #f4f2e8;
+  color: #243e40;
+  font:
+    13px system-ui,
+    sans-serif;
+  white-space: nowrap;
+  pointer-events: auto;
+}
+.world-travel-status button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 5px;
+  padding: 8px 12px;
+  color: #fffdf5;
+  background: #335a4b;
+  cursor: pointer;
+}
+.world-travel-status button:focus-visible {
+  outline: 2px solid #243e40;
+  outline-offset: 3px;
+}
 .world-travel-stop {
   position: absolute;
   left: 50%;
