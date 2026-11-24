@@ -21,10 +21,12 @@ import { Basketball } from "./scenes/Basketball";
 import { Hud } from "./ui/Hud";
 import { TimeOfDayLighting } from "./world/TimeOfDayLighting";
 import { TimeOfDayControls } from "./ui/TimeOfDayControls";
+import { WorldZoomControls, WorldZoomInput } from "./ui/WorldZoom";
 import { useTimeOfDay } from "./core/timeOfDay";
 import { WORLDS } from "./core/worlds";
 import { runtime, useGame, type Scene } from "./core/store";
 import { useInput } from "./core/input";
+import { endGameMode, useGameMode } from "./core/gameMode";
 import { doors, isInterior } from "./core/world";
 import { useGym } from "./scenes/CognitionGym";
 import { interactWithNpc } from "./core/npcState";
@@ -41,6 +43,7 @@ import {
   HOOVER_STASH,
 } from "./core/hoover";
 import "./game.css";
+import "./game-mode.css";
 
 class WorldBoundary extends Component<
   { children: ReactNode },
@@ -101,7 +104,9 @@ function FrameMetrics() {
     stat.triangles = gl.info.render.triangles;
     stat.geometries = gl.info.memory.geometries;
     stat.textures = gl.info.memory.textures;
-    stat.renderer = gl.getContext().getParameter(gl.getContext().RENDERER);
+    // A driver query can synchronize the GPU. Read it once, not every frame.
+    if (!stat.renderer)
+      stat.renderer = gl.getContext().getParameter(gl.getContext().RENDERER);
   });
   return null;
 }
@@ -112,10 +117,17 @@ function Sun() {
   useFrame(({ camera }) => {
     const scene = useGame.getState().scene;
     const race = scene === "rowing";
+    const x = race ? camera.position.x : scene === "hub" ? runtime.x : 0;
+    const z = race ? camera.position.z - 18 : scene === "hub" ? runtime.z : 0;
+    // Snap the tracking light in its own texel space. Fractional shadow-map
+    // motion otherwise makes stationary roofs/grass sparkle while walking.
+    const right =
+      Math.round(((x + z) * Math.SQRT1_2) / (70 / 2048)) * (70 / 2048);
+    const up = Math.round((x - z) / Math.sqrt(3) / (64 / 2048)) * (64 / 2048);
     target.position.set(
-      race ? camera.position.x : scene === "hub" ? runtime.x : 0,
+      (right / Math.SQRT1_2 + up * Math.sqrt(3)) / 2,
       0,
-      race ? camera.position.z - 18 : scene === "hub" ? runtime.z : 0,
+      (right / Math.SQRT1_2 - up * Math.sqrt(3)) / 2,
     );
     target.updateMatrixWorld();
     light.current?.position.set(
@@ -200,6 +212,7 @@ function World() {
       <TimeOfDayLighting />
       <WorldAmbience />
       <PhotoBoothCamera />
+      <WorldZoomInput />
       {scene !== "rowing" && (
         <mesh
           rotation={[-Math.PI / 2, 0, 0]}
@@ -220,6 +233,13 @@ function World() {
   );
 }
 export default function Game() {
+  useEffect(
+    () =>
+      useGame.subscribe((state, previous) => {
+        if (state.scene !== previous.scene) endGameMode();
+      }),
+    [],
+  );
   const [lost, setLost] = useState(false),
     [supported] = useState(() => {
       try {
@@ -233,11 +253,13 @@ export default function Game() {
     traveling = useGame((s) => s.traveling),
     paused = useGame((s) => s.paused),
     panel = useGame((s) => s.panel);
+  const gameMode = useGameMode((s) => s.active);
   const interact = useCallback(() => {
     const g = useGame.getState();
     if (interactWithNpc()) return;
     if (
       g.paused ||
+      useGameMode.getState().active ||
       g.build ||
       g.overlayLocked ||
       g.traveling ||
@@ -298,13 +320,13 @@ export default function Game() {
   }, []);
   if (!supported || lost) return <WorldFallback />;
   return (
-    <div className="game-shell">
+    <div className="game-shell" data-game-mode={gameMode?.id}>
       <WorldBoundary>
         <Canvas
           shadows={quality === "high" ? "soft" : false}
           dpr={quality === "high" ? [1, 1.6] : 1}
           gl={{
-            antialias: quality === "high",
+            antialias: true,
             powerPreference: "high-performance",
           }}
           frameloop={
@@ -331,7 +353,8 @@ export default function Game() {
         </Canvas>
       </WorldBoundary>
       <Hud interact={interact} />
-      <TimeOfDayControls />
+      {!gameMode && <TimeOfDayControls />}
+      {!gameMode && <WorldZoomControls />}
       <NpcDialog />
       <PhotoBoothDialog />
       {panel === "telescope" && !paused && (
