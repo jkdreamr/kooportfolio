@@ -64,6 +64,43 @@ describe("free-skating park", () => {
     expect(g.bestCombo).toBe(660);
     expect(g.combo).toBe(0);
   });
+  it.each([
+    { trick: "kickflip", points: 660 },
+    { trick: "shove-it", points: 520 },
+  ] as const)(
+    "lands a one-action $trick without a separate ollie",
+    ({ trick, points }) => {
+      for (const fps of [15, 60, 120]) {
+        const g = newSkateGame();
+        stepSkate(g, { ...idle, trick }, 1 / fps);
+        expect(g.grounded).toBe(false);
+        expect(g.trick).toBe(trick);
+        expect(g.count).toBe(1);
+        expect(g.score).toBe(0);
+        for (let frame = 0; frame < 4 * fps; frame++)
+          stepSkate(g, idle, 1 / fps);
+        expect(g.grounded).toBe(true);
+        expect(g.bailTime).toBe(0);
+        expect(g.score).toBe(points);
+        expect(g.bestCombo).toBe(points);
+      }
+    },
+  );
+  it("lets one flip pop out of a held grind without snapping back to the rail", () => {
+    const g = newSkateGame(),
+      rail = SKATE_RAILS[0];
+    Object.assign(g, { x: rail.x, z: 1.5, speed: 4 });
+    advance(g, 0.05, { grind: true });
+    expect(g.rail).toBe(0);
+    stepSkate(g, { ...idle, trick: "kickflip", grind: true }, 1 / 120);
+    expect(g.rail).toBe(-1);
+    expect(g.grounded).toBe(false);
+    expect(g.trick).toBe("kickflip");
+    expect(g.railLock).toBeGreaterThan(0);
+    advance(g, 4, { grind: true });
+    expect(g.score).toBeGreaterThan(660);
+    expect(g.bailTime).toBe(0);
+  });
   it("loses only the unbanked line if a late flip hits the ground", () => {
     const g = newSkateGame();
     g.score = 1234;

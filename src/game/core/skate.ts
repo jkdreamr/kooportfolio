@@ -182,7 +182,9 @@ function integrate(g: SkateState, input: SkateInput, dt: number) {
       g.heading += steer * (g.grounded ? 2.2 : 1.1) * dt;
       g.speed += (push * 5.8 - 0.55 - (input.brake ? 9 : 0)) * dt;
     }
-    if (input.jump && (g.grounded || g.rail >= 0)) {
+    // A flip includes its own pop so keyboard and touch never need two timed
+    // inputs just to start a trick. Airborne flips still risk a late landing.
+    if ((input.jump || input.trick) && (g.grounded || g.rail >= 0)) {
       g.vy = 7.2;
       g.grounded = false;
       g.rail = -1;

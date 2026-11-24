@@ -603,7 +603,7 @@ export function SkateParkInterior() {
                         Step off
                       </button>
                     </div>
-                    <p className="skate-hint">Ollie, flip, land to bank.</p>
+                    <p className="skate-hint">Flip to jump. Land to bank.</p>
                   </>
                 )}
               </>
