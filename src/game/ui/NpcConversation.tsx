@@ -19,7 +19,7 @@ export function NpcDialog() {
   useEffect(() => {
     if (!visible) return;
     const previous = document.activeElement as HTMLElement | null;
-    next.current?.focus();
+    next.current?.focus({ preventScroll: true });
     return () => {
       if (previous?.isConnected) previous.focus();
     };
@@ -40,6 +40,9 @@ export function NpcDialog() {
         aria-labelledby="npc-name"
         aria-describedby="npc-line"
         onKeyDown={(event) => {
+          // Keep native scrolling available without sending movement to the world.
+          if (event.key === "ArrowUp" || event.key === "ArrowDown")
+            event.stopPropagation();
           if (event.key === "Escape") {
             event.stopPropagation();
             closeConversation();
