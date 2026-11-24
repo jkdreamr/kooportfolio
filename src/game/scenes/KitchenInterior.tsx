@@ -542,7 +542,12 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
           <Bottle p={[0, 1.4, 0]} color="#608255" />
         </group>
       ))}
-      <GameControls name="Cooking game" position={[0, 0.4, 6]} mobileSheet>
+      <GameControls
+        name="Cooking game"
+        position={[0, 0.4, 6]}
+        mobileSheet
+        gameOpen={shift.status === "open"}
+      >
         {shift.status === "closed" ? (
           <>
             <button onClick={start}>Open kitchen</button>

@@ -1,4 +1,4 @@
-import { useMemo, useRef, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
@@ -24,13 +24,19 @@ export function GameControls({
   position = [0, 0.6, 3.5],
   mobileSheet = false,
   dock = "right",
+  collapsible,
+  gameOpen = false,
 }: {
   children: ReactNode;
   name: string;
   position?: [number, number, number];
   mobileSheet?: boolean;
   dock?: "left" | "right";
+  collapsible?: string;
+  gameOpen?: boolean;
 }) {
+  const [expanded, setExpanded] = useState(true);
+  const open = !collapsible || expanded;
   const gl = useThree((s) => s.gl);
   // Drei otherwise changes targets when R3F connects its event source on the
   // first frame, tearing down its React root during another root's commit.
@@ -46,6 +52,7 @@ export function GameControls({
   return hidden ? null : (
     <Html
       portal={portal}
+      wrapperClass="interior-game-root"
       position={position}
       center
       zIndexRange={[20, 0]}
@@ -60,10 +67,14 @@ export function GameControls({
           ?.querySelector<HTMLElement>(".joystick")
           ?.getBoundingClientRect();
         const canvas = gl.domElement.getBoundingClientRect();
+        if (!open)
+          return [size.width - halfWidth - 16, size.height - halfHeight - 52];
         if (mobileSheet && size.width <= 700 && size.height >= 600) {
-          const bottom = joystick?.height
-            ? joystick.top - canvas.top - 12
-            : size.height - 235;
+          const bottom = gameOpen
+            ? size.height - 48
+            : joystick?.height
+              ? joystick.top - canvas.top - 12
+              : size.height - 48;
           return [
             size.width / 2,
             Math.max(halfHeight + 76, bottom - halfHeight),
@@ -77,7 +88,7 @@ export function GameControls({
               (joystick?.height ? joystick.right - canvas.left + 16 : 24),
             THREE.MathUtils.clamp(
               size.height - halfHeight - (size.height < 600 ? 48 : 96),
-              halfHeight + 76,
+              halfHeight + 124,
               size.height - halfHeight - 12,
             ),
           ];
@@ -104,12 +115,31 @@ export function GameControls({
     >
       <section
         ref={panel}
-        className={`interior-game${mobileSheet ? " interior-game--sheet" : ""}${dock === "left" ? " interior-game--left" : ""}`}
+        className={`interior-game${mobileSheet ? " interior-game--sheet" : ""}${dock === "left" ? " interior-game--left" : ""}${collapsible ? " interior-game--house" : ""}${!open ? " interior-game--collapsed" : ""}`}
         aria-label={name}
+        data-interior-game-open={open && gameOpen ? "true" : undefined}
         onPointerDown={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          if (e.key === "Escape" && collapsible) setExpanded(false);
+        }}
       >
-        {children}
+        {open ? (
+          <>
+            {collapsible && (
+              <button
+                className="house-game-close"
+                aria-label={`Close ${collapsible}`}
+                onClick={() => setExpanded(false)}
+              >
+                ×
+              </button>
+            )}
+            {children}
+          </>
+        ) : (
+          <button onClick={() => setExpanded(true)}>Play {collapsible}</button>
+        )}
       </section>
     </Html>
   );

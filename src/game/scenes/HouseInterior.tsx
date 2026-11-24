@@ -4,6 +4,7 @@ import { BrassStud, CraftedBox, WallSconce } from "./CraftedDetails";
 import { HouseRooms } from "./HouseRooms";
 import { BlackjackTable } from "./BlackjackTable";
 import { PongTable } from "./PongTable";
+import { HouseBanner } from "./HouseBanner";
 import {
   Barrel,
   Bottle,
@@ -131,11 +132,9 @@ function Fireplace() {
 function Pennant({ x }: { x: number }) {
   return (
     <group position={[x, 3, -11.5]} scale={1.25}>
-      <Box s={[1.6, 2.1, 0.12]} c="#285c43" />
-      <Box p={[0, 1.1, 0.04]} s={[1.85, 0.14, 0.2]} c="#c8a452" />
-      <Box p={[0, -0.9, 0.08]} s={[1.42, 0.14, 0.04]} c="#c8a452" />
+      <HouseBanner />
       {/* Raised brass letters stay readable at game-camera distance. */}
-      <group position={[-0.06, 0.1, 0.1]}>
+      <group position={[-0.06, 0.1, 0.31]}>
         <Box p={[-0.47, 0, 0]} s={[0.1, 0.8, 0.04]} c="#edcf7d" />
         <Box
           p={[-0.29, 0.21, 0]}
