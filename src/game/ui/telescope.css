@@ -3,15 +3,14 @@
   inset: 0;
   z-index: 80;
   display: grid;
-  grid-template-rows: auto minmax(200px, 1fr) auto;
-  align-items: center;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 12px;
   padding: max(18px, env(safe-area-inset-top))
     max(18px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom))
     max(18px, env(safe-area-inset-left));
-  overflow: auto;
-  color: #eee6d2;
-  background: #101617;
+  overflow: hidden;
+  color: var(--hud-ink, #f5f4e9);
+  background: #10171b;
   font-family: inherit;
 }
 .telescope-header {
@@ -19,102 +18,85 @@
   justify-content: space-between;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 .telescope-header h2 {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
 }
-.telescope-header h2 span {
-  color: #b7bdb7;
-  font-weight: 400;
-}
 .telescope-time {
-  margin: 6px 0 0;
-  color: #b7bdb7;
+  margin: 5px 0 0;
+  color: var(--hud-muted, #c3d0d0);
   font-size: 12px;
 }
-.telescope-time-row {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+/* Shared quiet-button supplies the slate material; only size/layout live here. */
+.telescope-view .quiet-button {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-.telescope-time-row output {
-  margin-left: auto;
-  color: #b7bdb7;
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-.telescope-attribution {
-  margin: 12px 0 0;
-  color: #aeb8b3;
-  text-align: center;
-  font-size: 11px;
-}
-.telescope-attribution a {
-  color: inherit;
-  text-underline-offset: 3px;
-}
-.telescope-view button,
-.telescope-view select {
+  justify-content: center;
+  width: auto;
+  min-width: 44px;
   min-height: 44px;
+  margin: 0;
   padding: 8px 13px;
-  border: 1px solid #8e857159;
-  border-radius: 4px;
-  color: inherit;
-  background: #263031;
+  border-width: 1px;
+  border-style: solid;
+  border-color: var(--hud-edge, #536971);
+  border-radius: 6px;
+  color: var(--hud-ink, #f5f4e9);
+  background: var(--hud-low, #21353e);
+  box-shadow: none;
   font: inherit;
   font-size: 13px;
   cursor: pointer;
 }
-.telescope-view select {
-  max-width: 100%;
+.telescope-view select.quiet-button {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding-right: 26px;
+  text-overflow: ellipsis;
 }
 .telescope-view button:disabled,
 .telescope-view select:disabled {
   opacity: 0.4;
   cursor: default;
 }
-.telescope-view button:not(:disabled):hover {
-  background: #354143;
-}
 .telescope-view button[aria-pressed="true"] {
-  color: #1d292b;
-  background: #d6c197;
+  color: #fff;
+  background: #3a525b;
+  border-color: #91a3ab;
 }
-.telescope-view button[aria-pressed="true"]:hover {
-  background: #ead8b6;
+.telescope-view .quiet-button:hover:not(:disabled) {
+  color: #fff;
+  background: #3a525b;
+}
+.telescope-view .quiet-button:active:not(:disabled) {
+  filter: brightness(0.9);
 }
 .telescope-view :is(button, select, a):focus-visible {
-  outline: 2px solid #e9cc93;
+  outline: 2px solid var(--hud-gold, #e7c27e);
   outline-offset: 3px;
 }
-.telescope-view .telescope-close {
-  border-color: transparent;
-  background: transparent;
-}
-.telescope-close span {
-  margin-left: 14px;
-  font-size: 22px;
-  vertical-align: -1px;
+.telescope-stage {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 0;
+  container-type: size;
 }
 .telescope-aperture {
   position: relative;
-  justify-self: center;
-  align-self: center;
-  width: max(180px, min(calc(100dvh - 305px), 630px, calc(100vw - 64px)));
+  width: min(calc(100cqw - 24px), calc(100cqh - 24px), 630px);
   aspect-ratio: 1;
-  border: 9px solid #343a38;
+  border: 8px solid #34434a;
   border-radius: 50%;
   overflow: hidden;
   background: #08121f;
   box-shadow:
-    0 0 0 2px #6f705e,
-    0 0 0 12px #1c2425,
-    0 0 70px #0008;
+    0 0 0 1px #62737b,
+    0 0 0 10px #1b282e;
   isolation: isolate;
 }
 .telescope-aperture::after {
@@ -158,8 +140,8 @@
 .telescope-day-message {
   position: absolute;
   top: 50%;
-  left: 24px;
-  right: 24px;
+  left: 18px;
+  right: 18px;
   margin: 0;
   transform: translateY(-50%);
   text-align: center;
@@ -173,43 +155,65 @@
 }
 .telescope-controls {
   justify-self: center;
-  width: min(100%, 560px);
+  align-self: center;
+  width: min(100%, 580px);
+  min-width: 0;
 }
-.telescope-target-row,
-.telescope-aim-row {
-  display: flex;
+.telescope-main-controls {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
   gap: 8px;
 }
-.telescope-aim-row {
-  margin-top: 9px;
-}
-.telescope-aim-row > span {
-  color: #adb5b0;
-  font-size: 12px;
-  margin-right: auto;
-}
-.telescope-aim-row > button {
-  margin-left: auto;
-}
+.telescope-time-row,
 .telescope-zoom,
 .telescope-pan {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
 }
-.telescope-zoom button,
-.telescope-pan button {
-  min-width: 44px;
+.telescope-target {
+  min-width: 0;
+}
+.telescope-desktop-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+.telescope-desktop-controls .quiet-button {
   padding: 8px;
 }
 .telescope-zoom output {
-  width: 45px;
+  width: 36px;
   text-align: center;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
+}
+.telescope-readout {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 16px;
+  margin-top: 12px;
+  color: var(--hud-muted, #c3d0d0);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.telescope-touch-hint,
+.telescope-touch-fov {
+  display: none;
+}
+.telescope-attribution {
+  margin: 8px 0 0;
+  color: #8fa3ad;
+  text-align: center;
+  font-size: 10px;
+}
+.telescope-attribution a {
+  color: inherit;
+  text-underline-offset: 3px;
 }
 .telescope-sr-only {
   position: absolute;
@@ -220,51 +224,63 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
-@media (max-width: 430px) {
-  .telescope-view {
-    padding-left: 14px;
-    padding-right: 14px;
-  }
-  .telescope-target-row {
-    gap: 6px;
-  }
-  .telescope-view button,
-  .telescope-view select {
-    padding-left: 10px;
-    padding-right: 10px;
-    font-size: 12px;
-  }
-  .telescope-aim-row > span {
+@media (pointer: coarse), (max-width: 700px), (max-height: 520px) {
+  .telescope-desktop-controls,
+  .telescope-desktop-hint {
     display: none;
   }
-  .telescope-aim-row > button {
-    margin-left: 8px;
-  }
-  .telescope-aperture {
-    width: max(180px, min(calc(100dvh - 340px), calc(100vw - 60px)));
+  .telescope-touch-hint,
+  .telescope-touch-fov {
+    display: inline;
   }
 }
-@media (max-height: 520px) and (min-width: 520px) {
+@media (max-width: 520px) {
   .telescope-view {
-    grid-template-columns: minmax(0, 1fr) 270px;
-    grid-template-rows: auto minmax(200px, 1fr);
-    gap: 12px 24px;
+    padding: 14px;
+    gap: 10px;
+  }
+  .telescope-main-controls {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .telescope-time-row {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+}
+@media (max-height: 520px) and (min-width: 480px) {
+  .telescope-view {
+    grid-template-columns: minmax(0, 1fr) 226px;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 10px 20px;
+    padding: max(12px, env(safe-area-inset-top))
+      max(16px, env(safe-area-inset-right))
+      max(12px, env(safe-area-inset-bottom))
+      max(16px, env(safe-area-inset-left));
   }
   .telescope-header {
     grid-column: 1 / -1;
   }
-  .telescope-aperture {
-    width: max(180px, min(68dvh, calc(100vw - 365px)));
+  .telescope-stage {
+    grid-column: 1;
+    grid-row: 2;
   }
   .telescope-controls {
     grid-column: 2;
     grid-row: 2;
   }
-  .telescope-aim-row > span {
-    width: 100%;
-    text-align: center;
+  .telescope-main-controls {
+    grid-template-columns: minmax(0, 1fr) auto;
   }
-  .telescope-aim-row > button {
-    margin-left: 0;
+  .telescope-time-row {
+    grid-column: 1 / -1;
+  }
+  .telescope-readout {
+    gap: 6px 12px;
+  }
+  .telescope-header h2 {
+    font-size: 14px;
+  }
+  .telescope-time {
+    font-size: 11px;
   }
 }
