@@ -6,7 +6,7 @@ import {
   useNpcs,
 } from "../core/npcState";
 import { useGame, walkTo } from "../core/store";
-import { doors } from "../core/world";
+import { destinations } from "../core/world";
 import "./npc-conversation.css";
 
 export function NpcDialog() {
@@ -25,7 +25,9 @@ export function NpcDialog() {
     };
   }, [visible]);
   if (!visible || !npc) return null;
-  const place = doors.find((door) => door.id === npc.place)!;
+  const place = destinations.find(
+    (destination) => destination.id === npc.place,
+  )!;
   return (
     <div
       className="npc-conversation-layer"

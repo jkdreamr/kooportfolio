@@ -1,0 +1,230 @@
+import type { Villager } from "./npcs";
+
+// Small authored errands: actual storefronts, garden lanes and bench approaches.
+// Seat positions are visual only; pathfinding always ends on the clear approach.
+export const routines: Record<string, Pick<Villager, "route" | "stops">> = {
+  cook: {
+    route: [
+      [-8, 17],
+      [0, 10],
+      [29, -5.6],
+      [20, 10],
+      [-3, 12],
+    ],
+    stops: {
+      0: { duration: 8, heading: -Math.PI / 2 },
+      2: { duration: 9, heading: Math.PI },
+    },
+  },
+  gardener: {
+    route: [
+      [-4, -1],
+      [4, 3],
+      [20, 42],
+      [20, 47],
+      [-8, 17],
+    ],
+    stops: {
+      2: { duration: 12, heading: -Math.PI / 2 },
+      4: { duration: 7, heading: -Math.PI / 2 },
+    },
+  },
+  musician: {
+    route: [
+      [-31, -8],
+      [-27, -8],
+      [-25, -21],
+      [-14, -9],
+      [-24, -5],
+    ],
+    stops: { 0: { duration: 13, heading: Math.PI } },
+  },
+  producer: {
+    route: [
+      [-33, -8],
+      [-29, -4],
+      [-20, -29],
+      [-13, -30],
+      [-7, -20],
+    ],
+    stops: { 0: { duration: 9, heading: Math.PI } },
+  },
+  reader: {
+    route: [
+      [39, 43.4],
+      [43, 47],
+      [40, 29],
+      [5, -20],
+      [5, -28],
+      [0, -28],
+    ],
+    stops: {
+      0: {
+        duration: 20,
+        heading: Math.PI,
+        seat: { position: [39, 42.2], height: 0.865 },
+      },
+      4: { duration: 9, heading: -Math.PI / 2 },
+    },
+  },
+  regular: {
+    route: [
+      [29, -7.2],
+      [33, -4],
+      [34, 10],
+      [20, 10],
+      [29, -4],
+    ],
+    stops: { 0: { duration: 12, heading: Math.PI } },
+  },
+  maker: {
+    route: [
+      [14, -8],
+      [8, -8],
+      [11, -2],
+      [27, 13],
+      [23, 15],
+    ],
+    stops: {
+      0: { duration: 7, heading: Math.PI },
+      3: { duration: 8, heading: Math.PI },
+    },
+  },
+  researcher: {
+    route: [
+      [28, -12],
+      [30, -17],
+      [26, -23],
+      [22, -26],
+      [19, -21],
+    ],
+    stops: {
+      0: { duration: 6, heading: -Math.PI / 2 },
+      3: { duration: 8, heading: 0 },
+    },
+  },
+};
+
+export const extraLocals: Villager[] = [
+  {
+    id: "record-shopper",
+    name: "Record shopper",
+    color: "#9a715b",
+    skin: "#d3a17d",
+    hat: false,
+    place: "music",
+    lines: ["Still deciding between these two.", "I'll be here a while."],
+    route: [
+      [-29.4, -8],
+      [-26, -4],
+      [-16, -4],
+      [-16, -8],
+      [-24, -8],
+    ],
+    stops: { 0: { duration: 16, heading: Math.PI } },
+  },
+  {
+    id: "home-neighbor",
+    name: "Neighbor",
+    color: "#a58c62",
+    skin: "#a97655",
+    hat: true,
+    place: "writing",
+    lines: [
+      "The tomatoes are coming along.",
+      "Just checking on them before I head back.",
+    ],
+    route: [
+      [20, 53],
+      [20, 47],
+      [8, 35],
+      [2, 20],
+      [10, 29],
+    ],
+    stops: { 0: { duration: 15, heading: Math.PI / 2 } },
+  },
+  {
+    id: "food-regular",
+    name: "Lunch regular",
+    color: "#a4644e",
+    skin: "#d9a27a",
+    hat: false,
+    place: "photo",
+    lines: ["Worth the wait.", "I'm getting the same thing as yesterday."],
+    route: [
+      [27, 10.6],
+      [23, 15],
+      [14, 10],
+      [10, 3],
+      [20, 3],
+    ],
+    stops: { 0: { duration: 17, heading: Math.PI } },
+  },
+  {
+    id: "picnicker",
+    name: "Picnicker",
+    color: "#7b8e98",
+    skin: "#bd8866",
+    hat: true,
+    place: "photo",
+    lines: ["Found a spot in the shade.", "Saving the last bite for later."],
+    route: [
+      [33, 2.3],
+      [29, 1.5],
+      [23, -2],
+      [18, 1],
+      [21, 2],
+    ],
+    stops: {
+      0: {
+        duration: 23,
+        heading: Math.PI,
+        seat: { position: [33, 0.9], height: 0.865 },
+      },
+    },
+  },
+  {
+    id: "river-walker",
+    name: "River walker",
+    color: "#648777",
+    skin: "#e0b08b",
+    hat: false,
+    place: "photo",
+    lines: ["It's cooler by the water.", "Taking the long way home."],
+    route: [
+      [16, 19],
+      [4, 19],
+      [-9, 19],
+      [-15, 19],
+      [-4, 18],
+      [8, 18],
+    ],
+    stops: {
+      0: { duration: 12, heading: 0 },
+      2: { duration: 9, heading: 0 },
+    },
+  },
+  {
+    id: "photographer",
+    name: "Photographer",
+    color: "#927b9a",
+    skin: "#b98260",
+    hat: false,
+    place: "photo",
+    lines: [
+      "Trying to catch the light.",
+      "The booth's good for a less blurry one.",
+    ],
+    route: [
+      [-6, -3.3],
+      [-3, 3],
+      [9, 3],
+      [18, 1],
+      [4, -3],
+    ],
+    stops: {
+      0: { duration: 10, heading: Math.PI },
+      3: { duration: 9, heading: Math.PI / 2 },
+    },
+  },
+];
