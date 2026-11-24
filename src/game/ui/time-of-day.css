@@ -38,6 +38,7 @@
   font: 500 11px/1 monospace;
   font-variant-numeric: tabular-nums;
   color: #d7e1c4;
+  white-space: nowrap;
 }
 @media (max-width: 900px), (max-height: 500px) {
   .time-of-day-control {
