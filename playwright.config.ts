@@ -5,7 +5,8 @@ export default defineConfig({
   webServer: {
     command: "npm run preview -- --port 4174",
     url: "http://127.0.0.1:4174",
-    reuseExistingServer: !process.env.CI,
+    // Cloudflare snapshots its asset manifest at startup; rebuilt assets need a fresh server.
+    reuseExistingServer: false,
     timeout: 60000,
   },
 });

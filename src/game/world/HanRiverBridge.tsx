@@ -114,7 +114,7 @@ function RainbowFountains() {
       ref.current!.setMatrixAt(i, object.matrix);
       ref.current!.setColorAt(
         i,
-        color.setHSL(0.02 + (i / 112) * 0.78, 0.68, 0.59),
+        color.setHSL(0.02 + (i / 112) * 0.78, 0.9, 0.43),
       );
     }
     ref.current!.instanceMatrix.needsUpdate = true;
