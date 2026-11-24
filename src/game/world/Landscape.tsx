@@ -209,7 +209,7 @@ export function Landscape({ world = "stanford" }: { world?: WorldId }) {
           c="#99d4bf"
         />
       ))}
-      <group position={[-28, 0.2, 93]}>
+      <group position={[-28, 0.2, world === "stanford" ? 94.8 : 93]}>
         <Box s={[3.3, 0.25, 6.1]} c="#805d36" />
         {Array.from({ length: 14 }, (_, i) => (
           <Box
@@ -230,7 +230,10 @@ export function Landscape({ world = "stanford" }: { world?: WorldId }) {
           )),
         )}
       </group>
-      <group position={[-23, 0.1, 98]} rotation={[0, 1.4, 0]}>
+      <group
+        position={world === "stanford" ? [-23, 0.075, 105.5] : [-23, 0.1, 98]}
+        rotation={[0, 1.4, 0]}
+      >
         <Boat pace={0} color="#edc96e" />
       </group>
       {(world === "korea" ? koreaRimGroves : rimGroves).map((trees, i) => (
