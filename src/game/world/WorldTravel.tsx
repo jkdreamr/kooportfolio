@@ -81,6 +81,7 @@ export function WorldTravel({
   const [stop, setStop] = useState<TravelStop | null>(null);
   const [trip, setTrip] = useState<IslandTrip | null>(null);
   const request = useGame((s) => s.travelRequest);
+  const paused = useGame((s) => s.paused);
   const hidden =
     useGame((s) => s.paused || s.build || s.panel !== "none") || disabled;
   const gl = useThree((s) => s.gl);
@@ -115,6 +116,8 @@ export function WorldTravel({
     if (!traveling) return;
     cancelButton.current?.focus();
     const keydown = (event: KeyboardEvent) => {
+      // The ordinary pause dialog owns Escape until the journey is resumed.
+      if (useGame.getState().paused) return;
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopImmediatePropagation();
@@ -217,7 +220,7 @@ export function WorldTravel({
           </section>
         </Html>
       )}
-      {trip && (
+      {trip && !paused && (
         <Html
           fullscreen
           calculatePosition={(_o, _c, size) => [

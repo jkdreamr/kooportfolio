@@ -406,7 +406,7 @@ export function Hud({ interact }: { interact: () => void }) {
   }, [g.notice]);
   return (
     <div
-      className={`game-ui scene-${g.scene} world-${g.world}${g.traveling ? " is-traveling" : ""}`}
+      className={`game-ui scene-${g.scene} world-${g.world}${g.traveling ? " is-traveling" : ""}${g.paused ? " is-paused" : ""}`}
       data-game-mode={gameMode}
     >
       <header className="game-header">

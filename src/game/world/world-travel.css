@@ -1,4 +1,4 @@
-.game-ui.is-traveling {
+.game-ui.is-traveling:not(.is-paused) {
   visibility: hidden;
   pointer-events: none;
 }
