@@ -58,6 +58,11 @@ function LabControls({
         className="lab-controls"
         aria-label={name}
         onPointerDown={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          // Keep native button activation; movement and Escape still bubble.
+          if (e.key === " " && (e.target as HTMLElement).closest("button"))
+            e.stopPropagation();
+        }}
       >
         {children}
       </section>
