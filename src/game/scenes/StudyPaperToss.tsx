@@ -1,0 +1,283 @@
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { Html } from "@react-three/drei";
+import { useFrame, useThree } from "@react-three/fiber";
+import { DoubleSide, Group, PerspectiveCamera, Vector3 } from "three";
+import {
+  AIM_LIMIT, BIN_RADIUS, BIN_RIM, BIN_Z, THROW_Y, THROW_Z, TOSS_LIMIT,
+  binPosition, chargePower, newTossRound, shotPosition, stepToss, throwPaper,
+} from "../core/paperToss";
+import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
+import { runtime, useGame } from "../core/store";
+import { Box, Cylinder } from "../world/Models";
+import "./paper-toss.css";
+
+const DESK = "#414f5b";
+const STEEL = "#748692";
+const TRIM = "#9caab1";
+const LIGHT = "#e1e7e9";
+
+function DeskSet() {
+  return (
+    <>
+      <Box p={[0, -0.16, -1]} s={[25, 0.3, 24]} c="#39454b" sharp />
+      <Box p={[0, 3.4, -6.2]} s={[24, 7, 0.35]} c="#687780" sharp />
+      <Box p={[0, 0.24, -5.94]} s={[24, 0.45, 0.22]} c={DESK} sharp />
+      {[-5.6, 5.6].map((x) => (
+        <group key={x} position={[x, 3.55, -5.9]}>
+          <Box s={[3.25, 2.7, 0.2]} c={DESK} sharp />
+          <Box p={[0, 0, 0.12]} s={[3.02, 2.47, 0.05]} c="#8faab7" sharp />
+          <Box p={[0, 0, 0.15]} s={[0.08, 2.5, 0.06]} c={DESK} sharp />
+          <Box p={[0, 0, 0.15]} s={[3.05, 0.08, 0.06]} c={DESK} sharp />
+        </group>
+      ))}
+      <Box p={[0, 0.06, -3.42]} s={[6.1, 0.1, 1.9]} c="#526773" sharp />
+      <Box p={[0, 0.12, -4.17]} s={[5.6, 0.045, 0.035]} c={TRIM} sharp />
+      {Array.from({ length: 9 }, (_, i) => (
+        <Box key={i} p={[(i - 4) * 0.6, 0.12, -4.1]} s={[0.02, 0.045, i === 4 ? 0.22 : 0.13]} c={TRIM} sharp />
+      ))}
+      <Box p={[0, 1.05, 2.22]} s={[6.9, 0.2, 2.18]} c={DESK} />
+      <Box p={[0, 0.8, 3.19]} s={[6.55, 0.35, 0.14]} c="#303e49" />
+      {[-2.98, 2.98].flatMap((x) => [1.43, 3.03].map((z) => (
+        <Box key={`${x}/${z}`} p={[x, 0.5, z]} s={[0.17, 1, 0.17]} c={STEEL} />
+      )))}
+      <Box p={[0, 1.17, 2.25]} s={[2.75, 0.045, 1.56]} c="#2a343b" />
+      <Box p={[2.5, 1.27, 2.29]} s={[0.97, 0.16, 0.71]} c={STEEL} r={[0, 0.19, 0]} />
+      <Box p={[2.47, 1.36, 2.31]} s={[0.82, 0.05, 0.61]} c={LIGHT} r={[0, 0.19, 0]} />
+      <Cylinder p={[-2.48, 1.22, 1.59]} s={[0.37, 0.09, 0.37]} c={STEEL} />
+      <Cylinder p={[-2.48, 1.67, 1.59]} s={[0.055, 0.85, 0.055]} c={TRIM} />
+      <Cylinder p={[-2.23, 2.07, 1.59]} s={[0.055, 0.55, 0.055]} c={TRIM} r={[0, 0, Math.PI / 2]} />
+      <Cylinder p={[-1.98, 2.02, 1.59]} s={[0.28, 0.2, 0.28]} c={LIGHT} />
+    </>
+  );
+}
+
+export function StudyPaperToss({ playing }: { playing: boolean }) {
+  const hidden = useGame((s) => s.paused || s.panel !== "none" || s.traveling || s.build);
+  const gl = useThree((s) => s.gl);
+  const portal = useMemo(() => ({ current: gl.domElement.parentElement! }), [gl]);
+  const round = useRef(newTossRound());
+  const charge = useRef<{ source: "key" | "pointer" | "button"; start: number } | null>(null);
+  const power = useRef<HTMLProgressElement>(null);
+  const bin = useRef<Group>(null);
+  const paper = useRef<Group>(null);
+  const aimMark = useRef<Group>(null);
+  const hudRef = useRef<HTMLElement | null>(null);
+  const aim = useRef(0);
+  const desired = useMemo(() => new Vector3(), []);
+  const look = useMemo(() => new Vector3(0, 0.9, -1.1), []);
+  const restoreLauncher = useRef(false);
+  const [hud, setHud] = useState(newTossRound);
+  const [lane, setLane] = useState(0);
+  const finished = hud.attempts >= TOSS_LIMIT;
+
+  const focusLauncher = useCallback((node: HTMLButtonElement | null) => {
+    if (node && restoreLauncher.current) {
+      restoreLauncher.current = false;
+      node.focus({ preventScroll: true });
+    }
+  }, []);
+  const focusHud = useCallback((node: HTMLElement | null) => {
+    hudRef.current = node;
+    node?.focus({ preventScroll: true });
+  }, []);
+  const focusReplay = useCallback((node: HTMLButtonElement | null) => node?.focus({ preventScroll: true }), []);
+  const close = useCallback(() => {
+    if (useGameMode.getState().active?.id !== "paper-toss") return;
+    restoreLauncher.current = true;
+    endGameMode();
+  }, []);
+  useEffect(() => {
+    window.addEventListener("interior-game-close", close);
+    const cancel = () => { charge.current = null; };
+    window.addEventListener("blur", cancel);
+    return () => {
+      window.removeEventListener("interior-game-close", close);
+      window.removeEventListener("blur", cancel);
+    };
+  }, [close]);
+  const setAim = (value: number) => {
+    aim.current = Math.max(-AIM_LIMIT, Math.min(AIM_LIMIT, value));
+    setLane(aim.current);
+  };
+  const reset = () => {
+    round.current = newTossRound();
+    charge.current = null;
+    setAim(0);
+    setHud(round.current);
+  };
+  const begin = (source: "key" | "pointer" | "button") => {
+    if (playing && !hidden && !charge.current && !round.current.shot && round.current.attempts < TOSS_LIMIT) {
+      charge.current = { source, start: performance.now() };
+    }
+  };
+  const release = (source: "key" | "pointer" | "button") => {
+    if (charge.current?.source !== source) return;
+    const strength = chargePower((performance.now() - charge.current.start) / 1000);
+    charge.current = null;
+    if (!playing || hidden) return;
+    round.current = throwPaper(round.current, aim.current, strength);
+    setHud(round.current);
+  };
+
+  useFrame(({ camera, size }, dt) => {
+    if (!playing) return;
+    if (hidden || !runtime.active) {
+      charge.current = null;
+      return;
+    }
+    const damping = 1 - Math.exp(-dt * 5);
+    desired.set(0, 6.15, 9.4);
+    camera.position.lerp(desired, damping);
+    camera.lookAt(look);
+    if (camera instanceof PerspectiveCamera) {
+      const fov = size.width / size.height < 0.9 ? 66 : 48;
+      camera.fov += (fov - camera.fov) * damping;
+      camera.updateProjectionMatrix();
+    }
+    const before = round.current;
+    const next = stepToss(before, Math.min(dt, 0.1));
+    round.current = next;
+    if (next.attempts !== before.attempts) setHud(next);
+    if (bin.current) {
+      bin.current.position.x = binPosition(next.railAngle);
+    }
+    if (aimMark.current) aimMark.current.position.x = aim.current;
+    if (paper.current) {
+      if (next.shot) {
+        const { x, y, z } = shotPosition(next.shot);
+        paper.current.position.set(x, y, z);
+        paper.current.rotation.set(next.shot.age * 5, next.shot.age * 4, 0.6);
+      } else {
+        paper.current.position.set(0, THROW_Y, THROW_Z);
+        paper.current.rotation.set(0.3, aim.current * 0.3, 0.6);
+      }
+      paper.current.visible = next.attempts < TOSS_LIMIT;
+    }
+    if (power.current) {
+      power.current.value = charge.current
+        ? chargePower((performance.now() - charge.current.start) / 1000)
+        : 0;
+    }
+  });
+
+  const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (!playing) {
+      if (event.key === " ") event.stopPropagation();
+      return;
+    }
+    event.stopPropagation();
+    if (event.key === " " && !finished && !(event.target instanceof HTMLButtonElement && event.target.dataset.toss === undefined)) {
+      event.preventDefault();
+      if (!event.repeat) begin("key");
+    }
+    if ((event.key === "ArrowLeft" || event.key === "ArrowRight") && !(event.target instanceof HTMLInputElement)) {
+      event.preventDefault();
+      setAim(aim.current + (event.key === "ArrowLeft" ? -0.12 : 0.12));
+    }
+  };
+  return (
+    <>
+      {playing && (
+        <>
+          <DeskSet />
+          <group ref={aimMark} position={[0, 0.13, -4.01]}>
+            <Box s={[0.23, 0.06, 0.23]} c="#c1e0ef" r={[0, Math.PI / 4, 0]} />
+          </group>
+          <group ref={bin} position={[0, 0, BIN_Z]}>
+            <mesh position={[0, BIN_RIM / 2, 0]} castShadow receiveShadow>
+              <cylinderGeometry args={[BIN_RADIUS, 0.48, BIN_RIM, 24, 1, true]} />
+              <meshStandardMaterial color={DESK} side={DoubleSide} roughness={0.76} />
+            </mesh>
+            <Cylinder p={[0, 0.045, 0]} s={[0.49, 0.09, 0.49]} c="#242e38" />
+            <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, BIN_RIM, 0]}>
+              <torusGeometry args={[BIN_RADIUS, 0.055, 8, 32]} />
+              <meshStandardMaterial color={hud.result === "hit" ? "#b5e4d6" : LIGHT} />
+            </mesh>
+            <Box p={[0, 0.8, 0.58]} s={[0.22, 0.24, 0.025]} c={TRIM} />
+          </group>
+          <group ref={paper} position={[0, THROW_Y, THROW_Z]}>
+            <mesh castShadow>
+              <icosahedronGeometry args={[0.28, 0]} />
+              <meshStandardMaterial color="#f5f7fa" flatShading roughness={0.88} />
+            </mesh>
+            <mesh position={[0.13, 0.03, 0.09]} rotation={[0.3, 0.7, 0.2]}>
+              <icosahedronGeometry args={[0.19, 0]} />
+              <meshStandardMaterial color="#d7e3ec" flatShading roughness={0.88} />
+            </mesh>
+          </group>
+        </>
+      )}
+      {!hidden && (
+        <Html fullscreen portal={portal} zIndexRange={[80, 0]}
+          calculatePosition={(_, __, size) => [size.width / 2, size.height / 2]}
+          style={{ pointerEvents: "none" }}>
+          <section className={playing ? "toss-hud" : "toss-launch"}
+            aria-label="Paper Toss" tabIndex={playing ? -1 : undefined} ref={playing ? focusHud : undefined}
+            onPointerDown={(event) => event.stopPropagation()}
+            onPointerUp={(event) => event.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={onKeyDown}
+            onKeyUp={(event) => {
+              if (playing && event.key === " " && charge.current?.source === "key") {
+                event.preventDefault();
+                event.stopPropagation();
+                release("key");
+              }
+            }}>
+            {playing ? (
+              <>
+                <header>
+                  <div>
+                    <h2>Paper Toss</h2>
+                    <span aria-label={`Score ${hud.score}; shots ${hud.attempts} of ${TOSS_LIMIT}`}>
+                      {hud.score} / {TOSS_LIMIT} scored
+                    </span>
+                  </div>
+                  <button onClick={close}>Close</button>
+                </header>
+                <div className="toss-controls">
+                  <p role="status">{finished ? `${hud.score} of ${TOSS_LIMIT} made` : hud.result === "hit" ? "In!" :
+                    hud.result === "miss" ? "Miss" : `Shot ${hud.attempts + 1} of ${TOSS_LIMIT}`}</p>
+                  {finished ? <button ref={focusReplay} onClick={() => {
+                    hudRef.current?.focus({ preventScroll: true });
+                    reset();
+                  }}>Play again</button> : (
+                    <>
+                      <label>Aim <input type="range" min={-AIM_LIMIT} max={AIM_LIMIT}
+                        step={0.01} value={lane} onChange={(e) => setAim(Number(e.target.value))}
+                        aria-label="Aim left or right" /></label>
+                      <div className="toss-power">
+                        <progress ref={power} max={1} value={0} aria-label="Throw power" />
+                        <button data-toss="" aria-disabled={!!hud.shot}
+                          onPointerDown={(e) => {
+                            e.stopPropagation();
+                            if (e.button !== 0) return;
+                            e.currentTarget.focus({ preventScroll: true });
+                            e.currentTarget.setPointerCapture(e.pointerId);
+                            begin("pointer");
+                          }}
+                          onPointerUp={(e) => { e.stopPropagation(); release("pointer"); }}
+                          onLostPointerCapture={() => {
+                            if (charge.current?.source === "pointer") charge.current = null;
+                          }}
+                          onClick={(e) => {
+                            if (e.detail !== 0) return;
+                            if (charge.current?.source === "button") release("button");
+                            else begin("button");
+                          }}>Hold to toss</button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </>
+            ) : (
+              <button ref={focusLauncher} onClick={() => {
+                if (startGameMode("paper-toss")) reset();
+              }}>Play Paper Toss</button>
+            )}
+          </section>
+        </Html>
+      )}
+    </>
+  );
+}
