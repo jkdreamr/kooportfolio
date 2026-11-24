@@ -19,6 +19,7 @@ import { PassengerJet } from "./TravelVehicles";
 import { IslandJourney, type IslandTrip } from "./IslandJourney";
 import "./world-travel.css";
 import { railForWorld } from "../core/islandRail";
+import { screenOverlayPosition, screenOverlayStyle } from "./screenOverlay";
 
 export type { TravelWorld, TravelMode } from "../core/travel";
 
@@ -195,13 +196,10 @@ export function WorldTravel({
       {!hidden && !trip && stop && (
         <Html
           fullscreen
-          calculatePosition={(_o, _c, size) => [
-            size.width / 2,
-            size.height / 2,
-          ]}
+          calculatePosition={screenOverlayPosition}
           portal={portal}
           zIndexRange={[28, 0]}
-          style={{ pointerEvents: "none" }}
+          style={screenOverlayStyle}
         >
           <section
             className={`world-travel-stop world-travel-stop--${stop}`}
@@ -233,13 +231,10 @@ export function WorldTravel({
       {trip && !paused && (
         <Html
           fullscreen
-          calculatePosition={(_o, _c, size) => [
-            size.width / 2,
-            size.height / 2,
-          ]}
+          calculatePosition={screenOverlayPosition}
           portal={portal}
           zIndexRange={[110, 0]}
-          style={{ pointerEvents: "none" }}
+          style={screenOverlayStyle}
         >
           <div
             className="world-travel-status"

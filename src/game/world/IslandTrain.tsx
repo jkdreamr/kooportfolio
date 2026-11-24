@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import { Html } from "@react-three/drei";
+import { screenOverlayPosition, screenOverlayStyle } from "./screenOverlay";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { Box, Cylinder, Sign } from "./Models";
@@ -345,14 +346,11 @@ export function IslandTrain({
       {!hidden && (near || riding) && (
         <Html
           fullscreen
-          calculatePosition={(_object, _camera, size) => [
-            size.width / 2,
-            size.height / 2,
-          ]}
+          calculatePosition={screenOverlayPosition}
           onOcclude={() => undefined}
           portal={portal}
           zIndexRange={[25, 0]}
-          style={{ pointerEvents: "none" }}
+          style={screenOverlayStyle}
         >
           <section
             className="island-rail-controls"
