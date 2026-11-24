@@ -293,6 +293,12 @@
   .skate-view-controls {
     top: 80px;
   }
+  /* The focused stage has no host header. Keep its top controls above the
+     four-row trick deck, even with only 300px of landscape height. */
+  .skate-ui.is-riding .skate-score,
+  .skate-ui.is-riding .skate-view-controls {
+    top: 12px;
+  }
   .skate-feedback {
     top: 180px;
     font-size: 13px;
