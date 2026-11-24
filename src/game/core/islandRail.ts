@@ -1,10 +1,10 @@
 export const ISLAND_RAIL = {
-  radiusX: 71.5,
-  radiusZ: 75,
+  radiusX: 86.5,
+  radiusZ: 92,
   centerZ: 12,
   height: 1,
   lapSeconds: 130,
-  station: [-61, 12] as const,
+  station: [-76, 12] as const,
 };
 
 /** Distance-like phase, in turns. Locomotive and coaches share this route. */

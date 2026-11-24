@@ -34,7 +34,7 @@ function CoastalTrack() {
           p.z - Math.sin(p.heading) * offset,
         );
         object.rotation.set(0, p.heading, 0);
-        object.scale.set(0.13, 0.16, 1.3);
+        object.scale.set(0.13, 0.16, 1.65);
         object.updateMatrix();
         rails.current!.setMatrixAt(i * 2 + side, object.matrix);
       }
@@ -244,7 +244,7 @@ export function IslandTrain({
       phase.current -= dt * 7.5;
     }
     coaches.current?.children.forEach((car, i) => {
-      const pose = railPose(turns.current, i * 0.011);
+      const pose = railPose(turns.current, i * 0.009);
       car.position.set(pose.x, ISLAND_RAIL.height, pose.z);
       car.rotation.y = pose.heading;
     });
@@ -255,7 +255,7 @@ export function IslandTrain({
       ) < 5;
     if (isNear !== near) setNear(isNear);
     if (riding) {
-      const p = railPose(turns.current, 0.011);
+      const p = railPose(turns.current, 0.009);
       look.set(p.x, 1.5, p.z);
       cameraTarget.set(p.x + 20, 26, p.z + 28);
       camera.position.lerp(cameraTarget, 1 - Math.exp(-dt * 3));
@@ -277,7 +277,7 @@ export function IslandTrain({
       <CoastalTrack />
       <group ref={coaches}>
         {[0, 1, 2].map((i) => {
-          const pose = railPose(0, i * 0.011);
+          const pose = railPose(0, i * 0.009);
           return (
             <group
               key={i}
@@ -289,7 +289,7 @@ export function IslandTrain({
           );
         })}
       </group>
-      <group position={[-65.2, 0, 12]}>
+      <group position={[-80.2, 0, 12]}>
         <Box p={[-0.5, 0.6, 0]} s={[12.4, 0.5, 4.5]} c="#9c7952" />
         <Box p={[4.6, 0.2, 0]} s={[2.2, 0.3, 4]} c="#b39a72" />
         {[-5, -1, 3].flatMap((x) =>
