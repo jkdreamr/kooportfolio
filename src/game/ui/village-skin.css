@@ -411,6 +411,12 @@
 }
 .game-shell .room-story a {
   color: #f2d18b;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.game-shell .room-story[hidden] {
+  display: none;
 }
 .game-shell .story-read {
   color: #fff8e1;
@@ -711,7 +717,15 @@
     margin-top: 4px;
   }
   .game-shell .room-story {
-    display: none;
+    top: 78px;
+    left: auto;
+    right: max(20px, env(safe-area-inset-right));
+    transform: none;
+    max-height: calc(100dvh - 150px);
+    overflow: auto;
+  }
+  .game-shell:has(.room-story:not([hidden])) .interior-heading {
+    max-width: min(220px, calc(100vw - 340px));
   }
   .game-shell .joystick {
     bottom: max(32px, calc(env(safe-area-inset-bottom) + 16px));
