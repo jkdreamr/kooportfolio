@@ -52,11 +52,16 @@
 }
 @media (max-height: 600px) and (orientation: landscape) {
   .island-rail-controls {
-    left: auto;
-    right: max(16px, env(safe-area-inset-right));
+    --station-left: max(140px, calc(env(safe-area-inset-left) + 126px));
+    /* Reserve the joystick lane AND the time/zoom lane at every height. */
+    left: var(--station-left);
+    right: auto;
     bottom: max(112px, calc(env(safe-area-inset-bottom) + 104px));
     transform: none;
-    max-width: calc(100vw - 160px);
+    max-width: calc(
+      100vw - var(--station-left) - var(--world-control-right, 16px) -
+        var(--world-control-width, 164px) - 12px
+    );
   }
   .island-rail-controls > strong {
     display: none;
