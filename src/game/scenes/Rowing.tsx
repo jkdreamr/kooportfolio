@@ -9,41 +9,24 @@ import {
   newRace,
   newRivals,
   currentLine,
-  racePlace,
-  raceTime,
   riverCenter,
   riverTangent,
   rivalInput,
-  rowingLeaderboardBoard,
   stepRace,
   TICK,
   type RaceState,
 } from "../core/rowing";
 import { sound } from "../core/sound";
-import { newRunId } from "../../shared/run-id";
-import { raceCoins } from "../../shared/buildings";
-import {
-  readRaceRecord,
-  saveRaceRecord,
-  type RaceRecord,
-} from "../core/rowingRecords";
 import { RowingShell } from "./RowingShell";
 import { RowingWater } from "./RowingWater";
 import { RowingBanks } from "./RowingBanks";
-import { recordLeaderboardResult } from "../core/leaderboard";
 import "./rowing.css";
 export const useRaceHud = create<{
   race: RaceState;
-  place: number;
   rivals: RaceState[];
-  record: RaceRecord | null;
-  splitDelta: number | null;
 }>(() => ({
   race: newRace(),
-  place: 1,
   rivals: newRivals(),
-  record: null,
-  splitDelta: null,
 }));
 export const useRaceCatch = create<RaceState>(newRace);
 
@@ -211,14 +194,9 @@ export function Rowing() {
     rivals = useRef(newRivals()),
     accumulator = useRef(0),
     nextHud = useRef(0),
-    done = useRef(false),
-    id = useRef(newRunId());
+    done = useRef(false);
   const length = runtime.raceLength,
-    seed = runtime.raceSeed,
-    mode = runtime.raceMode;
-  const record = useRef(
-    readRaceRecord(length, seed, undefined, useGame.getState().save.bestRace),
-  );
+    seed = runtime.raceSeed;
   const look = useRef(new THREE.Vector3(0, 0, -8));
   const desired = useMemo(() => new THREE.Vector3(), []);
   useFrame(({ camera }, delta) => {
@@ -251,7 +229,6 @@ export function Rowing() {
     }
     const s = state.current;
     if (useRaceCatch.getState() !== s) useRaceCatch.setState(s, true);
-    const place = racePlace(s, rivals.current);
     desired.set(s.x * 0.65 + 1.5, 10.5, -s.distance + 19);
     camera.position.lerp(desired, 1 - Math.exp(-delta * 4));
     desired.set(
@@ -266,49 +243,19 @@ export function Rowing() {
       camera.updateProjectionMatrix();
     }
     if (s.time > nextHud.current || s.time < 0 || s.finished) {
-      const split = s.splits.length - 1;
       useRaceHud.setState({
         race: { ...s },
-        place,
         rivals: rivals.current,
-        record: record.current,
-        splitDelta:
-          split >= 0 && record.current?.splits[split] !== undefined
-            ? s.splits[split] - record.current.splits[split]
-            : null,
       });
       nextHud.current = s.time + 0.1;
     }
     if (s.finished && !done.current) {
       done.current = true;
-      const board = rowingLeaderboardBoard(mode, length, seed);
-      if (board)
-        recordLeaderboardResult({
-          id: id.current,
-          board,
-          score: Math.round(s.time * 1000),
-        });
-      const coins = raceCoins(
-          45 + (4 - place) * 10 + (length > 400 ? 25 : 0),
-          game.save.upgrades.boathouse,
-        ),
-        best = game.save.bestRace;
-      const personalBest =
-        (!record.current || s.time < record.current.time) &&
-        saveRaceRecord(s, length, seed);
-      game.award(id.current, coins, 30, {
-        bestRace:
-          length === 360 && seed === 1
-            ? Math.min(best ?? Infinity, s.time)
-            : best,
-      });
       useGame.setState({
         result: {
           game: "rowing",
-          title: place === 1 ? "Race won" : "Race complete",
-          score: raceTime(s.time),
-          coins,
-          detail: `${place}${["st", "nd", "rd", "th"][place - 1]} · ${length} m${personalBest ? " · Personal best" : ""}`,
+          title: "Race complete",
+          detail: `${length} m`,
         },
       });
       sound("win");

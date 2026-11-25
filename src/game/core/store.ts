@@ -1,15 +1,5 @@
 import { create } from "zustand";
-import {
-  collectGarden,
-  freshSave,
-  parseSave,
-  reward,
-  SAVE_KEY,
-  type Save,
-  upgrade,
-  writeGuestSave,
-} from "../../shared/save";
-import { BUILDINGS, type BuildingId } from "../../shared/buildings";
+import { freshSave, parseSave, SAVE_KEY, type Save, writeGuestSave } from "../../shared/save";
 import { canWalk, findPath, isInterior, type PlaceId } from "./world";
 import { roomFor } from "./room";
 import { findInteriorPath } from "./houseRooms";
@@ -80,7 +70,6 @@ type State = {
   overlayLocked: boolean;
   traveling: boolean;
   travelRequest: WorldId | TravelOption | null;
-  build: boolean;
   panel:
     | "none"
     | "help"
@@ -90,7 +79,6 @@ type State = {
     | "profile"
     | "places"
     | "travel"
-    | "leaderboard"
     | "npc"
     | "telescope"
     | "desk";
@@ -101,8 +89,6 @@ type State = {
   result: null | {
     game: string;
     title: string;
-    score: string;
-    coins: number;
     detail: string;
   };
   run: number;
@@ -110,9 +96,6 @@ type State = {
   travel: (world: WorldId, mode?: TravelMode) => void;
   setNear: (near: string) => void;
   persist: () => void;
-  award: (id: string, coins: number, xp: number, extra?: Partial<Save>) => void;
-  upgrade: (key: BuildingId) => void;
-  collect: () => void;
   customize: (color: string, hat: boolean) => void;
 };
 export const useGame = create<State>((set, get) => ({
@@ -123,7 +106,6 @@ export const useGame = create<State>((set, get) => ({
   overlayLocked: false,
   traveling: false,
   travelRequest: null,
-  build: false,
   panel: "none",
   near: "",
   notice: storageIssue,
@@ -156,7 +138,6 @@ export const useGame = create<State>((set, get) => ({
       scene,
       near: "",
       result: null,
-      build: false,
       paused: false,
       panel: "none",
       run: get().run + 1,
@@ -186,7 +167,6 @@ export const useGame = create<State>((set, get) => ({
       near: "",
       panel: "none",
       paused: false,
-      build: false,
       result: null,
       run: get().run + 1,
     });
@@ -224,29 +204,6 @@ export const useGame = create<State>((set, get) => ({
           "Browser storage is unavailable. You can keep playing, but progress only lasts this session.",
       });
     }
-  },
-  award(id, coins, xp, extra) {
-    set({ save: { ...reward(get().save, id, coins, xp), ...extra } });
-    get().persist();
-  },
-  upgrade(key) {
-    const next = upgrade(get().save, key);
-    if (next === get().save) return;
-    set({
-      save: next,
-      notice: `${BUILDINGS[key].name} · Lv ${next.upgrades[key]}`,
-    });
-    get().persist();
-  },
-  collect() {
-    const before = get().save,
-      next = collectGarden(before);
-    set(
-      next === before
-        ? { notice: "Nothing to collect yet." }
-        : { save: next, notice: `+${next.coins - before.coins} coins` },
-    );
-    if (next !== before) get().persist();
   },
   customize(color, hat) {
     set({ save: { ...get().save, color, hat } });

@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { badmintonGesture } from "../src/game/core/badminton-gesture";
 
 describe("badminton touch shots", () => {
-  it.each(["touch", "pen"])("honors visible presets with %s on a hybrid laptop", (pointerType) => {
+  it.each(["touch", "pen"])("keeps the preset shot but recenters aim on a %s tap", (pointerType) => {
     const selected = { aim: 1 as const, shot: "smash" as const };
-    expect(badmintonGesture(4, -8, selected, pointerType, true)).toEqual(selected);
+    expect(badmintonGesture(4, -8, selected, pointerType, true)).toEqual({ aim: 0, shot: "smash" });
     expect(badmintonGesture(0, -40, selected, pointerType, true)).toEqual({ aim: 1, shot: "clear" });
     expect(badmintonGesture(-40, 0, selected, pointerType, true)).toEqual({ aim: -1, shot: "smash" });
   });
@@ -17,6 +17,10 @@ describe("badminton touch shots", () => {
   });
   it("keeps a small finger wobble a centered drop", () => {
     expect(badmintonGesture(10, -12)).toEqual({ aim: 0, shot: "drop" });
+  });
+  it("switches shots on a short vertical swipe", () => {
+    expect(badmintonGesture(0, -15)).toEqual({ aim: 0, shot: "clear" });
+    expect(badmintonGesture(0, 15)).toEqual({ aim: 0, shot: "smash" });
   });
   it("combines diagonal shot selection and aim in one swipe", () => {
     expect(badmintonGesture(-40, -35)).toEqual({ aim: -1, shot: "clear" });

@@ -16,7 +16,6 @@ import { CognitionFurnishings, GymFurnishings } from "./CognitionGym";
 import { CognitionPlaque } from "./CognitionWordmark";
 import { HouseInterior } from "./HouseInterior";
 import { KitchenInterior } from "./KitchenInterior";
-import { newRunId } from "../../shared/run-id";
 import { roomFor } from "../core/room";
 import { RoomDressing } from "./RoomDressing";
 import { BeatLabInterior, MathLabInterior } from "./LabRooms";
@@ -30,11 +29,6 @@ import { MovieTheaterInterior, useTheater } from "./MovieTheater";
 import { SecretRoomInterior } from "./SecretRoom";
 import { HOOVER_STASH } from "../core/hoover";
 import { KOREA_THEATER_PROGRAM } from "../core/theaterProgram";
-
-const rewardInterior = (game: "dice" | "cooking", coins: number) =>
-  useGame
-    .getState()
-    .award(`${game}-${newRunId()}`, coins, Math.ceil(coins / 2));
 
 export function Interior() {
   const world = useGame((s) => s.world);
@@ -62,7 +56,7 @@ export function Interior() {
           if (
             useGameMode.getState().active ||
             (theater && theaterSeated) ||
-            state.paused || state.build || state.traveling ||
+            state.paused || state.traveling ||
             state.overlayLocked || state.panel !== "none"
           ) return;
           event.stopPropagation();
@@ -184,8 +178,8 @@ export function Interior() {
         </>
       ) : null}
       {cognition && <CognitionFurnishings />}
-      {scene === "kappa" && <HouseInterior onReward={rewardInterior} />}
-      {scene === "kitchen" && <KitchenInterior onReward={rewardInterior} />}
+      {scene === "kappa" && <HouseInterior />}
+      {scene === "kitchen" && <KitchenInterior />}
       {scene === "gym" && <GymFurnishings />}
       {scene === "music" && <BeatLabInterior />}
       {scene === "math" && <MathLabInterior />}

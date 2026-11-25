@@ -10,7 +10,6 @@ import {
   Table,
   Shelf,
   gameIsActive,
-  type InteriorGameProps,
 } from "./InteriorProps";
 import { CraftedBox, WallSconce, Customer } from "./CraftedDetails";
 import { HouseRooms } from "./HouseRooms";
@@ -22,7 +21,7 @@ const room = roomFor("kitchen"),
   leftWall = -room.width / 2 + 0.5,
   tileColumns = Math.floor((room.width - 1) / 0.83);
 
-export function KitchenInterior({ onReward }: InteriorGameProps) {
+export function KitchenInterior() {
   const playing = useGameMode((s) => s.active?.id === "kitchen");
   const game = newCookingGame();
   const play = () => {
@@ -270,7 +269,7 @@ export function KitchenInterior({ onReward }: InteriorGameProps) {
           </group>
         ))}
       </group>
-      <PapaKitchenGame onReward={onReward} />
+      <PapaKitchenGame />
     </group>
   );
 }

@@ -106,9 +106,7 @@ function DeskSet() {
 }
 
 export function StudyPaperToss({ playing }: { playing: boolean }) {
-  const hidden = useGame(
-    (s) => s.paused || s.panel !== "none" || s.traveling || s.build,
-  );
+  const hidden = useGame((s) => s.paused || s.panel !== "none" || s.traveling);
   const gl = useThree((s) => s.gl);
   const portal = useMemo(
     () => ({ current: gl.domElement.parentElement! }),

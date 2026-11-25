@@ -122,7 +122,7 @@ export function GoInterior() {
   };
   const gl = useThree((s) => s.gl);
   const portal = useMemo(() => ({ current: gl.domElement.parentElement! }), [gl]);
-  const hidden = useGame((s) => s.paused || s.panel !== "none" || s.build);
+  const hidden = useGame((s) => s.paused || s.panel !== "none");
   const { game } = match;
   const thinking = computer && game.turn === 2 && game.phase === "playing";
   const score = useMemo(() => scoreGo(game), [game]);

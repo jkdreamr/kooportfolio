@@ -2,8 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   freshSave,
   parseSave,
-  reward,
-  upgrade,
   writeGuestSave,
   SAVE_KEY,
 } from "../src/shared/save";
@@ -42,13 +40,15 @@ describe("guest save trust boundary", () => {
     ] as [number, number][]) {
       expect(canWalk(...position)).toBe(true);
       const save = {
-        ...upgrade(reward(freshSave(), "race", 90, 30), "garden"),
+        ...freshSave(),
         position,
+        memories: ["race-1"],
+        revision: 1,
       };
       expect(parseSave(JSON.stringify(save))).toEqual(save);
     }
   });
-  it("refuses a stale tab write after another tab earns coins", () => {
+  it("refuses a stale tab write after another tab progresses", () => {
     const entries = new Map<string, string>();
     const storage = {
       getItem: (key: string) => entries.get(key) ?? null,
@@ -57,35 +57,36 @@ describe("guest save trust boundary", () => {
       },
     };
     const baseline = writeGuestSave(storage, freshSave(), null);
-    const earned = reward(freshSave(), "race", 75, 30);
+    const earned = { ...freshSave(), memories: ["race"], revision: 1 };
     expect(writeGuestSave(storage, earned, baseline)).not.toBeNull();
     expect(writeGuestSave(storage, freshSave(), baseline)).toBeNull();
-    expect(parseSave(storage.getItem(SAVE_KEY)).coins).toBe(75);
+    expect(parseSave(storage.getItem(SAVE_KEY)).memories).toEqual(["race"]);
   });
   it("round trips actual progress and rejects corrupt or unknown schema", () => {
-    const save = upgrade(reward(freshSave(), "finish-1", 90, 30), "garden");
+    const save = { ...freshSave(), memories: ["finish-1"], revision: 1 };
     expect(parseSave(JSON.stringify(save))).toEqual(save);
     for (const raw of [
       "{bad",
       "null",
       "{}",
       JSON.stringify({ ...save, version: 2 }),
-      JSON.stringify({ ...save, coins: -1 }),
       JSON.stringify({ ...save, position: [Infinity, 0] }),
     ])
       expect(() => parseSave(raw)).toThrow();
-    expect(parseSave(null).coins).toBe(0);
+    expect(parseSave(null).memories).toEqual([]);
   });
-  it("does not duplicate rewards or spend beyond a balance or max tier", () => {
-    let s = freshSave();
-    expect(upgrade(s, "boathouse")).toBe(s);
-    s = reward(s, "a", 200, 25);
-    expect(reward(s, "a", 200, 25)).toBe(s);
-    expect(reward(s, "b", -10, 0)).toBe(s);
-    s = upgrade(upgrade(s, "garden"), "garden");
-    expect(s.coins).toBe(60);
-    expect(s.upgrades.garden).toBe(3);
-    expect(upgrade(s, "garden")).toBe(s);
+  it("drops legacy economy fields from old saves", () => {
+    const legacy = {
+      ...freshSave(),
+      coins: 120,
+      xp: 30,
+      upgrades: { boathouse: 2, garden: 3, kitchen: 1 },
+      collectedAt: 5,
+      rewards: ["x"],
+      bestRace: 40,
+      bestBasket: 7,
+    };
+    expect(parseSave(JSON.stringify(legacy))).toEqual(freshSave());
   });
 });
 describe("walkable physical world", () => {

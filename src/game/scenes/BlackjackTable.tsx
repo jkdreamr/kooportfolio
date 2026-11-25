@@ -20,7 +20,6 @@ import {
   Stool,
   Table,
   gameIsActive,
-  type InteriorGameProps,
 } from "./InteriorProps";
 
 const cardFaces = new Map<string, THREE.CanvasTexture>();
@@ -108,7 +107,7 @@ function PlayingCard({
 }
 const cardX = (i: number, count: number) =>
   (i - (count - 1) / 2) * Math.min(0.66, 2.5 / count);
-export function BlackjackTable({ onReward }: InteriorGameProps) {
+export function BlackjackTable() {
   const active = useGameMode((s) => s.active?.id === "blackjack");
   const otherMode = useGameMode(
     (s) => !!s.active && s.active.id !== "blackjack",
@@ -119,7 +118,6 @@ export function BlackjackTable({ onReward }: InteriorGameProps) {
     newBlackjack,
   );
   const timer = useRef(0),
-    paidRound = useRef(0),
     focusDeal = useRef(true);
   useEffect(() => {
     if (!active) focusDeal.current = true;
@@ -153,17 +151,6 @@ export function BlackjackTable({ onReward }: InteriorGameProps) {
             : "tap",
       );
   }, [game.phase, game.result]);
-  useEffect(() => {
-    if (
-      game.phase === "over" &&
-      (game.result === "win" || game.result === "blackjack") &&
-      paidRound.current < game.round
-    ) {
-      paidRound.current = game.round;
-      // Keep the shared house-game callback compatible with the original table.
-      onReward?.("dice", 15);
-    }
-  }, [game.phase, game.result, game.round, onReward]);
   useEffect(() => {
     if (!active) return;
     const onKey = (event: KeyboardEvent) => {

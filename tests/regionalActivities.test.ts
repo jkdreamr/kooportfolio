@@ -2,13 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   activitySpots,
   BOOK_RESHELVE_SECONDS,
-  COINS,
   freshActivities,
   PARCEL_DOORS,
   stepRegionalActivity as step,
   nearbyRegionalActivity,
   regionalActionLabel,
-  regionalPayout,
 } from "../src/game/core/regionalActivities";
 import { canWalk } from "../src/game/core/world";
 
@@ -49,15 +47,15 @@ describe("physical neighborhood activities", () => {
   });
 });
 
-describe("coin-earning side quests", () => {
-  it("pays for delivered produce by garden level and for served ramen", () => {
+describe("side quests", () => {
+  it("crates harvested produce and serves the picnic guest once per bowl", () => {
     let s = step(step(freshActivities(), "harvest-0", 0), "harvest-1", 0);
-    expect(regionalPayout(s, "produce", 1, 1)).toBe(2 * COINS.crop);
-    expect(regionalPayout(s, "produce", 1, 3)).toBe(6 * COINS.crop);
-    expect(regionalPayout(freshActivities(), "produce", 1)).toBe(0);
+    s = step(s, "produce", 1);
+    expect([s.basket, s.produceCrates]).toEqual([0, 2]);
     s = step(s, "ramen", 2);
-    expect(regionalPayout(s, "picnic", 3)).toBe(COINS.ramen);
-    expect(regionalPayout(step(s, "picnic", 3), "picnic", 4)).toBe(0);
+    s = step(s, "picnic", 3);
+    expect([s.bowl, s.mealsServed]).toEqual([false, 1]);
+    expect(step(s, "picnic", 4)).toBe(s);
   });
   it("routes each parcel to one door and only offers that drop-off while carrying it", () => {
     let s = freshActivities();
@@ -67,9 +65,7 @@ describe("coin-earning side quests", () => {
     expect(s.parcel).toBe(0);
     expect(step(s, "postbox", 1)).toBe(s);
     expect(nearbyRegionalActivity("home", x, z, s)?.id).toBe("parcel-0");
-    expect(regionalPayout(s, "parcel-1", 1)).toBe(0);
     expect(step(s, "parcel-1", 1)).toBe(s);
-    expect(regionalPayout(s, "parcel-0", 1)).toBe(COINS.parcel);
     s = step(s, "parcel-0", 1);
     expect([s.parcel, s.parcelsDelivered]).toEqual([null, 1]);
     expect(step(s, "postbox", 2).parcel).toBe(1);
@@ -78,7 +74,6 @@ describe("coin-earning side quests", () => {
     let s = step(step(freshActivities(), "book-0", 0), "book-2", 0);
     expect(step(s, "book-0", 10)).toBe(s);
     expect(regionalActionLabel(s, "bookdrop", 1)).toBe("Return 2 books");
-    expect(regionalPayout(s, "bookdrop", 1)).toBe(2 * COINS.book);
     s = step(s, "bookdrop", 1);
     expect([s.books, s.booksReturned]).toEqual([0, 2]);
     expect(step(s, "book-0", BOOK_RESHELVE_SECONDS).books).toBe(1);
@@ -88,12 +83,9 @@ describe("coin-earning side quests", () => {
     expect(s.biteAt[0]).toBe(3);
     expect(regionalActionLabel(s, "fish-0", 1)).toBe("Waiting");
     expect(step(s, "fish-0", 1)).toBe(s);
-    expect(regionalPayout(s, "fish-0", 1)).toBe(0);
-    expect(regionalPayout(s, "fish-0", 4)).toBe(COINS.fish);
     const caught = step(s, "fish-0", 4);
     expect([caught.biteAt[0], caught.fishCaught]).toEqual([null, 1]);
     expect(regionalActionLabel(s, "fish-0", 6)).toBe("Got away · Cast");
-    expect(regionalPayout(s, "fish-0", 6)).toBe(0);
     s = step(s, "fish-0", 6, () => 0.5);
     expect([s.biteAt[0], s.fishCaught]).toEqual([11, 0]);
   });

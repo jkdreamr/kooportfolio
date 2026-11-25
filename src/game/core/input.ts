@@ -26,7 +26,6 @@ export function useInput(interact: () => void) {
       if (k === "escape") {
         const s = useGame.getState();
         if (s.panel !== "none") useGame.setState({ panel: "none" });
-        else if (s.build) useGame.setState({ build: false });
         else useGame.setState({ paused: !s.paused });
       }
       if (k === "e") interact();

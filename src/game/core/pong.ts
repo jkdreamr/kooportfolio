@@ -117,27 +117,3 @@ export function pongReducer(state: Pong, action: Action): Pong {
   }
   return state;
 }
-export const PONG_BEST_KEY = "joshua-exe-pong-best";
-export function readPongBest(storage?: Pick<Storage, "getItem">) {
-  try {
-    const value = Number((storage ?? localStorage).getItem(PONG_BEST_KEY));
-    return Number.isInteger(value) && value >= 6 && value <= PONG_THROWS
-      ? value
-      : null;
-  } catch {
-    return null;
-  }
-}
-export function savePongBest(
-  shots: number,
-  storage?: Pick<Storage, "getItem" | "setItem">,
-) {
-  const best = readPongBest(storage);
-  if (best !== null && best <= shots) return best;
-  try {
-    (storage ?? localStorage).setItem(PONG_BEST_KEY, String(shots));
-  } catch {
-    /* Best score is optional. */
-  }
-  return shots;
-}

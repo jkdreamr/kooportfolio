@@ -12,10 +12,9 @@ import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import { useGame } from "../core/store";
-import { kitchenBurners } from "../../shared/buildings";
 import { sound } from "../core/sound";
 import { GAME_STAGE_Y } from "./InteriorGameStage";
-import { gameIsActive, type InteriorGameProps } from "./InteriorProps";
+import { gameIsActive } from "./InteriorProps";
 import { PapaKitchenScene } from "./PapaKitchenScene";
 import { readKitchenDay, saveKitchenDay } from "./kitchenProgress";
 import {
@@ -129,7 +128,6 @@ function KitchenControls({
       arm(null);
     }
   };
-  const average = game.served ? Math.round(game.score / game.served) : 0;
   const passed = shiftPassed(game);
   return (
     <section
@@ -158,8 +156,6 @@ function KitchenControls({
               .toString()
               .padStart(2, "0")}
           </time>
-          <span>{game.tips} tips</span>
-          {game.combo > 1 && <b>×{game.combo}</b>}
         </div>
         <button
           className="papa-close"
@@ -484,9 +480,6 @@ function KitchenControls({
               </div>
             ))}
           </div>
-          <p>
-            +{game.grade.tip} tips{game.combo > 1 ? ` · ×${game.combo}` : ""}
-          </p>
           <button onClick={() => dispatch({ type: "next" })}>Next order</button>
         </div>
       )}
@@ -500,32 +493,18 @@ function KitchenControls({
                 {game.served}/{dayGoal(game.day)}
               </b>
             </div>
-            <div>
-              <span>Average</span>
-              <b>{average}%</b>
-            </div>
-            <div>
-              <span>Tips</span>
-              <b>{game.tips}</b>
-            </div>
           </div>
           <p>
             {game.missed
               ? `${game.missed} ${game.missed === 1 ? "customer left" : "customers left"}`
               : passed
                 ? `Day ${game.day + 1} unlocked`
-                : "80% average to advance"}
+                : "Serve faster and cleaner to advance"}
           </p>
           <button
             onClick={() => {
               arm(null);
-              dispatch({
-                type: "start",
-                nextDay: passed,
-                burners: kitchenBurners(
-                  useGame.getState().save.upgrades.kitchen,
-                ),
-              });
+              dispatch({ type: "start", nextDay: passed, burners: 1 });
             }}
           >
             {passed ? "Next day" : "Try again"}
@@ -548,12 +527,12 @@ function KitchenControls({
   );
 }
 
-export function PapaKitchenGame({ onReward }: InteriorGameProps) {
+export function PapaKitchenGame() {
   const active = useGameMode((s) => s.active?.id === "kitchen");
   const hidden = useGame(
-    (s) => s.paused || s.panel !== "none" || s.build || s.near === "exit",
+    (s) => s.paused || s.panel !== "none" || s.near === "exit",
   );
-  const burners = useGame((s) => kitchenBurners(s.save.upgrades.kitchen));
+  const burners = 1;
   const [game, dispatch] = useReducer(papaReducer, undefined, () =>
     newPapaGame(0, readKitchenDay(), burners),
   );
@@ -563,8 +542,7 @@ export function PapaKitchenGame({ onReward }: InteriorGameProps) {
     aimMarker = useRef<HTMLSpanElement>(null),
     center = useRef({ x: 0, y: 0 }),
     dropZone = useRef<HTMLDivElement>(null),
-    pendingFocus = useRef(false),
-    paid = useRef({ run: -1, tips: 0 });
+    pendingFocus = useRef(false);
   const gl = useThree((s) => s.gl),
     size = useThree((s) => s.size);
   const portal = useMemo(
@@ -597,15 +575,6 @@ export function PapaKitchenGame({ onReward }: InteriorGameProps) {
       dispatch({ type: "start", burners });
     }
   }, [active, game.phase, burners]);
-  useEffect(() => {
-    if (paid.current.run !== game.run)
-      paid.current = { run: game.run, tips: 0 };
-    if (game.tips > paid.current.tips) {
-      const amount = game.tips - paid.current.tips;
-      paid.current.tips = game.tips;
-      onReward?.("cooking", amount);
-    }
-  }, [game.run, game.tips, onReward]);
   const focusElement = (node: HTMLButtonElement | null) => {
     if (node && pendingFocus.current) {
       node.focus({ preventScroll: true });

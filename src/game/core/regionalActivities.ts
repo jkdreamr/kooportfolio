@@ -8,13 +8,6 @@ export const BASKET_CAPACITY = 3;
 export const KOREA_EXERCISE_YARD = [-43, 3, 18, 11] as const;
 export const BOOK_RESHELVE_SECONDS = 45;
 export const BITE_WINDOW_SECONDS = 2.5;
-export const COINS = {
-  crop: 3,
-  ramen: 12,
-  parcel: 10,
-  book: 5,
-  fish: 8,
-} as const;
 export const PARCEL_DOORS = [
   {
     id: "go",
@@ -185,28 +178,7 @@ export function regionalActionLabel(
   if (now < bite) return "Waiting";
   return now <= bite + BITE_WINDOW_SECONDS ? "Reel in" : "Got away · Cast";
 }
-/** Coins the action pays right now; zero when it would not change anything. */
-export function regionalPayout(
-  s: ActivityState,
-  id: RegionalAction,
-  now: number,
-  gardenLevel = 1,
-): number {
-  if (id === "produce") return s.basket * COINS.crop * gardenLevel;
-  if (id === "picnic")
-    return s.bowl && s.guestFedUntil <= now ? COINS.ramen : 0;
-  if (id.startsWith("parcel-"))
-    return s.parcel === index(id) ? COINS.parcel : 0;
-  if (id === "bookdrop") return s.books * COINS.book;
-  if (id.startsWith("fish-")) {
-    const bite = s.biteAt[index(id)];
-    return bite !== null && now >= bite && now <= bite + BITE_WINDOW_SECONDS
-      ? COINS.fish
-      : 0;
-  }
-  return 0;
-}
-/** Session-local play; coins are paid by the caller from `regionalPayout`. */
+/** Session-local play state for each side activity. */
 export function stepRegionalActivity(
   s: ActivityState,
   id: RegionalAction,

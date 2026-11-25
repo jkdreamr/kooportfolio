@@ -16,7 +16,6 @@ function canZoom() {
   return (
     state.scene === "hub" &&
     !state.paused &&
-    !state.build &&
     !state.traveling &&
     !state.overlayLocked &&
     state.panel === "none" &&
@@ -87,8 +86,7 @@ export function WorldZoomControls() {
     (state) =>
       state.scene === "hub" &&
       !state.paused &&
-      !state.build &&
-      !state.traveling &&
+        !state.traveling &&
       !state.overlayLocked &&
       state.panel === "none",
   );

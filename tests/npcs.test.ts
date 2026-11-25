@@ -171,7 +171,6 @@ describe("NPC interaction boundaries", () => {
       world: "stanford",
       panel: "none",
       paused: false,
-      build: false,
       near: "npc",
     });
     useNpcs.setState({ talking: null, pending: null, line: 0 });
@@ -191,14 +190,16 @@ describe("NPC interaction boundaries", () => {
     expect(interactWithNpc()).toBe(true);
     expect(useNpcs.getState().line).toBe(1);
     advanceConversation();
+    // Every local now has follow-up topics, so the dialog stays open for them.
+    expect(useGame.getState().panel).toBe("npc");
+    closeConversation();
     expect(useGame.getState().panel).toBe("none");
     expect(useNpcs.getState().talking).toBeNull();
     expect(useGame.getState().save).toBe(save);
   });
-  it("never talks through pause, build, unrelated panels, doors or the bulletin", () => {
+  it("never talks through pause, unrelated panels, doors or the bulletin", () => {
     for (const blocked of [
       { paused: true },
-      { build: true },
       { panel: "help" as const },
       { panel: "places" as const },
       { near: "read" },
@@ -206,7 +207,6 @@ describe("NPC interaction boundaries", () => {
     ]) {
       const baseline = {
         paused: false,
-        build: false,
         panel: "none" as const,
         near: "npc",
       };

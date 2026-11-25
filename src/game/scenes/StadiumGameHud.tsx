@@ -99,7 +99,7 @@ export function StadiumGameHud({
   onClose: () => void;
 }) {
   const gl = useThree((s) => s.gl);
-  const hidden = useGame((s) => s.paused || s.panel !== "none" || s.build);
+  const hidden = useGame((s) => s.paused || s.panel !== "none");
   const portal = useMemo(
     () => ({ current: gl.domElement.parentElement! }),
     [gl],

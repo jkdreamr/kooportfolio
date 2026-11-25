@@ -1,4 +1,4 @@
-import { reward, type Save } from "../../shared/save";
+import type { Save } from "../../shared/save";
 
 export const HOOVER_KEY = "hoover-key";
 export const HOOVER_STASH = "campus-stash";
@@ -22,8 +22,8 @@ export function claimHooverStash(save: Save): Save {
   )
     return save;
   return {
-    ...reward(save, HOOVER_STASH, 75, 0),
-    // Unlike recent run IDs, discovery memories are never evicted.
+    ...save,
     memories: [...save.memories, HOOVER_STASH],
+    revision: save.revision + 1,
   };
 }

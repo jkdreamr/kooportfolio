@@ -124,7 +124,7 @@ function TheaterViewer({
   onClose: () => void;
 }) {
   const filmId = useTheater((s) => s.filmId);
-  const hidden = useGame((s) => s.paused || s.build || s.panel !== "none");
+  const hidden = useGame((s) => s.paused || s.panel !== "none");
   const selected = program.find((film) => film.id === filmId);
   const [showProgram, setShowProgram] = useState(false);
   const close = useRef<HTMLButtonElement>(null);
@@ -319,7 +319,7 @@ export function MovieTheaterInterior({
       if (document.hidden) useTheater.setState({ filmId: null });
     };
     const unsubscribe = useGame.subscribe((state) => {
-      if (state.paused || state.panel !== "none" || state.build)
+      if (state.paused || state.panel !== "none")
         useTheater.setState({ filmId: null });
     });
     document.addEventListener("visibilitychange", stopWhenHidden);

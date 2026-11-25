@@ -179,8 +179,6 @@ describe("stable, planted island", () => {
   it("moves legacy apron saves to the plaza without losing earned progress", () => {
     const legacy = {
       ...freshSave(),
-      coins: 75,
-      xp: 21,
       memories: ["hoover-key"],
       position: [0, -70],
     };

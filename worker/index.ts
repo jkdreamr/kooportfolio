@@ -1,11 +1,9 @@
 import { writingApi, type WritingEnv } from "./writing";
-import { leaderboardApi, type LeaderboardEnv } from "./leaderboard";
-import { LEADERBOARD_PATH } from "../src/shared/leaderboard";
 import { BOOTH_PATH } from "../src/shared/booth";
 import { boothApi, type BoothEnv } from "./booth";
 import { corsHeaders, type CorsEnv } from "./cors";
 
-type Env = WritingEnv & LeaderboardEnv & BoothEnv & CorsEnv;
+type Env = WritingEnv & BoothEnv & CorsEnv;
 
 function withCors(response: Response, request: Request, env: Env) {
   const headers = corsHeaders(request, env);
@@ -21,15 +19,12 @@ export default {
   async fetch(request: Request, env: Env = {}): Promise<Response> {
     const path = new URL(request.url).pathname;
     const api =
-      path === LEADERBOARD_PATH ||
       path === BOOTH_PATH ||
       path === "/api/writing" ||
       path.startsWith("/api/writing/") ||
       path === "/api/health";
     if (api && request.method === "OPTIONS")
       return new Response(null, { status: 204, headers: corsHeaders(request, env) });
-    if (path === LEADERBOARD_PATH)
-      return withCors(await leaderboardApi(request, env), request, env);
     if (path === BOOTH_PATH)
       return withCors(await boothApi(request, env), request, env);
     if (path === "/api/writing" || path.startsWith("/api/writing/"))

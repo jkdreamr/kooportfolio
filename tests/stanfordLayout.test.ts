@@ -74,8 +74,6 @@ describe("compact Stanford village", () => {
   it("moves old Stanford lawn saves to the plaza without losing progress or changing other worlds", () => {
     const previous = {
       ...freshSave(),
-      coins: 75,
-      xp: 21,
       memories: ["hoover-key"],
       world: "stanford" as const,
       position: [-19, -30] as [number, number],

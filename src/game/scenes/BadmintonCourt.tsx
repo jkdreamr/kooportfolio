@@ -15,7 +15,6 @@ import { runtime, useGame } from "../core/store";
 import { startGameMode, endGameMode, useGameMode } from "../core/gameMode";
 import { keys, touch } from "../core/input";
 import { sound } from "../core/sound";
-import { newRunId } from "../../shared/run-id";
 import { Ball, Box, Cylinder, Ring } from "../world/Models";
 import { HitPad, MovePad } from "./BadmintonControls";
 import { BadmintonGym } from "./BadmintonGym";
@@ -325,16 +324,14 @@ export function BadmintonCourt({
   const [snapshot, setSnapshot] = useState(() => view(game.current));
   const [aim, setAim] = useState<-1 | 0 | 1>(0),
     [shot, setShot] = useState<BadmintonShot>("clear");
-  const blocked = useGame((s) => s.paused || s.panel !== "none" || s.build);
+  const blocked = useGame((s) => s.paused || s.panel !== "none");
   const color = useGame((s) => s.save.color);
   const gl = useThree((s) => s.gl),
     portal = useMemo(() => ({ current: gl.domElement.parentElement! }), [gl]);
   const shuttle = useRef<THREE.Group>(null),
     shadow = useRef<THREE.Mesh>(null),
     contactRing = useRef<THREE.Mesh>(null);
-  const clock = useRef(0),
-    rewarded = useRef(false),
-    runId = useRef("");
+  const clock = useRef(0);
   const direction = useMemo(() => new THREE.Vector3(), []);
   const matchCamera = useThree((s) => s.camera);
   useEffect(
@@ -440,10 +437,6 @@ export function BadmintonCourt({
         else if (now.rally > prev.rally)
           sound(now.lastHit === "player" ? "whoosh" : "tap");
       }
-      if (game.current.winner === "player" && !rewarded.current) {
-        rewarded.current = true;
-        useGame.getState().award(`badminton-${runId.current}`, 25, 12);
-      }
       clock.current += delta;
       if (clock.current >= 0.08) {
         setSnapshot(view(game.current));
@@ -519,8 +512,6 @@ export function BadmintonCourt({
   const begin = () => {
     if (!playing && !startGameMode("badminton")) return;
     game.current = newBadmintonGame();
-    rewarded.current = false;
-    runId.current = newRunId();
     input.current = noInput();
     setAim(0);
     setShot("clear");
@@ -535,7 +526,7 @@ export function BadmintonCourt({
   const aimArrow = aim === -1 ? "↖" : aim === 1 ? "↗" : "↑";
   return (
     <>
-      <BadmintonGym score={snapshot.score} />
+      <BadmintonGym />
       <CourtFurnishings />
       <Player game={game.current} opponent color="#b8573f" />
       {playing && (
@@ -582,17 +573,10 @@ export function BadmintonCourt({
               </section>
             ) : (
               <>
-                <section className="badminton-score" aria-label="Match score">
-                  <span>
-                    You <b>{snapshot.score[0]}</b>
-                  </span>
-                  <i>:</i>
-                  <span>
-                    <b>{snapshot.score[1]}</b> Guest
-                  </span>
+                <section className="badminton-score" aria-label="Rally">
                   <small>
                     {snapshot.message ||
-                      `${snapshot.rally} shot${snapshot.rally === 1 ? "" : "s"}`}
+                      `${snapshot.rally} shot${snapshot.rally === 1 ? "" : "s"} rally`}
                   </small>
                 </section>
                 {snapshot.phase === "over" ? (
@@ -600,14 +584,7 @@ export function BadmintonCourt({
                     className="badminton-result"
                     aria-label="Match result"
                   >
-                    <h2>
-                      {snapshot.winner === "player" ? "You win" : "Good game"}
-                    </h2>
-                    <p>
-                      {snapshot.score[0]} – {snapshot.score[1]} · longest rally{" "}
-                      {snapshot.longest}
-                    </p>
-                    {snapshot.winner === "player" && <p>+25 coins</p>}
+                    <h2>Match over</h2>
                     <button onClick={begin}>Rematch</button>
                     <button className="badminton-quiet" onClick={end}>
                       Back to room
@@ -619,7 +596,6 @@ export function BadmintonCourt({
                     <section
                       className="badminton-actions"
                       aria-label="Racket controls"
-                      data-badminton-shortcuts
                     >
                       <output
                         className="badminton-selection"
@@ -677,11 +653,7 @@ export function BadmintonCourt({
                           </>
                         ) : (
                           <>
-                            ↑ clear ·{" "}
-                            <span className="badminton-tap-hint">
-                              tap drop ·{" "}
-                            </span>
-                            ↓ smash
+                            ↑ clear · ↓ smash
                             <br />
                             <output
                               className="badminton-touch-selection"

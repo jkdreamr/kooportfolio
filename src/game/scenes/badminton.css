@@ -281,10 +281,17 @@
   .badminton-actions {
     right: 14px;
     bottom: max(18px, env(safe-area-inset-bottom));
-    width: 130px;
+    width: 156px;
     gap: 5px;
   }
-  .badminton-shots,
+  .badminton-shots {
+    width: 100%;
+  }
+  .badminton-shots button {
+    min-height: 40px;
+    padding: 6px 4px;
+    font-size: 11px;
+  }
   .badminton-selection,
   .badminton-hint {
     display: none;
@@ -328,10 +335,17 @@
   .badminton-actions {
     right: 14px;
     bottom: 18px;
-    width: 130px;
+    width: 156px;
     gap: 4px;
   }
-  .badminton-shots,
+  .badminton-shots {
+    width: 100%;
+  }
+  .badminton-shots button {
+    min-height: 36px;
+    padding: 4px;
+    font-size: 11px;
+  }
   .badminton-selection,
   .badminton-hint {
     display: none;

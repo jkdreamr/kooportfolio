@@ -8,14 +8,10 @@ import { startGameMode, endGameMode, useGameMode } from "../core/gameMode";
 import { GAME_STAGE_Y } from "./InteriorGameStage";
 import "./interior-games.css";
 
-export type InteriorGameProps = {
-  onReward?: (game: "dice" | "cooking", coins: number) => void;
-};
 export function gameIsActive() {
   const state = useGame.getState();
   return (
     !state.paused &&
-    !state.build &&
     state.panel === "none" &&
     state.near !== "exit"
   );
@@ -86,7 +82,7 @@ export function GameControls({
   const projected = useMemo(() => new THREE.Vector3(), []);
   const panel = useRef<HTMLElement>(null);
   const hidden = useGame(
-    (s) => s.paused || s.panel !== "none" || s.build || s.near === "exit",
+    (s) => s.paused || s.panel !== "none" || s.near === "exit",
   );
   useEffect(() => {
     const close = () => {
