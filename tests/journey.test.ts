@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { journeyGate, journeyPose } from "../src/game/core/journey";
+import {
+  journeyGate,
+  journeyPose,
+  journeyRidePose,
+} from "../src/game/core/journey";
+import { railForWorld, railPose } from "../src/game/core/islandRail";
 import { canWalk, findPath } from "../src/game/core/world";
 import { WORLD_ELLIPSE } from "../src/shared/world-bounds";
 
@@ -9,7 +14,7 @@ describe("world-space transport", () => {
       for (const mode of world === "korea"
         ? (["plane"] as const)
         : (["plane", "train"] as const)) {
-        const gate = journeyGate(mode);
+        const gate = journeyGate(mode, world);
         expect(canWalk(gate[0], gate[1], world)).toBe(true);
         const route = findPath([0, 5], [gate[0], gate[1]], world);
         expect(route.length).toBeGreaterThan(0);
@@ -37,5 +42,39 @@ describe("world-space transport", () => {
       b = journeyPose("train", 1);
     expect(b.x).toBeCloseTo(a.x);
     expect(b.z).toBeCloseTo(a.z);
+  });
+  it("keeps every traveling coach on the mounted railway before and after the region handoff", () => {
+    for (const [from, to] of [
+      ["home", "stanford"],
+      ["stanford", "home"],
+    ] as const) {
+      for (let step = 0; step <= 100; step++) {
+        const progress = step / 100;
+        // Include either side of the scenery commit at the midpoint.
+        const worlds =
+          progress === 0.5 ? [from, to] : [progress < 0.5 ? from : to];
+        for (const world of worlds) {
+          const rail = railForWorld(world);
+          for (let coach = 0; coach < 3; coach++) {
+            const p = journeyRidePose(
+              "train",
+              progress,
+              from,
+              to,
+              world,
+              coach,
+            );
+            expect(p).toMatchObject(
+              railPose(progress, coach * rail.coachTurns, world),
+            );
+            expect(p.y).toBe(rail.height);
+            // The Stanford airport is centered at (58, 52), with its apron
+            // extending to z=61; no car may pass through that footprint.
+            if (world === "stanford")
+              expect(p.x < 50 || p.x > 66 || p.z < 44 || p.z > 64).toBe(true);
+          }
+        }
+      }
+    }
   });
 });

@@ -18,7 +18,8 @@ import {
   type WorldId,
 } from "./worlds";
 import { keys, touch } from "./input";
-import { ISLAND_RAIL } from "./islandRail";
+import { journeyGate } from "./journey";
+import type { TravelOption } from "./travel";
 export type Scene = "hub" | "rowing" | "secret" | PlaceId;
 let storageIssue = "";
 let savedRaw: string | null = null;
@@ -46,6 +47,7 @@ export const runtime = {
   path: [] as [number, number][],
   near: "",
   raceCadence: 30,
+  raceCatch: false,
   raceLength: 360,
   raceSeed: 1,
   raceMode: "sprint" as "sprint" | "regatta" | "daily",
@@ -75,7 +77,7 @@ type State = {
   paused: boolean;
   overlayLocked: boolean;
   traveling: boolean;
-  travelRequest: WorldId | null;
+  travelRequest: WorldId | TravelOption | null;
   build: boolean;
   panel:
     | "none"
@@ -146,6 +148,7 @@ export const useGame = create<State>((set, get) => ({
     runtime.aim = 0;
     runtime.steer = 0;
     runtime.burst = false;
+    runtime.raceCatch = false;
     set({
       scene,
       near: "",
@@ -160,8 +163,7 @@ export const useGame = create<State>((set, get) => ({
     if (!validJourney(get().world, world, mode) || get().scene !== "hub")
       return;
     get().persist();
-    const position: [number, number] =
-      mode === "plane" ? [58, 61] : [-73, ISLAND_RAIL.station[1]];
+    const position: [number, number] = [...journeyGate(mode, world)];
     [runtime.x, runtime.z] = position;
     runtime.path = [];
     runtime.target = null;

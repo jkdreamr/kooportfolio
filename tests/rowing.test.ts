@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  catchBoosted,
+  catchReady,
   currentLine,
   newRace,
   newRivals,
@@ -72,6 +74,42 @@ describe("rowing strokes and race timing", () => {
     expect(stepRace({ ...base, stroke: 0.7 }, input, 360).speed).toBeLessThan(
       9,
     );
+  });
+  it("boosts only the next drive when the player catches in the green", () => {
+    const base = { ...newRace(), time: 10, speed: 9, stroke: 0.9 };
+    const input = { cadence: 30, burst: false, steer: 0 };
+    const early = { ...base, stroke: 0.6 };
+    expect(catchReady(early)).toBe(false);
+    expect(stepRace(early, { ...input, catchPressed: true }, 360)).toEqual(
+      stepRace(early, input, 360),
+    );
+    expect(catchReady(base)).toBe(true);
+    let caught = stepRace(base, { ...input, catchPressed: true }, 360);
+    let normal = stepRace(base, input, 360);
+    expect(caught.boostedStroke).toBe(base.strokes + 1);
+    expect(catchBoosted(caught)).toBe(true);
+    expect(catchReady(caught)).toBe(false);
+    expect(caught.speed).toBe(normal.speed);
+    while (caught.stroke > 0.1) {
+      caught = stepRace(caught, { ...input, catchPressed: true }, 360);
+      normal = stepRace(normal, input, 360);
+    }
+    expect(caught.boostedStroke).toBe(caught.strokes);
+    expect(caught.speed).toBeGreaterThan(normal.speed);
+    expect(caught.stamina).toBe(normal.stamina);
+    expect(catchBoosted({ ...caught, stroke: 0.4 })).toBe(false);
+    expect(catchReady({ ...caught, stroke: 0.9 })).toBe(true);
+  });
+  it("closes the catch window at stroke rollover", () => {
+    const before = { ...newRace(), time: 10, stroke: 0.999, strokes: 3 };
+    const input = { cadence: 36, burst: false, steer: 0 };
+    const pressed = { ...input, catchPressed: true };
+    expect(catchReady(before)).toBe(true);
+    expect(stepRace(before, pressed, 360).boostedStroke).toBe(4);
+    const after = stepRace(before, input, 360);
+    expect(after.strokes).toBe(4);
+    expect(catchReady(after)).toBe(false);
+    expect(stepRace(after, pressed, 360).boostedStroke).toBeNull();
   });
   it("makes cadence and sprinting a tradeoff rather than free speed", () => {
     const settle = drive(24),

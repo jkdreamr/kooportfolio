@@ -1061,7 +1061,7 @@ export function MathLabInterior() {
                     Undo <kbd>Z</kbd>
                   </button>
                   <button onClick={showHint} aria-keyshortcuts="H">
-                    Hint <kbd>H</kbd>
+                    Hint · no reward <kbd>H</kbd>
                   </button>
                   <button
                     onClick={reset}

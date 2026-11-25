@@ -1,8 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { runtime, useGame, walkTo, type Scene } from "../core/store";
 import { keys, touch } from "../core/input";
-import { dailySeed, raceTime } from "../core/rowing";
-import { useRaceHud } from "../scenes/Rowing";
+import {
+  catchBoosted,
+  catchReady,
+  CATCH_WINDOW_START,
+  dailySeed,
+  raceTime,
+} from "../core/rowing";
+import { useRaceCatch, useRaceHud } from "../scenes/Rowing";
 import { CourtControls, useBasketHud } from "../scenes/Basketball";
 import { Icon } from "./Icon";
 import { destinationsInWorld, doors, isInterior } from "../core/world";
@@ -52,6 +58,36 @@ export function Joystick() {
     </div>
   );
 }
+function RaceCatch() {
+  const race = useRaceCatch();
+  const ready = catchReady(race);
+  const boosted = catchBoosted(race);
+  return (
+    <div className="race-catch">
+      <div className="race-catch-track" aria-hidden="true">
+        <i style={{ left: `${CATCH_WINDOW_START * 100}%` }} />
+        <b style={{ left: `${race.stroke * 100}%` }} />
+      </div>
+      <button
+        type="button"
+        data-ready={ready}
+        data-boosted={boosted}
+        disabled={race.time <= 0 || race.finished}
+        onPointerDown={(event) => {
+          if (event.button !== 0) return;
+          event.preventDefault();
+          runtime.raceCatch = true;
+        }}
+        onClick={(event) => {
+          if (event.detail === 0) runtime.raceCatch = true;
+        }}
+      >
+        {ready ? "Catch now" : boosted ? "Good catch" : "Catch"}
+      </button>
+    </div>
+  );
+}
+
 export function RaceHud() {
   const { race, place } = useRaceHud();
   const pointers = useRef(new Map<number, "left" | "right" | "burst">());
@@ -66,6 +102,7 @@ export function RaceHud() {
   const touchButton = (control: "left" | "right" | "burst") => ({
     "data-held": held.includes(control),
     onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
+      event.preventDefault();
       event.currentTarget.setPointerCapture(event.pointerId);
       pointers.current.set(event.pointerId, control);
       updateTouch();
@@ -87,6 +124,7 @@ export function RaceHud() {
     () => () => {
       runtime.steer = 0;
       runtime.burst = false;
+      runtime.raceCatch = false;
     },
     [],
   );
@@ -95,9 +133,9 @@ export function RaceHud() {
       <div className="challenge-heading">
         <h1>Regatta</h1>
         <p className="keyboard-hint">
-          A / D steer · 1 / 2 / 3 cadence · hold Space for a burst
+          A / D steer · 1 / 2 / 3 pace · R to catch · hold Space to burst
         </p>
-        <p className="touch-hint">Steer with arrows · hold burst</p>
+        <p className="touch-hint">Tap Catch in green · hold Burst</p>
       </div>
       <div className="race-progress">
         <div
@@ -152,6 +190,7 @@ export function RaceHud() {
             <button
               className={runtime.raceCadence === n ? "selected" : ""}
               key={n}
+              onPointerDown={(event) => event.preventDefault()}
               onClick={() => {
                 runtime.raceCadence = Number(n);
               }}
@@ -161,6 +200,7 @@ export function RaceHud() {
             </button>
           ))}
         </div>
+        <RaceCatch />
         <p>
           {race.bank
             ? "Stay inside the buoys."
@@ -481,7 +521,7 @@ export function Hud({ interact }: { interact: () => void }) {
           <RoomStory
             key={g.scene}
             scene={g.scene as PlaceId}
-            hidden={g.paused || g.panel !== "none"}
+            hidden={g.paused || g.panel !== "none" || g.near === "exit"}
           />
         </div>
       )}
@@ -499,6 +539,7 @@ export function Hud({ interact }: { interact: () => void }) {
           <>
             <div
               className={`context-action ${g.scene === "stadium" ? "context-action--stadium" : ""} ${g.near ? "visible" : ""}`}
+              data-action={g.near ?? undefined}
               style={{ zIndex: 20 }}
             >
               <div>
@@ -918,12 +959,12 @@ export function Hud({ interact }: { interact: () => void }) {
             <b>Row</b>
             <p>
               <span className="keyboard-hint">
-                A/D to steer. 1/2/3 for cadence. Space for a burst.{" "}
+                A/D to steer. 1/2/3 for pace. R to catch. Space for a burst.{" "}
               </span>
               <span className="touch-hint">
-                Hold arrows to steer and BURST to sprint. Tap a pace.{" "}
+                Hold arrows to steer and Burst to sprint. Tap a pace or Catch.{" "}
               </span>
-              Stay inside the buoys; sprinting drains energy.
+              Catch in the green for a boost. Sprinting drains energy.
             </p>
             <b>Shoot</b>
             <p>

@@ -31,6 +31,7 @@ import {
 import { PHOTO_BOOTH_ORIGIN } from "../src/game/core/photoBoothLayout";
 import { villageGardenPlots } from "../src/game/core/villageGardens";
 import { labelsOverlap } from "../src/game/world/Labels";
+import { STANFORD_STATION_GATE } from "../src/shared/stanford-transport";
 
 describe("separate worlds", () => {
   it("reserves the mobile zoom area without blocking labels elsewhere", () => {
@@ -102,7 +103,8 @@ describe("separate worlds", () => {
     expect(canWalk(45, 30.38, "korea")).toBe(false);
     for (let x = 26; x <= 64; x++)
       expect(canWalk(x, 34, "korea"), `bridge x=${x}`).toBe(true);
-    expect(canWalk(45, 26, "home")).toBe(true);
+    // That coordinate is now offshore at Home, not a shared regional lawn.
+    expect(canWalk(45, 26, "home")).toBe(false);
   });
   it("keeps Korea's south-bank walk open behind the airport terminal", () => {
     for (let x = 49; x <= 68; x++) {
@@ -193,7 +195,7 @@ describe("separate worlds", () => {
       }
     }
   });
-  it("reclaims the empty coastal apron without changing other worlds", () => {
+  it("reclaims Korea's empty coastal apron independently of Home", () => {
     for (const [x, z] of [
       [-69, 12],
       [51, -33],
@@ -201,7 +203,7 @@ describe("separate worlds", () => {
     ]) {
       expect(isOnKoreaLand(x, z)).toBe(false);
       expect(canWalk(x, z, "korea")).toBe(false);
-      expect(canWalk(x, z, "home")).toBe(true);
+      expect(canWalk(x, z, "home")).toBe(false);
     }
     for (const [x, z] of [
       [-48, 40],
@@ -273,7 +275,7 @@ describe("separate worlds", () => {
     runtime.target = [1, 1];
     useGame.getState().travel("stanford", "train");
     expect(useGame.getState().world).toBe("stanford");
-    expect([runtime.x, runtime.z]).toEqual([-73, 22]);
+    expect([runtime.x, runtime.z]).toEqual(STANFORD_STATION_GATE);
     expect(canWalk(runtime.x, runtime.z, "stanford")).toBe(true);
     expect(runtime.path).toEqual([]);
     expect(runtime.target).toBe(null);

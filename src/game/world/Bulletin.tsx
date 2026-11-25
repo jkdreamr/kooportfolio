@@ -2,13 +2,18 @@ import { Box, Cylinder, Sign } from "./Models";
 import { walkTo } from "../core/store";
 
 /** The village contact board opens the same verified profile as the Study. */
-export function Bulletin() {
+export function Bulletin({
+  position = [0, -6.6],
+}: {
+  position?: readonly [number, number];
+}) {
+  const [x, z] = position;
   return (
     <group
-      position={[0, 0, -6.6]}
+      position={[x, 0, z]}
       onClick={(event) => {
         event.stopPropagation();
-        walkTo(0, -4.6);
+        walkTo(x, z + 2);
       }}
     >
       <Box p={[0, 0.2, 0]} s={[4.5, 0.35, 1.3]} c="#727f72" />

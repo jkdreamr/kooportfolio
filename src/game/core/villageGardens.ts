@@ -1,4 +1,5 @@
 import { WORLD_ELLIPSE } from "../../shared/world-bounds";
+import { onStanfordLand } from "../../shared/stanford-ground";
 import { isOnKoreaLand } from "./koreaDistrict";
 import { isKoreaGardenWalk, isKoreaLandmarkArea } from "./koreaLandmarks";
 import type { WorldId } from "./worlds";
@@ -53,6 +54,7 @@ const districts: readonly (readonly [
 
 function reserved(x: number, z: number, world: WorldId) {
   return (
+    (world === "stanford" && !onStanfordLand(x, z, 3)) ||
     (world === "stanford" && isStanfordTownSpace(x, z, 2)) ||
     Math.abs(x) < 4 ||
     Math.abs(z + 9) < 3 ||
@@ -119,6 +121,20 @@ function koreaPlotClear(x: number, z: number, orchard: boolean) {
 }
 
 export function villageGardenPlots(world: WorldId) {
+  if (world === "home")
+    return [
+      [-6, -37],
+      [0, -37],
+      [6, -35],
+      [13, -34],
+      [-32, -32],
+      [-35, -28],
+    ].map(([x, z]) => ({
+      x,
+      z,
+      orchard: true,
+      worlds: ["home"] as readonly WorldId[],
+    }));
   return plots.filter(
     ({ worlds, x, z, orchard }) =>
       worlds.includes(world) &&

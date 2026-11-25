@@ -266,14 +266,34 @@ export function lightsReach(tile: number): number {
   return LIGHT_MOVES[tile] ?? 0;
 }
 
-export function createLightsHintTracker() {
+const lightsHintKey = (board: number) => `joshua-exe-math-hints-v1:${board}`;
+type HintStorage = Pick<Storage, "getItem" | "setItem">;
+
+export function createLightsHintTracker(storage?: HintStorage) {
   const hinted = new Set<number>();
   return {
     reveal(startingBoard: number, board: number) {
       const tile = lightsHint(board);
-      if (tile !== null) hinted.add(startingBoard);
+      if (tile !== null && !hinted.has(startingBoard)) {
+        hinted.add(startingBoard);
+        try {
+          (storage ?? localStorage).setItem(
+            lightsHintKey(startingBoard),
+            "1",
+          );
+        } catch {
+          // Keep the reward blocked even if storage is unavailable.
+        }
+      }
       return tile;
     },
-    wasUsed: (startingBoard: number) => hinted.has(startingBoard),
+    wasUsed(startingBoard: number) {
+      if (hinted.has(startingBoard)) return true;
+      try {
+        return (storage ?? localStorage).getItem(lightsHintKey(startingBoard)) === "1";
+      } catch {
+        return false;
+      }
+    },
   };
 }

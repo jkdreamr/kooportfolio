@@ -1,11 +1,11 @@
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
 import { HomeCommunity } from "./CommunityScenery";
-import { RegionalTerrain } from "./RegionalTerrain";
 import { GroundGrass } from "./Scenery";
 import type { GroundFootprint } from "../core/scenery";
 import { HOME_GARDEN_FOOTPRINTS } from "../core/homeGardens";
 import { HomeGardens } from "./HomeGardens";
 import { HOME_DESTINATION_CENTERS } from "../core/homeLayout";
+import { HomeWindowLighting } from "./HomeBuildingArt";
 
 const paths: SceneryPart[] = [];
 function path(x: number, z: number, width: number, depth: number) {
@@ -46,14 +46,10 @@ for (const id of ["go", "kitchen", "stadium"] as const) {
   const entry = z + (id === "go" ? 4.2 : id === "kitchen" ? 4.35 : 4.5);
   path(x, (entry - 5) / 2, 2.6, -5 - entry);
 }
-path(-4.5, 5, 3, 20);
-path(-21, 29, 42, 3.6);
-path(-16, -31, 34, 2.8);
-path(-5, -26, 2.6, 16);
-path(-59, 12, 32, 3.6);
-path(28, 29, 56, 3.6);
-path(58, 43.5, 3.6, 35);
-path(58, 61, 10, 3.4);
+path(-35.5, -18, 7, 3.2); // Station feeds the same village street.
+path(-17, -25, 2.2, 14); // Rear lane to the telescope, between the buildings.
+path(-8, -32, 20, 2.4);
+path(22.5, -12, 9, 2.6); // Short airport approach, not an island-wide road.
 
 // Limestone at the Study and kitchen entrances; timber on the Go approach.
 for (let i = 0; i < 9; i++) {
@@ -80,10 +76,10 @@ export const HOME_PATH_FOOTPRINTS: GroundFootprint[] = [
 export function HomeWorldEnvironment() {
   return (
     <group name="home-environment">
+      <HomeWindowLighting />
       <HomeGardens />
       <WorldSceneryParts parts={paths} />
-      <GroundGrass avoid={HOME_PATH_FOOTPRINTS} />
-      <RegionalTerrain region="bay" />
+      <GroundGrass avoid={HOME_PATH_FOOTPRINTS} world="home" />
       <HomeCommunity />
     </group>
   );

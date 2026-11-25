@@ -74,6 +74,14 @@ describe("blackjack", () => {
     expect(state.result).toBe("win");
     expect(state.bank).toBe(120);
     expect(state.bet).toBe(10);
+    expect(state.message).toBe("You win. +20 chips.");
+    const nextWager = blackjackReducer(state, { type: "wager", amount: 50 });
+    expect(nextWager.stake).toBe(20);
+    expect(nextWager.bet).toBe(50);
+    expect(
+      blackjackReducer(nextWager, { type: "deal", deck: cards(5, 10, 6, 7) })
+        .stake,
+    ).toBe(50);
     const hit = blackjackReducer(deal(5, 10, 6, 7, 2, 9), { type: "hit" });
     expect(blackjackReducer(hit, { type: "double" })).toBe(hit);
     const bust = blackjackReducer(deal(10, 10, 6, 7, 10), { type: "double" });
