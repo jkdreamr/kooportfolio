@@ -498,7 +498,7 @@ export function SkateParkInterior() {
       </group>
       {!riding && (
         <group ref={walker}>
-          <Character color={color} hat={hat} scale={0.8} />
+          <Character player color={color} hat={hat} scale={0.8} />
         </group>
       )}
       <Skater game={game} active={riding} />

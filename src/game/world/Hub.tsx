@@ -268,7 +268,7 @@ export function Walker({
   });
   return (
     <group ref={avatar} name="village-player" visible={!locked && !playing}>
-      <Character color={save.color} hat={save.hat} scale={0.65} />
+      <Character player color={save.color} hat={save.hat} scale={0.65} />
     </group>
   );
 }
