@@ -2,12 +2,11 @@ import { useCallback, useMemo, useRef, type RefCallback } from "react";
 import { Html } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
 import type { KickResult } from "../core/fieldGoal";
-import {
-  STADIUM_KICKS,
-} from "../core/stadiumChallenge";
+import { STADIUM_KICKS } from "../core/stadiumChallenge";
 import { useGame } from "../core/store";
 
 export type StadiumPhase = "power" | "aim" | "flight" | "result";
+export type StadiumOutcome = KickResult | "Blocked";
 
 function TimingBar({
   label,
@@ -49,31 +48,54 @@ function TimingBar({
   );
 }
 
+function outcomeText(
+  result: StadiumOutcome | undefined,
+  postHit: "post" | "crossbar" | null,
+) {
+  if (result === "Good")
+    return postHit === "post"
+      ? "In off the post!"
+      : postHit === "crossbar"
+        ? "In off the bar!"
+        : "Good!";
+  if (result === "Blocked") return "Blocked at the line!";
+  if (!result) return "";
+  return postHit
+    ? `Off the ${postHit === "post" ? "post" : "crossbar"}!`
+    : result;
+}
+
 export function StadiumGameHud({
   attempt,
   wind,
   phase,
   finished,
   results,
+  postHit,
   lockedPower,
   powerTarget,
   aimWindow,
   cursor,
+  rushBar,
   readTiming,
   onAction,
+  onSteer,
   onClose,
 }: {
   attempt: number;
   wind: number;
   phase: StadiumPhase;
   finished: boolean;
-  results: readonly KickResult[];
+  results: readonly StadiumOutcome[];
+  postHit: "post" | "crossbar" | null;
   lockedPower: number;
   powerTarget: number;
   aimWindow: readonly [number, number];
   cursor: RefCallback<HTMLSpanElement>;
+  rushBar: RefCallback<HTMLSpanElement>;
   readTiming: () => number;
   onAction: (sample?: number) => void;
+  onSteer: (dir: number) => void;
   onClose: () => void;
 }) {
   const gl = useThree((s) => s.gl);
@@ -90,23 +112,45 @@ export function StadiumGameHud({
   const keySample = useRef<number | undefined>(undefined);
   const pointerSample = useRef<number | undefined>(undefined);
   const result = results[attempt];
-  const outcome = result;
+  const outcome = outcomeText(result, postHit);
   const status =
     phase === "power"
       ? "Stop the bar in green."
       : phase === "aim"
-        ? "Now line up the kick."
+        ? "Quick, line up the kick!"
         : phase === "flight"
-          ? "In flight"
-          : outcome;
+          ? "Steer it!"
+          : finished
+            ? `${outcome} · Round over`
+            : outcome;
   const action =
     phase === "power"
       ? "Set power"
-      : phase === "aim" || phase === "flight"
+      : phase === "aim"
         ? "Kick"
         : finished
           ? "Play again"
           : "Next kick";
+  const steerButton = (dir: number, label: string) => (
+    <button
+      key={dir}
+      type="button"
+      className="stadium-game-steer"
+      aria-label={dir < 0 ? "Curve left" : "Curve right"}
+      onPointerDown={(event) => {
+        if (event.isPrimary && event.button === 0) {
+          event.currentTarget.setPointerCapture(event.pointerId);
+          onSteer(dir);
+        }
+      }}
+      onPointerUp={() => onSteer(0)}
+      onPointerCancel={() => onSteer(0)}
+      onLostPointerCapture={() => onSteer(0)}
+      onContextMenu={(event) => event.preventDefault()}
+    >
+      {label}
+    </button>
+  );
   return hidden ? null : (
     <Html
       fullscreen
@@ -132,6 +176,7 @@ export function StadiumGameHud({
       >
         <div className="stadium-game-score">
           <strong>49ERS</strong>
+          <small>FIELD GOALS</small>
         </div>
         <button
           className="stadium-game-close"
@@ -171,6 +216,15 @@ export function StadiumGameHud({
                   ))}
                 </div>
               </div>
+              {(phase === "power" || phase === "aim") && (
+                <div
+                  className="stadium-game-rush"
+                  role="progressbar"
+                  aria-label="Rush closing in"
+                >
+                  <span ref={rushBar} />
+                </div>
+              )}
               <span>
                 {wind
                   ? `Wind ${Math.round(Math.abs(wind) * 10)} ${wind > 0 ? "→" : "←"}`
@@ -192,39 +246,45 @@ export function StadiumGameHud({
                 cursor={phase !== "power" ? cursor : undefined}
               />
             </div>
-            <button
-              type="button"
-              aria-disabled={phase === "flight"}
-              ref={focusAction}
-              onPointerDown={(event) => {
-                if (event.isPrimary && event.button === 0)
-                  pointerSample.current = readTiming();
-              }}
-              onPointerCancel={() => {
-                pointerSample.current = undefined;
-              }}
-              onBlur={() => {
-                keySample.current = undefined;
-              }}
-              onKeyDown={(event) => {
-                if (event.code !== "Space" && event.key !== "Enter") return;
-                if (event.repeat) event.preventDefault();
-                else keySample.current = readTiming();
-              }}
-              onClick={(event) => {
-                const sample =
-                  event.detail === 0
-                    ? keySample.current
-                    : pointerSample.current;
-                keySample.current = pointerSample.current = undefined;
-                onAction(sample);
-              }}
-            >
-              <span>{action}</span>
-              {(phase === "power" || phase === "aim") && (
-                <kbd aria-hidden="true">Space</kbd>
-              )}
-            </button>
+            {phase === "flight" ? (
+              <div className="stadium-game-steer-pad">
+                {steerButton(-1, "◀")}
+                {steerButton(1, "▶")}
+              </div>
+            ) : (
+              <button
+                type="button"
+                ref={focusAction}
+                onPointerDown={(event) => {
+                  if (event.isPrimary && event.button === 0)
+                    pointerSample.current = readTiming();
+                }}
+                onPointerCancel={() => {
+                  pointerSample.current = undefined;
+                }}
+                onBlur={() => {
+                  keySample.current = undefined;
+                }}
+                onKeyDown={(event) => {
+                  if (event.code !== "Space" && event.key !== "Enter") return;
+                  if (event.repeat) event.preventDefault();
+                  else keySample.current = readTiming();
+                }}
+                onClick={(event) => {
+                  const sample =
+                    event.detail === 0
+                      ? keySample.current
+                      : pointerSample.current;
+                  keySample.current = pointerSample.current = undefined;
+                  onAction(sample);
+                }}
+              >
+                <span>{action}</span>
+                {(phase === "power" || phase === "aim") && (
+                  <kbd aria-hidden="true">Space</kbd>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </section>

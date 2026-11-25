@@ -18,6 +18,10 @@ const TONES = {
   tap: { f: 480, to: 170, type: "triangle", dur: 0.09, vol: 0.07 },
   land: { f: 140, to: 45, type: "sine", dur: 0.14, vol: 0.09 },
   chime: { f: 1320, to: 660, type: "sine", dur: 0.35, vol: 0.06 },
+  kick: { f: 150, to: 45, type: "sine", dur: 0.25, vol: 0.08 },
+  clang: { f: 1150, to: 480, type: "triangle", dur: 0.4, vol: 0.08 },
+  cheer: { f: 320, to: 620, type: "sine", dur: 0.7, vol: 0.08 },
+  whistle: { f: 2400, to: 1900, type: "triangle", dur: 0.4, vol: 0.08 },
 } as const satisfies Record<string, Tone>;
 export type SoundKind = keyof typeof TONES | "whoosh";
 

@@ -314,7 +314,7 @@ export function StadiumArchitecture({
         ink="#f7e4b3"
       />
       <Sign
-        text={`${attempt} / ${FIELD_GOAL.attempts}`}
+        text={attempt ? `KICK ${attempt} / ${FIELD_GOAL.attempts}` : "GO 49ERS"}
         p={[0, 3.9, -28.45]}
         size={[6.2, 0.82]}
         color="#243d32"

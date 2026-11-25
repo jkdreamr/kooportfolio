@@ -18,6 +18,14 @@ export const STADIUM_KICKS = [
 ] as const satisfies NonNullable<Kick["spot"]>[];
 
 
+/** The rushing defender each attempt: start gap before the kick spot and pace. */
+export function stadiumRush(attempt: number) {
+  return { distance: 9.5 - attempt * 0.5, speed: 2.4 + attempt * 0.35 };
+}
+
+/** Mid-flight steering: lateral acceleration, damping and velocity cap. */
+export const STADIUM_STEER = { accel: 7, damp: 2.4, max: 3.2 } as const;
+
 export function stadiumTiming(
   time: number,
   attempt: number,
