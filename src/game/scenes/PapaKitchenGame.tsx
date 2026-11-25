@@ -325,7 +325,7 @@ function KitchenControls({
                             <button
                               disabled={
                                 game.orders.filter((order) => order.onGrill)
-                                  .length >= 2
+                                  .length >= game.burners
                               }
                               onClick={() => act({ type: "drop" })}
                             >
