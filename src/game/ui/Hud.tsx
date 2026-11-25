@@ -74,6 +74,7 @@ export function RaceHud() {
   const touchButton = (control: "left" | "right" | "burst") => ({
     "data-held": held.includes(control),
     onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
+      event.preventDefault();
       event.currentTarget.setPointerCapture(event.pointerId);
       pointers.current.set(event.pointerId, control);
       updateTouch();
@@ -161,6 +162,7 @@ export function RaceHud() {
             <button
               className={runtime.raceCadence === n ? "selected" : ""}
               key={n}
+              onPointerDown={(event) => event.preventDefault()}
               onClick={() => {
                 runtime.raceCadence = Number(n);
               }}
@@ -181,7 +183,9 @@ export function RaceHud() {
             data-boosted={boosted}
             disabled={race.time <= 0 || race.finished}
             onPointerDown={(event) => {
-              if (event.button === 0) runtime.raceCatch = true;
+              if (event.button !== 0) return;
+              event.preventDefault();
+              runtime.raceCatch = true;
             }}
             onClick={(event) => {
               if (event.detail === 0) runtime.raceCatch = true;

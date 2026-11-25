@@ -17,15 +17,8 @@ export function useInput(interact: () => void) {
       e.stopImmediatePropagation();
     };
     const down = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.matches("input,textarea,select")) return;
+      if ((e.target as HTMLElement).matches("input,textarea,select")) return;
       const k = e.key.toLowerCase();
-      if (
-        k === " " &&
-        target.closest("button") &&
-        useGame.getState().scene === "rowing"
-      )
-        return;
       if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k))
         e.preventDefault();
       keys.add(k);
