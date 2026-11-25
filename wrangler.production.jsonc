@@ -7,7 +7,7 @@
   "compatibility_date": "2026-11-01",
   "workers_dev": true,
   "vars": {
-    "ALLOWED_ORIGINS": "https://kooportfolio.vercel.app,.vercel.app",
+    "ALLOWED_ORIGINS": "https://kooportfolio.vercel.app,-jkdreamrs-projects.vercel.app",
   },
   "d1_databases": [
     {
