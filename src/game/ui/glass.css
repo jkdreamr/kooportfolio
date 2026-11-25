@@ -157,6 +157,18 @@
   border-radius: 10px;
   box-shadow: inset 0 1px 0 #ffffff20;
 }
+.game-shell .island-map {
+  background: linear-gradient(145deg, #304456, #172637);
+  border-color: var(--hud-edge);
+}
+.game-shell .island-map-routes path {
+  stroke: #a1b5c8;
+}
+.game-shell .island-map-stop[aria-current] span {
+  color: var(--hud-ink);
+  background: #d6eaff24;
+  border: 1px solid #dceaff4d;
+}
 .game-shell :is(.game-modal h2, .race-instruments strong, .basket-score strong,
   .countdown, .countdown span, .countdown small, .shot-feedback,
   .study-links > a, .room-story a, .basketball-controls p,
