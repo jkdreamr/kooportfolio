@@ -96,9 +96,19 @@ body:has(.game-shell),
   background: none;
   color: #c6ccb7;
 }
+/* The court mode picker owns the top-left of the basketball scene. */
+.scene-basketball .room-story {
+  top: 64px;
+  left: auto;
+  right: 18px;
+  transform: none;
+}
 @media (max-width: 700px) {
   .room-story {
     top: 156px;
+  }
+  .scene-basketball .room-story {
+    top: 64px;
   }
 }
 @media (max-height: 500px) {

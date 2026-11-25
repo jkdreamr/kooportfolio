@@ -23,10 +23,14 @@ export function RoomStory({
       className={`room-story ${state === "read" ? "is-reading" : ""}`}
       aria-label="About Josh"
       onKeyDown={(e) => {
+        if (e.key === " ") e.stopPropagation();
         if (e.key === "Escape") {
           e.stopPropagation();
           setState("closed");
         }
+      }}
+      onKeyUp={(e) => {
+        if (e.key === " ") e.stopPropagation();
       }}
     >
       <button
