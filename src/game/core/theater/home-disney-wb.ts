@@ -1083,18 +1083,6 @@ export const FILMS: readonly TheaterFilm[] = [
     channel: "Marvel Entertainment",
     kind: "Full episode",
   },
-  ...[
-    ["z9s7gwL0Wuw", "Episode 1"],
-    ["oL4o-f7S8IQ", "Episode 2"],
-  ].map(
-    ([id, episode]): TheaterFilm => ({
-      id,
-      title: "The Remarried Empress",
-      episode,
-      channel: "Disney Plus",
-      kind: "Full episode",
-    }),
-  ),
   {
     id: "c51ND9Hdbw0",
     title: "Toy Story 5",

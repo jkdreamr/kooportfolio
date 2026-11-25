@@ -6,6 +6,7 @@ import type { TheaterFilm } from "./types";
 export const CHANNELS: Record<string, string> = {
   "KBS WORLD TV": "UC5BMQOsAB8hKUyHu9KI6yig",
   "KBS Drama Classic": "UCn0nlepACCBD6rxj-GUwn5A",
+  "Disney Plus": "UCIrgJInjLS2BhlHOMDW7v0g",
   "옛드 MBC": "UCG5bAssl2H0wjLG4BEv5ScQ",
   "SBS Running Man": "UCaKod3X1Tn4c7Ci0iUKcvzQ",
   "JTBC Voyage": "UCF3UEVPt5zZTlBVJwDG317g",
@@ -872,6 +873,18 @@ export const FILMS: readonly TheaterFilm[] = [
       episode,
       channel: "쇼박스 SHOWBOX",
       kind: "Trailer",
+    }),
+  ),
+  ...[
+    ["z9s7gwL0Wuw", "Episode 1"],
+    ["oL4o-f7S8IQ", "Episode 2"],
+  ].map(
+    ([id, episode]): TheaterFilm => ({
+      id,
+      title: "The Remarried Empress",
+      episode,
+      channel: "Disney Plus",
+      kind: "Full episode",
     }),
   ),
 ];
