@@ -54,7 +54,8 @@ export function IslandJourney({
   // obstacles, so the journey skips the approach leg instead.
   const [route] = useState(() => {
     const path = findPath(trip.origin, [gate[0], gate[1]], trip.from);
-    return { current: path.length ? [...path, [gate[0], gate[1]]] : path };
+    const endpoint: [number, number] = [gate[0], gate[1]];
+    return { current: path.length ? [...path, endpoint] : path };
   });
   const position = useRef(
     new THREE.Vector3(trip.origin[0], 0.18, trip.origin[1]),
