@@ -12,7 +12,8 @@ import {
 } from "../src/game/scenes/kitchenPapa";
 
 const act = papaReducer;
-const start = () => act(newPapaGame(), { type: "start" });
+const start = (burners = 2) =>
+  act(newPapaGame(0, 1, burners), { type: "start" });
 function tick(game: PapaGame, seconds: number) {
   for (let left = seconds; left > 0.00001; left -= 0.1)
     game = act(game, { type: "tick", dt: Math.min(0.1, left) });
@@ -102,6 +103,21 @@ describe("Papa-style kitchen service", () => {
     expect(full).toBe(game);
     expect(selectedOrder(full)?.onGrill).toBe(false);
     expect(full.orders.filter((order) => order.onGrill)).toHaveLength(2);
+  });
+
+  it("fits one patty per kitchen burner", () => {
+    const fill = (burners: number) => {
+      let game = start(burners);
+      for (const id of [0, 1, 2]) {
+        if (id === 2) game = tick(game, 12.1);
+        game = act(game, { type: "take", id });
+        game = act(game, { type: "drop" });
+      }
+      return game.orders.filter((order) => order.onGrill).map((o) => o.slot);
+    };
+    expect(fill(1)).toEqual([0]);
+    expect(fill(2)).toEqual([0, 1]);
+    expect(fill(3)).toEqual([0, 1, 2]);
   });
 
   it("penalizes rushed, uneven and burnt patties, with a usable bin/retry", () => {

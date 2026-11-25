@@ -387,7 +387,12 @@ export function PapaKitchenScene({
           {cooking.map((order) => (
             <group
               key={order.ticket.id}
-              position={[-1 + (order.slot ?? 0) * 2, 1.68, 0]}
+              position={[
+                ((order.slot ?? 0) - (game.burners - 1) / 2) *
+                  (game.burners > 2 ? 1.8 : 2),
+                1.68,
+                0,
+              ]}
               onClick={(event) => {
                 event.stopPropagation();
                 dispatch({ type: "select", id: order.ticket.id });

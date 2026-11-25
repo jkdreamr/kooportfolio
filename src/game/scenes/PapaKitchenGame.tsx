@@ -12,6 +12,7 @@ import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import { useGame } from "../core/store";
+import { kitchenBurners } from "../../shared/buildings";
 import { sound } from "../core/sound";
 import { GAME_STAGE_Y } from "./InteriorGameStage";
 import { gameIsActive, type InteriorGameProps } from "./InteriorProps";
@@ -324,7 +325,7 @@ function KitchenControls({
                             <button
                               disabled={
                                 game.orders.filter((order) => order.onGrill)
-                                  .length >= 2
+                                  .length >= game.burners
                               }
                               onClick={() => act({ type: "drop" })}
                             >
@@ -347,7 +348,10 @@ function KitchenControls({
                           </button>
                         </div>
                         <small className="papa-hint">
-                          Flip and lift in the gold zone. Two patties fit.
+                          Flip and lift in the gold zone.{" "}
+                          {game.burners > 1
+                            ? `${game.burners} burners.`
+                            : "One burner."}
                         </small>
                       </>
                     )}
@@ -515,7 +519,13 @@ function KitchenControls({
           <button
             onClick={() => {
               arm(null);
-              dispatch({ type: "start", nextDay: passed });
+              dispatch({
+                type: "start",
+                nextDay: passed,
+                burners: kitchenBurners(
+                  useGame.getState().save.upgrades.kitchen,
+                ),
+              });
             }}
           >
             {passed ? "Next day" : "Try again"}
@@ -543,8 +553,9 @@ export function PapaKitchenGame({ onReward }: InteriorGameProps) {
   const hidden = useGame(
     (s) => s.paused || s.panel !== "none" || s.build || s.near === "exit",
   );
+  const burners = useGame((s) => kitchenBurners(s.save.upgrades.kitchen));
   const [game, dispatch] = useReducer(papaReducer, undefined, () =>
-    newPapaGame(0, readKitchenDay()),
+    newPapaGame(0, readKitchenDay(), burners),
   );
   const [armed, arm] = useState<Topping | null>(null);
   const timer = useRef(0),
@@ -583,9 +594,9 @@ export function PapaKitchenGame({ onReward }: InteriorGameProps) {
   useEffect(() => {
     if (active && game.phase === "idle") {
       pendingFocus.current = true;
-      dispatch({ type: "start" });
+      dispatch({ type: "start", burners });
     }
-  }, [active, game.phase]);
+  }, [active, game.phase, burners]);
   useEffect(() => {
     if (paid.current.run !== game.run)
       paid.current = { run: game.run, tips: 0 };
@@ -676,7 +687,7 @@ export function PapaKitchenGame({ onReward }: InteriorGameProps) {
                 event.stopPropagation();
                 pendingFocus.current = true;
                 if (startGameMode("kitchen")) {
-                  dispatch({ type: "start" });
+                  dispatch({ type: "start", burners });
                 } else pendingFocus.current = false;
               }}
             >

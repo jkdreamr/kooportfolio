@@ -594,6 +594,8 @@ body:has(.game-shell),
   border: 1px solid #d3d6be;
   backdrop-filter: blur(12px);
   pointer-events: auto;
+  max-height: calc(100svh - 180px);
+  overflow-y: auto;
 }
 .build-option {
   display: flex;
@@ -1528,6 +1530,8 @@ body:has(.game-shell),
     top: auto;
     bottom: 124px;
     padding: 17px;
+    max-height: calc(100svh - 144px);
+    overflow-y: auto;
   }
   .build-option {
     gap: 15px;
@@ -2267,7 +2271,9 @@ body:has(.game-shell),
   padding: 8px 11px;
   background: rgba(30, 41, 59, 0.92);
   color: #f8fafc;
-  font: 600 13px system-ui, sans-serif;
+  font:
+    600 13px system-ui,
+    sans-serif;
   cursor: pointer;
 }
 .side-quest-action:disabled {
@@ -2278,7 +2284,9 @@ body:has(.game-shell),
   border: 1px solid rgba(203, 213, 225, 0.45);
   border-radius: 4px;
   padding: 0 5px;
-  font: 600 11px system-ui, sans-serif;
+  font:
+    600 11px system-ui,
+    sans-serif;
   color: #e2e8f0;
 }
 .side-quest-gain {
@@ -2288,7 +2296,9 @@ body:has(.game-shell),
   border-radius: 999px;
   background: #ffffff;
   color: #1e293b;
-  font: 700 13px system-ui, sans-serif;
+  font:
+    700 13px system-ui,
+    sans-serif;
   animation: side-quest-rise 1.4s ease-out forwards;
 }
 @keyframes side-quest-rise {
@@ -2308,4 +2318,7 @@ body:has(.game-shell),
   .side-quest-gain {
     animation: none;
   }
+}
+.upgrade-button + .upgrade-button {
+  margin-top: 8px;
 }
