@@ -137,6 +137,8 @@ type Flight = {
   sx: number;
   sv: number;
   postHit: "post" | "crossbar" | null;
+  /** Outcome judged the moment the ball crossed the goal plane. */
+  judged?: StadiumOutcome;
   blocked: boolean;
   /** [time, sx] samples so the trail can reuse the steered path. */
   samples: [number, number][];
@@ -312,19 +314,20 @@ export function StadiumInterior() {
           : 0;
     }
     function onKey(event: KeyboardEvent) {
-      const target = event.target;
-      if (
-        target instanceof HTMLElement &&
-        target.closest("button, input, select, textarea, a, [contenteditable]")
-      )
-        return;
       if (!playing || !gameIsActive() || !runtime.active) return;
+      // Steering keys work even while a steer button holds focus.
       const dir = dirFor(event.code);
       if (dir && phaseRef.current === "flight") {
         steerDir.current = dir;
         event.preventDefault();
         return;
       }
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        target.closest("button, input, select, textarea, a, [contenteditable]")
+      )
+        return;
       if (event.code === "Space" && !event.repeat) {
         event.preventDefault();
         act();
@@ -472,8 +475,14 @@ export function StadiumInterior() {
         [x, y, z] = kickPosition(current.kick, current.time);
         x += current.sx;
         if (ball.current) ball.current.rotation.x -= flightDelta * 13;
+        // Judge the kick at the goal plane so later steering can't change it.
+        if (current.judged === undefined && z <= FIELD_GOAL.goalZ)
+          current.judged = judgeKick({
+            ...current.kick,
+            spot: { ...spot, x: spot.x + current.sx },
+          });
         // Grazing an upright or the crossbar clangs and deflects the steer.
-        if (!current.postHit && Math.abs(z - FIELD_GOAL.goalZ) < 0.5) {
+        if (!current.postHit && Math.abs(z - FIELD_GOAL.goalZ) < 0.24) {
           const half = FIELD_GOAL.halfWidth;
           const nearPost =
             Math.min(Math.abs(x - half), Math.abs(x + half)) <
@@ -521,17 +530,14 @@ export function StadiumInterior() {
       }
       if (current.blocked ? y < 0.3 : y < 0.28 || z < FIELD_GOAL.goalZ - 1.5) {
         if (current.blocked) finishKick("Blocked", null);
-        else {
-          const steered: Kick = {
-            ...current.kick,
-            spot: { ...spot, x: spot.x + current.sx },
-          };
-          const outcome =
-            current.time < goalClearanceTime(current.kick)
-              ? "Short"
-              : judgeKick(steered);
-          finishKick(outcome, current.postHit);
-        }
+        else
+          finishKick(
+            current.judged ??
+              (current.time < goalClearanceTime(current.kick)
+                ? "Short"
+                : judgeKick(current.kick)),
+            current.postHit,
+          );
       }
     } else if (phase === "power" || phase === "aim") {
       clock.current += dt;
