@@ -20,6 +20,7 @@ import {
 } from "../core/photoStrip";
 import type { Border, Mark, Point, Sticker } from "../core/photoStrip";
 import { BOOTH_PATH, STRIP_HEIGHT, STRIP_WIDTH } from "../../shared/booth";
+import { apiUrl } from "../../shared/api";
 import type { WallStrip } from "../../shared/booth";
 import "./photo-booth.css";
 
@@ -316,7 +317,7 @@ function Decorate({
     try {
       if (post) {
         const jpeg = await wallJpeg(image);
-        const response = await fetch(BOOTH_PATH, {
+        const response = await fetch(apiUrl(BOOTH_PATH), {
           method: "POST",
           headers: { "Content-Type": "image/jpeg" },
           body: jpeg,
@@ -475,7 +476,7 @@ function Wall({ onBack, posted }: { onBack: () => void; posted: boolean }) {
   const [error, setError] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
-    void fetch(BOOTH_PATH, { signal: controller.signal })
+    void fetch(apiUrl(BOOTH_PATH), { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error("Wall unavailable.");
         const result: { strips: WallStrip[] } = await response.json();
