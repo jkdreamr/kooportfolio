@@ -5,13 +5,14 @@ import {
   WALL_LIMIT,
   type WallStrip,
 } from "../src/shared/booth";
+import { isAllowedOrigin, type CorsEnv } from "./cors";
 
 type Statement = {
   bind(...values: (number | string)[]): Statement;
   all<T>(): Promise<{ results: T[] }>;
 };
 
-export type BoothEnv = {
+export type BoothEnv = CorsEnv & {
   BOOTH_DB?: {
     prepare(sql: string): Statement;
     batch(statements: Statement[]): Promise<{ results: unknown[] }[]>;
@@ -110,7 +111,8 @@ async function visitorHash(request: Request) {
   return encode(new Uint8Array(digest));
 }
 
-export async function boothApi(request: Request, { BOOTH_DB: db }: BoothEnv) {
+export async function boothApi(request: Request, env: BoothEnv) {
+  const { BOOTH_DB: db } = env;
   if (request.method !== "GET" && request.method !== "POST") {
     return reply({ error: "Method not allowed." }, 405, { Allow: "GET, POST" });
   }
@@ -123,8 +125,7 @@ export async function boothApi(request: Request, { BOOTH_DB: db }: BoothEnv) {
         .all<WallStrip>();
       return reply({ strips: results });
     }
-    const origin = request.headers.get("Origin");
-    if (origin && origin !== new URL(request.url).origin) {
+    if (!isAllowedOrigin(request.headers.get("Origin"), request.url, env)) {
       return reply({ error: "Origin not allowed." }, 403);
     }
     if (request.headers.get("Content-Type")?.toLowerCase() !== "image/jpeg") {

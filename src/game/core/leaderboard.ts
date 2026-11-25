@@ -8,6 +8,7 @@ import {
   type LeaderboardRun,
   type Scoreboard,
 } from "../../shared/leaderboard";
+import { apiUrl } from "../../shared/api";
 
 export const LEADERBOARD_STORAGE_KEY = "joshua-exe-leaderboard-v1";
 type LocalBoard = {
@@ -104,7 +105,7 @@ export async function fetchLeaderboard(
   signal?: AbortSignal,
 ) {
   try {
-    const response = await fetch(`${LEADERBOARD_PATH}?board=${board}`, {
+    const response = await fetch(apiUrl(`${LEADERBOARD_PATH}?board=${board}`), {
       signal: signal
         ? AbortSignal.any([signal, AbortSignal.timeout(4000)])
         : AbortSignal.timeout(4000),
@@ -123,7 +124,7 @@ export async function submitLeaderboardEntry(
 ): Promise<"shared" | "local"> {
   let response: Response;
   try {
-    response = await fetch(LEADERBOARD_PATH, {
+    response = await fetch(apiUrl(LEADERBOARD_PATH), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(entry),

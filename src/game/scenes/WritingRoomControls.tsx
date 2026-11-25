@@ -9,6 +9,7 @@ import {
   type WritingDraft,
   type WritingPost,
 } from "../../shared/writing";
+import { apiUrl } from "../../shared/api";
 import "./writing-room.css";
 
 const tokensKey = "joshua-writing-tokens-v1";
@@ -38,7 +39,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12000);
   try {
-    const response = await fetch(`/api/writing${path}`, {
+    const response = await fetch(apiUrl(`/api/writing${path}`), {
       ...init,
       signal: controller.signal,
     });

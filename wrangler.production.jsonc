@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // API-only Worker for the Vercel-hosted frontend. Fill each database_id
+  // from `wrangler d1 create`, apply migrations with --remote, then deploy.
+  "name": "joshua-exe",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": true,
+  "vars": {
+    "ALLOWED_ORIGINS": "https://kooportfolio.vercel.app,-jkdreamrs-projects.vercel.app",
+  },
+  "d1_databases": [
+    {
+      "binding": "LEADERBOARD_DB",
+      "database_name": "joshua-leaderboard",
+      "database_id": "FILL_FROM_WRANGLER_D1_CREATE",
+      "migrations_dir": "migrations/leaderboard",
+    },
+    {
+      "binding": "BOOTH_DB",
+      "database_name": "joshua-booth",
+      "database_id": "FILL_FROM_WRANGLER_D1_CREATE",
+      "migrations_dir": "migrations/booth",
+    },
+    {
+      "binding": "WRITING_DB",
+      "database_name": "joshua-writing",
+      "database_id": "FILL_FROM_WRANGLER_D1_CREATE",
+      "migrations_dir": "migrations",
+    },
+  ],
+}
