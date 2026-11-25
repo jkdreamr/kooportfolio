@@ -1993,6 +1993,9 @@ body:has(.game-shell),
       12px system-ui,
       sans-serif;
   }
+  .scene-basketball .basketball-mode-select {
+    min-width: min(160px, 100%);
+  }
   .basketball-controls button {
     min-height: 44px;
     padding: 6px 9px;
