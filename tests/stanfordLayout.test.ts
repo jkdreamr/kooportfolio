@@ -17,7 +17,7 @@ import { villageGardenPlots } from "../src/game/core/villageGardens";
 import { createNpcActors, nearestNpc, villagers } from "../src/game/core/npcs";
 import { belongsToWorld } from "../src/game/core/worlds";
 import { runtime, useGame, walkTo } from "../src/game/core/store";
-import { ISLAND_RAIL } from "../src/game/core/islandRail";
+import { STANFORD_STATION_GATE } from "../src/shared/stanford-transport";
 import { onStanfordLand } from "../src/shared/stanford-ground";
 import { freshSave, parseSave } from "../src/shared/save";
 import { animalsInWorld, animalPose } from "../src/game/core/wildlife";
@@ -27,7 +27,7 @@ describe("compact Stanford village", () => {
     const save = {
       ...freshSave(),
       world: "stanford" as const,
-      position: [-70, 14.47] as [number, number],
+      position: [40, 6.47] as [number, number],
     };
     expect(canWalk(...save.position, "stanford")).toBe(true);
     expect(parseSave(JSON.stringify(save)).position).toEqual(save.position);
@@ -78,7 +78,7 @@ describe("compact Stanford village", () => {
       xp: 21,
       memories: ["hoover-key"],
       world: "stanford" as const,
-      position: [55, 14.5] as [number, number],
+      position: [-19, -30] as [number, number],
     };
     expect(parseSave(JSON.stringify(previous))).toEqual({
       ...previous,
@@ -87,11 +87,7 @@ describe("compact Stanford village", () => {
     expect(
       parseSave(JSON.stringify({ ...previous, world: "home" })).position,
     ).toEqual(previous.position);
-    for (const position of [
-      [-73, 22],
-      [58, 61],
-      [20, 21.6],
-    ])
+    for (const position of [STANFORD_STATION_GATE, [58, 61], [20, 21.6]])
       expect(
         parseSave(JSON.stringify({ ...previous, position })).position,
       ).toEqual(position);
@@ -117,7 +113,7 @@ describe("compact Stanford village", () => {
     const starts = [
       [0, 5],
       [20, 21.6],
-      [-73, ISLAND_RAIL.station[1]],
+      STANFORD_STATION_GATE,
       [58, 61],
       ...doorsInWorld("stanford")
         .filter(({ id }) => id !== "boathouse")
@@ -160,25 +156,8 @@ describe("compact Stanford village", () => {
         actor.id,
       );
   });
-  it("keeps retained gardens out of the storefronts and new walking streets", () => {
-    const plots = villageGardenPlots("stanford");
-    expect(plots.length).toBeGreaterThan(0);
-    for (const { x, z, orchard } of plots) {
-      const halfX = orchard ? 0.35 : 0.85,
-        halfZ = orchard ? 0.35 : 1.5;
-      for (const {
-        footprint: [cx, cz, hx, hz],
-      } of doorsInWorld("stanford"))
-        expect(
-          Math.abs(x - cx) < hx + halfX + 0.3 &&
-            Math.abs(z - cz) < hz + halfZ + 0.3,
-        ).toBe(false);
-      for (const [cx, cz, width, depth] of STANFORD_WALKS)
-        expect(
-          Math.abs(x - cx) < width / 2 + halfX &&
-            Math.abs(z - cz) < depth / 2 + halfZ,
-        ).toBe(false);
-    }
+  it("does not restore filler garden parcels from the removed transport arms", () => {
+    expect(villageGardenPlots("stanford")).toEqual([]);
   });
   it("keeps neighboring, full-size storefronts a short walk apart", () => {
     const row = ["gym", "kappa", "math", "badminton"].map(

@@ -161,7 +161,7 @@ const stanfordOffsets = [
   [-3, 16],
   [0, 0],
   [0, 11],
-  [-11, 19],
+  [-8, 19],
 ];
 const stanfordAnimals = ANIMALS.map((animal, i): Animal => {
   const [dx, dz] = stanfordOffsets[i] ?? [0, 0];

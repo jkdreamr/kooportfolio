@@ -31,6 +31,7 @@ import {
 import { PHOTO_BOOTH_ORIGIN } from "../src/game/core/photoBoothLayout";
 import { villageGardenPlots } from "../src/game/core/villageGardens";
 import { labelsOverlap } from "../src/game/world/Labels";
+import { STANFORD_STATION_GATE } from "../src/shared/stanford-transport";
 
 describe("separate worlds", () => {
   it("reserves the mobile zoom area without blocking labels elsewhere", () => {
@@ -274,7 +275,7 @@ describe("separate worlds", () => {
     runtime.target = [1, 1];
     useGame.getState().travel("stanford", "train");
     expect(useGame.getState().world).toBe("stanford");
-    expect([runtime.x, runtime.z]).toEqual([-73, 22]);
+    expect([runtime.x, runtime.z]).toEqual(STANFORD_STATION_GATE);
     expect(canWalk(runtime.x, runtime.z, "stanford")).toBe(true);
     expect(runtime.path).toEqual([]);
     expect(runtime.target).toBe(null);

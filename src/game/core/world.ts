@@ -4,6 +4,14 @@ import {
   STANFORD_SHORE_CLEARANCE,
 } from "../../shared/stanford-ground";
 import { ISLAND_RAIL } from "./islandRail";
+import {
+  STANFORD_STATION,
+  STANFORD_STATION_GATE,
+  STANFORD_TELESCOPE,
+  STANFORD_TELESCOPE_ENTRY,
+  STANFORD_BULLETIN,
+  STANFORD_BULLETIN_ENTRY,
+} from "../../shared/stanford-transport";
 import { forest, koreaForest } from "./scenery";
 import { isOnKoreaLand } from "./koreaDistrict";
 import {
@@ -277,6 +285,36 @@ export const destinationsInWorld = (world: WorldId) => [
   ...landmarks
     .filter((place) => belongsToWorld(place.id, world))
     .map((place) => {
+      if (world === "stanford") {
+        if (place.id === "station") {
+          const [x, z] = STANFORD_STATION_GATE;
+          return {
+            ...place,
+            x,
+            z,
+            anchor: [STANFORD_STATION[0], 4, z] as const,
+          };
+        }
+        if (place.id === "stargazing") {
+          const [x, z] = STANFORD_TELESCOPE_ENTRY;
+          return {
+            ...place,
+            x,
+            z,
+            anchor: [STANFORD_TELESCOPE[0], 10, STANFORD_TELESCOPE[1]] as const,
+          };
+        }
+        if (place.id === "bulletin") {
+          const [x, z] = STANFORD_BULLETIN_ENTRY;
+          return {
+            ...place,
+            x,
+            z,
+            anchor: [STANFORD_BULLETIN[0], 4.6, STANFORD_BULLETIN[1]] as const,
+          };
+        }
+        return place;
+      }
       if (world !== "home") return place;
       if (place.id === "airport") {
         const [x, z] = HOME_AIRPORT_GATE;
@@ -314,7 +352,14 @@ const obstaclesFor = (world?: WorldId): ReadonlyArray<readonly number[]> => [
         [HOME_AIRPORT_GATE[0], HOME_AIRPORT_GATE[1] - 9, 5, 3.8],
       ]
     : [
-        ...sharedObstacles,
+        ...(world === "stanford"
+          ? [
+              sharedObstacles[0],
+              sharedObstacles[2],
+              [...STANFORD_BULLETIN, 2.1, 0.4],
+              [...STANFORD_TELESCOPE, 6, 6],
+            ]
+          : sharedObstacles),
         // Korea keeps its south-bank walk behind the full-size terminal.
         world === "korea" ? [58, 52, 4.9, 3.9] : [58, 52, 9, 7],
       ]),

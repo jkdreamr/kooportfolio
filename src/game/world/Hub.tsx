@@ -44,6 +44,10 @@ import { PhotoBooth } from "./PhotoBooth";
 import { PhotoBoothView } from "./PhotoBoothView";
 import { isNearPhotoBooth } from "../core/photoBoothLayout";
 import { StargazingHill } from "./StargazingHill";
+import {
+  STANFORD_BULLETIN,
+  STANFORD_TELESCOPE,
+} from "../../shared/stanford-transport";
 import { SkateParkBuilding } from "../scenes/SkatePark";
 import { BeatLabShell, MathLabShell } from "./LabBuildings";
 import { GoShell } from "./GoShell";
@@ -346,7 +350,9 @@ export function Hub() {
           }}
         />
       )}
-      <Bulletin />
+      <Bulletin
+        position={world === "stanford" ? STANFORD_BULLETIN : undefined}
+      />
       <Wildlife />
       {world === "stanford" && !save.memories.includes(HOOVER_KEY) && (
         <group position={[HOOVER.key[0], 0.2, HOOVER.key[1]]}>
@@ -375,7 +381,13 @@ export function Hub() {
           <PhotoBoothView />
         </>
       )}
-      <StargazingHill position={[-19, 0, -38]} />
+      <StargazingHill
+        position={
+          world === "stanford"
+            ? [STANFORD_TELESCOPE[0], 0, STANFORD_TELESCOPE[1]]
+            : [-19, 0, -38]
+        }
+      />
       {world !== "korea" && (
         <IslandTrain
           key={world}

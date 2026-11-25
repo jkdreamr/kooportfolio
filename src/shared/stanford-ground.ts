@@ -1,14 +1,8 @@
 /** Stanford's occupied parcels and transport approaches, not the old village lawn. */
 export const STANFORD_SHORE = [
-  [-84, 14],
-  [-16, 14],
-  [-8, 8],
-  [-8, -24],
-  [-29, -27],
-  [-29, -45],
-  [-12, -47],
-  [3, -34],
-  [5, -4],
+  [-28.5, 13],
+  [-22, -5.5],
+  [5, -5.5],
   [12, 6],
   [45, 6],
   [50, 11],
@@ -17,15 +11,13 @@ export const STANFORD_SHORE = [
   [70, 50],
   [70, 63],
   [63, 74],
-  [49, 80],
-  [-5, 80],
-  [-43, 78],
+  [49, 75],
+  [-5, 75],
+  [-43, 77],
   [-45, 67],
   [-44, 48],
   [-34, 35],
-  [-37, 30],
-  [-54, 29],
-  [-84, 30],
+  [-29, 28],
 ] as const;
 
 /** The same avatar clearance applies to movement and persisted positions. */
