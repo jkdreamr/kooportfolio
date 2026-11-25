@@ -4,7 +4,6 @@ import * as THREE from "three";
 import { Ball, Box, Cylinder } from "../world/Models";
 import { Walker } from "../world/Hub";
 import { runtime, useGame } from "../core/store";
-import { sound } from "../core/sound";
 import {
   FIELD_GOAL,
   goalClearanceTime,
