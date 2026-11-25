@@ -5,6 +5,7 @@ import {
   beatPadLane,
   beatRewardCoins,
   beatRoundEnd,
+  createLightsHintTracker,
   BEAT_COUNT_IN,
   BEAT_INTERVAL,
   newBeatGame,
@@ -232,5 +233,30 @@ describe("Math Lab", () => {
       expect(board).toBe(LIGHTS_TARGET);
     }
     expect(lightsHint(LIGHTS_TARGET)).toBeNull();
+  });
+  it("uses every non-solved board once before repeating", () => {
+    let solvable = [LIGHTS_TARGET];
+    for (let tile = 0; tile < 9; tile++) {
+      solvable = [
+        ...solvable,
+        ...solvable.map((board) => flipLights(board, tile)),
+      ];
+    }
+    const rounds = Array.from({ length: LIGHTS_TARGET }, (_, round) =>
+      newLightsBoard(round),
+    );
+    expect(new Set(rounds)).toEqual(new Set(solvable.slice(1)));
+    expect(newLightsBoard(LIGHTS_TARGET)).toBe(rounds[0]);
+  });
+  it("keeps hint usage with the starting board rather than the attempt", () => {
+    const hints = createLightsHintTracker();
+    const first = newLightsBoard(0);
+    const second = newLightsBoard(1);
+    expect(hints.wasUsed(first)).toBe(false);
+    expect(hints.reveal(first, flipLights(first, 5))).not.toBeNull();
+    expect(hints.wasUsed(second)).toBe(false);
+    expect(hints.wasUsed(newLightsBoard(0))).toBe(true);
+    expect(hints.reveal(second, LIGHTS_TARGET)).toBeNull();
+    expect(hints.wasUsed(second)).toBe(false);
   });
 });

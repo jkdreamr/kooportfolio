@@ -25,10 +25,10 @@ import {
   beatPadLane,
   beatRewardCoins,
   beatRoundEnd,
+  createLightsHintTracker,
   flipLights,
   HIT_WINDOW,
   LIGHTS_TARGET,
-  lightsHint,
   newBeatGame,
   newLightsBoard,
   queueBeatPad,
@@ -725,6 +725,8 @@ function MathDressing() {
   );
 }
 
+const mathHints = createLightsHintTracker();
+
 export function MathLabInterior() {
   const active = useGameMode((s) => s.active?.id === "math");
   const size = useThree((s) => s.size);
@@ -733,18 +735,19 @@ export function MathLabInterior() {
     [board, setBoard] = useState(() => newLightsBoard(0));
   const [moves, setMoves] = useState(0),
     [hint, setHint] = useState<number | null>(null);
+  const [practiceClear, setPracticeClear] = useState(false);
   const [near, setNear] = useState(false);
-  const rewarded = useRef(false),
+  const startingBoard = useRef(board),
     boardRef = useRef(board);
   const solved = board === LIGHTS_TARGET;
-  const cancelRound = useCallback(() => {
-    boardRef.current = newLightsBoard(0);
+  const resetPuzzle = useCallback((nextRound: number) => {
+    startingBoard.current = boardRef.current = newLightsBoard(nextRound);
     setBoard(boardRef.current);
-    setRound(0);
+    setRound(nextRound);
     setMoves(0);
     setHint(null);
-    rewarded.current = false;
   }, []);
+  const cancelRound = useCallback(() => resetPuzzle(0), [resetPuzzle]);
   const close = useLabClose("math", cancelRound);
   const toggle = useCallback((tile: number) => {
     if (
@@ -759,9 +762,11 @@ export function MathLabInterior() {
     setMoves((v) => v + 1);
     setHint(null);
     labTone(tile % 4);
-    if (next === LIGHTS_TARGET && !rewarded.current) {
-      rewarded.current = true;
-      useGame.getState().award(`math-${newRunId()}`, 15, 10);
+    if (next === LIGHTS_TARGET) {
+      const practice = mathHints.wasUsed(startingBoard.current);
+      setPracticeClear(practice);
+      if (!practice)
+        useGame.getState().award(`math-${newRunId()}`, 15, 10);
     }
   }, []);
   useEffect(() => {
@@ -783,12 +788,7 @@ export function MathLabInterior() {
   });
   const reset = (nextRound = round) => {
     if (!gameIsActive() || useGameMode.getState().active?.id !== "math") return;
-    setRound(nextRound);
-    setMoves(0);
-    setHint(null);
-    boardRef.current = newLightsBoard(nextRound);
-    setBoard(boardRef.current);
-    rewarded.current = false;
+    resetPuzzle(nextRound);
   };
   const start = () => {
     if (!near || !gameIsActive() || !startGameMode("math")) return;
@@ -871,7 +871,11 @@ export function MathLabInterior() {
             </div>
             <footer className="lab-game-bottom lab-math-bottom">
               <p role="status">
-                {solved ? "All lit · +15 coins" : "Light all nine · 1–9"}
+                {solved
+                  ? practiceClear
+                    ? "All lit · practice"
+                    : "All lit · +15 coins"
+                  : "Light all nine · 1–9"}
               </p>
               {solved ? (
                 <button
@@ -884,7 +888,10 @@ export function MathLabInterior() {
                 <div className="lab-game-actions">
                   <button
                     onClick={() => {
-                      if (gameIsActive()) setHint(lightsHint(board));
+                      if (!gameIsActive()) return;
+                      setHint(
+                        mathHints.reveal(startingBoard.current, boardRef.current),
+                      );
                     }}
                   >
                     Hint
