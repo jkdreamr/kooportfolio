@@ -19,6 +19,7 @@ import {
   RoadCar,
 } from "./TravelVehicles";
 import { ISLAND_CAMERA_OFFSET } from "../core/islandCamera";
+import { footstep, sound } from "../core/sound";
 
 export type IslandTrip = TravelOption & {
   from: TravelWorld;
@@ -106,7 +107,8 @@ export function IslandJourney({
             ? route.current[i - 1]
             : [position.current.x, position.current.z];
           return (
-            distance + Math.hypot(point[0] - previous[0], point[1] - previous[1])
+            distance +
+            Math.hypot(point[0] - previous[0], point[1] - previous[1])
           );
         }, 0);
         speed.current = THREE.MathUtils.damp(
@@ -152,6 +154,7 @@ export function IslandJourney({
       actorVisible = passenger.visible;
       walking.current = t > 0.02 && t < 0.98;
       if (t === 1) {
+        sound("chime");
         phase.current = "ride";
         time.current = 0;
       }
@@ -172,6 +175,7 @@ export function IslandJourney({
       actorVisible = false;
       if (p >= 0.5 && !arrived.current) {
         arrived.current = true;
+        sound("chime");
         onArrive();
       }
       if (p === 1) {
@@ -189,6 +193,7 @@ export function IslandJourney({
         phase.current = "done";
       }
     }
+    if (walking.current) footstep();
     if (actor.current) {
       actor.current.visible = actorVisible;
       actor.current.position.copy(position.current);
@@ -244,7 +249,13 @@ export function IslandJourney({
         position={[trip.origin[0], 0.18, trip.origin[1]]}
         rotation={[0, trip.heading, 0]}
       >
-        <Character player walking={walking} color={color} hat={hat} scale={0.65} />
+        <Character
+          player
+          walking={walking}
+          color={color}
+          hat={hat}
+          scale={0.65}
+        />
       </group>
       {trip.mode === "plane" &&
         [parked, landed].map((p, i) => (

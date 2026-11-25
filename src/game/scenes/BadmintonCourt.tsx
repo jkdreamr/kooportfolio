@@ -14,6 +14,7 @@ import {
 import { runtime, useGame } from "../core/store";
 import { startGameMode, endGameMode, useGameMode } from "../core/gameMode";
 import { keys, touch } from "../core/input";
+import { sound } from "../core/sound";
 import { newRunId } from "../../shared/run-id";
 import { Ball, Box, Cylinder, Ring } from "../world/Models";
 import { HitPad, MovePad } from "./BadmintonControls";
@@ -422,8 +423,23 @@ export function BadmintonCourt({
         Number(h.has("s") || h.has("arrowdown")) -
         Number(h.has("w") || h.has("arrowup")) +
         movement.current.z;
+      const prev = {
+        rally: game.current.rally,
+        lastHit: game.current.lastHit,
+        score: [...game.current.score],
+        phase: game.current.phase,
+      };
       stepBadminton(game.current, input.current, Math.min(delta, 0.05));
       input.current.swing = false;
+      {
+        const now = game.current;
+        if (now.phase === "over" && prev.phase !== "over")
+          sound(now.winner === "player" ? "win" : "bounce");
+        else if (now.score[0] > prev.score[0]) sound("score");
+        else if (now.score[1] > prev.score[1]) sound("bounce");
+        else if (now.rally > prev.rally)
+          sound(now.lastHit === "player" ? "whoosh" : "tap");
+      }
       if (game.current.winner === "player" && !rewarded.current) {
         rewarded.current = true;
         useGame.getState().award(`badminton-${runId.current}`, 25, 12);

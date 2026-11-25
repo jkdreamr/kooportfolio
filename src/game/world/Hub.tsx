@@ -14,6 +14,7 @@ import {
 } from "./Models";
 import { runtime, useGame, walkTo } from "../core/store";
 import { movement, movementSpeed } from "../core/input";
+import { footstep } from "../core/sound";
 import {
   canWalk,
   doorsInWorld,
@@ -132,6 +133,7 @@ export function Walker({
       state.panel === "none" &&
       Math.hypot(dx, dz) > 0.1;
     if (runtime.moving) {
+      footstep();
       const step = Math.min(dt * movementSpeed(interior ? 4 : 4.6), remaining);
       if (interior) {
         [runtime.x, runtime.z] = moveInterior(

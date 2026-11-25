@@ -11,6 +11,7 @@ import {
   scoreGo, toggleGoDead, type GoGame,
 } from "../core/go";
 import { chooseGoMove, DEFAULT_GO_LEVEL, GO_LEVELS, type GoLevel } from "../core/goBot";
+import { sound } from "../core/sound";
 import "./go-room.css";
 
 const COLUMNS = "ABCDEFGHJ";
@@ -161,6 +162,8 @@ export function GoInterior() {
     if (thinking || game.phase !== "playing") return;
     const move = playGo(game, point);
     if (!move.ok) { setMessage(move.reason); return; }
+    sound(move.captured ? "score" : "tap");
+    if (move.game.phase === "scoring") sound("chime");
     commit(move.game);
     setMessage(`${colorName(game.turn)} ${coordinate(point)}${move.captured ? ` · captured ${move.captured}` : ""}`);
   };
@@ -172,7 +175,8 @@ export function GoInterior() {
       timer = window.setTimeout(() => {
         const move = point === null ? null : playGo(game, point);
         const next = move?.ok ? move.game : passGo(game);
-        if (next.phase === "scoring") focusTarget.current = "resume";
+        if (move?.ok) sound(move.captured ? "score" : "tap");
+        if (next.phase === "scoring") { sound("chime"); focusTarget.current = "resume"; }
         setMatch((old) => old.game === game ? { game: next, past: [...old.past, game] } : old);
         setMessage(next.phase === "scoring" ? "" : move?.ok && point !== null
           ? `White ${coordinate(point)}${move.captured ? ` · captured ${move.captured}` : ""}`
