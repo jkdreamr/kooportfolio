@@ -382,6 +382,7 @@
 }
 .lab-beat .rhyme-beats {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
 .lab-beat .rhyme-beats button[aria-pressed="true"] {

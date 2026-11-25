@@ -4,9 +4,13 @@ export const RHYME_COUNT_IN_BARS = 1;
 export const RHYME_BAR_POINTS = 100;
 export const RHYME_BEATS = [
   { name: "Boom Bap", bpm: 90, pattern: "boombap" },
+  { name: "Piano Bap", bpm: 92, pattern: "pianobap" },
+  { name: "Soul Bap", bpm: 86, pattern: "soulbap" },
   { name: "Lo-Fi", bpm: 76, pattern: "lofi" },
   { name: "House", bpm: 122, pattern: "house" },
   { name: "Trap", bpm: 138, pattern: "trap" },
+  { name: "Dark Trap", bpm: 145, pattern: "darktrap" },
+  { name: "Cloud Trap", bpm: 128, pattern: "cloudtrap" },
 ] as const;
 export type RhymeBeatPattern = (typeof RHYME_BEATS)[number]["pattern"];
 
@@ -95,10 +99,7 @@ export function newRhymeGame(seed = Date.now(), beat = 0): RhymeGame {
     const first = Math.floor(random() * words.length);
     let second = Math.floor(random() * (words.length - 1));
     if (second >= first) second++;
-    bars.push(
-      { family, word: words[first] },
-      { family, word: words[second] },
-    );
+    bars.push({ family, word: words[first] }, { family, word: words[second] });
   }
   return {
     phase: "ready",
@@ -113,9 +114,7 @@ export function newRhymeGame(seed = Date.now(), beat = 0): RhymeGame {
 
 // Bar index the playhead sits in, or -1 during the count-in.
 export function rhymeBarIndex(game: RhymeGame, time = game.time): number {
-  const bar = Math.floor(
-    (time - rhymeCountIn(game)) / rhymeBarInterval(game),
-  );
+  const bar = Math.floor((time - rhymeCountIn(game)) / rhymeBarInterval(game));
   return bar < 0 ? -1 : Math.min(bar, game.bars.length - 1);
 }
 
@@ -128,9 +127,7 @@ export function advanceRhyme(game: RhymeGame, dt: number): RhymeGame {
       ? game.bars.length
       : Math.max(
           0,
-          Math.floor(
-            (time - rhymeCountIn(game)) / rhymeBarInterval(game),
-          ),
+          Math.floor((time - rhymeCountIn(game)) / rhymeBarInterval(game)),
         );
   return {
     ...game,
@@ -217,10 +214,7 @@ export function createLightsHintTracker(storage?: HintStorage) {
       if (tile !== null && !hinted.has(startingBoard)) {
         hinted.add(startingBoard);
         try {
-          (storage ?? localStorage).setItem(
-            lightsHintKey(startingBoard),
-            "1",
-          );
+          (storage ?? localStorage).setItem(lightsHintKey(startingBoard), "1");
         } catch {
           // Keep the reward blocked even if storage is unavailable.
         }
@@ -230,7 +224,10 @@ export function createLightsHintTracker(storage?: HintStorage) {
     wasUsed(startingBoard: number) {
       if (hinted.has(startingBoard)) return true;
       try {
-        return (storage ?? localStorage).getItem(lightsHintKey(startingBoard)) === "1";
+        return (
+          (storage ?? localStorage).getItem(lightsHintKey(startingBoard)) ===
+          "1"
+        );
       } catch {
         return false;
       }
