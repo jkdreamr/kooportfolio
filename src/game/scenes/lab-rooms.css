@@ -380,11 +380,11 @@
   min-height: 1.2em;
   text-shadow: 0 2px 10px #0b1017cc;
 }
-.lab-beat .rhyme-tempos {
+.lab-beat .rhyme-beats {
   display: flex;
   gap: 6px;
 }
-.lab-beat .rhyme-tempos button[aria-pressed="true"] {
+.lab-beat .rhyme-beats button[aria-pressed="true"] {
   border-color: var(--beat-ink);
   background: rgb(255 255 255 / 16%);
 }

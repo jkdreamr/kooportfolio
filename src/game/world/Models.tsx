@@ -8,6 +8,7 @@ import { sculptedMaterial } from "./Surface";
 import { NationalFlag } from "./NationalFlag";
 import { TreeArt } from "./TreeArt";
 import { GlazedPanel } from "./GlazedPanel";
+import { PlayerMarker } from "./PlayerMarker";
 
 const rounded = new Map<string, RoundedBoxGeometry>();
 function roundedGeometry(size: [number, number, number]) {
@@ -168,12 +169,14 @@ export function Sign({
 }
 export function Character({
   npc = false,
+  player = false,
   color = "#6f8670",
   hat = true,
   scale = 1,
   walking,
 }: {
   npc?: boolean;
+  player?: boolean;
   color?: string;
   hat?: boolean;
   scale?: number;
@@ -239,6 +242,7 @@ export function Character({
           </>
         )}
       </group>
+      {player && !npc && <PlayerMarker />}
     </group>
   );
 }
