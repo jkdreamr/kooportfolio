@@ -259,4 +259,17 @@ describe("Math Lab", () => {
     expect(hints.reveal(second, LIGHTS_TARGET)).toBeNull();
     expect(hints.wasUsed(second)).toBe(false);
   });
+  it("restores practice status for only the hinted board after reload", () => {
+    const data = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => data.get(key) ?? null,
+      setItem: (key: string, value: string) => data.set(key, value),
+    };
+    const first = newLightsBoard(0);
+    const second = newLightsBoard(1);
+    createLightsHintTracker(storage).reveal(first, flipLights(first, 5));
+    const reloaded = createLightsHintTracker(storage);
+    expect(reloaded.wasUsed(first)).toBe(true);
+    expect(reloaded.wasUsed(second)).toBe(false);
+  });
 });

@@ -220,8 +220,10 @@ export function Rowing() {
   const desired = useMemo(() => new THREE.Vector3(), []);
   useFrame(({ camera }, delta) => {
     const game = useGame.getState();
-    if (game.paused || game.result || game.panel !== "none" || !runtime.active)
+    if (game.paused || game.result || game.panel !== "none" || !runtime.active) {
+      runtime.raceCatch = false;
       return;
+    }
     accumulator.current += Math.min(delta, 0.1);
     while (accumulator.current >= TICK) {
       const steer =
@@ -233,10 +235,12 @@ export function Rowing() {
           steer,
           cadence: runtime.raceCadence,
           burst: keys.has(" ") || runtime.burst,
+          catchPressed: runtime.raceCatch,
         },
         length,
         seed,
       );
+      runtime.raceCatch = false;
       rivals.current = rivals.current.map((rival, i) =>
         stepRace(rival, rivalInput(rival, i, length, seed), length, seed),
       );

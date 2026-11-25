@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { runtime, useGame, walkTo, type Scene } from "../core/store";
 import { keys, touch } from "../core/input";
-import { dailySeed, raceTime } from "../core/rowing";
+import {
+  catchBoosted,
+  catchReady,
+  CATCH_WINDOW_START,
+  dailySeed,
+  raceTime,
+} from "../core/rowing";
 import { useRaceHud } from "../scenes/Rowing";
 import { CourtControls, useBasketHud } from "../scenes/Basketball";
 import { Icon } from "./Icon";
@@ -54,6 +60,8 @@ export function Joystick() {
 }
 export function RaceHud() {
   const { race, place } = useRaceHud();
+  const ready = catchReady(race);
+  const boosted = catchBoosted(race);
   const pointers = useRef(new Map<number, "left" | "right" | "burst">());
   const [held, setHeld] = useState<string[]>([]);
   const updateTouch = () => {
@@ -87,6 +95,7 @@ export function RaceHud() {
     () => () => {
       runtime.steer = 0;
       runtime.burst = false;
+      runtime.raceCatch = false;
     },
     [],
   );
@@ -95,9 +104,9 @@ export function RaceHud() {
       <div className="challenge-heading">
         <h1>Regatta</h1>
         <p className="keyboard-hint">
-          A / D steer · 1 / 2 / 3 cadence · hold Space for a burst
+          A / D steer · 1 / 2 / 3 pace · R to catch · hold Space to burst
         </p>
-        <p className="touch-hint">Steer with arrows · hold burst</p>
+        <p className="touch-hint">Tap Catch in green · hold Burst</p>
       </div>
       <div className="race-progress">
         <div
@@ -160,6 +169,26 @@ export function RaceHud() {
               {label}
             </button>
           ))}
+        </div>
+        <div className="race-catch">
+          <div className="race-catch-track" aria-hidden="true">
+            <i style={{ left: `${CATCH_WINDOW_START * 100}%` }} />
+            <b style={{ left: `${race.stroke * 100}%` }} />
+          </div>
+          <button
+            type="button"
+            data-ready={ready}
+            data-boosted={boosted}
+            disabled={race.time <= 0 || race.finished}
+            onPointerDown={(event) => {
+              if (event.button === 0) runtime.raceCatch = true;
+            }}
+            onClick={(event) => {
+              if (event.detail === 0) runtime.raceCatch = true;
+            }}
+          >
+            {ready ? "Catch now" : boosted ? "Good catch" : "Catch"}
+          </button>
         </div>
         <p>
           {race.bank
@@ -919,12 +948,12 @@ export function Hud({ interact }: { interact: () => void }) {
             <b>Row</b>
             <p>
               <span className="keyboard-hint">
-                A/D to steer. 1/2/3 for cadence. Space for a burst.{" "}
+                A/D to steer. 1/2/3 for pace. R to catch. Space for a burst.{" "}
               </span>
               <span className="touch-hint">
-                Hold arrows to steer and BURST to sprint. Tap a pace.{" "}
+                Hold arrows to steer and Burst to sprint. Tap a pace or Catch.{" "}
               </span>
-              Stay inside the buoys; sprinting drains energy.
+              Catch in the green for a boost. Sprinting drains energy.
             </p>
             <b>Shoot</b>
             <p>

@@ -894,7 +894,7 @@ export function MathLabInterior() {
                       );
                     }}
                   >
-                    Hint
+                    Hint · no reward
                   </button>
                   <button onClick={() => reset()}>Reset</button>
                 </div>

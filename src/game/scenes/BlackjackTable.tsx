@@ -276,7 +276,8 @@ export function BlackjackTable({ onReward }: InteriorGameProps) {
               Play chips <b>{game.bank}</b>
             </span>
             <span>
-              Bet <b>{game.bet}</b>
+              {game.phase === "over" ? "Last bet" : "Bet"}{" "}
+              <b>{game.phase === "bet" ? game.bet : game.stake}</b>
             </span>
           </div>
         </div>
