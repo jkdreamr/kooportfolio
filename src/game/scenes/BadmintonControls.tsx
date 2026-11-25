@@ -116,7 +116,7 @@ export function HitPad({
       aria-label={
         serve
           ? "High serve. Tap or swipe left or right to aim. Shot types apply to returns"
-          : `${ready ? "Hit now" : "Hit"}. Tap to use the selected shot, or drop in touch gesture mode. Swipe up for clear, down for smash, left or right to aim`
+          : `${ready ? "Hit now" : "Hit"}. Tap for the selected shot. Swipe up for clear, down for smash, left or right to aim`
       }
       disabled={disabled}
       onContextMenu={(e) => e.preventDefault()}

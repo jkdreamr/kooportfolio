@@ -13,6 +13,6 @@ export function badmintonGesture(
     : selected;
   return {
     aim: dx < -18 ? -1 : dx > 18 ? 1 : baseline.aim,
-    shot: dy < -18 ? "clear" : dy > 18 ? "smash" : baseline.shot,
+    shot: dy < -14 ? "clear" : dy > 14 ? "smash" : baseline.shot,
   };
 }

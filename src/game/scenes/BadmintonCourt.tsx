@@ -661,11 +661,7 @@ export function BadmintonCourt({
                           </>
                         ) : (
                           <>
-                            ↑ clear ·{" "}
-                            <span className="badminton-tap-hint">
-                              tap drop ·{" "}
-                            </span>
-                            ↓ smash
+                            ↑ clear · ↓ smash
                             <br />
                             <output
                               className="badminton-touch-selection"
