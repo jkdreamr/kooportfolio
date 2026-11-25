@@ -217,12 +217,6 @@ body:has(.game-shell),
   min-width: 75px;
   font-size: 12px;
 }
-.resource.coins svg {
-  color: #b69a50;
-}
-.resource.level svg {
-  color: #8d9b73;
-}
 .resource b {
   font-weight: 600;
 }
@@ -2288,37 +2282,4 @@ body:has(.game-shell),
     600 11px system-ui,
     sans-serif;
   color: #e2e8f0;
-}
-.side-quest-gain {
-  display: block;
-  padding: 3px 8px;
-  border: 1px solid rgba(203, 213, 225, 0.6);
-  border-radius: 999px;
-  background: #ffffff;
-  color: #1e293b;
-  font:
-    700 13px system-ui,
-    sans-serif;
-  animation: side-quest-rise 1.4s ease-out forwards;
-}
-@keyframes side-quest-rise {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  15% {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-    transform: translateY(-22px);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .side-quest-gain {
-    animation: none;
-  }
-}
-.upgrade-button + .upgrade-button {
-  margin-top: 8px;
 }

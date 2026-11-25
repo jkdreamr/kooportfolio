@@ -6,7 +6,6 @@ import { Html } from "@react-three/drei";
 import { create } from "zustand";
 import * as THREE from "three";
 import { runtime, useGame, walkTo } from "../core/store";
-import { newRunId } from "../../shared/run-id";
 import { useGameMode } from "../core/gameMode";
 import type { WorldId } from "../core/worlds";
 import {
@@ -15,7 +14,6 @@ import {
   FISHING_SPOTS,
   freshActivities,
   PARCEL_DOORS,
-  regionalPayout,
   nearbyRegionalActivity,
   regionalActionLabel,
   stepRegionalActivity,
@@ -24,26 +22,16 @@ import {
 } from "../core/regionalActivities";
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
 
-type Gain = { coins: number; p: readonly [number, number]; key: number };
 const useActivities = create<{
   play: ActivityState;
-  gain: Gain | null;
   act: (id: RegionalAction) => void;
 }>((set, get) => ({
   play: freshActivities(),
-  gain: null,
   act: (id) => {
     const now = performance.now() / 1000,
-      game = useGame.getState(),
       play = get().play,
-      coins = regionalPayout(play, id, now, game.save.upgrades.garden),
       next = stepRegionalActivity(play, id, now);
-    if (next === play) return;
-    set({ play: next });
-    if (!coins) return;
-    game.award(`side-${id}-${newRunId()}`, coins, Math.ceil(coins / 2));
-    const p = activitySpots.find((s) => s.id === id)!.p;
-    set({ gain: { coins, p, key: now } });
+    if (next !== play) set({ play: next });
   },
 }));
 const nowSeconds = () => performance.now() / 1000;
@@ -61,7 +49,6 @@ function available(world: WorldId) {
     g.world === world &&
     g.scene === "hub" &&
     !g.paused &&
-    !g.build &&
     !g.traveling &&
     !g.overlayLocked &&
     g.panel === "none" &&
@@ -251,29 +238,9 @@ function ParcelMarker({ p }: { p: readonly [number, number] }) {
     </group>
   );
 }
-function CoinGain({ gain }: { gain: Gain }) {
-  const [shown, setShown] = useState(true);
-  useEffect(() => {
-    const t = setTimeout(() => setShown(false), 1400);
-    return () => clearTimeout(t);
-  }, []);
-  if (!shown) return null;
-  return (
-    <Html
-      position={[gain.p[0], 3.4, gain.p[1]]}
-      center
-      zIndexRange={[18, 0]}
-      style={{ pointerEvents: "none" }}
-    >
-      <span className="side-quest-gain">+{gain.coins}</span>
-    </Html>
-  );
-}
-
 /** Self-contained world interactions; mounting the environment is sufficient. */
 export function RegionalActivities({ world }: { world: WorldId }) {
-  const play = useActivities((s) => s.play),
-    gain = useActivities((s) => s.gain);
+  const play = useActivities((s) => s.play);
   const [near, setNear] = useState<RegionalAction | null>(null),
     [now, setNow] = useState(nowSeconds);
   const carried = useRef<THREE.Group>(null),
@@ -498,7 +465,6 @@ export function RegionalActivities({ world }: { world: WorldId }) {
           </button>
         </Html>
       )}
-      {gain && <CoinGain key={gain.key} gain={gain} />}
     </group>
   );
 }

@@ -58,12 +58,6 @@ export function Icon({ name, size = 20 }: { name: string; size?: number }) {
         <path d="M5 12h14m-6-6 6 6-6 6" />
       </>
     ),
-    coin: (
-      <>
-        <circle cx="12" cy="12" r="9" />
-        <path d="M14 7h-3a2 2 0 0 0 0 4h2a2 2 0 0 1 0 4h-3m2-10v14" />
-      </>
-    ),
     star: (
       <path d="m12 3 2.8 5.6 6.2.9-4.5 4.4 1.1 6.1-5.6-3-5.6 3 1.1-6.1L3 9.5l6.2-.9Z" />
     ),

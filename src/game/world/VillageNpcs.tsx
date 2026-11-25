@@ -122,7 +122,7 @@ function CrowdPart({ part, crowd }: { part: Part; crowd: NpcEntry[] }) {
     const game = useGame.getState();
     crowd.forEach(({ actor, npc }, i) => {
       const active =
-        actor.moving && !game.paused && game.panel === "none" && !game.build;
+        actor.moving && !game.paused && game.panel === "none";
       const swing = active ? Math.sin(actor.stride) : 0;
       const seated = actor.seat ? actor.posture : 0;
       let tilt = part.swing ? swing * part.swing * 0.5 : 0;
@@ -211,7 +211,6 @@ function TalkRings({ world }: { world: WorldId }) {
       const show =
         game.panel === "none" &&
         !game.paused &&
-        !game.build &&
         (actor.id === selected || actor.id === nearest);
       transform.position.set(actor.x, 0.27, actor.z);
       transform.rotation.set(-Math.PI / 2, 0, 0);
@@ -246,7 +245,7 @@ export function NpcCrowd() {
       state = useNpcs.getState();
     if (state.talking && game.panel !== "npc") closeConversation();
     const frozen =
-      game.paused || game.build || !runtime.active || game.panel !== "none";
+      game.paused || !runtime.active || game.panel !== "none";
     const crowd = activeNpcCrowd(game.world);
     for (const { actor, npc } of crowd) {
       stepNpc(

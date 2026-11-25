@@ -13,7 +13,6 @@ import * as THREE from "three";
 import { runtime, useGame } from "../core/store";
 import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import { keys, movement, movementSpeed, touch } from "../core/input";
-import { newRunId } from "../../shared/run-id";
 import { Box, Ball, Character, Cylinder } from "../world/Models";
 import { gameIsActive } from "./InteriorProps";
 import { SkateParkTerrain } from "./SkateParkTerrain";
@@ -205,7 +204,7 @@ export function SkateParkInterior() {
   const [overview, setOverview] = useState(true);
   const [view, setView] = useState(() => snapshot(game.current));
   const [mode, setMode] = useState<SkateState["mode"]>("free");
-  const blocked = useGame((s) => s.paused || s.panel !== "none" || s.build);
+  const blocked = useGame((s) => s.paused || s.panel !== "none");
   const color = useGame((s) => s.save.color),
     hat = useGame((s) => s.save.hat);
   const gl = useThree((s) => s.gl);
@@ -213,9 +212,7 @@ export function SkateParkInterior() {
     () => ({ current: gl.domElement.parentElement! }),
     [gl],
   );
-  const clock = useRef(0),
-    runId = useRef(""),
-    rewarded = useRef(false);
+  const clock = useRef(0);
   const walker = useRef<THREE.Group>(null);
   const follow = useRef(new THREE.Vector3(0, 0, 16));
   const cameraTarget = useRef(new THREE.Vector3());
@@ -227,7 +224,7 @@ export function SkateParkInterior() {
       runtime.active &&
       (riding
         ? gameIsActive() && useGameMode.getState().active?.id === "skate"
-        : !state.paused && !state.build && state.panel === "none")
+        : !state.paused && state.panel === "none")
     );
   };
 
@@ -321,11 +318,6 @@ export function SkateParkInterior() {
         runtime.z = g.z * S;
         runtime.moving = false;
         useGame.getState().setNear("");
-        if (g.phase === "done" && !rewarded.current) {
-          rewarded.current = true;
-          if (g.score >= 800)
-            useGame.getState().award(`skate-${runId.current}`, 20, 10);
-        }
         clock.current += dt;
         if (clock.current > 0.075) {
           setView(snapshot(g));
@@ -410,8 +402,6 @@ export function SkateParkInterior() {
     game.current.z = THREE.MathUtils.clamp(runtime.z / S, -9, 9);
     game.current.y = skateHeight(game.current.x, game.current.z);
     input.current = idleSkateInput();
-    runId.current = newRunId();
-    rewarded.current = false;
     runtime.target = null;
     runtime.path = [];
     runtime.moving = false;
@@ -584,9 +574,6 @@ export function SkateParkInterior() {
                     <h2>{view.score.toLocaleString()} points</h2>
                     <p>
                       Best line {view.bestCombo.toLocaleString()}
-                      {view.score >= 800
-                        ? " · +20 coins"
-                        : " · 800 earns 20 coins"}
                     </p>
                     <div className="skate-modes">
                       <button onClick={() => begin("run")}>Ride again</button>

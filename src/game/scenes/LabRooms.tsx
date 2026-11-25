@@ -29,11 +29,9 @@ import {
   rhymeBarInterval,
   rhymeBeatInterval,
   rhymeCountIn,
-  rhymeRewardCoins,
   rhymeRoundEnd,
   type RhymeGame,
 } from "../core/labGames";
-import { newRunId } from "../../shared/run-id";
 import { labTone, scheduleLabBeat } from "./labAudio";
 import "./lab-rooms.css";
 
@@ -113,7 +111,7 @@ function LabControls({
     () => ({ current: gl.domElement.parentElement! }),
     [gl],
   );
-  const hidden = useGame((s) => s.paused || s.panel !== "none" || s.build);
+  const hidden = useGame((s) => s.paused || s.panel !== "none");
   const focusGame = useCallback(
     (node: HTMLElement | null) => {
       if (active) node?.focus({ preventScroll: true });
@@ -462,8 +460,6 @@ export function BeatLabInterior() {
     if (g.phase === "done" && !rewarded.current) {
       stopBeatTrack();
       rewarded.current = true;
-      const coins = rhymeRewardCoins(g);
-      if (coins) useGame.getState().award(`music-${newRunId()}`, coins, 10);
     }
     refresh.current += dt;
     if (refresh.current > 0.04) {
@@ -498,7 +494,6 @@ export function BeatLabInterior() {
   const bar = rhymeBarIndex(view);
   const word = bar >= 0 ? view.bars[bar].word : null;
   const next = view.bars[bar + 1]?.word;
-  const coins = rhymeRewardCoins(view);
   return (
     <>
       {active && <LabCamera id="music" />}
@@ -531,7 +526,7 @@ export function BeatLabInterior() {
               <div className="rhyme-toolbar">
                 <p className="lab-feedback" role="status">
                   {view.phase === "done"
-                    ? `${view.barsDone}/${view.bars.length} bars · ${view.points} points · +${coins} coins`
+                    ? `${view.barsDone}/${view.bars.length} bars · ${view.points} points`
                     : view.phase === "playing"
                       ? "Rhyme on the last beat"
                       : "Rhyme words to the beat"}
@@ -680,7 +675,6 @@ export function MathLabInterior() {
     [board, setBoard] = useState(() => newLightsBoard(0));
   const [moves, setMoves] = useState(0),
     [hint, setHint] = useState<number | null>(null);
-  const [practiceClear, setPracticeClear] = useState(false);
   const [near, setNear] = useState(false);
   const startingBoard = useRef(board),
     boardRef = useRef(board);
@@ -707,12 +701,6 @@ export function MathLabInterior() {
     setMoves((v) => v + 1);
     setHint(null);
     labTone(tile % 4);
-    if (next === LIGHTS_TARGET) {
-      const practice = mathHints.wasUsed(startingBoard.current);
-      setPracticeClear(practice);
-      if (!practice)
-        useGame.getState().award(`math-${newRunId()}`, 15, 10);
-    }
   }, []);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
@@ -817,9 +805,7 @@ export function MathLabInterior() {
             <footer className="lab-game-bottom lab-math-bottom">
               <p role="status">
                 {solved
-                  ? practiceClear
-                    ? "All lit · practice"
-                    : "All lit · +15 coins"
+                  ? "All lit"
                   : "Light all nine · 1–9"}
               </p>
               {solved ? (
@@ -839,7 +825,7 @@ export function MathLabInterior() {
                       );
                     }}
                   >
-                    Hint · no reward
+                    Hint
                   </button>
                   <button onClick={() => reset()}>Reset</button>
                 </div>

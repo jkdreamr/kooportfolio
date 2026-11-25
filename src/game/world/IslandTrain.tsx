@@ -229,7 +229,7 @@ export function IslandTrain({
     () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
   const hidden =
-    useGame((s) => s.paused || s.panel !== "none" || s.build) || disabled;
+    useGame((s) => s.paused || s.panel !== "none") || disabled;
   const coaches = useRef<THREE.Group>(null);
   const phase = useRef(0);
   const turns = useRef(0);

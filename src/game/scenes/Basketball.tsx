@@ -19,8 +19,6 @@ import {
   type ShotStyle,
 } from "../core/basketball";
 import { sound } from "../core/sound";
-import { newRunId } from "../../shared/run-id";
-import { recordLeaderboardResult } from "../core/leaderboard";
 import { BasketballPlayer } from "./BasketballPlayer";
 import {
   CourtBall,
@@ -56,7 +54,6 @@ export const useBasketHud = create<{
   target: number;
   made: number;
   finished: boolean;
-  coins: number;
 }>(() => ({
   time: 30,
   score: 0,
@@ -69,7 +66,6 @@ export const useBasketHud = create<{
   target: 0,
   made: 0,
   finished: false,
-  coins: 0,
 }));
 
 function beginRound(mode = useBasketOptions.getState().mode) {
@@ -92,7 +88,6 @@ function beginRound(mode = useBasketOptions.getState().mode) {
     target: 0,
     made: 0,
     finished: false,
-    coins: 0,
   });
   useBasketOptions.setState((s) => ({ mode, round: s.round + 1 }));
 }
@@ -429,16 +424,10 @@ function CourtSessionHud({ close }: { close: () => void }) {
             {hud.score} <small>PTS</small>
           </h2>
           <p>
-            {hud.made}/{hud.shots} made · +{hud.coins} coins
+            {hud.made}/{hud.shots} made
           </p>
           <button onClick={() => beginRound()}>Play again</button>
           <button onClick={close}>Close</button>
-          <button
-            className="court-records"
-            onClick={() => useGame.setState({ panel: "leaderboard" })}
-          >
-            Records
-          </button>
         </div>
       )}
     </section>
@@ -509,7 +498,6 @@ function BasketballCourt({ playing }: { playing: boolean }) {
     spotShot = useRef(false),
     challenge = useRef(0),
     seed = useRef(dailyCourtSeed()),
-    id = useRef(newRunId()),
     feedback = useRef("Release in the gold."),
     nextHud = useRef(0),
     lastBounce = useRef(-1),
@@ -820,22 +808,8 @@ function BasketballCourt({ playing }: { playing: boolean }) {
       (!ball.current || elapsed.current > duration + 5.5)
     ) {
       done.current = true;
-      if (mode === "attack")
-        recordLeaderboardResult({
-          id: id.current,
-          board: "basketball-attack",
-          score: score.current,
-        });
-      const coins = Math.min(
-        125,
-        10 + score.current * 3 + challenge.current * 4,
-      );
-      g.award(id.current, coins, 25, {
-        bestBasket: Math.max(g.save.bestBasket, score.current),
-      });
       useBasketHud.setState({
         finished: true,
-        coins,
         score: score.current,
         made: made.current,
         shots: shots.current,

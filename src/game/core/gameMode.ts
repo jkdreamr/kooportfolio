@@ -68,7 +68,7 @@ export function startGameMode(id: GameModeId): boolean {
     state.traveling ||
     state.panel !== "none" ||
     (id === "photo-booth" &&
-      (state.world !== "korea" || state.build || state.overlayLocked ||
+      (state.world !== "korea" || state.overlayLocked ||
         !isNearPhotoBooth(runtime.x, runtime.z)))
   )
     return false;

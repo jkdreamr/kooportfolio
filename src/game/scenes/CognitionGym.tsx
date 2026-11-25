@@ -50,7 +50,6 @@ export function gymRepMotion(
 export const useGym = create<{
   reps: number;
   liftedAt: number;
-  earned: number;
   readyAt: number;
   pausedAt: number | null;
   strike: number;
@@ -67,7 +66,6 @@ export const useGym = create<{
 }>((set, get) => ({
   reps: 0,
   liftedAt: -Infinity,
-  earned: 0,
   readyAt: 0,
   pausedAt: null,
   strike: 0,
@@ -107,7 +105,6 @@ export const useGym = create<{
     set({
       reps: 0,
       liftedAt: -Infinity,
-      earned: 0,
       readyAt: performance.now(),
       pausedAt: null,
       strike: 0,
@@ -123,7 +120,6 @@ export const useGym = create<{
     set({
       reps: 0,
       liftedAt: -Infinity,
-      earned: 0,
       readyAt: 0,
       pausedAt: null,
       strike: 0,
@@ -165,11 +161,8 @@ export const useGym = create<{
     });
     sound(result.judgment === "Miss" ? "bounce" : "score");
     if (reps === 8) {
-      const id = `gym-${new Date().toISOString().slice(0, 10)}`;
-      const earned = useGame.getState().save.rewards.includes(id) ? 0 : 15;
       const record = saveGymBest(score, state.best);
-      set({ earned, ...record });
-      useGame.getState().award(id, 15, 10);
+      set(record);
     }
   },
 }));
@@ -214,15 +207,14 @@ function GymCamera() {
 
 function GymControls() {
   const active = useGameMode((s) => s.active?.id === "gym");
-  const reps = useGym((s) => s.reps),
-    earned = useGym((s) => s.earned);
+  const reps = useGym((s) => s.reps);
   const score = useGym((s) => s.score),
     best = useGym((s) => s.best),
     streak = useGym((s) => s.streak),
     judgment = useGym((s) => s.judgment),
     points = useGym((s) => s.points),
     newBest = useGym((s) => s.newBest);
-  const hidden = useGame((s) => s.paused || s.panel !== "none" || s.build);
+  const hidden = useGame((s) => s.paused || s.panel !== "none");
   const [near, setNear] = useState(false),
     [phase, setPhase] = useState<LiftPhase>("ready"),
     [touch, setTouch] = useState(
@@ -398,7 +390,7 @@ function GymControls() {
               </div>
               <p role="status">
                 {complete
-                  ? `${newBest ? "New best" : "Set complete"}${earned ? ` · +${earned} coins` : " · Daily reward claimed"}`
+                  ? newBest ? "New best" : "Set complete"
                   : ready
                     ? "Lift in the target"
                     : `${judgment}${points ? ` +${points}` : ""} · ${phase === "pressing" ? "Pressing…" : "Lowering…"}`}

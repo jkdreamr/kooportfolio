@@ -18,7 +18,6 @@ beforeEach(() => {
   useGym.setState({
     reps: 0,
     liftedAt: -Infinity,
-    earned: 0,
     readyAt: 0,
     pausedAt: null,
     strike: 0,
@@ -33,7 +32,6 @@ beforeEach(() => {
     scene: "gym",
     paused: false,
     panel: "none",
-    build: false,
     traveling: false,
     near: "",
     save: freshSave(),
@@ -73,7 +71,6 @@ describe("optional gym sessions", () => {
     runtime.z = 16.5;
     expect(useGym.getState().startSession()).toBe(false);
     expect(useGameMode.getState().active).toBeNull();
-    expect(useGame.getState().save.coins).toBe(0);
   });
 
   it("cancels an unfinished set without a reward and restores walking position", () => {
@@ -86,19 +83,15 @@ describe("optional gym sessions", () => {
     expect(useGym.getState().reps).toBe(0);
     expect(useGameMode.getState().active).toBeNull();
     expect([runtime.x, runtime.z]).toEqual([1, 1]);
-    expect(useGame.getState().save.coins).toBe(0);
   });
 
-  it("awards only a completed set and only once per day across rematches", () => {
+  it("completes a set after eight lifts and can replay it", () => {
     useGym.getState().startSession();
     finishSet();
     expect(useGym.getState().reps).toBe(8);
-    expect(useGym.getState().earned).toBe(15);
-    expect(useGame.getState().save.coins).toBe(15);
     useGym.getState().startSession();
     finishSet();
-    expect(useGym.getState().earned).toBe(0);
-    expect(useGame.getState().save.coins).toBe(15);
+    expect(useGym.getState().reps).toBe(8);
     expect(useGameMode.getState().active?.position).toEqual([1, 1]);
   });
 
@@ -161,7 +154,6 @@ describe("optional gym sessions", () => {
       score: 625,
       streak: 1,
     });
-    expect(useGame.getState().save.coins).toBe(0);
   });
 
   it("stores a best only after all eight lifts, and keeps it across replay and cancellation", () => {
@@ -257,7 +249,7 @@ describe("optional gym sessions", () => {
     expect(useGym.getState()).toMatchObject({ reps: 1, judgment: "Perfect" });
   });
 
-  it("still completes and rewards a set when local best storage is blocked", () => {
+  it("still completes a set when local best storage is blocked", () => {
     vi.stubGlobal("window", {
       localStorage: {
         getItem() {
@@ -274,8 +266,6 @@ describe("optional gym sessions", () => {
     expect(useGym.getState()).toMatchObject({
       reps: 8,
       best: 2300,
-      earned: 15,
     });
-    expect(useGame.getState().save.coins).toBe(15);
   });
 });

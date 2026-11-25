@@ -11,20 +11,6 @@ import {
 import { useRaceCatch, useRaceHud } from "../scenes/Rowing";
 import { CourtControls, useBasketHud } from "../scenes/Basketball";
 import { Icon } from "./Icon";
-import {
-  BUILDING_ORDER,
-  BUILDINGS,
-  MAX_LEVEL,
-  gardenCapacity,
-  gardenStored,
-  type BuildingId,
-} from "../../shared/buildings";
-
-const BUILD_ICON: Record<BuildingId, string> = {
-  garden: "star",
-  kitchen: "home",
-  boathouse: "oar",
-};
 import { destinationsInWorld, doors, isInterior } from "../core/world";
 import { WORLDS } from "../core/worlds";
 import { profile } from "../../content/profile";
@@ -35,7 +21,6 @@ import { SKATE_EXIT } from "../core/skate";
 import { RoomStory } from "./RoomStory";
 import type { PlaceId } from "../core/world";
 import { npcName } from "../core/npcState";
-import { Leaderboard } from "./Leaderboard";
 import { TravelMap } from "./TravelMap";
 
 export function Joystick() {
@@ -429,16 +414,7 @@ export function Hud({ interact }: { interact: () => void }) {
       useGame.setState({ overlayLocked: false });
     };
   }, []);
-  const g = useGame(),
-    [confirmBuild, setConfirmBuild] = useState<BuildingId | null>(null),
-    [now, setNow] = useState(Date.now),
-    stored = gardenStored(g.save.upgrades.garden, g.save.collectedAt, now);
-  useEffect(() => {
-    if (!g.build) return;
-    setNow(Date.now());
-    const timer = setInterval(() => setNow(Date.now()), 5000);
-    return () => clearInterval(timer);
-  }, [g.build, g.save.collectedAt]);
+  const g = useGame();
   useEffect(() => {
     if (pendingExit.current && pendingExit.current !== g.scene)
       pendingExit.current = null;
@@ -481,17 +457,6 @@ export function Hud({ interact }: { interact: () => void }) {
           </div>
         </a>
         <div className="resources">
-          <div className="resource coins" aria-label={`${g.save.coins} coins`}>
-            <Icon name="coin" />
-            <b>{g.save.coins}</b>
-          </div>
-          <div
-            className="resource level"
-            aria-label={`Level ${1 + Math.floor(g.save.xp / 100)}`}
-          >
-            <Icon name="star" />
-            <b>Lv. {1 + Math.floor(g.save.xp / 100)}</b>
-          </div>
           <button
             className="icon-button"
             aria-label={g.muted ? "Unmute sound" : "Mute sound"}
@@ -508,7 +473,7 @@ export function Hud({ interact }: { interact: () => void }) {
           </button>
         </div>
       </header>
-      {hub && !g.build && <WorldLabels />}
+      {hub && <WorldLabels />}
       {hub && <span className="world-name">{WORLDS[g.world].name}</span>}
       {interior && (
         <div className="interior-intro">
@@ -553,7 +518,6 @@ export function Hud({ interact }: { interact: () => void }) {
         </>
       )}
       {(hub || interior) &&
-        !g.build &&
         g.panel !== "npc" &&
         !g.overlayLocked && (
           <>
@@ -569,7 +533,7 @@ export function Hud({ interact }: { interact: () => void }) {
                     : g.near === "hoover-door"
                       ? "Hoover Tower"
                       : g.near === "stash"
-                        ? "Coin stash"
+                        ? "Stash"
                         : g.near === "photo"
                           ? "Photo booth"
                           : g.near === "stargazing"
@@ -672,114 +636,29 @@ export function Hud({ interact }: { interact: () => void }) {
           </button>
         </div>
       )}
-      {g.build && (
-        <>
-          <div className="build-heading">
-            <h1>Build</h1>
-          </div>
-          <div className="build-panel">
-            {BUILDING_ORDER.map((key) => {
-              const level = g.save.upgrades[key],
-                cost = BUILDINGS[key].cost[level - 1],
-                max = level === MAX_LEVEL;
-              return (
-                <div key={key} className="build-option">
-                  <div className={`build-preview ${key}`}>
-                    <Icon name={BUILD_ICON[key]} size={40} />
-                    <span>LV. {level}</span>
-                  </div>
-                  <div>
-                    <h3>{BUILDINGS[key].name}</h3>
-                    <p>
-                      {BUILDINGS[key].perk(level)}
-                      {!max && <> → {BUILDINGS[key].perk(level + 1)}</>}
-                    </p>
-                    {key === "garden" && (
-                      <button
-                        className="upgrade-button"
-                        disabled={stored < 1}
-                        onClick={g.collect}
-                      >
-                        <Icon name="coin" size={16} /> {stored}/
-                        {gardenCapacity(level)} <span>Collect</span>
-                      </button>
-                    )}
-                    <button
-                      className="upgrade-button"
-                      disabled={max || g.save.coins < cost}
-                      onClick={() => setConfirmBuild(key)}
-                    >
-                      {max ? (
-                        "Max level"
-                      ) : (
-                        <>
-                          <Icon name="coin" size={16} /> {cost}{" "}
-                          <span>
-                            {g.save.coins < cost
-                              ? "Not enough coins"
-                              : "Upgrade"}
-                          </span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-            <button
-              className="primary-button"
-              onClick={() => useGame.setState({ build: false })}
-            >
-              Done <Icon name="check" size={17} />
-            </button>
-          </div>
-        </>
-      )}
       {hub && (
         <nav className="world-toolbar" aria-label="World tools">
           {[
-            [
-              "travel",
-              "Travel",
-              () => useGame.setState({ build: false, panel: "travel" }),
-            ],
-            [
-              "home",
-              "Places",
-              () => useGame.setState({ build: false, panel: "places" }),
-            ],
-            [
-              "build",
-              "Build",
-              () => useGame.setState({ build: !g.build, panel: "none" }),
-            ],
-            [
-              "avatar",
-              "You",
-              () => useGame.setState({ panel: "avatar", build: false }),
-            ],
+            ["travel", "Travel", () => useGame.setState({ panel: "travel" })],
+            ["home", "Places", () => useGame.setState({ panel: "places" })],
+            ["avatar", "You", () => useGame.setState({ panel: "avatar" })],
             [
               "memories",
               "Memories",
-              () => useGame.setState({ panel: "memories", build: false }),
+              () => useGame.setState({ panel: "memories" }),
             ],
             [
               "settings",
               "Settings",
-              () => useGame.setState({ panel: "settings", build: false }),
+              () => useGame.setState({ panel: "settings" }),
             ],
           ].map(([icon, label, action]) => (
             <button
               key={String(label)}
               className={
-                g.build
-                  ? icon === "build"
-                    ? "active"
-                    : ""
-                  : g.panel === icon ||
-                      (icon === "home" && g.panel === "places")
-                    ? "active"
-                    : ""
+                g.panel === icon || (icon === "home" && g.panel === "places")
+                  ? "active"
+                  : ""
               }
               onClick={action as () => void}
             >
@@ -815,31 +694,6 @@ export function Hud({ interact }: { interact: () => void }) {
             ×
           </button>
         </div>
-      )}
-      {confirmBuild && (
-        <Modal eyebrow="" title="Upgrade?" close={() => setConfirmBuild(null)}>
-          <p>
-            {BUILDINGS[confirmBuild].name} to Lv{" "}
-            {g.save.upgrades[confirmBuild] + 1} for{" "}
-            {BUILDINGS[confirmBuild].cost[g.save.upgrades[confirmBuild] - 1]}{" "}
-            coins.
-          </p>
-          <button
-            className="primary-button"
-            onClick={() => {
-              g.upgrade(confirmBuild);
-              setConfirmBuild(null);
-            }}
-          >
-            Confirm upgrade <Icon name="check" size={17} />
-          </button>
-          <button
-            className="quiet-button"
-            onClick={() => setConfirmBuild(null)}
-          >
-            Cancel
-          </button>
-        </Modal>
       )}
       {g.panel === "avatar" && (
         <Modal eyebrow="" title="Your character" close={closePanel}>
@@ -889,25 +743,7 @@ export function Hud({ interact }: { interact: () => void }) {
               <b>Stanford CS + math</b>
             </div>
           </div>
-          <button
-            className="setting-row"
-            onClick={() => useGame.setState({ panel: "leaderboard" })}
-          >
-            Records <Icon name="arrow" />
-          </button>
         </Modal>
-      )}
-      {g.panel === "leaderboard" && (
-        <Leaderboard
-          initialBoard={
-            g.scene === "basketball"
-              ? "basketball-attack"
-              : runtime.raceLength === 750
-                ? "rowing-regatta"
-                : "rowing-sprint"
-          }
-          onClose={closePanel}
-        />
       )}
       {g.panel === "settings" && (
         <Modal eyebrow="" title="Settings" close={closePanel}>
@@ -993,10 +829,10 @@ export function Hud({ interact }: { interact: () => void }) {
               </span>
               Release in the gold. Chase rebounds or wait for a new ball.
             </p>
-            <b>Grow</b>
+            <b>Explore</b>
             <p>
-              Finish games to earn coins. The garden grows coins while you are
-              away. Upgrades add burners, race prizes and garden storage.
+              Wander the worlds, try the games and find what is tucked away.
+              Progress is saved in this browser.
             </p>
           </div>
         </Modal>
@@ -1089,18 +925,13 @@ export function Hud({ interact }: { interact: () => void }) {
           </a>
         </Modal>
       )}
-      {g.result && g.panel !== "leaderboard" && (
+      {g.result && (
         <Modal
           title={g.result.title}
           close={() => g.go(g.scene === "rowing" ? "boathouse" : "hub")}
         >
           <div className="result-score">{g.result.score}</div>
           <p className="result-detail">{g.result.detail}</p>
-          <div className="reward-line">
-            <Icon name="coin" size={23} />
-            <b>+{g.result.coins}</b>
-            <span>coins</span>
-          </div>
           <button
             className="primary-button"
             onClick={() => {
@@ -1118,15 +949,6 @@ export function Hud({ interact }: { interact: () => void }) {
             {g.scene === "rowing"
               ? "Back to the boathouse"
               : "Back to the village"}
-          </button>
-          <small className="local-note">
-            Local record only. No global rankings or cloud saves.
-          </small>
-          <button
-            className="quiet-button"
-            onClick={() => useGame.setState({ panel: "leaderboard" })}
-          >
-            Records
           </button>
         </Modal>
       )}

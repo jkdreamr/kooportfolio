@@ -115,7 +115,6 @@ export function LabelProjection() {
 }
 
 export function WorldLabels() {
-  const level = useGame((s) => s.save.upgrades.boathouse);
   const world = useGame((s) => s.world);
   return (
     <nav className="world-labels" aria-label="Village places">
@@ -131,9 +130,6 @@ export function WorldLabels() {
         >
           <span className="label-dot" />
           {door.name}
-          {door.id === "boathouse" && (
-            <span className="label-level">LV {level}</span>
-          )}
         </button>
       ))}
     </nav>

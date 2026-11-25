@@ -14,7 +14,6 @@ import {
 import { runtime, useGame } from "../core/store";
 import { startGameMode, endGameMode, useGameMode } from "../core/gameMode";
 import { keys, touch } from "../core/input";
-import { newRunId } from "../../shared/run-id";
 import { Ball, Box, Cylinder, Ring } from "../world/Models";
 import { HitPad, MovePad } from "./BadmintonControls";
 import { BadmintonGym } from "./BadmintonGym";
@@ -324,16 +323,14 @@ export function BadmintonCourt({
   const [snapshot, setSnapshot] = useState(() => view(game.current));
   const [aim, setAim] = useState<-1 | 0 | 1>(0),
     [shot, setShot] = useState<BadmintonShot>("clear");
-  const blocked = useGame((s) => s.paused || s.panel !== "none" || s.build);
+  const blocked = useGame((s) => s.paused || s.panel !== "none");
   const color = useGame((s) => s.save.color);
   const gl = useThree((s) => s.gl),
     portal = useMemo(() => ({ current: gl.domElement.parentElement! }), [gl]);
   const shuttle = useRef<THREE.Group>(null),
     shadow = useRef<THREE.Mesh>(null),
     contactRing = useRef<THREE.Mesh>(null);
-  const clock = useRef(0),
-    rewarded = useRef(false),
-    runId = useRef("");
+  const clock = useRef(0);
   const direction = useMemo(() => new THREE.Vector3(), []);
   const matchCamera = useThree((s) => s.camera);
   useEffect(
@@ -424,10 +421,6 @@ export function BadmintonCourt({
         movement.current.z;
       stepBadminton(game.current, input.current, Math.min(delta, 0.05));
       input.current.swing = false;
-      if (game.current.winner === "player" && !rewarded.current) {
-        rewarded.current = true;
-        useGame.getState().award(`badminton-${runId.current}`, 25, 12);
-      }
       clock.current += delta;
       if (clock.current >= 0.08) {
         setSnapshot(view(game.current));
@@ -503,8 +496,6 @@ export function BadmintonCourt({
   const begin = () => {
     if (!playing && !startGameMode("badminton")) return;
     game.current = newBadmintonGame();
-    rewarded.current = false;
-    runId.current = newRunId();
     input.current = noInput();
     setAim(0);
     setShot("clear");
@@ -591,7 +582,6 @@ export function BadmintonCourt({
                       {snapshot.score[0]} – {snapshot.score[1]} · longest rally{" "}
                       {snapshot.longest}
                     </p>
-                    {snapshot.winner === "player" && <p>+25 coins</p>}
                     <button onClick={begin}>Rematch</button>
                     <button className="badminton-quiet" onClick={end}>
                       Back to room

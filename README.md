@@ -2,7 +2,7 @@
 
 A very serious portfolio. A very unserious game.
 
-An original React / TypeScript / Three.js miniature world: a breakable editorial cover, walkable village and interiors, rowing against animated rivals, physical basketball shots, guest progress and visible architectural upgrades.
+An original React / TypeScript / Three.js miniature world: a breakable editorial cover, walkable village and interiors, rowing against animated rivals, physical basketball shots, guest progress and saved personal bests.
 
 ## Local
 
@@ -18,13 +18,13 @@ The booth on the Korea island uses the camera on HTTPS or localhost. The camera 
 
 ## Controls
 
-WASD / arrows or touch joystick to move; click the ground or a building name for pathfinding. Walk to a door then E / Enter button. Inside, approach the back exit mat to return to the same hub spot. Escape pauses. Build suspends movement.
+WASD / arrows or touch joystick to move; click the ground or a building name for pathfinding. Walk to a door then E / Enter button. Inside, approach the back exit mat to return to the same hub spot. Escape pauses.
 
-Rowing: A/D steering, 1/2/3 cadence, hold Space for a stamina burst. Sprint, winding regatta and UTC daily-seed practice. Basketball: WASD position, hold/release Space or the shot button, Q/E or slider aim. Gold power zone is a starting hint; chase a rebound or wait for a new ball. Finish games for local coins; upgrades change the actual world geometry.
+Rowing: A/D steering, 1/2/3 cadence, hold Space for a stamina burst. Sprint, winding regatta and UTC daily-seed practice. Basketball: WASD position, hold/release Space or the shot button, Q/E or slider aim. Gold power zone is a starting hint; chase a rebound or wait for a new ball. Games keep their own scores and personal bests in this browser.
 
 ## Trust and scope
 
-This is a **local guest first slice**, not a finished global game service. Saves and records stay in this browser and are unverified; no fake leaderboard, account sync or server-authoritative wallet. Export a save from Settings. Storage denial/corruption warns without overwriting an unreadable old save. See [architecture](docs/ARCHITECTURE.md), [art](docs/ART_BIBLE.md), [content approvals](docs/CONTENT_APPROVALS.md), and the [zero-cost audit](docs/ZERO_COST_AUDIT.md).
+This is a **local guest first slice**, not a finished global game service. Saves and records stay in this browser and are unverified; no leaderboard, account sync or server-authoritative wallet. Export a save from Settings. Storage denial/corruption warns without overwriting an unreadable old save. See [architecture](docs/ARCHITECTURE.md), [art](docs/ART_BIBLE.md), [content approvals](docs/CONTENT_APPROVALS.md), and the [zero-cost audit](docs/ZERO_COST_AUDIT.md).
 
 ## Staging only
 

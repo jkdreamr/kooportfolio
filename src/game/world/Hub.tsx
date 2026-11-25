@@ -127,7 +127,6 @@ export function Walker({
     }
     runtime.moving =
       !state.paused &&
-      !state.build &&
       !state.overlayLocked &&
       state.panel === "none" &&
       Math.hypot(dx, dz) > 0.1;
@@ -229,7 +228,7 @@ export function Walker({
     );
     const cameraKey = `${state.scene}:${state.world}`;
     const changedScene = cameraScene.current !== cameraKey;
-    const wholeIsland = !interior && worldZoom === 1 && !state.build;
+    const wholeIsland = !interior && worldZoom === 1;
     if (changedScene || wholeIsland) {
       follow.current.copy(desired.current);
       cameraScene.current = cameraKey;
@@ -255,10 +254,8 @@ export function Walker({
               26,
               Math.min(52, size.width / 23, (size.height - 100) / 14),
             )
-        : state.build
-          ? fitted * 0.9
-          : fitted;
-      const zoom = !interior && !state.build ? worldZoom : 1;
+        : fitted;
+      const zoom = !interior ? worldZoom : 1;
       camera.zoom =
         changedScene || wholeIsland
           ? targetZoom * zoom
@@ -353,7 +350,6 @@ const updateTravel = (traveling: boolean) => useGame.setState({ traveling });
 export function Hub() {
   const [trainRiding, setTrainRiding] = useState(false);
   const save = useGame((s) => s.save),
-    build = useGame((s) => s.build),
     world = useGame((s) => s.world),
     traveling = useGame((s) => s.traveling);
   const skate = doorsInWorld(world).find((door) => door.id === "skate");
@@ -366,7 +362,7 @@ export function Hub() {
       {world === "korea" && (
         <KoreaWorldEnvironment
           onVisitLandmark={(x, z) => {
-            if (!build && !traveling) walkTo(x, z);
+            if (!traveling) walkTo(x, z);
           }}
         />
       )}
@@ -386,7 +382,7 @@ export function Hub() {
             const door = doorsInWorld(world).find(
               (entry) => entry.id === "skate",
             )!;
-            if (!build && !traveling) walkTo(door.x, door.z);
+            if (!traveling) walkTo(door.x, door.z);
           }}
         >
           <SkateParkBuilding
@@ -429,7 +425,7 @@ export function Hub() {
         position={[0, 0.24, WORLD_ELLIPSE.centerZ]}
         onPointerDown={(e) => {
           e.stopPropagation();
-          if (!build && !traveling && canWalk(e.point.x, e.point.z, world))
+          if (!traveling && canWalk(e.point.x, e.point.z, world))
             walkTo(e.point.x, e.point.z);
         }}
       >
@@ -441,13 +437,13 @@ export function Hub() {
           key={door.id}
           onPointerDown={(event) => {
             event.stopPropagation();
-            if (!build && !traveling) walkTo(door.x, door.z);
+            if (!traveling) walkTo(door.x, door.z);
           }}
           position={[door.footprint[0], 0, door.footprint[1]]}
           scale={door.scale}
         >
           {door.id === "boathouse" && (
-            <House p={[0, 0, 0]} level={save.upgrades.boathouse} />
+            <House p={[0, 0, 0]} level={3} />
           )}
           {door.id === "office" && <House p={[0, 0, 0]} kind="study" />}
           {door.id === "go" && <GoShell />}
@@ -467,7 +463,7 @@ export function Hub() {
           {world === "home" && <HomeBuildingArt id={door.id} />}
         </group>
       ))}
-      {world === "home" && <Garden level={save.upgrades.garden} />}
+      {world === "home" && <Garden level={3} />}
       <NpcCrowd />
       <Walker locked={trainRiding || traveling} />
       <LabelProjection />

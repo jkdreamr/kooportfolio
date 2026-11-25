@@ -141,11 +141,6 @@ export function advanceRhyme(game: RhymeGame, dt: number): RhymeGame {
   };
 }
 
-// Scoring is for playing the whole round through: every bar finished counts.
-export function rhymeRewardCoins(game: RhymeGame): number {
-  return game.phase === "done" && game.barsDone >= game.bars.length ? 15 : 0;
-}
-
 export const LIGHTS_TARGET = 0b111111111;
 export function flipLights(board: number, tile: number): number {
   if (!Number.isInteger(tile) || tile < 0 || tile > 8) return board;

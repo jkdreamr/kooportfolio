@@ -90,7 +90,7 @@ export function WorldTravel({
   const request = useGame((s) => s.travelRequest);
   const paused = useGame((s) => s.paused);
   const hidden =
-    useGame((s) => s.paused || s.build || s.panel !== "none") || disabled;
+    useGame((s) => s.paused || s.panel !== "none") || disabled;
   const gl = useThree((s) => s.gl);
   const portal = useMemo(
     () => ({ current: gl.domElement.parentElement! }),
