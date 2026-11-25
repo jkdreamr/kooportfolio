@@ -18,7 +18,7 @@ export type WorkOrder = {
   ticket: Ticket;
   stage: "grill" | "build";
   onGrill: boolean;
-  slot: 0 | 1 | null;
+  slot: number | null;
   flipped: boolean;
   sideTime: number;
   firstSide: number;
@@ -51,6 +51,7 @@ export type PapaGame = {
   score: number;
   combo: number;
   missed: number;
+  burners: number;
 };
 const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
 export const names = ["Sam", "Jules", "Max", "Ari", "Leo", "Kai"];
@@ -99,7 +100,7 @@ const freshOrder = (ticket: Ticket): WorkOrder => ({
   grillScore: 0,
   layers: [],
 });
-export function newPapaGame(run = 0, day = 1): PapaGame {
+export function newPapaGame(run = 0, day = 1, burners = 1): PapaGame {
   return {
     run,
     day,
@@ -118,10 +119,11 @@ export function newPapaGame(run = 0, day = 1): PapaGame {
     score: 0,
     combo: 0,
     missed: 0,
+    burners,
   };
 }
 export type PapaAction =
-  | { type: "start"; nextDay?: boolean }
+  | { type: "start"; nextDay?: boolean; burners?: number }
   | { type: "stop" }
   | { type: "tick"; dt: number }
   | { type: "station"; station: PapaGame["station"] }
@@ -161,6 +163,7 @@ export function papaReducer(game: PapaGame, action: PapaAction): PapaGame {
       ...newPapaGame(
         game.run + 1,
         action.nextDay ? game.day + 1 : game.unlockedDay,
+        action.burners ?? game.burners,
       ),
       phase: "service",
     };
@@ -254,15 +257,18 @@ export function papaReducer(game: PapaGame, action: PapaAction): PapaGame {
     ...extra,
     orders: game.orders.map((o) => (o === order ? { ...o, ...patch } : o)),
   });
+  const freeSlot = Array.from({ length: game.burners }, (_, i) => i).find(
+    (slot) => !game.orders.some((o) => o.onGrill && o.slot === slot),
+  );
   if (
     action.type === "drop" &&
     order.stage === "grill" &&
     !order.onGrill &&
-    game.orders.filter((o) => o.onGrill).length < 2
+    freeSlot !== undefined
   )
     return update({
       onGrill: true,
-      slot: game.orders.some((o) => o.onGrill && o.slot === 0) ? 1 : 0,
+      slot: freeSlot,
       flipped: false,
       sideTime: 0,
       firstSide: 0,

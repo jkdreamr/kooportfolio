@@ -11,6 +11,20 @@ import {
 import { useRaceCatch, useRaceHud } from "../scenes/Rowing";
 import { CourtControls, useBasketHud } from "../scenes/Basketball";
 import { Icon } from "./Icon";
+import {
+  BUILDING_ORDER,
+  BUILDINGS,
+  MAX_LEVEL,
+  gardenCapacity,
+  gardenStored,
+  type BuildingId,
+} from "../../shared/buildings";
+
+const BUILD_ICON: Record<BuildingId, string> = {
+  garden: "star",
+  kitchen: "home",
+  boathouse: "oar",
+};
 import { destinationsInWorld, doors, isInterior } from "../core/world";
 import { WORLDS } from "../core/worlds";
 import { profile } from "../../content/profile";
@@ -416,9 +430,15 @@ export function Hud({ interact }: { interact: () => void }) {
     };
   }, []);
   const g = useGame(),
-    [confirmBuild, setConfirmBuild] = useState<"garden" | "boathouse" | null>(
-      null,
-    );
+    [confirmBuild, setConfirmBuild] = useState<BuildingId | null>(null),
+    [now, setNow] = useState(Date.now),
+    stored = gardenStored(g.save.upgrades.garden, g.save.collectedAt, now);
+  useEffect(() => {
+    if (!g.build) return;
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 5000);
+    return () => clearInterval(timer);
+  }, [g.build, g.save.collectedAt]);
   useEffect(() => {
     if (pendingExit.current && pendingExit.current !== g.scene)
       pendingExit.current = null;
@@ -576,7 +596,10 @@ export function Hud({ interact }: { interact: () => void }) {
                   if (g.near === "photo") event.stopPropagation();
                 }}
                 onKeyDown={(event) => {
-                  if ((g.near === "stargazing" || g.near === "photo") && event.key === " ")
+                  if (
+                    (g.near === "stargazing" || g.near === "photo") &&
+                    event.key === " "
+                  )
                     event.stopPropagation();
                 }}
               >
@@ -655,42 +678,39 @@ export function Hud({ interact }: { interact: () => void }) {
             <h1>Build</h1>
           </div>
           <div className="build-panel">
-            {(["boathouse", "garden"] as const).map((key) => {
+            {BUILDING_ORDER.map((key) => {
               const level = g.save.upgrades[key],
-                cost = level === 1 ? 60 : 120;
+                cost = BUILDINGS[key].cost[level - 1],
+                max = level === MAX_LEVEL;
               return (
                 <div key={key} className="build-option">
                   <div className={`build-preview ${key}`}>
-                    <Icon
-                      name={key === "boathouse" ? "home" : "star"}
-                      size={40}
-                    />
+                    <Icon name={BUILD_ICON[key]} size={40} />
                     <span>LV. {level}</span>
                   </div>
                   <div>
-                    <h3>
-                      {key === "boathouse"
-                        ? "The Boathouse"
-                        : "The Little Garden"}
-                    </h3>
+                    <h3>{BUILDINGS[key].name}</h3>
                     <p>
-                      {level === 3
-                        ? "Max level"
-                        : key === "boathouse"
-                          ? level === 1
-                            ? "A waterside balcony for the crew."
-                            : "A lookout tower and new silhouette."
-                          : level === 1
-                            ? "Flower beds & a leafy pergola."
-                            : "More flowers, trees & a place to rest."}
+                      {BUILDINGS[key].perk(level)}
+                      {!max && <> → {BUILDINGS[key].perk(level + 1)}</>}
                     </p>
+                    {key === "garden" && (
+                      <button
+                        className="upgrade-button"
+                        disabled={stored < 1}
+                        onClick={g.collect}
+                      >
+                        <Icon name="coin" size={16} /> {stored}/
+                        {gardenCapacity(level)} <span>Collect</span>
+                      </button>
+                    )}
                     <button
                       className="upgrade-button"
-                      disabled={level === 3 || g.save.coins < cost}
+                      disabled={max || g.save.coins < cost}
                       onClick={() => setConfirmBuild(key)}
                     >
-                      {level === 3 ? (
-                        "Fully upgraded"
+                      {max ? (
+                        "Max level"
                       ) : (
                         <>
                           <Icon name="coin" size={16} /> {cost}{" "}
@@ -706,9 +726,6 @@ export function Hud({ interact }: { interact: () => void }) {
                 </div>
               );
             })}
-            <p className="local-note">
-              Upgrades change the village, not your scores.
-            </p>
             <button
               className="primary-button"
               onClick={() => useGame.setState({ build: false })}
@@ -802,10 +819,10 @@ export function Hud({ interact }: { interact: () => void }) {
       {confirmBuild && (
         <Modal eyebrow="" title="Upgrade?" close={() => setConfirmBuild(null)}>
           <p>
-            {confirmBuild === "boathouse"
-              ? "Expand the boathouse"
-              : "Improve the garden"}{" "}
-            for {g.save.upgrades[confirmBuild] === 1 ? 60 : 120} coins?
+            {BUILDINGS[confirmBuild].name} to Lv{" "}
+            {g.save.upgrades[confirmBuild] + 1} for{" "}
+            {BUILDINGS[confirmBuild].cost[g.save.upgrades[confirmBuild] - 1]}{" "}
+            coins.
           </p>
           <button
             className="primary-button"
@@ -978,8 +995,8 @@ export function Hud({ interact }: { interact: () => void }) {
             </p>
             <b>Grow</b>
             <p>
-              Finish games to earn local coins. Build adds visible architecture,
-              never paid advantages.
+              Finish games to earn coins. The garden grows coins while you are
+              away. Upgrades add burners, race prizes and garden storage.
             </p>
           </div>
         </Modal>

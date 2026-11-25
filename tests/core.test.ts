@@ -83,7 +83,7 @@ describe("guest save trust boundary", () => {
     expect(reward(s, "a", 200, 25)).toBe(s);
     expect(reward(s, "b", -10, 0)).toBe(s);
     s = upgrade(upgrade(s, "garden"), "garden");
-    expect(s.coins).toBe(20);
+    expect(s.coins).toBe(60);
     expect(s.upgrades.garden).toBe(3);
     expect(upgrade(s, "garden")).toBe(s);
   });

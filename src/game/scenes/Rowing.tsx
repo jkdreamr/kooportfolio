@@ -21,6 +21,7 @@ import {
 } from "../core/rowing";
 import { sound } from "../core/sound";
 import { newRunId } from "../../shared/run-id";
+import { raceCoins } from "../../shared/buildings";
 import {
   readRaceRecord,
   saveRaceRecord,
@@ -287,7 +288,10 @@ export function Rowing() {
           board,
           score: Math.round(s.time * 1000),
         });
-      const coins = 45 + (4 - place) * 10 + (length > 400 ? 25 : 0),
+      const coins = raceCoins(
+          45 + (4 - place) * 10 + (length > 400 ? 25 : 0),
+          game.save.upgrades.boathouse,
+        ),
         best = game.save.bestRace;
       const personalBest =
         (!record.current || s.time < record.current.time) &&
