@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "build": "tsc --noEmit && vite build && node scripts/prerender.mjs",
+    "build": "tsc --noEmit && vite build && node scripts/prerender.mjs && node scripts/flatten-dist.mjs",
     "prepreview": "wrangler d1 migrations apply joshua-booth-local --local",
     "preview": "vite preview --host 0.0.0.0",
     "deploy:staging": "node scripts/free-gate.mjs && CLOUDFLARE_ENV=staging npm run build && node scripts/check-staging.mjs && wrangler deploy --config dist/joshua_exe_local/wrangler.json",
