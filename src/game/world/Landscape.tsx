@@ -14,8 +14,17 @@ import { WORLD_ELLIPSE } from "../../shared/world-bounds";
 import { onStanfordLand } from "../../shared/stanford-ground";
 import { StanfordGround } from "./StanfordGround";
 import type { WorldId } from "../core/worlds";
+import { waterMaterial } from "./GlossKit";
 import { STANFORD_WALKS } from "../core/stanfordLayout";
 import { doorsInWorld } from "../core/world";
+
+const pondDisc = new THREE.CircleGeometry(1, 48);
+const pondWater = waterMaterial({
+  color: "#49a8a0",
+  deep: "#2c7178",
+  shore: "disc",
+  scale: 0.55,
+});
 
 type Block = [number, number, number, number, number, number, string, number?];
 function Blocks({
@@ -135,10 +144,20 @@ export function Landscape({ world = "stanford" }: { world?: WorldId }) {
         s={[6.4, POND_SURFACE.bedDepth, 4.4]}
         c="#736c50"
       />
-      <Cylinder
-        p={[POND.x, POND_SURFACE.waterY, POND.z]}
-        s={[POND.radiusX, POND_SURFACE.waterDepth, POND.radiusZ]}
-        c="#459d96"
+      {/* Glossy pool: one flat disc at the old water surface height, so the
+          bed below and the lawn around it keep their depth intervals. */}
+      <mesh
+        geometry={pondDisc}
+        material={pondWater}
+        position={[
+          POND.x,
+          POND_SURFACE.waterY + POND_SURFACE.waterDepth / 2,
+          POND.z,
+        ]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        scale={[POND.radiusX, POND.radiusZ, 1]}
+        receiveShadow
+        dispose={null}
       />
       {Array.from({ length: 20 }, (_, i) => {
         const a = (i / 20) * Math.PI * 2;

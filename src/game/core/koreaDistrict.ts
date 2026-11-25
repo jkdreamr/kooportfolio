@@ -1,11 +1,4 @@
-import {
-  ccwLoop,
-  displaceLoop,
-  offsetLoop,
-  resampleCorners,
-  smoothLoop,
-  type P2,
-} from "./coast";
+import { ccwLoop, resampleLoop, splineLoop, type P2 } from "./coast";
 
 export const KOREA_SHORE = [
   [-56, -17.5],
@@ -75,29 +68,55 @@ export function isOnKoreaLand(x: number, z: number, setback = 0) {
 }
 
 // Render-only outer coast. KOREA_SHORE above stays the walking limit; this
-// rounded apron surrounds it and swells where granite and pine slopes stand.
-// Each swell is a Gaussian push, in world units, around a point on the shore.
-export const KOREA_COAST_SWELLS = [
-  { name: "Namsan ridge", at: [-45, -31], reach: 7.5, spread: 11 },
-  { name: "north hillside", at: [20, -31], reach: 6.5, spread: 24 },
-  { name: "north-east shoulder", at: [51, -27], reach: 3, spread: 7 },
-  { name: "east bank", at: [55, -8], reach: 4.5, spread: 11 },
-  { name: "west point", at: [-57, -2], reach: 3, spread: 9 },
-  { name: "south-west bluff", at: [-37, 46], reach: 3.5, spread: 8 },
-] as const;
-const koreaBase = smoothLoop(
-  offsetLoop(resampleCorners(ccwLoop(KOREA_SHORE), 256), 3),
-  10,
-);
-/** Counter-clockwise, 256 vertices, everywhere at least 2 outside the shore. */
-export const KOREA_COAST: readonly P2[] = smoothLoop(
-  displaceLoop(koreaBase, (_, [x, z]) =>
-    KOREA_COAST_SWELLS.reduce(
-      (sum, { at, reach, spread }) =>
-        sum +
-        reach * Math.exp(-(((x - at[0]) ** 2 + (z - at[1]) ** 2) / spread ** 2)),
-      0,
-    ),
-  ),
-  2,
+// hand-drawn apron surrounds it with headlands, bays and room for the granite
+// ridge behind Namsan and the pine hillside along the north streets.
+const koreaCoastControl: readonly P2[] = [
+  [-60.5, -2],
+  [-59.5, -15],
+  [-56, -25.5],
+  [-51, -36],
+  [-43, -45.5],
+  [-32, -52],
+  [-19, -51.5],
+  [-9, -48],
+  [-3.5, -40],
+  [7, -36],
+  [21, -39.5],
+  [35, -37.5],
+  [47, -35.5],
+  [55.5, -30.5],
+  [57.5, -18],
+  [61.5, -6],
+  [58, 5],
+  [60.5, 10.5],
+  [67, 11.5],
+  [74, 20],
+  [76, 34],
+  [75, 49],
+  [76, 62],
+  [71, 74],
+  [63.5, 77],
+  [52.5, 76.5],
+  [46, 71],
+  [44, 63.5],
+  [37, 61],
+  [20, 61.5],
+  [1, 63],
+  [-14, 61.2],
+  [-28, 56.5],
+  [-38.5, 51.5],
+  [-44, 44],
+  [-44.5, 36],
+  [-41, 29.5],
+  [-36, 26.5],
+  [-35, 22],
+  [-42, 19.8],
+  [-52, 18.6],
+  [-59.5, 15],
+  [-61.5, 6],
+];
+/** Counter-clockwise, 256 even vertices, everywhere outside the shore. */
+export const KOREA_COAST: readonly P2[] = resampleLoop(
+  ccwLoop(splineLoop(koreaCoastControl, 16)),
+  256,
 );

@@ -350,3 +350,49 @@ export function displaceLoop(
     return [x + normals[i][0] * d, z + normals[i][1] * d];
   });
 }
+
+/** Closed uniform Catmull-Rom spline through every control point. */
+export function splineLoop(control: readonly P2[], perSegment = 16): P2[] {
+  const n = control.length;
+  const out: P2[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = control[(i + n - 1) % n],
+      b = control[i],
+      c = control[(i + 1) % n],
+      d = control[(i + 2) % n];
+    for (let k = 0; k < perSegment; k++) {
+      const t = k / perSegment;
+      const axis = (j: 0 | 1) =>
+        0.5 *
+        (2 * b[j] +
+          (-a[j] + c[j]) * t +
+          (2 * a[j] - 5 * b[j] + 4 * c[j] - d[j]) * t * t +
+          (-a[j] + 3 * b[j] - 3 * c[j] + d[j]) * t * t * t);
+      out.push([axis(0), axis(1)]);
+    }
+  }
+  return out;
+}
+
+/** Distance along a ray to its first crossing of the closed polyline, or
+ * Infinity. `direction` need not be normalised; the result is in its units. */
+export function rayToPolygon(
+  origin: P2,
+  direction: P2,
+  points: readonly P2[],
+) {
+  let nearest = Infinity;
+  for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+    const [ax, az] = points[j];
+    const ex = points[i][0] - ax,
+      ez = points[i][1] - az;
+    const cross = direction[0] * ez - direction[1] * ex;
+    if (Math.abs(cross) < 1e-12) continue;
+    const ox = ax - origin[0],
+      oz = az - origin[1];
+    const t = (ox * ez - oz * ex) / cross;
+    const u = (ox * direction[1] - oz * direction[0]) / cross;
+    if (t >= 0 && u >= 0 && u <= 1 && t < nearest) nearest = t;
+  }
+  return nearest;
+}

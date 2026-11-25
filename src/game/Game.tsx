@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import {
   OrthographicCamera,
   PerspectiveCamera,
@@ -23,7 +23,12 @@ import { Hud } from "./ui/Hud";
 import { TimeOfDayLighting } from "./world/TimeOfDayLighting";
 import { TimeOfDayControls } from "./ui/TimeOfDayControls";
 import { WorldZoomControls, WorldZoomInput } from "./ui/WorldZoom";
-import { useTimeOfDay } from "./core/timeOfDay";
+import { daylightClock, useTimeOfDay } from "./core/timeOfDay";
+import { sampleDaylight } from "./core/daylight";
+import { islandFollow } from "./core/islandCamera";
+import { islandForWorld } from "./core/homeIsland";
+import { useWorldView } from "./core/worldView";
+import { updateGloss } from "./world/GlossKit";
 import { WORLDS } from "./core/worlds";
 import { runtime, useGame, type Scene } from "./core/store";
 import { useInput } from "./core/input";
@@ -111,30 +116,93 @@ function FrameMetrics() {
   });
   return null;
 }
+// The key light's fixed direction; the shadow camera sits far enough back
+// that a whole island fits between its near and far planes.
+const SUN_OFFSET = [-60, 120, 60] as const;
+const reducedMotion =
+  typeof matchMedia === "function"
+    ? matchMedia("(prefers-reduced-motion: reduce)")
+    : null;
 function Sun() {
   const light = useRef<THREE.DirectionalLight>(null);
+  const hemisphere = useRef<THREE.HemisphereLight | undefined>(undefined);
   const target = useMemo(() => new THREE.Object3D(), []);
   const quality = useGame((s) => s.quality);
-  useFrame(({ camera }) => {
-    const scene = useGame.getState().scene;
+  // Desktop gets a 4096 map so the island-wide overview frustum keeps roughly
+  // the texel density the old player-sized 2048 frustum had; phones stay 2048.
+  const mapSize = useThree((s) => (s.size.width >= 700 ? 4096 : 2048));
+  useEffect(() => {
+    // Three allocates the depth target once; a new size needs a new target.
+    const shadow = light.current?.shadow;
+    if (!shadow?.map || shadow.map.width === mapSize) return;
+    shadow.mapSize.set(mapSize, mapSize);
+    shadow.map.dispose();
+    shadow.map = null;
+  }, [mapSize]);
+  useFrame(({ camera, gl, scene: root }, delta) => {
+    const { scene, world, quality: tier, paused } = useGame.getState();
     const race = scene === "rowing";
-    const x = race ? camera.position.x : scene === "hub" ? runtime.x : 0;
-    const z = race ? camera.position.z - 18 : scene === "hub" ? runtime.z : 0;
+    const hub = scene === "hub";
+    let x = race ? camera.position.x : hub ? runtime.x : 0;
+    let z = race ? camera.position.z - 18 : hub ? runtime.z : 0;
+    // At the overview the whole island is on screen, so the whole island is
+    // shadowed; walking views shrink back to a crisp player-sized frustum.
+    const follow = hub ? islandFollow(useWorldView.getState().zoom) : 1;
+    const island = islandForWorld(world);
+    const reach = Math.hypot(
+      island.radiusX + (world === "home" ? 9 : 4),
+      island.radiusZ + (world === "home" ? 9 : 4),
+    );
+    x = THREE.MathUtils.lerp(island.centerX, x, follow);
+    z = THREE.MathUtils.lerp(island.centerZ, z, follow);
+    const halfRight = THREE.MathUtils.lerp(reach * Math.SQRT1_2, 35, follow);
+    const halfUp = THREE.MathUtils.lerp(reach / Math.sqrt(3), 32, follow);
+    // Roofs and towers lean toward the top of the light's view.
+    const top = halfUp + 14 * (1 - follow);
+    const sun = light.current;
+    if (sun) {
+      const view = sun.shadow.camera;
+      if (
+        view.right !== halfRight ||
+        view.top !== top ||
+        view.bottom !== -halfUp
+      ) {
+        view.left = -halfRight;
+        view.right = halfRight;
+        view.top = top;
+        view.bottom = -halfUp;
+        view.updateProjectionMatrix();
+      }
+    }
     // Snap the tracking light in its own texel space. Fractional shadow-map
     // motion otherwise makes stationary roofs/grass sparkle while walking.
-    const right =
-      Math.round(((x + z) * Math.SQRT1_2) / (70 / 2048)) * (70 / 2048);
-    const up = Math.round((x - z) / Math.sqrt(3) / (64 / 2048)) * (64 / 2048);
+    const texelRight = (halfRight * 2) / mapSize;
+    const texelUp = (top + halfUp) / mapSize;
+    const right = Math.round(((x + z) * Math.SQRT1_2) / texelRight) * texelRight;
+    const up = Math.round((x - z) / Math.sqrt(3) / texelUp) * texelUp;
     target.position.set(
       (right / Math.SQRT1_2 + up * Math.sqrt(3)) / 2,
       0,
       (right / Math.SQRT1_2 - up * Math.sqrt(3)) / 2,
     );
     target.updateMatrixWorld();
-    light.current?.position.set(
-      target.position.x - 12,
-      24,
-      target.position.z + 12,
+    sun?.position.set(
+      target.position.x + SUN_OFFSET[0],
+      SUN_OFFSET[1],
+      target.position.z + SUN_OFFSET[2],
+    );
+    // One driver for every glossy surface: sky tint, night glow, water time.
+    if (!hemisphere.current) {
+      const found = root.getObjectByName("world-hemisphere");
+      if (found instanceof THREE.HemisphereLight) hemisphere.current = found;
+    }
+    updateGloss(
+      gl,
+      hemisphere.current,
+      sampleDaylight(daylightClock.hour).night,
+      delta,
+      tier === "high",
+      !paused && !reducedMotion?.matches,
     );
   });
   return (
@@ -147,14 +215,11 @@ function Sun() {
         intensity={3.1}
         color="#fff0cc"
         castShadow={quality === "high"}
-        shadow-mapSize={[2048, 2048]}
-        shadow-camera-left={-35}
-        shadow-camera-right={35}
-        shadow-camera-top={32}
-        shadow-camera-bottom={-32}
-        shadow-camera-far={100}
+        shadow-mapSize={[mapSize, mapSize]}
+        shadow-camera-near={1}
+        shadow-camera-far={320}
         shadow-normalBias={0.05}
-        shadow-bias={-0.0003}
+        shadow-bias={-0.0001}
       />
     </>
   );
