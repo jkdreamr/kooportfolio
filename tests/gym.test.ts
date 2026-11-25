@@ -3,12 +3,7 @@ import { gymRepMotion, useGym } from "../src/game/scenes/CognitionGym";
 import { useGameMode } from "../src/game/core/gameMode";
 import { runtime, useGame } from "../src/game/core/store";
 import { freshSave } from "../src/shared/save";
-import {
-  GYM_BEST_KEY,
-  gymMarker,
-  gymTarget,
-  readGymBest,
-} from "../src/game/scenes/gymGame";
+import { gymMarker, gymTarget } from "../src/game/scenes/gymGame";
 
 let clock = 1000;
 beforeEach(() => {
@@ -21,12 +16,7 @@ beforeEach(() => {
     readyAt: 0,
     pausedAt: null,
     strike: 0,
-    score: 0,
-    streak: 0,
     judgment: "",
-    points: 0,
-    best: 0,
-    newBest: false,
   });
   useGame.setState({
     scene: "gym",
@@ -119,72 +109,19 @@ describe("optional gym sessions", () => {
     expect(useGym.getState().reps).toBe(0);
   });
 
-  it("rewards timing and streaks rather than quick repeated presses", () => {
+  it("rewards timing rather than quick repeated presses", () => {
     useGym.getState().startSession();
     perfectLift();
-    expect(useGym.getState()).toMatchObject({
-      reps: 1,
-      judgment: "Perfect",
-      points: 200,
-      score: 200,
-      streak: 1,
-    });
+    expect(useGym.getState()).toMatchObject({ reps: 1, judgment: "Perfect" });
     useGym.getState().lift();
-    expect(useGym.getState()).toMatchObject({ reps: 1, score: 200, streak: 1 });
+    expect(useGym.getState().reps).toBe(1);
     perfectLift();
-    expect(useGym.getState()).toMatchObject({
-      reps: 2,
-      points: 225,
-      score: 425,
-      streak: 2,
-    });
+    expect(useGym.getState().reps).toBe(2);
     clock = useGym.getState().readyAt;
     useGym.getState().lift();
-    expect(useGym.getState()).toMatchObject({
-      reps: 3,
-      judgment: "Miss",
-      points: 0,
-      score: 425,
-      streak: 0,
-    });
+    expect(useGym.getState()).toMatchObject({ reps: 3, judgment: "Miss" });
     perfectLift();
-    expect(useGym.getState()).toMatchObject({
-      reps: 4,
-      points: 200,
-      score: 625,
-      streak: 1,
-    });
-  });
-
-  it("stores a best only after all eight lifts, and keeps it across replay and cancellation", () => {
-    const values = new Map<string, string>();
-    vi.stubGlobal("window", {
-      localStorage: {
-        getItem: (key: string) => values.get(key) ?? null,
-        setItem: (key: string, value: string) => values.set(key, value),
-      },
-    });
-    useGym.getState().startSession();
-    for (let i = 0; i < 7; i++) perfectLift();
-    expect(values.has(GYM_BEST_KEY)).toBe(false);
-    expect(useGym.getState().best).toBe(0);
-    perfectLift();
-    expect(useGym.getState()).toMatchObject({
-      reps: 8,
-      score: 2300,
-      best: 2300,
-      newBest: true,
-    });
-    expect(readGymBest()).toBe(2300);
-    useGym.getState().startSession();
-    expect(useGym.getState()).toMatchObject({
-      reps: 0,
-      score: 0,
-      best: 2300,
-      newBest: false,
-    });
-    useGym.getState().cancelSession();
-    expect(readGymBest()).toBe(2300);
+    expect(useGym.getState().reps).toBe(4);
   });
 
   it("freezes the timing target and recovery while paused", () => {
@@ -215,22 +152,6 @@ describe("optional gym sessions", () => {
     expect(useGym.getState().reps).toBe(1);
   });
 
-  it("does not replace a newer record from another tab with a stale lower score", () => {
-    const values = new Map([[GYM_BEST_KEY, "2000"]]);
-    vi.stubGlobal("window", {
-      localStorage: {
-        getItem: (key: string) => values.get(key) ?? null,
-        setItem: (key: string, value: string) => values.set(key, value),
-      },
-    });
-    useGym.getState().startSession();
-    expect(useGym.getState().best).toBe(0);
-    finishSet();
-    expect(useGym.getState().score).toBeLessThan(2000);
-    expect(useGym.getState()).toMatchObject({ best: 2000, newBest: false });
-    expect(readGymBest()).toBe(2000);
-  });
-
   it("freezes a visible tab when its window loses focus", () => {
     let focused = true;
     vi.stubGlobal("document", { hidden: false, hasFocus: () => focused });
@@ -249,23 +170,4 @@ describe("optional gym sessions", () => {
     expect(useGym.getState()).toMatchObject({ reps: 1, judgment: "Perfect" });
   });
 
-  it("still completes a set when local best storage is blocked", () => {
-    vi.stubGlobal("window", {
-      localStorage: {
-        getItem() {
-          throw new Error("blocked");
-        },
-        setItem() {
-          throw new Error("blocked");
-        },
-      },
-    });
-    expect(readGymBest()).toBe(0);
-    useGym.getState().startSession();
-    for (let i = 0; i < 8; i++) perfectLift();
-    expect(useGym.getState()).toMatchObject({
-      reps: 8,
-      best: 2300,
-    });
-  });
 });

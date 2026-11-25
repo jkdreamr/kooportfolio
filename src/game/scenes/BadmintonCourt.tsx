@@ -510,7 +510,7 @@ export function BadmintonCourt({
   const aimArrow = aim === -1 ? "↖" : aim === 1 ? "↗" : "↑";
   return (
     <>
-      <BadmintonGym score={snapshot.score} />
+      <BadmintonGym />
       <CourtFurnishings />
       <Player game={game.current} opponent color="#b8573f" />
       {playing && (
@@ -557,17 +557,10 @@ export function BadmintonCourt({
               </section>
             ) : (
               <>
-                <section className="badminton-score" aria-label="Match score">
-                  <span>
-                    You <b>{snapshot.score[0]}</b>
-                  </span>
-                  <i>:</i>
-                  <span>
-                    <b>{snapshot.score[1]}</b> Guest
-                  </span>
+                <section className="badminton-score" aria-label="Rally">
                   <small>
                     {snapshot.message ||
-                      `${snapshot.rally} shot${snapshot.rally === 1 ? "" : "s"}`}
+                      `${snapshot.rally} shot${snapshot.rally === 1 ? "" : "s"} rally`}
                   </small>
                 </section>
                 {snapshot.phase === "over" ? (
@@ -575,13 +568,7 @@ export function BadmintonCourt({
                     className="badminton-result"
                     aria-label="Match result"
                   >
-                    <h2>
-                      {snapshot.winner === "player" ? "You win" : "Good game"}
-                    </h2>
-                    <p>
-                      {snapshot.score[0]} – {snapshot.score[1]} · longest rally{" "}
-                      {snapshot.longest}
-                    </p>
+                    <h2>Match over</h2>
                     <button onClick={begin}>Rematch</button>
                     <button className="badminton-quiet" onClick={end}>
                       Back to room

@@ -128,7 +128,6 @@ function KitchenControls({
       arm(null);
     }
   };
-  const average = game.served ? Math.round(game.score / game.served) : 0;
   const passed = shiftPassed(game);
   return (
     <section
@@ -157,8 +156,6 @@ function KitchenControls({
               .toString()
               .padStart(2, "0")}
           </time>
-          <span>{game.tips} tips</span>
-          {game.combo > 1 && <b>×{game.combo}</b>}
         </div>
         <button
           className="papa-close"
@@ -483,9 +480,6 @@ function KitchenControls({
               </div>
             ))}
           </div>
-          <p>
-            +{game.grade.tip} tips{game.combo > 1 ? ` · ×${game.combo}` : ""}
-          </p>
           <button onClick={() => dispatch({ type: "next" })}>Next order</button>
         </div>
       )}
@@ -499,21 +493,13 @@ function KitchenControls({
                 {game.served}/{dayGoal(game.day)}
               </b>
             </div>
-            <div>
-              <span>Average</span>
-              <b>{average}%</b>
-            </div>
-            <div>
-              <span>Tips</span>
-              <b>{game.tips}</b>
-            </div>
           </div>
           <p>
             {game.missed
               ? `${game.missed} ${game.missed === 1 ? "customer left" : "customers left"}`
               : passed
                 ? `Day ${game.day + 1} unlocked`
-                : "80% average to advance"}
+                : ""}
           </p>
           <button
             onClick={() => {

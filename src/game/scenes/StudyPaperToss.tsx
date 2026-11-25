@@ -299,13 +299,13 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
                 <header>
                   <div>
                     <h2>Paper Toss</h2>
-                    <span aria-label={`Score ${hud.score}; shots ${hud.attempts} of ${TOSS_LIMIT}`}>
-                      <b key={hud.score} className={hud.score ? "toss-score-pop" : undefined}>{hud.score}</b> / {TOSS_LIMIT} scored
+                    <span aria-label={`Shots ${hud.attempts} of ${TOSS_LIMIT}`}>
+                      Shot {hud.attempts} / {TOSS_LIMIT}
                     </span>
                     <p className="toss-status" role="status">
-                      {finished ? `${hud.score} of ${TOSS_LIMIT} made`
+                      {finished ? "All shots taken"
                         : !hud.landing && `Shot ${hud.attempts + 1} of ${TOSS_LIMIT}`}
-                      {!finished && hud.result && <strong key={hud.attempts} data-result={hud.result}>{hud.result === "hit" ? "+1" : "Miss"}</strong>}
+                      {!finished && hud.result && <strong key={hud.attempts} data-result={hud.result}>{hud.result === "hit" ? "In" : "Miss"}</strong>}
                     </p>
                   </div>
                   <button onClick={close}>Close</button>

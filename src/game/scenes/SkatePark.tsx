@@ -21,7 +21,6 @@ import {
   SKATE_EXIT,
   idleSkateInput,
   newSkateGame,
-  skateComboValue,
   skateHeight,
   stepSkate,
   type SkateState,
@@ -47,13 +46,8 @@ const ridingKeys = new Set([
 type Hold = "left" | "right" | "push" | "brake" | "grind";
 function snapshot(g: SkateState) {
   return {
-    score: g.score,
-    combo: skateComboValue(g),
-    multiplier: Math.min(8, g.count),
-    comboTime: g.comboTime,
     time: Math.max(0, Math.ceil(SKATE.duration - g.time)),
     phase: g.phase,
-    bestCombo: g.bestCombo,
     speed: Math.round(g.speed * S * 3.6),
     feedback: g.messageTime > 0 ? g.message : "",
     grinding: g.rail >= 0,
@@ -540,27 +534,9 @@ export function SkateParkInterior() {
               </section>
             ) : (
               <>
-                <section className="skate-score" aria-label="Skate score">
+                <section className="skate-score" aria-label="Skate session">
                   <span>{mode === "run" ? `${view.time}s` : "Free skate"}</span>
-                  <div className="skate-banked">
-                    <span>Banked</span>
-                    <strong>{view.score.toLocaleString()}</strong>
-                  </div>
                   <span>{view.speed} km/h</span>
-                  {view.combo > 0 && (
-                    <div className="skate-combo">
-                      <span className="skate-combo-label">
-                        Unbanked <small>×{view.multiplier}</small>
-                      </span>
-                      <b>{view.combo.toLocaleString()}</b>
-                      <meter
-                        aria-label="Combo link time"
-                        min={0}
-                        max={SKATE.comboWindow}
-                        value={view.comboTime}
-                      />
-                    </div>
-                  )}
                 </section>
                 <p className="skate-feedback" role="status">
                   {view.feedback}
@@ -571,10 +547,7 @@ export function SkateParkInterior() {
                     aria-label="Skate run result"
                   >
                     <span className="skate-eyebrow">Run complete</span>
-                    <h2>{view.score.toLocaleString()} points</h2>
-                    <p>
-                      Best line {view.bestCombo.toLocaleString()}
-                    </p>
+                    <h2>Nice line</h2>
                     <div className="skate-modes">
                       <button onClick={() => begin("run")}>Ride again</button>
                       <button onClick={leaveBoard}>Step off</button>

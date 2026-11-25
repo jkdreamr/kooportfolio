@@ -89,7 +89,6 @@ type State = {
   result: null | {
     game: string;
     title: string;
-    score: string;
     detail: string;
   };
   run: number;

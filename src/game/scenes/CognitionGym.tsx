@@ -9,15 +9,12 @@ import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import { COGNITION_OFFICE_WALL } from "../core/houseRooms";
 import { sound } from "../core/sound";
 import {
-  GYM_GOAL,
   GYM_PERFECT_RADIUS,
   GYM_REP_MS,
   GYM_TARGET_RADIUS,
   gymMarker,
   gymTarget,
   judgeGymLift,
-  readGymBest,
-  saveGymBest,
 } from "./gymGame";
 import {
   CognitionDeskBadge,
@@ -53,12 +50,7 @@ export const useGym = create<{
   readyAt: number;
   pausedAt: number | null;
   strike: number;
-  score: number;
-  streak: number;
   judgment: "Perfect" | "Clean" | "Miss" | "";
-  points: number;
-  best: number;
-  newBest: boolean;
   syncClock: () => void;
   startSession: () => boolean;
   cancelSession: () => void;
@@ -69,12 +61,7 @@ export const useGym = create<{
   readyAt: 0,
   pausedAt: null,
   strike: 0,
-  score: 0,
-  streak: 0,
   judgment: "",
-  points: 0,
-  best: readGymBest(),
-  newBest: false,
   syncClock() {
     if (useGameMode.getState().active?.id !== "gym") return;
     const now = performance.now();
@@ -108,11 +95,7 @@ export const useGym = create<{
       readyAt: performance.now(),
       pausedAt: null,
       strike: 0,
-      score: 0,
-      streak: 0,
       judgment: "",
-      points: 0,
-      newBest: false,
     });
     return true;
   },
@@ -123,11 +106,7 @@ export const useGym = create<{
       readyAt: 0,
       pausedAt: null,
       strike: 0,
-      score: 0,
-      streak: 0,
       judgment: "",
-      points: 0,
-      newBest: false,
     });
     if (useGameMode.getState().active?.id === "gym") endGameMode();
   },
@@ -146,24 +125,15 @@ export const useGym = create<{
     if (now - get().liftedAt < GYM_REP_MS) return;
     const state = get();
     const strike = gymMarker(state.readyAt, now, state.reps);
-    const result = judgeGymLift(strike, gymTarget(state.reps), state.streak);
-    const reps = state.reps + 1;
-    const score = state.score + result.points;
+    const judgment = judgeGymLift(strike, gymTarget(state.reps));
     set({
-      reps,
+      reps: state.reps + 1,
       liftedAt: now,
       readyAt: now + GYM_REP_MS,
       strike,
-      score,
-      streak: result.streak,
-      judgment: result.judgment,
-      points: result.points,
+      judgment,
     });
-    sound(result.judgment === "Miss" ? "bounce" : "score");
-    if (reps === 8) {
-      const record = saveGymBest(score, state.best);
-      set(record);
-    }
+    sound(judgment === "Miss" ? "bounce" : "score");
   },
 }));
 
@@ -208,12 +178,7 @@ function GymCamera() {
 function GymControls() {
   const active = useGameMode((s) => s.active?.id === "gym");
   const reps = useGym((s) => s.reps);
-  const score = useGym((s) => s.score),
-    best = useGym((s) => s.best),
-    streak = useGym((s) => s.streak),
-    judgment = useGym((s) => s.judgment),
-    points = useGym((s) => s.points),
-    newBest = useGym((s) => s.newBest);
+  const judgment = useGym((s) => s.judgment);
   const hidden = useGame((s) => s.paused || s.panel !== "none");
   const [near, setNear] = useState(false),
     [phase, setPhase] = useState<LiftPhase>("ready"),
@@ -342,16 +307,7 @@ function GymControls() {
             </header>
             <div className="gym-game-bottom">
               <div className="gym-scoreline">
-                <span>
-                  Score <strong>{score.toLocaleString()}</strong>
-                </span>
-                <span>
-                  {best ? "Best" : "Goal"}{" "}
-                  <strong>{(best || GYM_GOAL).toLocaleString()}</strong>
-                </span>
-                <span className="gym-streak">
-                  {streak > 1 ? `${streak} streak` : `${reps}/8`}
-                </span>
+                <span className="gym-streak">{reps}/8</span>
               </div>
               {!complete && (
                 <div
@@ -390,10 +346,10 @@ function GymControls() {
               </div>
               <p role="status">
                 {complete
-                  ? newBest ? "New best" : "Set complete"
+                  ? "Set complete"
                   : ready
                     ? "Lift in the target"
-                    : `${judgment}${points ? ` +${points}` : ""} · ${phase === "pressing" ? "Pressing…" : "Lowering…"}`}
+                    : `${judgment} · ${phase === "pressing" ? "Pressing…" : "Lowering…"}`}
               </p>
               <button
                 className="gym-primary"

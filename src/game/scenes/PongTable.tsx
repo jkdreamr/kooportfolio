@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef, useState } from "react";
+import { useEffect, useReducer, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import {
@@ -10,8 +10,6 @@ import {
   pongDepth,
   pongReducer,
   pongSwipe,
-  readPongBest,
-  savePongBest,
 } from "../core/pong";
 import { sound } from "../core/sound";
 import { Ball, Cylinder, Ring } from "../world/Models";
@@ -59,7 +57,6 @@ export function PongTable() {
   const active = useGameMode((s) => s.active?.id === "pong");
   const otherMode = useGameMode((s) => !!s.active && s.active.id !== "pong");
   const [game, dispatch] = useReducer(pongReducer, undefined, newPong);
-  const [best, setBest] = useState(readPongBest);
   const gl = useThree((s) => s.gl);
   const ball = useRef<THREE.Group>(null),
     sinking = useRef<THREE.Group>(null),
@@ -98,7 +95,6 @@ export function PongTable() {
     if (game.phase !== "landed" || !game.last) return;
     if (game.cups.length === 0) sound("win");
     else sound(game.last.result === "cup" ? "score" : "bounce");
-    if (game.cups.length === 0) setBest(savePongBest(game.shots));
   }, [game.phase, game.last, game.cups.length, game.shots]);
 
   // Swipe up from anywhere on the stage: height sets depth, sideways sets aim.
@@ -348,7 +344,6 @@ export function PongTable() {
               <b>{6 - game.cups.length}/6 cups</b>
               <span>
                 {PONG_THROWS - game.shots} throws left
-                {best !== null && ` · best ${best}`}
               </span>
             </div>
           </div>

@@ -6,7 +6,6 @@ import {
   catchReady,
   CATCH_WINDOW_START,
   dailySeed,
-  raceTime,
 } from "../core/rowing";
 import { useRaceCatch, useRaceHud } from "../scenes/Rowing";
 import { CourtControls, useBasketHud } from "../scenes/Basketball";
@@ -88,7 +87,7 @@ function RaceCatch() {
 }
 
 export function RaceHud() {
-  const { race, place } = useRaceHud();
+  const { race } = useRaceHud();
   const pointers = useRef(new Map<number, "left" | "right" | "burst">());
   const [held, setHeld] = useState<string[]>([]);
   const updateTouch = () => {
@@ -154,17 +153,6 @@ export function RaceHud() {
       )}
       <div className="race-instruments">
         <div>
-          <small>Time</small>
-          <strong>{raceTime(race.time)}</strong>
-        </div>
-        <div>
-          <small>Place</small>
-          <strong>
-            {place}
-            <em> / 4</em>
-          </strong>
-        </div>
-        <div>
           <small>Speed</small>
           <strong>
             {race.speed.toFixed(1)}
@@ -208,12 +196,6 @@ export function RaceHud() {
               : "Stay in the pale current."}
         </p>
       </div>
-      {race.splits.length > 0 && (
-        <div className="last-split">
-          {race.splits.length * 100} m split{" "}
-          <b>{raceTime(race.splits[race.splits.length - 1])}</b>
-        </div>
-      )}
       <div className="race-touch">
         <button aria-label="Steer left" {...touchButton("left")}>
           ←
@@ -240,11 +222,6 @@ export function BasketHud() {
         WASD move · Hold Space to charge, release to shoot · Q / E aim
       </p>
       <div className="basket-score">
-        <div>
-          <small>Score</small>
-          <strong>{hud.score.toString().padStart(2, "0")}</strong>
-        </div>
-        <span />
         <div>
           <small>Time</small>
           <strong>
@@ -930,7 +907,6 @@ export function Hud({ interact }: { interact: () => void }) {
           title={g.result.title}
           close={() => g.go(g.scene === "rowing" ? "boathouse" : "hub")}
         >
-          <div className="result-score">{g.result.score}</div>
           <p className="result-detail">{g.result.detail}</p>
           <button
             className="primary-button"

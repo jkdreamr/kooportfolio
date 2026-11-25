@@ -508,7 +508,7 @@ export function BeatLabInterior() {
                 <strong>Beat Lab</strong>
                 <span>
                   {view.phase === "playing"
-                    ? `Bar ${Math.min(RHYME_BARS, Math.max(1, bar + 1))}/${RHYME_BARS} · ${view.points}`
+                    ? `Bar ${Math.min(RHYME_BARS, Math.max(1, bar + 1))}/${RHYME_BARS}`
                     : `${RHYME_BEATS[view.beat].name} · ${RHYME_BEATS[view.beat].bpm} BPM`}
                 </span>
               </div>
@@ -526,7 +526,7 @@ export function BeatLabInterior() {
               <div className="rhyme-toolbar">
                 <p className="lab-feedback" role="status">
                   {view.phase === "done"
-                    ? `${view.barsDone}/${view.bars.length} bars · ${view.points} points`
+                    ? `${view.barsDone}/${view.bars.length} bars done`
                     : view.phase === "playing"
                       ? "Rhyme on the last beat"
                       : "Rhyme words to the beat"}

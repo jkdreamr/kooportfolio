@@ -44,27 +44,19 @@ export const useBasketOptions = create<{
 }>(() => ({ mode: "warmup", style: "arc", assist: true, round: 0 }));
 export const useBasketHud = create<{
   time: number;
-  score: number;
   charge: number;
   feedback: string;
-  shots: number;
-  combo: number;
   holding: boolean;
   challenge: number;
   target: number;
-  made: number;
   finished: boolean;
 }>(() => ({
   time: 30,
-  score: 0,
   charge: 0,
   feedback: "",
-  shots: 0,
-  combo: 0,
   holding: true,
   challenge: 0,
   target: 0,
-  made: 0,
   finished: false,
 }));
 
@@ -78,15 +70,11 @@ function beginRound(mode = useBasketOptions.getState().mode) {
   runtime.shoot = runtime.shooting = runtime.moving = false;
   useBasketHud.setState({
     time: MODES[mode].duration,
-    score: 0,
     charge: 0,
     feedback: "",
-    shots: 0,
-    combo: 0,
     holding: true,
     challenge: 0,
     target: 0,
-    made: 0,
     finished: false,
   });
   useBasketOptions.setState((s) => ({ mode, round: s.round + 1 }));
@@ -173,7 +161,7 @@ export function CourtControls({ focused = false }: { focused?: boolean } = {}) {
           </div>
           <p>
             <span>{String(challenge + 1).padStart(2, "0")}</span>{" "}
-            {COURT_SPOTS[target].label} <b>+3</b>
+            {COURT_SPOTS[target].label}
           </p>
           {mode === "daily" && <small>UTC · local, unranked</small>}
         </>
@@ -273,18 +261,14 @@ function CourtSessionHud({ close }: { close: () => void }) {
           <span>COURT 01</span>
           <strong>{MODES[mode].label}</strong>
         </div>
-        <div className="court-session-score" aria-label="Score and time">
-          <strong>
-            {String(hud.score).padStart(2, "0")}
-            <small>PTS</small>
-          </strong>
-          {mode !== "practice" && (
+        {mode !== "practice" && (
+          <div className="court-session-score" aria-label="Time left">
             <span>
               {Math.ceil(hud.time)}
               <small>SEC</small>
             </span>
-          )}
-        </div>
+          </div>
+        )}
         <div className="court-session-actions">
           <button onClick={() => useGame.setState({ paused: true })}>
             Pause
@@ -420,12 +404,7 @@ function CourtSessionHud({ close }: { close: () => void }) {
       {hud.finished && (
         <div className="court-finished" role="status">
           <span>TIME</span>
-          <h2>
-            {hud.score} <small>PTS</small>
-          </h2>
-          <p>
-            {hud.made}/{hud.shots} made
-          </p>
+          <h2>Session done</h2>
           <button onClick={() => beginRound()}>Play again</button>
           <button onClick={close}>Close</button>
         </div>
@@ -488,10 +467,6 @@ function BasketballCourt({ playing }: { playing: boolean }) {
     charge = useRef(0),
     chargeAge = useRef(0),
     release = useRef(1),
-    score = useRef(0),
-    shots = useRef(0),
-    made = useRef(0),
-    combo = useRef(0),
     done = useRef(false),
     holding = useRef(true),
     shotDistance = useRef(0),
@@ -640,7 +615,6 @@ function BasketballCourt({ playing }: { playing: boolean }) {
         options.style,
       );
       release.current = 0;
-      shots.current++;
       feedback.current =
         Math.abs(charge.current - 0.62) < 0.045
           ? "Clean release"
@@ -667,15 +641,9 @@ function BasketballCourt({ playing }: { playing: boolean }) {
           lastBounce.current = elapsed.current;
         }
         if (result.score) {
-          combo.current++;
-          made.current++;
-          const value = shotValue(ball.current, shotDistance.current),
-            bonus = spotShot.current ? 3 : 0,
-            streak = Math.min(3, Math.max(0, combo.current - 1));
-          const points = value.points + bonus + streak;
-          score.current += points;
-          feedback.current = `${value.label} +${value.points}${bonus ? " · Spot +3" : ""}${streak ? ` · Streak +${streak}` : ""}`;
-          if (bonus) challenge.current++;
+          const value = shotValue(ball.current, shotDistance.current);
+          feedback.current = value.label;
+          if (spotShot.current) challenge.current++;
           scoredAt.current = elapsed.current;
           sound("score");
         }
@@ -707,7 +675,6 @@ function BasketballCourt({ playing }: { playing: boolean }) {
         b.age > 5.5
       ) {
         if (!b.scored) {
-          combo.current = 0;
           feedback.current = b.age > 5.5 ? "Next ball" : "Rebound";
         } else feedback.current = "";
         ball.current = null;
@@ -789,15 +756,11 @@ function BasketballCourt({ playing }: { playing: boolean }) {
     if (elapsed.current >= nextHud.current) {
       useBasketHud.setState({
         time: duration ? Math.max(0, duration - elapsed.current) : 0,
-        score: score.current,
         charge: charge.current,
         feedback: feedback.current,
-        shots: shots.current,
-        combo: combo.current,
         holding: holding.current && !buzzer,
         challenge: challenge.current,
         target: target(),
-        made: made.current,
       });
       nextHud.current = elapsed.current + 0.05;
     }
@@ -808,12 +771,7 @@ function BasketballCourt({ playing }: { playing: boolean }) {
       (!ball.current || elapsed.current > duration + 5.5)
     ) {
       done.current = true;
-      useBasketHud.setState({
-        finished: true,
-        score: score.current,
-        made: made.current,
-        shots: shots.current,
-      });
+      useBasketHud.setState({ finished: true });
       sound("win");
     }
   });

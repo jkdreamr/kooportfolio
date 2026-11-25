@@ -166,16 +166,6 @@ export function rivalInput(
       (s.time > 0 && s.time < 3.5 && rival === 1),
   };
 }
-export function racePlace(player: RaceState, rivals: RaceState[]) {
-  return (
-    1 +
-    rivals.filter((rival) =>
-      player.finished
-        ? rival.finished && rival.time < player.time
-        : rival.finished || rival.distance > player.distance,
-    ).length
-  );
-}
 export function dailySeed(date = new Date()) {
   return (
     Math.floor(
@@ -184,5 +174,3 @@ export function dailySeed(date = new Date()) {
     ) % 997
   );
 }
-export const raceTime = (time: number) =>
-  `${Math.floor(Math.max(0, time) / 60)}:${(Math.max(0, time) % 60).toFixed(2).padStart(5, "0")}`;

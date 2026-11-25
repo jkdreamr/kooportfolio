@@ -5,21 +5,12 @@ import {
   pongPower,
   pongReducer,
   pongSwipe,
-  readPongBest,
-  savePongBest,
   type Pong,
 } from "../src/game/core/pong";
 function toss(game: Pong, x: number, z: number) {
   game = pongReducer(game, { type: "throw", aim: x, power: pongPower(z) });
   game = pongReducer(game, { type: "settle" });
   return pongReducer(game, { type: "next" });
-}
-function memory() {
-  const data = new Map<string, string>();
-  return {
-    getItem: (k: string) => data.get(k) ?? null,
-    setItem: (k: string, v: string) => void data.set(k, v),
-  };
 }
 describe("cup pong", () => {
   it("clears each physical cup using its aim and depth", () => {
@@ -95,15 +86,6 @@ describe("cup pong", () => {
       flying,
     );
     expect(pongReducer(flying, { type: "reset" })).toBe(flying);
-  });
-  it("keeps the fewest throws for a full clear", () => {
-    const storage = memory();
-    expect(readPongBest(storage)).toBeNull();
-    expect(savePongBest(9, storage)).toBe(9);
-    expect(savePongBest(10, storage)).toBe(9);
-    expect(savePongBest(7, storage)).toBe(7);
-    storage.setItem("joshua-exe-pong-best", "3");
-    expect(readPongBest(storage)).toBeNull();
   });
   it("aims a swipe from where it was released", () => {
     expect(pongSwipe(0, -29, 180)).toEqual({ aim: 0, power: 29 / 180 });

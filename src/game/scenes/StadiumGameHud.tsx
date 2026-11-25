@@ -4,8 +4,6 @@ import { useThree } from "@react-three/fiber";
 import type { KickResult } from "../core/fieldGoal";
 import {
   STADIUM_KICKS,
-  STADIUM_TARGET,
-  type StadiumScore,
 } from "../core/stadiumChallenge";
 import { useGame } from "../core/store";
 
@@ -52,8 +50,6 @@ function TimingBar({
 }
 
 export function StadiumGameHud({
-  score,
-  best,
   attempt,
   wind,
   phase,
@@ -67,8 +63,6 @@ export function StadiumGameHud({
   onAction,
   onClose,
 }: {
-  score: StadiumScore;
-  best: number;
   attempt: number;
   wind: number;
   phase: StadiumPhase;
@@ -96,8 +90,7 @@ export function StadiumGameHud({
   const keySample = useRef<number | undefined>(undefined);
   const pointerSample = useRef<number | undefined>(undefined);
   const result = results[attempt];
-  const win = score.points >= STADIUM_TARGET;
-  const outcome = result === "Good" ? `Good! +${2 + score.streak}` : result;
+  const outcome = result;
   const status =
     phase === "power"
       ? "Stop the bar in green."
@@ -105,9 +98,7 @@ export function StadiumGameHud({
         ? "Now line up the kick."
         : phase === "flight"
           ? "In flight"
-          : finished
-            ? `${outcome} · ${win ? "Target hit" : "Target missed"}`
-            : outcome;
+          : outcome;
   const action =
     phase === "power"
       ? "Set power"
@@ -141,11 +132,6 @@ export function StadiumGameHud({
       >
         <div className="stadium-game-score">
           <strong>49ERS</strong>
-          <span key={score.points} data-scored={score.points > 0}>
-            {score.points} <small>PTS</small>
-          </span>
-          <small>GOAL {STADIUM_TARGET}</small>
-          <small>BEST {best}</small>
         </div>
         <button
           className="stadium-game-close"
@@ -185,7 +171,6 @@ export function StadiumGameHud({
                   ))}
                 </div>
               </div>
-              {score.streak > 1 && <strong>{score.streak} in a row</strong>}
               <span>
                 {wind
                   ? `Wind ${Math.round(Math.abs(wind) * 10)} ${wind > 0 ? "→" : "←"}`
