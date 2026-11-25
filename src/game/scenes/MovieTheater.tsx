@@ -174,8 +174,15 @@ function ProgramPanel({
       ? playing.title
       : null,
   );
-  const [limit, setLimit] = useState(PROGRAM_PAGE);
+  // Open far enough to include the film that is playing.
+  const [limit, setLimit] = useState(() => {
+    const index = openTitle
+      ? (groups.get(openTitle) ?? []).findIndex((film) => film.id === filmId)
+      : 0;
+    return Math.ceil((Math.max(index, 0) + 1) / PROGRAM_PAGE) * PROGRAM_PAGE;
+  });
   // Focus requests, honoured by callback refs once the target node mounts.
+  const revealPlaying = useRef(filmId);
   const focusBack = useRef(false);
   const focusShow = useRef<string | null>(null);
   const focusIndex = useRef<number | null>(null);
@@ -192,7 +199,10 @@ function ProgramPanel({
   );
   const episodes = openTitle ? (groups.get(openTitle) ?? []) : [];
 
-  const openShow = (title: string) => {
+  const toTop = (from: Element) =>
+    from.closest("#cinema-program")?.scrollTo({ top: 0 });
+  const openShow = (title: string, from: Element) => {
+    toTop(from);
     focusBack.current = true;
     setOpenTitle(title);
     setLimit(PROGRAM_PAGE);
@@ -206,21 +216,30 @@ function ProgramPanel({
     focusIndex.current = limit;
     setLimit(limit + PROGRAM_PAGE);
   };
-  const itemRef = (index: number) => (button: HTMLButtonElement | null) => {
-    if (button && focusIndex.current === index) {
-      focusIndex.current = null;
-      button.focus();
-    }
-  };
+  const itemRef =
+    (index: number, id?: string) => (button: HTMLButtonElement | null) => {
+      if (button && focusIndex.current === index) {
+        focusIndex.current = null;
+        button.focus();
+      }
+      if (button && id && revealPlaying.current === id) {
+        revealPlaying.current = null;
+        button.scrollIntoView({ block: "nearest" });
+      }
+    };
+  // Inside a show the title is implied; name the kind only when it varies.
+  const mixedKinds = new Set(episodes.map((film) => film.kind)).size > 1;
   const filmButton = (film: TheaterFilm, index: number, inShow: boolean) => (
     <button
       key={film.id}
-      ref={itemRef(index)}
+      ref={itemRef(index, film.id)}
       aria-pressed={filmId === film.id}
       onClick={() => onPick(film)}
     >
       <strong>{inShow ? film.episode : film.title}</strong>
-      <span>{inShow ? film.kind : film.episode}</span>
+      {(!inShow || mixedKinds) && (
+        <span>{inShow ? film.kind : film.episode}</span>
+      )}
     </button>
   );
   const moreButton = (total: number, noun: string) =>
@@ -304,9 +323,7 @@ function ProgramPanel({
               onClick={() => onPick(single)}
             >
               <strong>{title}</strong>
-              <span>
-                {single.episode} · {single.channel}
-              </span>
+              <span>{single.episode}</span>
             </button>
           ) : (
             <button
@@ -314,7 +331,7 @@ function ProgramPanel({
               ref={ref}
               className="cinema-show"
               aria-current={playing?.title === title || undefined}
-              onClick={() => openShow(title)}
+              onClick={(event) => openShow(title, event.currentTarget)}
             >
               <strong>{title}</strong>
               <span>
@@ -342,6 +359,7 @@ function ProgramPanel({
           enterKeyHint="search"
           value={query}
           onChange={(event) => {
+            toTop(event.target);
             setQuery(event.target.value);
             setLimit(PROGRAM_PAGE);
           }}
