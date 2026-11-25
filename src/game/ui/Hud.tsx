@@ -481,7 +481,7 @@ export function Hud({ interact }: { interact: () => void }) {
           <RoomStory
             key={g.scene}
             scene={g.scene as PlaceId}
-            hidden={g.paused || g.panel !== "none"}
+            hidden={g.paused || g.panel !== "none" || g.near === "exit"}
           />
         </div>
       )}
