@@ -619,7 +619,6 @@ export function BadmintonCourt({
                     <section
                       className="badminton-actions"
                       aria-label="Racket controls"
-                      data-badminton-shortcuts
                     >
                       <output
                         className="badminton-selection"
@@ -677,11 +676,7 @@ export function BadmintonCourt({
                           </>
                         ) : (
                           <>
-                            ↑ clear ·{" "}
-                            <span className="badminton-tap-hint">
-                              tap drop ·{" "}
-                            </span>
-                            ↓ smash
+                            ↑ clear · ↓ smash
                             <br />
                             <output
                               className="badminton-touch-selection"

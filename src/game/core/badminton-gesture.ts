@@ -1,6 +1,6 @@
-import type { BadmintonInput } from "./badminton";
+import type { BadmintonInput, BadmintonShot } from "./badminton";
 
-/** Visible presets win for every pointer; gesture-only touch starts at a centered drop. */
+/** Touch taps stay centered so there is always a way back to neutral aim; shots stay sticky once presets are visible. */
 export function badmintonGesture(
   dx: number,
   dy: number,
@@ -8,11 +8,20 @@ export function badmintonGesture(
   pointerType = "mouse",
   presetsVisible = false,
 ): Pick<BadmintonInput, "aim" | "shot"> {
-  const baseline = (pointerType === "touch" || pointerType === "pen") && !presetsVisible
-    ? { aim: 0 as const, shot: "drop" as const }
+  const touch = pointerType === "touch" || pointerType === "pen";
+  const crossedX = dx < -18 || dx > 18;
+  const crossedY = dy < -14 || dy > 14;
+  const baseline = touch
+    ? {
+        aim: (presetsVisible && (crossedX || crossedY) ? selected.aim : 0) as
+          | -1
+          | 0
+          | 1,
+        shot: (presetsVisible ? selected.shot : "drop") as BadmintonShot,
+      }
     : selected;
   return {
     aim: dx < -18 ? -1 : dx > 18 ? 1 : baseline.aim,
-    shot: dy < -18 ? "clear" : dy > 18 ? "smash" : baseline.shot,
+    shot: dy < -14 ? "clear" : dy > 14 ? "smash" : baseline.shot,
   };
 }
