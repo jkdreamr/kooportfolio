@@ -499,7 +499,7 @@ function KitchenControls({
               ? `${game.missed} ${game.missed === 1 ? "customer left" : "customers left"}`
               : passed
                 ? `Day ${game.day + 1} unlocked`
-                : ""}
+                : "Serve faster and cleaner to advance"}
           </p>
           <button
             onClick={() => {
