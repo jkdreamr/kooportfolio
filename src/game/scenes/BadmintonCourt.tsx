@@ -603,7 +603,6 @@ export function BadmintonCourt({
                     <section
                       className="badminton-actions"
                       aria-label="Racket controls"
-                      data-badminton-shortcuts
                     >
                       <output
                         className="badminton-selection"
