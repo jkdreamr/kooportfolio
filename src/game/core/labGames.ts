@@ -2,11 +2,13 @@ export const BEATS_PER_BAR = 4;
 export const RHYME_BARS = 16;
 export const RHYME_COUNT_IN_BARS = 1;
 export const RHYME_BAR_POINTS = 100;
-export const RHYME_TEMPOS = [
-  { name: "Chill", bpm: 82 },
-  { name: "Bounce", bpm: 96 },
-  { name: "Sprint", bpm: 114 },
+export const RHYME_BEATS = [
+  { name: "Boom Bap", bpm: 90, pattern: "boombap" },
+  { name: "Lo-Fi", bpm: 76, pattern: "lofi" },
+  { name: "House", bpm: 122, pattern: "house" },
+  { name: "Trap", bpm: 138, pattern: "trap" },
 ] as const;
+export type RhymeBeatPattern = (typeof RHYME_BEATS)[number]["pattern"];
 
 // Rhyme dictionary: each family is a set of rhyming words fed in AABB couplets.
 export const RHYME_FAMILIES: readonly (readonly string[])[] = [
@@ -46,7 +48,7 @@ export type RhymeBar = { family: number; word: string };
 export type RhymeGame = {
   phase: "ready" | "playing" | "done";
   seed: number;
-  tempo: number;
+  beat: number;
   time: number;
   bars: RhymeBar[];
   barsDone: number;
@@ -64,13 +66,13 @@ function mulberry32(seed: number) {
   };
 }
 
-export function rhymeBeatInterval(game: Pick<RhymeGame, "tempo">): number {
-  return 60 / RHYME_TEMPOS[game.tempo].bpm;
+export function rhymeBeatInterval(game: Pick<RhymeGame, "beat">): number {
+  return 60 / RHYME_BEATS[game.beat].bpm;
 }
-export function rhymeBarInterval(game: Pick<RhymeGame, "tempo">): number {
+export function rhymeBarInterval(game: Pick<RhymeGame, "beat">): number {
   return rhymeBeatInterval(game) * BEATS_PER_BAR;
 }
-export function rhymeCountIn(game: Pick<RhymeGame, "tempo">): number {
+export function rhymeCountIn(game: Pick<RhymeGame, "beat">): number {
   return rhymeBarInterval(game) * RHYME_COUNT_IN_BARS;
 }
 export function rhymeRoundEnd(game: RhymeGame): number {
@@ -79,7 +81,7 @@ export function rhymeRoundEnd(game: RhymeGame): number {
 
 // Bars run in AABB couplets: each pair shares one rhyme family, with the
 // second bar landing a different word of the same family.
-export function newRhymeGame(seed = Date.now(), tempo = 0): RhymeGame {
+export function newRhymeGame(seed = Date.now(), beat = 0): RhymeGame {
   const random = mulberry32(seed);
   const families = RHYME_FAMILIES.map((_, i) => i);
   for (let i = families.length - 1; i > 0; i--) {
@@ -101,7 +103,7 @@ export function newRhymeGame(seed = Date.now(), tempo = 0): RhymeGame {
   return {
     phase: "ready",
     seed,
-    tempo,
+    beat,
     time: 0,
     bars,
     barsDone: 0,
