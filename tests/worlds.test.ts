@@ -30,10 +30,38 @@ import {
 } from "../src/game/core/koreaLandmarks";
 import { PHOTO_BOOTH_ORIGIN } from "../src/game/core/photoBoothLayout";
 import { villageGardenPlots } from "../src/game/core/villageGardens";
-import { labelsOverlap } from "../src/game/world/Labels";
+import { labelsOverlap, markerLabelRect } from "../src/game/world/Labels";
+import { BoxGeometry, Group, Mesh, OrthographicCamera } from "three";
 import { STANFORD_STATION_GATE } from "../src/shared/stanford-transport";
 
 describe("separate worlds", () => {
+  it("keeps labels off the visible player marker as it moves and zooms", () => {
+    const camera = new OrthographicCamera(-5, 5, 5, -5, 0.1, 100);
+    camera.position.z = 10;
+    camera.updateMatrixWorld();
+    const player = new Group();
+    const marker = new Mesh(new BoxGeometry(1, 1, 0.1));
+    player.add(marker);
+    const rect = markerLabelRect(marker, camera, 390, 780)!;
+    expect(rect.x).toBeCloseTo(195);
+    expect(rect.y).toBeCloseTo(390);
+    expect(rect.w).toBeCloseTo(51);
+    expect(rect.h).toBeCloseTo(90);
+    expect(labelsOverlap({ x: 195, y: 390, w: 90, h: 40 }, rect)).toBe(true);
+    expect(labelsOverlap({ x: 50, y: 390, w: 90, h: 40 }, rect)).toBe(false);
+
+    player.position.x = 1;
+    player.updateMatrixWorld(true);
+    camera.zoom = 2;
+    camera.updateProjectionMatrix();
+    const moved = markerLabelRect(marker, camera, 390, 780)!;
+    expect(moved.x).toBeCloseTo(273);
+    expect(moved.w).toBeCloseTo(90);
+    expect(moved.h).toBeCloseTo(168);
+    player.visible = false;
+    expect(markerLabelRect(marker, camera, 390, 780)).toBeNull();
+    marker.geometry.dispose();
+  });
   it("reserves the mobile zoom area without blocking labels elsewhere", () => {
     const zoom = { x: 292, y: 164, w: 184, h: 66 };
     const booth = { x: 207, y: 194, w: 97, h: 58 };

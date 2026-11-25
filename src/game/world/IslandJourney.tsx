@@ -244,7 +244,7 @@ export function IslandJourney({
         position={[trip.origin[0], 0.18, trip.origin[1]]}
         rotation={[0, trip.heading, 0]}
       >
-        <Character walking={walking} color={color} hat={hat} scale={0.65} />
+        <Character player walking={walking} color={color} hat={hat} scale={0.65} />
       </group>
       {trip.mode === "plane" &&
         [parked, landed].map((p, i) => (
