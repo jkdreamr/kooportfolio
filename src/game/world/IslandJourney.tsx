@@ -12,12 +12,7 @@ import {
 } from "../core/journey";
 import type { TravelOption, TravelWorld } from "../core/travel";
 import { Character } from "./Models";
-import {
-  JourneyTrain,
-  PassengerJet,
-  PassengerStairs,
-  RoadCar,
-} from "./TravelVehicles";
+import { JourneyTrain, PassengerJet, PassengerStairs } from "./TravelVehicles";
 import { ISLAND_CAMERA_OFFSET } from "../core/islandCamera";
 
 export type IslandTrip = TravelOption & {
@@ -106,7 +101,8 @@ export function IslandJourney({
             ? route.current[i - 1]
             : [position.current.x, position.current.z];
           return (
-            distance + Math.hypot(point[0] - previous[0], point[1] - previous[1])
+            distance +
+            Math.hypot(point[0] - previous[0], point[1] - previous[1])
           );
         }, 0);
         speed.current = THREE.MathUtils.damp(
@@ -244,7 +240,13 @@ export function IslandJourney({
         position={[trip.origin[0], 0.18, trip.origin[1]]}
         rotation={[0, trip.heading, 0]}
       >
-        <Character player walking={walking} color={color} hat={hat} scale={0.65} />
+        <Character
+          player
+          walking={walking}
+          color={color}
+          hat={hat}
+          scale={0.65}
+        />
       </group>
       {trip.mode === "plane" &&
         [parked, landed].map((p, i) => (
@@ -259,10 +261,8 @@ export function IslandJourney({
       >
         {trip.mode === "plane" ? (
           <PassengerJet />
-        ) : trip.mode === "train" ? (
-          <JourneyTrain carsRef={trainCars} />
         ) : (
-          <RoadCar />
+          <JourneyTrain carsRef={trainCars} />
         )}
       </group>
     </group>
