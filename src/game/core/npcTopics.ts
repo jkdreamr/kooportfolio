@@ -34,20 +34,20 @@ const topics: Record<string, readonly NpcTopic[]> = {
       id: "campus",
       label: "What's that tower?",
       reply:
-        "Hoover Tower. Josh uses it the same way you did, to figure out which way he's going on campus. Hard to miss once you get down there.",
+        "Hoover Tower. Hard to miss once you get down to campus. Everyone uses it to figure out which way they're going, whether they admit it or not.",
       picture: "campus",
     },
     {
       id: "water",
       label: "Where's the water?",
       reply:
-        "Follow the campus walk past the court. The boathouse is beside the pond, which is where Josh spends most of his early mornings during crew season.",
+        "Follow the campus walk past the court. The boathouse is beside the pond, where the crew crowd disappears to before most people are awake.",
     },
     {
-      id: "builder",
-      label: "Who mapped this place?",
+      id: "mapping",
+      label: "How do you map a place?",
       reply:
-        "Josh did, more or less. He's CS and math at Stanford, so half this map is just his routine with better weather. The paths go where he actually walks.",
+        "Walk it until the shortcuts show themselves, then draw those. A map made from the paths people actually take beats a neat one every time.",
     },
   ],
   dockhand: [
@@ -62,13 +62,13 @@ const topics: Record<string, readonly NpcTopic[]> = {
       id: "race",
       label: "Can I race?",
       reply:
-        "Yep. Head inside and look for the race prompt by the dock. If you want the full experience, sit in the coxswain seat. That's Josh's spot.",
+        "Yep. Head inside and look for the race prompt on the floor. Wait for the horn, then pull like you mean it.",
     },
     {
       id: "cox",
       label: "Who calls the shots?",
       reply:
-        "The coxswain. Josh walked on to the team as a freshman, no rowing background, and ended up steering and calling the rhythm for the whole boat. He'll tell you it chose him.",
+        "The coxswain. Josh walked on to Stanford rowing as a freshman with no experience and ended up steering and calling the rhythm for the whole boat. He'll tell you the seat chose him.",
     },
   ],
   "go-player": [
@@ -86,10 +86,10 @@ const topics: Record<string, readonly NpcTopic[]> = {
         "Try the small board inside. Black goes first. Don't worry about being good at it; nobody here is.",
     },
     {
-      id: "josh",
-      label: "Does Josh play?",
+      id: "losing",
+      label: "How do you handle losing?",
       reply:
-        "Now and then. He plays it like he writes code, patient until he isn't. Last game he spent ten minutes on one move and then lost the corner anyway.",
+        "Count what the loss taught you, then ask for a rematch. A bad game you think about beats ten wins you forget.",
     },
   ],
   "bridge-cyclist": [
@@ -97,14 +97,20 @@ const topics: Record<string, readonly NpcTopic[]> = {
       id: "river",
       label: "Can I cross the river?",
       reply:
-        "Try the bridge. I stop halfway across just to look back at the skyline. Josh does the same thing on his way to the Cognition office, whether he admits it or not.",
+        "Try the bridge. I stop halfway across just to look back at the skyline. It's a three minute delay I've never once regretted.",
       picture: "river",
     },
     {
       id: "break",
       label: "Long ride?",
       reply:
-        "Not till I tried to ride into the wind. Felt like rowing against the current, which Josh says is exactly as bad as it sounds.",
+        "Not till I tried to ride into the wind. Turned a twenty minute errand into an hour, and my legs filed a complaint.",
+    },
+    {
+      id: "route",
+      label: "Best route around?",
+      reply:
+        "Along the water, then cut back before the hill. Flat, quiet, and you get the bridge view for free.",
     },
   ],
   photographer: [
@@ -112,14 +118,20 @@ const topics: Record<string, readonly NpcTopic[]> = {
       id: "booth",
       label: "How's the booth work?",
       reply:
-        "Take four photos, decorate the strip, then save it or post it to the wall. Josh's strips are up there somewhere. Look for the one where he's clearly laughing.",
+        "Take four photos, decorate the strip, then save it or post it to the wall.",
       picture: "booth",
     },
     {
       id: "light",
       label: "Best time for a shot?",
       reply:
-        "I like it just before dark. The lamps start to come on and the tower goes a little pink. Josh has that same photo from three different evenings.",
+        "I like it just before dark. The lamps start to come on and the tower goes a little pink. I've taken the same photo on three different evenings.",
+    },
+    {
+      id: "subjects",
+      label: "What do you shoot?",
+      reply:
+        "Mostly people not paying attention. Posed photos are fine, but the good ones are always the frame before everyone settles.",
     },
   ],
   musician: [
@@ -127,20 +139,20 @@ const topics: Record<string, readonly NpcTopic[]> = {
       id: "listen",
       label: "Anything to listen to?",
       reply:
-        "Look up kelix on SoundCloud. That's Josh. Try ‘back room’ first, then ‘please be’ if you want something quieter.",
+        "Look up kelix on SoundCloud. Try ‘back room’ first, then ‘please be’ if you want something quieter.",
     },
     {
       id: "make",
       label: "What's in the beat lab?",
       reply:
-        "Four pads. Hit them as the notes come down. Easier if you listen first. Josh built it to feel like making a track, not passing an exam.",
+        "Four pads. Hit them as the notes come down. Easier if you listen first.",
       picture: "pads",
     },
     {
       id: "kelix",
       label: "Who is kelix?",
       reply:
-        "Josh's producer name. He makes beats in the evenings and posts them when he's happy with one. The bird sounds out here? He's probably sampling them.",
+        "Josh's producer name. He makes beats at night and posts them on SoundCloud when he's happy with one. Half the tracks started as a loop he couldn't leave alone.",
     },
   ],
   hooper: [
@@ -173,7 +185,7 @@ const topics: Record<string, readonly NpcTopic[]> = {
     ask(
       "ollie",
       "How do I ollie?",
-      "Get rolling and tap Space or Ollie. Give yourself room to land. Josh's advice, not mine.",
+      "Get rolling and tap Space or Ollie. Give yourself room to land. Commit to it; half-hearted ollies are how shins meet concrete.",
     ),
     ask(
       "josh",
@@ -194,27 +206,27 @@ const topics: Record<string, readonly NpcTopic[]> = {
       "Call ‘mine’ early. Saves both of you running into the middle. Learned that one the hard way.",
     ),
     ask(
-      "partner",
-      "Who's your usual partner?",
-      "Josh, when he's around. He's sneakier at the net than he looks for someone who spends all day at a desk.",
+      "singles",
+      "Singles or doubles?",
+      "Doubles, always. In singles every mistake is yours alone, and I like having someone to blame.",
     ),
   ],
   "tower-docent": [
     ask(
       "tower",
       "Can I go up?",
-      "There's a door at the base. Have you found its key yet? Josh hid it somewhere only a patient person would look.",
+      "There's a door at the base. Have you found its key yet?",
       "campus",
     ),
     ask(
       "quad",
       "Which way to the quad?",
-      "Follow the paths south. Once you see the arches, you're there. Josh crossed that quad every day between math lectures and crew practice.",
+      "Follow the paths south. Once you see the arches, you're there.",
     ),
     ask(
-      "student",
-      "What does Josh study?",
-      "Computer science and math at Stanford. Ask him about either and he'll talk faster, but he'll also actually explain it, which is rarer than you'd think.",
+      "history",
+      "How old is all this?",
+      "Older than it looks in some spots, newer in others. The trick is the arches make everything feel like it's been here forever.",
     ),
   ],
   rebounder: [
@@ -248,9 +260,9 @@ const topics: Record<string, readonly NpcTopic[]> = {
       "Eight clean reps. I keep rushing the last two.",
     ),
     ask(
-      "crew",
-      "Is Josh a gym person?",
-      "More of a crew person. He walked on to Stanford rowing as a freshman and now he's the coxswain, the one steering and yelling the rhythm. The gym is just for keeping up.",
+      "route",
+      "Why not the treadmill?",
+      "Because the treadmill doesn't have a view. Same miles out here, better company.",
     ),
   ],
   "math-tutor": [
@@ -268,7 +280,7 @@ const topics: Record<string, readonly NpcTopic[]> = {
     ask(
       "josh",
       "Does Josh do math?",
-      "It's half his degree. He does CS and math at Stanford, and he's the kind of person who solves it on a napkin if you ask him a question at lunch.",
+      "It's half his degree, CS and math together at Stanford. He's the kind of person who solves it on a napkin if you ask him a question at lunch.",
     ),
   ],
   "prep-cook": [
@@ -284,9 +296,9 @@ const topics: Record<string, readonly NpcTopic[]> = {
       "Sure. Just keep the walkway by the stove clear.",
     ),
     ask(
-      "appetite",
-      "What does Josh eat here?",
-      "Rice and every side dish on the table. He grew up on Korean food, so he judges the pickled ones hardest. I make extra when I know he's coming.",
+      "prep",
+      "What's the prep for?",
+      "Whatever's on the board today. Rice always, sides always, and then whatever the garden decided to give us.",
     ),
   ],
   "copy-editor": [
@@ -302,9 +314,9 @@ const topics: Record<string, readonly NpcTopic[]> = {
       "Leave a blank and keep going. It's easier to fix a page with words on it.",
     ),
     ask(
-      "josh-writing",
-      "What does Josh write?",
-      "His portfolio mostly, and he rewrites it constantly. He treats every sentence like code. If it reads clean, assume it took him four passes.",
+      "cuts",
+      "What do you cut first?",
+      "The sentence I'm proudest of, usually. If it works harder for me than the reader, it goes.",
     ),
   ],
   "play-caller": [
@@ -338,9 +350,9 @@ const topics: Record<string, readonly NpcTopic[]> = {
       "Tap along on your knee first. No need to chase every note.",
     ),
     ask(
-      "kelix",
-      "Who made these beats?",
-      "Josh did, under the name kelix. He makes this stuff at night after work. Some of the tracks on his SoundCloud started as pad patterns in here.",
+      "beat",
+      "What makes a good beat?",
+      "Space. Anyone can fill every note; the trick is leaving room for the one that matters.",
     ),
   ],
   "go-regular": [
@@ -356,9 +368,9 @@ const topics: Record<string, readonly NpcTopic[]> = {
       "You take black. I'll try leaving that corner alone this time.",
     ),
     ask(
-      "josh-go",
-      "Ever play Josh?",
-      "A few times. He reads the board like a puzzle, quiet for a while and then three moves at once. Won our last game by two points and was polite about it, which was worse.",
+      "habit",
+      "Play here often?",
+      "Most afternoons. The board inside is where the real games happen; out here I just replay the ones I lost.",
     ),
   ],
   postie: [
@@ -374,9 +386,9 @@ const topics: Record<string, readonly NpcTopic[]> = {
       "That was my guess too. If the light's on, I'll knock.",
     ),
     ask(
-      "mail",
-      "Who gets the most mail?",
-      "Josh, by a mile. Internship letters, rowing schedules, sound cards he ordered at two in the morning. Half of it goes to the Cognition office these days.",
+      "route",
+      "Long route today?",
+      "Long enough. Every house gets something eventually, even the ones that only ever get flyers.",
     ),
   ],
   "booth-visitor": [
@@ -392,16 +404,16 @@ const topics: Record<string, readonly NpcTopic[]> = {
       "Wave. It looks like I'm trying to get the camera's attention.",
     ),
     ask(
-      "wall",
-      "Who else posts here?",
-      "Josh posts a strip every time he visits. He leads the Korea work at Cognition, so this wall is half travel log at this point.",
+      "takes",
+      "How many takes?",
+      "Four, same as everyone. I blinked in two and I'm counting that as a win.",
     ),
   ],
   "park-guide": [
     ask(
       "bridge",
       "What can I see from there?",
-      "The skyline across the river. Walk out to the middle if you have time. Josh does it every visit, says it's the best view in either of his cities.",
+      "The skyline across the river. Walk out to the middle if you have time.",
       "river",
     ),
     ask(
@@ -410,9 +422,9 @@ const topics: Record<string, readonly NpcTopic[]> = {
       "Follow the path along the water first. A bit farther, but there are benches.",
     ),
     ask(
-      "josh",
-      "Does Josh come here?",
-      "Whenever he's in town. He works on the Korea side of things at Cognition, and this park is where he walks off the jet lag before he goes in.",
+      "when",
+      "Best time to visit?",
+      "Early evening. The city lights start coming on while the sky's still deciding what color to be.",
     ),
   ],
   "bridge-lookout": [
@@ -428,9 +440,9 @@ const topics: Record<string, readonly NpcTopic[]> = {
       "Lunch. I told them I'd be there before the rice got cold.",
     ),
     ask(
-      "josh",
-      "What's Josh doing here?",
-      "He leads the Korea effort at Cognition. He says the office is close enough to walk to, then takes the long way over this bridge anyway. I think he just likes the view.",
+      "habit",
+      "Stop here every day?",
+      "Every single one. Started as a shortcut, became the reason I'm always two minutes late.",
     ),
   ],
   angler: [
@@ -446,9 +458,9 @@ const topics: Record<string, readonly NpcTopic[]> = {
       "Long enough to finish my tea. I'll give it another cup.",
     ),
     ask(
-      "josh",
-      "Does Josh fish?",
-      "No, but he likes it out here. He says the quiet helps him think through work, then he goes back to Cognition and calls it a walk. It's fishing without a rod, basically.",
+      "bites",
+      "Ever catch anything?",
+      "That's not really the point. The point is standing here while the water does all the work.",
     ),
   ],
   "puzzle-solver": [
@@ -464,9 +476,9 @@ const topics: Record<string, readonly NpcTopic[]> = {
       "No, but at least now the triangle can wait.",
     ),
     ask(
-      "cognition",
-      "What is this place?",
-      "Josh's building, sort of. He works at Cognition and leads the Korea effort there. He'd explain what that means but he'd probably turn it into a diagram.",
+      "stuck",
+      "What do you do when stuck?",
+      "Stop looking at it directly. Answers show up out of the corner of your eye, never head on.",
     ),
   ],
   "lunch-vendor": [
@@ -482,9 +494,9 @@ const topics: Record<string, readonly NpcTopic[]> = {
       "Try the benches. Take the shady end if it's free.",
     ),
     ask(
-      "regulars",
-      "Who eats here?",
-      "Everyone eventually. Josh comes by when he's in Korea for work. He orders the same thing every time and pretends he's going to try something new.",
+      "busy",
+      "Busy today?",
+      "Steady. The trick is feeding people before they realize how hungry they were.",
     ),
   ],
   cook: [
@@ -500,9 +512,9 @@ const topics: Record<string, readonly NpcTopic[]> = {
       "Take a look inside. There's always something to chop.",
     ),
     ask(
-      "josh",
-      "What does Josh like?",
-      "Anything with rice, and he always asks if there are extra pickled sides. He cooks a little himself, mostly Korean things his mom made. Says the kimchi here almost passes.",
+      "favorite",
+      "Your favorite dish?",
+      "Whatever someone's eating for the first time. Watching them decide it's good is the whole reward.",
     ),
   ],
   gardener: [
@@ -518,9 +530,9 @@ const topics: Record<string, readonly NpcTopic[]> = {
       "Thanks. I've done this end; try the row by the path.",
     ),
     ask(
-      "josh",
-      "Does Josh garden?",
-      "Not really, but he likes that the herbs end up in the kitchen. He says it's the one supply chain he'll never have to debug.",
+      "season",
+      "Best season out here?",
+      "This one, every time. The garden changes its answer by the week.",
     ),
   ],
   runner: [
@@ -536,9 +548,9 @@ const topics: Record<string, readonly NpcTopic[]> = {
       "Definitely. That ‘one more lap’ was two laps ago.",
     ),
     ask(
-      "josh",
-      "Does Josh run?",
-      "He rows instead. Walked on to the crew team freshman year at Stanford and now he's the coxswain. He claims rowing ruined running for him because you face backwards.",
+      "why",
+      "Why the laps?",
+      "Cheapest way to think I know. Legs busy, head quiet, problems smaller by the second lap.",
     ),
   ],
   maker: [
@@ -554,9 +566,9 @@ const topics: Record<string, readonly NpcTopic[]> = {
       "I was starting to move pieces just to hear them click.",
     ),
     ask(
-      "cognition",
-      "What's the big building?",
-      "The Cognition office. Josh works there, leading the Korea side of things. He builds software that builds software, or something like that. It took me three explanations to get this far.",
+      "process",
+      "How do you build?",
+      "Badly, then less badly. The first version is for learning where it breaks; the real one comes after.",
     ),
   ],
   student: [
@@ -572,9 +584,9 @@ const topics: Record<string, readonly NpcTopic[]> = {
       "Give me another minute. Then yes, desperately.",
     ),
     ask(
-      "josh",
-      "What does Josh study?",
-      "CS and math, both at once, which seems like doing homework twice but he likes it. Between that and crew I don't know when he sleeps.",
+      "study",
+      "Where do you study?",
+      "The math lab mostly, or here when I need to pretend the fresh air is helping.",
     ),
   ],
   reader: [
@@ -590,16 +602,16 @@ const topics: Record<string, readonly NpcTopic[]> = {
       "Sure. The study's the place to go when you want to hear yourself think.",
     ),
     ask(
-      "josh",
-      "Does Josh read here?",
-      "More like works here. He'll have his laptop out and say he's just checking one thing, then look up three hours later surprised it's dark.",
+      "genre",
+      "What do you read?",
+      "Letters, mostly. Finished books tell you how they end; letters let you wonder.",
     ),
   ],
   visitor: [
     ask(
       "first",
       "What did you see first?",
-      "The tower. I kept using it to work out which way I'd come, which Josh says is basically a campus survival skill.",
+      "The tower. I kept using it to work out which way I'd come, which apparently is a campus survival skill.",
       "campus",
     ),
     ask(
@@ -615,7 +627,12 @@ const topics: Record<string, readonly NpcTopic[]> = {
     ask(
       "else",
       "What else does he do?",
-      "Makes music as kelix on SoundCloud, skates the paths when they're dry, and argues about LeBron like it's a research project. Also a lifelong Niners fan, so he's used to heartbreak.",
+      "Makes music as kelix on SoundCloud, skates the paths when they're dry, and argues about LeBron like it's a research project. His code's all on GitHub under jkdreamr. Also a lifelong Niners fan, so he's used to heartbreak.",
+    ),
+    ask(
+      "site",
+      "Where can I find more?",
+      "joshuakoo.xyz has the official version. This place is the unofficial one, same facts, better weather.",
     ),
   ],
   coxswain: [
@@ -628,7 +645,7 @@ const topics: Record<string, readonly NpcTopic[]> = {
     ask(
       "race",
       "Any advice for the race?",
-      "Find a pace you can hold. Save a burst for the finish. Josh learned that the year he walked on, the season nobody expected him to stick around.",
+      "Find a pace you can hold. Save a burst for the finish.",
     ),
     ask(
       "josh",
@@ -645,9 +662,9 @@ const topics: Record<string, readonly NpcTopic[]> = {
     ),
     ask("game", "Keeping score?", "Only if my first shot goes in."),
     ask(
-      "josh",
-      "Does Josh play?",
-      "He watches more than he plays, but he's a LeBron guy so he knows every highlight. He'll beat you at HORSE on fundamentals and then apologize about it.",
+      "team",
+      "Pickup or practice?",
+      "Practice until someone suggests a game. Then it's pickup with extra arguing about the score.",
     ),
   ],
   producer: [
@@ -661,7 +678,7 @@ const topics: Record<string, readonly NpcTopic[]> = {
     ask(
       "kelix",
       "Is kelix Josh?",
-      "Yeah, that's his thing. Beats on SoundCloud, late night sessions in the lab. He says production is just debugging for your ears, which is such a Josh sentence.",
+      "Yeah, that's his thing. Beats on SoundCloud, late night sessions in the lab. He says producing is just debugging for your ears, which is such a Josh sentence.",
     ),
   ],
   "record-shopper": [
@@ -674,8 +691,8 @@ const topics: Record<string, readonly NpcTopic[]> = {
     ask("wait", "Been here long?", "Long enough to hear the same song twice."),
     ask(
       "taste",
-      "What does Josh pick?",
-      "Whatever he hasn't sampled yet. He listens for the gaps in the record, places where he can put his own sounds. Explains why his kelix tracks never sound like the source.",
+      "How do you choose?",
+      "Needle drop, first twenty seconds. If the intro doesn't earn the rest of the record, back it goes.",
     ),
   ],
   "home-neighbor": [
@@ -727,9 +744,9 @@ const topics: Record<string, readonly NpcTopic[]> = {
       "Go ahead. The other end of the bench is still cool.",
     ),
     ask(
-      "josh",
-      "Seen Josh around?",
-      "He ends up on a bench here sometimes with a coffee, answering emails from the Cognition office on his laptop. The grass version of a desk.",
+      "spot",
+      "Why this spot?",
+      "Shade in the afternoon, sun in the morning, close enough to the path to people-watch. A bench that does three jobs.",
     ),
   ],
   "river-walker": [
@@ -754,7 +771,7 @@ const topics: Record<string, readonly NpcTopic[]> = {
     ask(
       "boat",
       "How do I get on the water?",
-      "Head into the boathouse and look for the race prompt by the dock.",
+      "Head into the boathouse and look for the race prompt on the floor. The buoys mark the course.",
       "oar",
     ),
     ask(
@@ -777,7 +794,7 @@ const topics: Record<string, readonly NpcTopic[]> = {
     ask(
       "hang",
       "What's going on inside?",
-      "The usual. People dropping by, something on the stove. Josh keeps the door open for anyone who finds their way here.",
+      "The usual. People dropping by, something on the stove. The door's open for anyone who finds their way here.",
       "garden",
     ),
     ask(
@@ -790,7 +807,7 @@ const topics: Record<string, readonly NpcTopic[]> = {
     ask(
       "late",
       "Late for what?",
-      "Math lab. Third time this week. Josh says he'd help but he took the same class last year and still has the habit of going.",
+      "Math lab. Third time this week. The professor's going to start recognizing the back of my head.",
     ),
     ask(
       "major",
@@ -808,25 +825,25 @@ const topics: Record<string, readonly NpcTopic[]> = {
     ask(
       "lunch",
       "What's good here?",
-      "All of it, honestly. Josh orders the rice and every side on the table. He says a meal without the pickled dishes is just a snack.",
+      "All of it, honestly. Get the rice and every side on the table. A meal without the pickled dishes is just a snack.",
       "picnic",
     ),
     ask(
       "often",
       "Eat here a lot?",
-      "Most days. Josh does the same when he's around. It's the kind of place you end up at whether you meant to or not.",
+      "Most days. It's the kind of place you end up at whether you meant to or not.",
     ),
     ask(
-      "josh",
-      "What's Josh's routine?",
-      "Crew in the morning, classes through the day, Cognition work in the evenings, and this table whenever there's time. He's the most scheduled person I've ever met.",
+      "crowd",
+      "Same faces every day?",
+      "Mostly. The regulars know each other's orders better than their names, which is its own kind of friendship.",
     ),
   ],
   lifter: [
     ask(
       "program",
       "What are you training for?",
-      "Eight clean reps, mostly so I can say I did them. Josh's version of this is rowing, which is somehow both harder and quieter.",
+      "Eight clean reps, mostly so I can say I did them. Last two are always the negotiation.",
     ),
     ask(
       "gym",
@@ -834,27 +851,27 @@ const topics: Record<string, readonly NpcTopic[]> = {
       "Weights, a couple of machines, and whoever's taking a break from the real workout outside.",
     ),
     ask(
-      "josh",
-      "Does Josh lift?",
-      "He coxes instead, which is cardio and yelling at the same time. He walked on to the crew team as a freshman and it's been his whole athletic personality since.",
+      "day",
+      "Leg day tomorrow?",
+      "Supposed to be. I've rescheduled it three times, which at this point counts as cardio.",
     ),
   ],
   researcher: [
     ask(
       "work",
       "What are you working on?",
-      "A problem that's been stuck in my head all week. I came out here to think, which is apparently what Josh does too.",
+      "A problem that's been stuck in my head all week. I came out here to think, which is either a strategy or a delay tactic.",
     ),
     ask(
       "cognition",
       "What is this office?",
-      "The Cognition building. Josh works there leading the Korea effort. He builds the stuff that makes other people's work faster, which sounds abstract until you see him do it.",
+      "The Cognition building. Josh works there leading the Korea effort. Before that he was an investment intern at CRV, which is a very different kind of busy.",
       "campus",
     ),
     ask(
       "josh",
       "What's Josh's job?",
-      "He works at Cognition on the Korea side. Before that he was an investment intern at CRV, which is a very different kind of busy. He says he likes this better because he actually ships things.",
+      "He builds the stuff that makes other people's work faster. Sounds abstract until you watch him do it. He says he likes it because he actually ships things now.",
     ),
   ],
 };
