@@ -268,11 +268,9 @@ function Floodlight({ p }: { p: [number, number, number] }) {
 }
 
 export function StadiumArchitecture({
-  score = 0,
   attempt = 0,
   made = false,
 }: {
-  score?: number;
   attempt?: number;
   made?: boolean;
 }) {
@@ -316,7 +314,7 @@ export function StadiumArchitecture({
         ink="#f7e4b3"
       />
       <Sign
-        text={`${score}   •   ${attempt} / ${FIELD_GOAL.attempts}`}
+        text={attempt ? `KICK ${attempt} / ${FIELD_GOAL.attempts}` : "GO 49ERS"}
         p={[0, 3.9, -28.45]}
         size={[6.2, 0.82]}
         color="#243d32"
