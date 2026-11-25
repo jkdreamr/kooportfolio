@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { Box, Cylinder, Ball, Bench, Boat } from "./Models";
-import { HOME_ISLAND } from "../core/homeIsland";
+import { HomeCoastArt } from "./HomeCoastArt";
 import { NaturalTrees, type TreePlacement } from "./TreeArt";
 import { KoreaRiverGround } from "./KoreaRiverGround";
 import { GroundGrass, Scenery } from "./Scenery";
@@ -233,30 +233,9 @@ export function Landscape({ world = "stanford" }: { world?: WorldId }) {
 }
 
 function HomeCoast() {
-  const { centerX: x, centerZ: z, radiusX: rx, radiusZ: rz } = HOME_ISLAND;
   return (
     <group name="home-compact-coast">
-      <Cylinder p={[x, -2.1, z]} s={[rx + 2.3, 4.2, rz + 2.3]} c="#655e3e" />
-      <Cylinder p={[x, -0.5, z]} s={[rx + 2.5, 1, rz + 2.5]} c="#a49564" />
-      <Cylinder p={[x, -0.01, z]} s={[rx + 2, 0.3, rz + 2]} c="#639343" />
-      {Array.from({ length: 64 }, (_, i) => {
-        const angle = (i / 64) * Math.PI * 2;
-        const px = x + Math.cos(angle) * (rx + 1.1);
-        const pz = z + Math.sin(angle) * (rz + 1.1);
-        if (
-          (px < -40 && Math.abs(pz - z) < 4) ||
-          (px > 22 && pz > -27 && pz < 2)
-        )
-          return null;
-        return (
-          <Ball
-            key={i}
-            p={[px, 0.12, pz]}
-            s={[1.1, 0.55, 0.8]}
-            c={i % 3 ? "#9b9b7a" : "#b3ad88"}
-          />
-        );
-      })}
+      <HomeCoastArt />
       <Bench p={[-2.7, 0.2, 3.4]} />
       <Bench p={[2.8, 0.2, -2.9]} rotation={Math.PI} />
       {[-1, 1].map((side) => (
