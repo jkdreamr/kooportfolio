@@ -103,8 +103,9 @@
 }
 
 /* Explicit control families exclude Go intersections, color swatches and
-   rhythm/puzzle pads: their colors communicate game state, not decoration. */
-.game-shell :is(
+   rhythm/puzzle pads: their colors communicate game state, not decoration.
+   The repeated scope beats legacy scene selectors without !important. */
+.game-shell.game-shell :is(
   .primary-button, .quiet-button, .shoot-button, .upgrade-button, .story-read,
   .close-button, .setting-row, .basketball-mode-select, .papa-play,
   .stadium-game-close,
@@ -132,7 +133,7 @@
   transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
 }
 
-.game-shell :is(.primary-button, .shoot-button, .upgrade-button, .context-action > button) {
+.game-shell.game-shell :is(.primary-button, .shoot-button, .upgrade-button, .context-action > button) {
   background: var(--glass-selected);
   border-color: #d7e9fc70;
 }
