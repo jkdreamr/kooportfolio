@@ -389,7 +389,7 @@ export function House({
       <Ball p={[0.3, 1, 2.35]} s={[0.055, 0.055, 0.06]} c="#edd38b" />
       <Window p={[-1.75, 1.85, 2.1]} />
       <Window p={[1.75, 1.85, 2.1]} />
-      <Box p={[0, 0.42, 2.58]} s={[1.8, 0.2, 1]} c="#d7c8aa" />
+      <Box p={[0, 0.3, 2.58]} s={[1.8, 0.44, 1]} c="#d7c8aa" />
       <Box p={[0, 0.19, 3]} s={[2.1, 0.18, 0.7]} c="#c6b99e" />
       <Box p={[0, 3.55, 0]} s={[6.6, 0.38, 4.85]} c="#795a3c" />
       <StoneFooting width={6} depth={4.2} />
@@ -401,8 +401,8 @@ export function House({
         p={[0, 3.05, 2.18]}
         size={[2.3, 0.45]}
       />
-      <Flowers p={[-2.7, 0.4, 2.4]} />
-      <Flowers p={[2.7, 0.4, 2.4]} color="#e7c05f" />
+      <Flowers p={[-2.7, 0.12, 2.72]} />
+      <Flowers p={[2.7, 0.12, 2.72]} color="#e7c05f" />
       {!study && (
         <>
           <group position={[-3.08, 1.5, 0]} rotation={[0, 0, 0.1]}>

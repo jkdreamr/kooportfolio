@@ -387,12 +387,22 @@
   min-height: 36px;
   padding: 5px 10px;
 }
+.lab-beat .lab-game-bottom {
+  width: min(calc(100% - 32px), max(280px, var(--beat-dock-width)));
+}
 .lab-beat .beat-buttons button {
   align-items: center;
   min-height: 48px;
   border-color: var(--beat-edge);
   box-shadow: inset 0 -2px var(--pad-color);
   font-size: 18px;
+  touch-action: none;
+  user-select: none;
+}
+.lab-beat .beat-buttons button[data-cued="true"] {
+  border-color: var(--pad-color);
+  background: #415266;
+  box-shadow: inset 0 -3px var(--pad-color);
 }
 .lab-beat .beat-buttons button[data-lit="true"] {
   border-color: var(--pad-color);
@@ -415,5 +425,14 @@
   .lab-beat button,
   .lab-beat .beat-launch button {
     min-height: 44px;
+  }
+  .lab-beat .beat-buttons button {
+    min-height: 66px;
+    padding-inline: 4px;
+  }
+}
+@media (pointer: coarse) and (max-height: 520px) {
+  .lab-beat .beat-buttons button {
+    min-height: 52px;
   }
 }

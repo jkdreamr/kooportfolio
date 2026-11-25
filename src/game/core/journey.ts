@@ -1,11 +1,22 @@
-import { ISLAND_RAIL, railPose } from "./islandRail";
+import { ISLAND_RAIL, railPose, railForWorld } from "./islandRail";
 import type { TravelMode } from "./travel";
+import type { WorldId } from "./worlds";
+import { HOME_AIRPORT_GATE } from "./homeIsland";
 import { CatmullRomCurve3, Vector3 } from "three";
 
 export const AIRPORT_GATE = [58, 61] as const;
 export const STATION_GATE = [-73, ISLAND_RAIL.station[1]] as const;
-export const journeyGate = (mode: TravelMode) =>
-  mode === "plane" ? AIRPORT_GATE : STATION_GATE;
+export const journeyGate = (
+  mode: TravelMode,
+  world?: WorldId,
+): readonly [number, number] =>
+  mode === "plane"
+    ? world === "home"
+      ? HOME_AIRPORT_GATE
+      : AIRPORT_GATE
+    : world === "home"
+      ? [railForWorld(world).station[0] + 3, railForWorld(world).centerZ]
+      : STATION_GATE;
 
 /** Zero velocity and acceleration at either end of a movement. */
 export function journeyEase(progress: number) {
@@ -23,20 +34,36 @@ function journeyDistance(p: number): number {
   return (ramp * (t ** 3 - 0.5 * t ** 4)) / (1 - ramp);
 }
 
-const planeBoarding = new CatmullRomCurve3([
-  new Vector3(58, 0.18, 61),
-  new Vector3(55.1, 0.18, 61.6),
-  new Vector3(55.1, 0.18, 63.3),
-  new Vector3(57.25, 0.72, 63.3),
-  new Vector3(58, 0.72, 63.3),
-]);
+const boardingCurves = new Map<string, CatmullRomCurve3>();
+// Around the tail and up the stairs beside the parked jet's nose, rather than
+// through the fuselage. Offsets from the gate match the apron/stairs layout.
+function boardingCurve(gate: readonly [number, number]) {
+  const key = `${gate[0]},${gate[1]}`;
+  let curve = boardingCurves.get(key);
+  if (!curve) {
+    curve = new CatmullRomCurve3([
+      new Vector3(gate[0], 0.18, gate[1]),
+      new Vector3(gate[0] - 2.9, 0.18, gate[1] + 0.6),
+      new Vector3(gate[0] - 2.9, 0.18, gate[1] + 2.3),
+      new Vector3(gate[0] - 0.75, 0.72, gate[1] + 2.3),
+      new Vector3(gate[0], 0.72, gate[1] + 2.3),
+    ]);
+    boardingCurves.set(key, curve);
+  }
+  return curve;
+}
 
 /** Walk round the tail and up the stairs, rather than through the fuselage. */
-export function boardingPose(mode: TravelMode, progress: number) {
+export function boardingPose(
+  mode: TravelMode,
+  progress: number,
+  world?: WorldId,
+) {
   const p = journeyEase(progress);
   if (mode === "plane") {
-    const point = planeBoarding.getPointAt(p);
-    const tangent = planeBoarding.getTangentAt(p);
+    const curve = boardingCurve(journeyGate(mode, world));
+    const point = curve.getPointAt(p);
+    const tangent = curve.getTangentAt(p);
     return {
       x: point.x,
       y: Math.max(0.18, Math.min(0.72, point.y)),
@@ -45,8 +72,8 @@ export function boardingPose(mode: TravelMode, progress: number) {
       visible: p < 0.97,
     };
   }
-  const gate = journeyGate(mode),
-    parked = journeyPose(mode, 0);
+  const gate = journeyGate(mode, world),
+    parked = journeyPose(mode, 0, world);
   return {
     x: gate[0] + (parked.x - gate[0]) * p,
     y: 0.18 + (parked.y - 0.18) * p,
@@ -57,10 +84,16 @@ export function boardingPose(mode: TravelMode, progress: number) {
 }
 
 /** Same-world camera/vehicle path. The region changes offshore at the midpoint. */
-export function journeyPose(mode: TravelMode, progress: number) {
+export function journeyPose(
+  mode: TravelMode,
+  progress: number,
+  world?: WorldId,
+  coach = 0,
+) {
   const p = Math.max(0, Math.min(1, progress));
   if (mode === "plane") {
     // Taxi before lifting off, ease into cruise, then flare and roll to a stop.
+    const [x, z] = journeyGate(mode, world);
     const distance = journeyDistance(p);
     const a = distance * Math.PI * 2;
     const altitude = (s: number) =>
@@ -73,20 +106,46 @@ export function journeyPose(mode: TravelMode, progress: number) {
       journeyEase((distance - 0.025) / 0.12) *
       journeyEase((0.975 - distance) / 0.12);
     return {
-      x: 58 + 45 * (1 - Math.cos(a)),
+      x: x + 45 * (1 - Math.cos(a)),
       y: 1.2 + altitude(distance),
-      z: 65 + 70 * Math.sin(a),
+      z: z + 4 + 70 * Math.sin(a),
       heading: Math.atan2(45 * Math.sin(a), 70 * Math.cos(a)),
       // Local +Z is the nose: negative X rotation pitches it upwards.
       pitch: -Math.atan2(slope, horizontal),
       roll: -0.16 * airborne,
     };
   }
-  const pose = railPose(journeyDistance(p));
+  const rail = railForWorld(world);
+  const pose = railPose(
+    journeyDistance(p),
+    mode === "train" ? coach * rail.coachTurns : 0,
+    world,
+  );
+  return { ...pose, y: mode === "train" ? rail.height : 0.4, pitch: 0, roll: 0 };
+}
+
+/** Trains follow the mounted region's rails, never an interpolated coastline. */
+export function journeyRidePose(
+  mode: TravelMode,
+  progress: number,
+  fromWorld: WorldId,
+  toWorld: WorldId,
+  visibleWorld: WorldId,
+  coach = 0,
+) {
+  if (mode === "train") return journeyPose(mode, progress, visibleWorld, coach);
+  const p = Math.max(0, Math.min(1, progress));
+  const from = journeyPose(mode, p, fromWorld);
+  const to = journeyPose(mode, p, toWorld);
+  const blend = p * p * (3 - 2 * p);
+  const mix = (a: number, b: number) => a + (b - a) * blend;
   return {
-    ...pose,
-    y: mode === "train" ? ISLAND_RAIL.height : 0.4,
-    pitch: 0,
-    roll: 0,
+    ...from,
+    x: mix(from.x, to.x),
+    z: mix(from.z, to.z),
+    heading: Math.atan2(
+      mix(Math.sin(from.heading), Math.sin(to.heading)),
+      mix(Math.cos(from.heading), Math.cos(to.heading)),
+    ),
   };
 }

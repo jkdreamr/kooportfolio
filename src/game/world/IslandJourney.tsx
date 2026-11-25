@@ -2,8 +2,14 @@ import { useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { runtime, useGame } from "../core/store";
-import { findPath, moveWorld } from "../core/world";
-import { boardingPose, journeyGate, journeyPose } from "../core/journey";
+import { findPath } from "../core/world";
+import { moveJourneyApproach } from "../core/journeyApproach";
+import {
+  boardingPose,
+  journeyGate,
+  journeyPose,
+  journeyRidePose,
+} from "../core/journey";
 import type { TravelOption, TravelWorld } from "../core/travel";
 import { Character } from "./Models";
 import {
@@ -22,30 +28,34 @@ export type IslandTrip = TravelOption & {
 
 export function IslandJourney({
   trip,
+  world,
   reduced,
   onArrive,
   onComplete,
 }: {
   trip: IslandTrip;
+  world: TravelWorld;
   reduced: boolean;
   onArrive: () => void;
   onComplete: () => void;
 }) {
   const actor = useRef<THREE.Group>(null),
     vehicle = useRef<THREE.Group>(null);
+  const trainCars = useRef<THREE.Group>(null);
+  const previousWorld = useRef(world);
   const phase = useRef<"approach" | "board" | "ride" | "leave" | "done">(
     "approach",
   );
   const time = useRef(0),
     arrived = useRef(false);
-  const gate = journeyGate(trip.mode);
+  const gate = journeyGate(trip.mode, trip.from);
   // Compute once: switching the visible region must not re-run pathfinding.
-  const [route] = useState(() => ({
-    current: [
-      ...findPath(trip.origin, [gate[0], gate[1]], trip.from),
-      [gate[0], gate[1]],
-    ],
-  }));
+  // A failed route keeps no waypoint: a straight walk to the gate can stall on
+  // obstacles, so the journey skips the approach leg instead.
+  const [route] = useState(() => {
+    const path = findPath(trip.origin, [gate[0], gate[1]], trip.from);
+    return { current: path.length ? [...path, [gate[0], gate[1]]] : path };
+  });
   const position = useRef(
     new THREE.Vector3(trip.origin[0], 0.18, trip.origin[1]),
   );
@@ -59,8 +69,10 @@ export function IslandJourney({
   const offset = useRef(new THREE.Vector3(...ISLAND_CAMERA_OFFSET));
   const lookRotation = useRef(new THREE.Quaternion());
   const lookMatrix = useRef(new THREE.Matrix4());
+  const desired = useRef(new THREE.Vector3());
   const walking = useRef(false);
   const speed = useRef(0);
+  const stalled = useRef(0);
   useFrame((_, delta) => {
     if (
       document.hidden ||
@@ -70,58 +82,70 @@ export function IslandJourney({
       return;
     const dt = Math.min(delta, 0.1);
     const plane = trip.mode === "plane";
-    const initial = journeyPose(trip.mode, 0);
+    // This prop changes in the same commit as the scenery and railway.
+    const localWorld = world;
+    const initial = journeyPose(trip.mode, 0, localWorld);
     let pose = initial;
+    let progress = 0;
     let actorVisible = true;
     let heading = actor.current?.rotation.y ?? trip.heading;
     walking.current = false;
     time.current += dt;
     if (phase.current === "approach") {
-      // Consume nearby grid nodes in the same frame instead of pausing at each.
-      const remaining = route.current.reduce((distance, point, i) => {
-        const previous = i
-          ? route.current[i - 1]
-          : [position.current.x, position.current.z];
-        return (
-          distance + Math.hypot(point[0] - previous[0], point[1] - previous[1])
-        );
-      }, 0);
-      let budget =
-        dt *
-        (speed.current = THREE.MathUtils.damp(
+      if (!route.current.length) {
+        // The gate is unreachable on foot from here; board anyway rather than
+        // walking into an obstacle forever.
+        phase.current = "board";
+        time.current = 0;
+      } else {
+        // Consume nearby grid nodes in the same frame instead of pausing at
+        // each, easing up to speed and back down into the gate.
+        const remaining = route.current.reduce((distance, point, i) => {
+          const previous = i
+            ? route.current[i - 1]
+            : [position.current.x, position.current.z];
+          return (
+            distance + Math.hypot(point[0] - previous[0], point[1] - previous[1])
+          );
+        }, 0);
+        speed.current = THREE.MathUtils.damp(
           speed.current,
           Math.min(6, Math.max(0.4, remaining * 3)),
           5,
           dt,
-        ));
-      while (route.current.length && budget > 0) {
-        const target = route.current[0];
-        const dx = target[0] - position.current.x,
-          dz = target[1] - position.current.z;
-        const distance = Math.hypot(dx, dz);
-        if (distance < 0.01) route.current.shift();
-        else {
-          const step = Math.min(distance, budget);
-          const [x, z] = moveWorld(
-            position.current.x,
-            position.current.z,
-            (dx / distance) * step,
-            (dz / distance) * step,
-            trip.from,
-          );
-          position.current.set(x, 0.18, z);
+        );
+        const [x, z] = moveJourneyApproach(
+          position.current.x,
+          position.current.z,
+          route.current,
+          (dt * speed.current) / 10,
+          trip.from,
+        );
+        const dx = x - position.current.x,
+          dz = z - position.current.z;
+        const moved = Math.hypot(dx, dz);
+        if (moved > 0.0001) {
           heading = Math.atan2(dx, dz);
           walking.current = true;
-          budget -= step;
+          stalled.current = 0;
+        } else {
+          // A waypoint blocked by drifted obstacles is skipped rather than
+          // retried forever against a collider.
+          stalled.current += dt;
+          if (stalled.current > 1.5) {
+            route.current.shift();
+            stalled.current = 0;
+          }
         }
-      }
-      if (!route.current.length) {
-        phase.current = "board";
-        time.current = 0;
+        position.current.set(x, 0.18, z);
+        if (!route.current.length) {
+          phase.current = "board";
+          time.current = 0;
+        }
       }
     } else if (phase.current === "board") {
       const t = Math.min(1, time.current / (plane ? 3.2 : 2));
-      const passenger = boardingPose(trip.mode, t);
+      const passenger = boardingPose(trip.mode, t, trip.from);
       position.current.set(passenger.x, passenger.y, passenger.z);
       heading = passenger.heading;
       actorVisible = passenger.visible;
@@ -132,8 +156,18 @@ export function IslandJourney({
       }
     } else if (phase.current === "ride") {
       const p = Math.min(1, time.current / (plane ? 18 : 14));
-      pose = journeyPose(trip.mode, p);
-      position.current.set(pose.x, pose.y, pose.z);
+      progress = p;
+      pose = journeyRidePose(trip.mode, p, trip.from, trip.destination, world);
+      if (trip.mode === "train" && previousWorld.current !== world) {
+        const old = journeyPose("train", p, previousWorld.current);
+        // Re-anchor the camera with the train when the offshore region changes,
+        // rather than sliding the train across land between unlike rail rings.
+        desired.current.set(pose.x - old.x, pose.y - old.y, pose.z - old.z);
+        focus.current.add(desired.current);
+        camera.position.add(desired.current);
+      }
+      previousWorld.current = world;
+      position.current.set(pose.x, pose.y + 1, pose.z);
       actorVisible = false;
       if (p >= 0.5 && !arrived.current) {
         arrived.current = true;
@@ -145,7 +179,7 @@ export function IslandJourney({
       }
     } else if (phase.current === "leave") {
       const t = Math.min(1, time.current / (plane ? 3.2 : 2));
-      const passenger = boardingPose(trip.mode, 1 - t);
+      const passenger = boardingPose(trip.mode, 1 - t, trip.destination);
       position.current.set(passenger.x, passenger.y, passenger.z);
       heading = passenger.heading + Math.PI;
       actorVisible = passenger.visible;
@@ -164,13 +198,23 @@ export function IslandJourney({
       actor.current.rotation.y += turn * (1 - Math.exp(-dt * 10));
     }
     if (vehicle.current) {
-      vehicle.current.position.set(pose.x, pose.y, pose.z);
-      vehicle.current.rotation.set(
-        reduced ? 0 : pose.pitch,
-        pose.heading,
-        reduced ? 0 : pose.roll,
-        "YXZ",
-      );
+      if (trip.mode === "train") {
+        vehicle.current.position.set(0, 0, 0);
+        vehicle.current.rotation.set(0, 0, 0);
+        trainCars.current?.children.forEach((car, coach) => {
+          const p = journeyPose("train", progress, world, coach);
+          car.position.set(p.x, p.y, p.z);
+          car.rotation.set(0, p.heading, 0);
+        });
+      } else {
+        vehicle.current.position.set(pose.x, pose.y, pose.z);
+        vehicle.current.rotation.set(
+          reduced ? 0 : pose.pitch,
+          pose.heading,
+          reduced ? 0 : (pose.roll ?? 0),
+          "YXZ",
+        );
+      }
     }
     focus.current.lerp(position.current, 1 - Math.exp(-dt * 3));
     camera.position.copy(focus.current).add(offset.current);
@@ -190,7 +234,7 @@ export function IslandJourney({
       onComplete();
     }
   });
-  const parked = journeyPose(trip.mode, 0);
+  const parked = journeyPose(trip.mode, 0, trip.from);
   return (
     <group name="in-world-journey">
       <group
@@ -213,7 +257,7 @@ export function IslandJourney({
         {trip.mode === "plane" ? (
           <PassengerJet />
         ) : trip.mode === "train" ? (
-          <JourneyTrain />
+          <JourneyTrain carsRef={trainCars} />
         ) : (
           <RoadCar />
         )}

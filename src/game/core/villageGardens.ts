@@ -1,6 +1,10 @@
 import { WORLD_ELLIPSE } from "../../shared/world-bounds";
+import { isOnKoreaLand } from "./koreaDistrict";
+import { isKoreaGardenWalk, isKoreaLandmarkArea } from "./koreaLandmarks";
 import type { WorldId } from "./worlds";
 import { POND } from "./pond";
+import { isStanfordTownSpace } from "./stanfordLayout";
+import { KOREA_EXERCISE_YARD } from "./regionalActivities";
 
 type Plot = {
   x: number;
@@ -8,9 +12,14 @@ type Plot = {
   orchard: boolean;
   worlds: readonly WorldId[];
 };
-const all: readonly WorldId[] = ["home", "stanford", "korea"];
 const domestic: readonly WorldId[] = ["home", "stanford"];
+const korea: readonly WorldId[] = ["korea"];
 const plots: Plot[] = [];
+const nearPlot = (x: number, z: number, world: WorldId) =>
+  plots.some(
+    (plot) =>
+      plot.worlds.includes(world) && Math.hypot(plot.x - x, plot.z - z) < 2.8,
+  );
 
 // Deliberate orchard/crop districts, not random props or anonymous buildings.
 // Aisles stay open, and each physical bed/trunk has one matching collider.
@@ -22,28 +31,29 @@ const districts: readonly (readonly [
   boolean,
   readonly WorldId[],
 ])[] = [
-  [-60, -22, 4, 4, true, all],
-  [60, -24, 4, 4, false, all],
-  [-59, 23, 4, 4, true, all],
+  [-60, -22, 4, 4, true, domestic],
+  [60, -24, 4, 4, false, domestic],
+  [-59, 23, 4, 4, true, domestic],
   [58, 25, 4, 4, false, domestic],
-  [-25, -46, 6, 2, true, all],
-  [13, -43, 10, 3, true, all],
-  [46, -43, 5, 3, true, all],
-  [-31, 77, 7, 3, true, all],
-  [22, 81, 9, 3, false, all],
-  [47, 65, 4, 3, true, ["home", "korea"]],
-  [-57, -6, 6, 2, false, all],
+  [-25, -46, 6, 2, true, domestic],
+  [13, -43, 10, 3, true, domestic],
+  [46, -43, 5, 3, true, domestic],
+  [-31, 77, 7, 3, true, domestic],
+  [22, 81, 9, 3, false, domestic],
+  [47, 65, 4, 3, true, ["home"]],
+  [-57, -6, 6, 2, false, domestic],
   // The Home coast has no skate arena: use that whole district, not a bare
   // lawn reserved for a building which only exists at Stanford.
   [-48, 40, 8, 3, true, ["home"]],
   [-44, 60, 9, 4, false, ["home"]],
-  [-21, 61, 4, 4, true, all],
-  [-50, 2, 6, 2, false, all],
+  [-21, 61, 4, 4, true, domestic],
+  [-50, 2, 6, 2, false, domestic],
   [30, -36, 4, 2, false, domestic],
 ];
 
 function reserved(x: number, z: number, world: WorldId) {
   return (
+    (world === "stanford" && isStanfordTownSpace(x, z, 2)) ||
     Math.abs(x) < 4 ||
     Math.abs(z + 9) < 3 ||
     Math.abs(z - 10) < 3 ||
@@ -55,10 +65,7 @@ function reserved(x: number, z: number, world: WorldId) {
     (Math.abs(x - 58) < 12 && Math.abs(z - 57) < 15) ||
     (Math.abs(x - POND.x) < POND.radiusX + 2 &&
       Math.abs(z - POND.z) < POND.radiusZ + 2) ||
-    (world === "stanford" && Math.abs(x + 50) < 19 && Math.abs(z - 50) < 16) ||
-    (world === "korea" &&
-      ((Math.abs(x + 48) < 10 && Math.abs(z + 24) < 8) ||
-        (Math.abs(x + 59) < 10 && Math.abs(z + 5) < 6)))
+    (world === "stanford" && Math.abs(x + 50) < 19 && Math.abs(z - 50) < 16)
   );
 }
 
@@ -74,21 +81,63 @@ for (const [cx, cz, cols, rows, orchard, worlds] of districts) {
       )
         continue;
       const visibleWorlds = worlds.filter(
-        (world) =>
-          !reserved(x, z, world) &&
-          !plots.some(
-            (plot) =>
-              plot.worlds.includes(world) &&
-              Math.hypot(plot.x - x, plot.z - z) < 2.8,
-          ),
+        (world) => !reserved(x, z, world) && !nearPlot(x, z, world),
       );
       if (visibleWorlds.length)
         plots.push({ x, z, orchard, worlds: visibleWorlds });
     }
 }
 
+// Keep the small orchard on Namsan.
+const koreaGardenDistricts = [[-42, -29, 3, 2, true]] as const;
+for (const [cx, cz, cols, rows, orchard] of koreaGardenDistricts) {
+  for (let col = 0; col < cols; col++)
+    for (let row = 0; row < rows; row++) {
+      const x = cx + (col - (cols - 1) / 2) * 4.2;
+      const z = cz + (row - (rows - 1) / 2) * 5;
+      if (
+        (x / (WORLD_ELLIPSE.radiusX - 3)) ** 2 +
+          ((z - WORLD_ELLIPSE.centerZ) / (WORLD_ELLIPSE.radiusZ - 3)) ** 2 <
+          1 &&
+        !nearPlot(x, z, "korea")
+      )
+        plots.push({ x, z, orchard, worlds: korea });
+    }
+}
+
+const [yardX, yardZ, yardWidth, yardDepth] = KOREA_EXERCISE_YARD;
+function koreaPlotClear(x: number, z: number, orchard: boolean) {
+  const mx = orchard ? 0.65 : 0.85;
+  const mz = orchard ? 0.65 : 1.5;
+  return (
+    isOnKoreaLand(x, z, orchard ? 2.2 : 1.8) &&
+    !isKoreaLandmarkArea(x, z, 2) &&
+    !isKoreaGardenWalk(x, z, mx, mz) &&
+    (Math.abs(x - yardX) >= yardWidth / 2 + mx ||
+      Math.abs(z - yardZ) >= yardDepth / 2 + mz)
+  );
+}
+
 export function villageGardenPlots(world: WorldId) {
-  return plots.filter((plot) => plot.worlds.includes(world));
+  if (world === "home")
+    return [
+      [-6, -37],
+      [0, -37],
+      [6, -35],
+      [13, -34],
+      [-32, -32],
+      [-35, -28],
+    ].map(([x, z]) => ({
+      x,
+      z,
+      orchard: true,
+      worlds: ["home"] as readonly WorldId[],
+    }));
+  return plots.filter(
+    ({ worlds, x, z, orchard }) =>
+      worlds.includes(world) &&
+      (world !== "korea" || koreaPlotClear(x, z, orchard)),
+  );
 }
 
 export function villageGardenSolids(world: WorldId) {

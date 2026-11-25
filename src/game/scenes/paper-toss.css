@@ -5,6 +5,14 @@
   transform: translateY(-50%);
 }
 
+@media (max-width: 700px) and (orientation: portrait) {
+  .game-shell:has(.scene-office .context-action.visible) .toss-launch {
+    top: auto;
+    bottom: calc(38px + env(safe-area-inset-bottom));
+    transform: none;
+  }
+}
+
 .toss-hud {
   position: absolute;
   inset: 0;
@@ -18,7 +26,18 @@
   font: 500 14px/1.25 system-ui, sans-serif;
 }
 .toss-hud:focus { outline: none; }
+.toss-swipe { display: none; }
+@media (any-pointer: coarse) {
+  .toss-swipe {
+    display: block;
+    position: absolute;
+    inset: 0;
+    pointer-events: auto;
+    touch-action: none;
+  }
+}
 .toss-hud header {
+  position: relative;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -37,7 +56,30 @@
   font-size: 13px;
   color: #e0e7eb;
 }
+.toss-status {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0 0;
+  color: #d7e0e6;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.toss-status strong[data-result="hit"] { color: #b9e7d7; }
+.toss-status strong[data-result="miss"] { color: #f3cdbb; }
+.toss-score-pop {
+  display: inline-block;
+  color: #b9e7d7;
+  animation: toss-score-pop 280ms ease-out;
+}
+@keyframes toss-score-pop {
+  30% { transform: scale(1.45); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toss-score-pop { animation: none; }
+}
 .toss-controls {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -47,11 +89,17 @@
   max-width: 100%;
   box-sizing: border-box;
 }
-.toss-controls p {
+.toss-hint {
   margin: 0;
-  min-width: 85px;
-  font-variant-numeric: tabular-nums;
+  color: #e0e7eb;
+  font-size: 13px;
   text-align: center;
+}
+.toss-hint-touch { display: none; }
+@media (pointer: coarse) {
+  .toss-hint { flex: 0 0 100%; }
+  .toss-hint-touch { display: inline; }
+  .toss-hint-keys { display: none; }
 }
 .toss-controls label {
   display: flex;
@@ -70,6 +118,19 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
+  position: relative;
+}
+.toss-power::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 15%;
+  height: 7px;
+  transform: translateX(-50%);
+  box-sizing: border-box;
+  border: 1px solid #bfdae8;
+  pointer-events: none;
 }
 .toss-power progress {
   width: 100%;
@@ -102,5 +163,5 @@
 .toss-hud button[aria-disabled="true"] { opacity: .6; cursor: default; }
 .toss-hud button[data-toss] { touch-action: none; user-select: none; }
 @media (max-width: 520px) {
-  .toss-controls p { flex: 0 0 100%; }
+  .toss-hint { flex: 0 0 100%; }
 }

@@ -4,41 +4,64 @@ import {
   journeyEase,
   journeyGate,
   journeyPose,
+  journeyRidePose,
 } from "../src/game/core/journey";
+import { railForWorld } from "../src/game/core/islandRail";
 import { canWalk, findPath } from "../src/game/core/world";
+import type { WorldId } from "../src/game/core/worlds";
 import { WORLD_ELLIPSE } from "../src/shared/world-bounds";
+
+const expectWalkableRoute = (
+  position: [number, number],
+  route: [number, number][],
+  world: WorldId,
+) => {
+  expect(route.length).toBeGreaterThan(0);
+  for (const target of route) {
+    const distance = Math.hypot(
+      target[0] - position[0],
+      target[1] - position[1],
+    );
+    const steps = Math.max(1, Math.ceil(distance / 0.05));
+    for (let step = 1; step <= steps; step++) {
+      const t = step / steps;
+      expect(
+        canWalk(
+          position[0] + (target[0] - position[0]) * t,
+          position[1] + (target[1] - position[1]) * t,
+          world,
+        ),
+      ).toBe(true);
+    }
+    position = target;
+  }
+};
 
 describe("world-space transport", () => {
   it("can reach the airport from a photo-booth corner off the pathfinding grid", () => {
-    let position: [number, number] = [-4.91, -7.04];
+    const position: [number, number] = [-4.91, -7.04];
     expect(canWalk(...position, "korea")).toBe(true);
-    const route = findPath(position, [...journeyGate("plane")], "korea");
-    expect(route.length).toBeGreaterThan(0);
-    for (const target of route) {
-      const distance = Math.hypot(
-        target[0] - position[0],
-        target[1] - position[1],
-      );
-      const steps = Math.max(1, Math.ceil(distance / 0.05));
-      for (let step = 1; step <= steps; step++) {
-        const t = step / steps;
-        expect(
-          canWalk(
-            position[0] + (target[0] - position[0]) * t,
-            position[1] + (target[1] - position[1]) * t,
-            "korea",
-          ),
-        ).toBe(true);
-      }
-      position = target;
-    }
+    expectWalkableRoute(
+      position,
+      findPath(position, [...journeyGate("plane")], "korea"),
+      "korea",
+    );
+  });
+  it("can reach the airport through a western Korea gap that needs a turn", () => {
+    const position: [number, number] = [-57.47, 5];
+    expect(canWalk(...position, "korea")).toBe(true);
+    expectWalkableRoute(
+      position,
+      findPath(position, [...journeyGate("plane")], "korea"),
+      "korea",
+    );
   });
   it("boards at reachable gates in each region", () => {
     for (const world of ["home", "stanford", "korea"] as const) {
       for (const mode of world === "korea"
         ? (["plane"] as const)
         : (["plane", "train"] as const)) {
-        const gate = journeyGate(mode);
+        const gate = journeyGate(mode, world);
         expect(canWalk(gate[0], gate[1], world)).toBe(true);
         const route = findPath([0, 5], [gate[0], gate[1]], world);
         expect(route.length).toBeGreaterThan(0);
@@ -102,24 +125,62 @@ describe("world-space transport", () => {
 
   it("walks a reversible boarding path from ground level into the cabin", () => {
     for (const mode of ["plane", "train", "car"] as const) {
-      const start = boardingPose(mode, 0),
-        end = boardingPose(mode, 1);
-      expect([start.x, start.z]).toEqual([...journeyGate(mode)]);
-      expect(start.y).toBe(0.18);
-      expect(start.visible).toBe(true);
-      expect(end.visible).toBe(false);
-      for (let step = 0; step <= 100; step++) {
-        const pose = boardingPose(mode, step / 100);
-        expect(Number.isFinite(pose.heading)).toBe(true);
-        expect(pose.y).toBeGreaterThanOrEqual(0.18);
-        if (mode === "plane") {
-          expect(pose.y).toBeLessThanOrEqual(0.72);
-          for (const world of ["home", "stanford", "korea"] as const)
+      for (const world of ["home", "stanford", "korea"] as const) {
+        if (world === "korea" && mode !== "plane") continue;
+        const start = boardingPose(mode, 0, world),
+          end = boardingPose(mode, 1, world);
+        expect([start.x, start.z]).toEqual([...journeyGate(mode, world)]);
+        expect(start.y).toBe(0.18);
+        expect(start.visible).toBe(true);
+        expect(end.visible).toBe(false);
+        for (let step = 0; step <= 100; step++) {
+          const pose = boardingPose(mode, step / 100, world);
+          expect(Number.isFinite(pose.heading)).toBe(true);
+          expect(pose.y).toBeGreaterThanOrEqual(0.18);
+          if (mode === "plane") {
+            expect(pose.y).toBeLessThanOrEqual(0.72);
             expect(canWalk(pose.x, pose.z, world)).toBe(true);
+          }
         }
       }
       expect(journeyEase(0.0001)).toBeLessThan(0.00000001);
       expect(1 - journeyEase(0.9999)).toBeLessThan(0.00000001);
+    }
+  });
+
+  it("keeps every traveling coach on the mounted railway before and after the region handoff", () => {
+    for (const [from, to] of [
+      ["home", "stanford"],
+      ["stanford", "home"],
+    ] as const) {
+      for (let step = 0; step <= 100; step++) {
+        const progress = step / 100;
+        // Include either side of the scenery commit at the midpoint.
+        const worlds =
+          progress === 0.5 ? [from, to] : [progress < 0.5 ? from : to];
+        for (const world of worlds) {
+          const rail = railForWorld(world);
+          for (let coach = 0; coach < 3; coach++) {
+            const p = journeyRidePose(
+              "train",
+              progress,
+              from,
+              to,
+              world,
+              coach,
+            );
+            expect(
+              ((p.x - rail.centerX) / rail.radiusX) ** 2 +
+                ((p.z - rail.centerZ) / rail.radiusZ) ** 2,
+            ).toBeCloseTo(1, 8);
+            expect(p.y).toBe(rail.height);
+            // The Stanford airport is centered at (58, 52), with its apron
+            // extending to z=61; no car may pass through that footprint.
+            if (world === "stanford")
+              expect(p.x < 50 || p.x > 66 || p.z < 44 || p.z > 64).toBe(true);
+          }
+        }
+      }
     }
   });
 });
