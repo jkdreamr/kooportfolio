@@ -594,6 +594,8 @@ body:has(.game-shell),
   border: 1px solid #d3d6be;
   backdrop-filter: blur(12px);
   pointer-events: auto;
+  max-height: calc(100svh - 180px);
+  overflow-y: auto;
 }
 .build-option {
   display: flex;
@@ -1528,6 +1530,8 @@ body:has(.game-shell),
     top: auto;
     bottom: 124px;
     padding: 17px;
+    max-height: calc(100svh - 144px);
+    overflow-y: auto;
   }
   .build-option {
     gap: 15px;
