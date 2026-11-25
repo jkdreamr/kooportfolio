@@ -13,43 +13,49 @@ import * as THREE from "three";
 import { Box, Cylinder, Sign } from "./Models";
 import { runtime, useGame } from "../core/store";
 import { keys, touch } from "../core/input";
-import { ISLAND_RAIL, railPose } from "../core/islandRail";
+import { railForWorld, railPose } from "../core/islandRail";
+import type { WorldId } from "../core/worlds";
+import { travelOptions, WORLD_NAMES } from "../core/travel";
 import "./island-train.css";
 
 const TIES = 320;
 const RAIL_SEGMENTS = 400;
 
-function CoastalTrack() {
+function CoastalTrack({ world }: { world: WorldId }) {
+  const rail = railForWorld(world);
   const ties = useRef<THREE.InstancedMesh>(null);
   const rails = useRef<THREE.InstancedMesh>(null);
   const piers = useRef<THREE.InstancedMesh>(null);
   useLayoutEffect(() => {
     const object = new THREE.Object3D();
     for (let i = 0; i < TIES; i++) {
-      const p = railPose(i / TIES);
-      object.position.set(p.x, ISLAND_RAIL.height - 0.14, p.z);
+      const p = railPose(i / TIES, 0, world);
+      object.position.set(p.x, rail.height - 0.14, p.z);
       object.rotation.set(0, p.heading, 0);
       object.scale.set(2.5, 0.16, 0.32);
       object.updateMatrix();
       ties.current!.setMatrixAt(i, object.matrix);
     }
     for (let i = 0; i < RAIL_SEGMENTS; i++) {
-      const p = railPose(i / RAIL_SEGMENTS);
+      const p = railPose(i / RAIL_SEGMENTS, 0, world);
+      const next = railPose((i + 1) / RAIL_SEGMENTS, 0, world);
+      const length =
+        world === "home" ? Math.hypot(next.x - p.x, next.z - p.z) * 0.98 : 1.65;
       for (let side = 0; side < 2; side++) {
         const offset = side === 0 ? -0.77 : 0.77;
         object.position.set(
           p.x + Math.cos(p.heading) * offset,
-          ISLAND_RAIL.height,
+          rail.height,
           p.z - Math.sin(p.heading) * offset,
         );
         object.rotation.set(0, p.heading, 0);
-        object.scale.set(0.13, 0.16, 1.65);
+        object.scale.set(0.13, 0.16, length);
         object.updateMatrix();
         rails.current!.setMatrixAt(i * 2 + side, object.matrix);
       }
     }
     for (let i = 0; i < 72; i++) {
-      const p = railPose(i / 72);
+      const p = railPose(i / 72, 0, world);
       object.position.set(p.x, -1, p.z);
       object.rotation.set(0, p.heading, 0);
       object.scale.set(1.9, 4, 0.45);
@@ -60,7 +66,7 @@ function CoastalTrack() {
       ref.current!.instanceMatrix.needsUpdate = true;
       ref.current!.computeBoundingSphere();
     }
-  }, []);
+  }, [world, rail]);
   return (
     <group name="coastal-railway">
       <instancedMesh
@@ -200,12 +206,15 @@ export function RailCar({
 }
 
 export function IslandTrain({
+  world,
   onRidingChange,
   disabled = false,
 }: {
+  world: WorldId;
   onRidingChange?: (riding: boolean) => void;
   disabled?: boolean;
 }) {
+  const rail = railForWorld(world);
   const [riding, setRiding] = useState(false);
   const travelRequest = useGame((s) => s.travelRequest);
   const [near, setNear] = useState(false);
@@ -267,22 +276,19 @@ export function IslandTrain({
     if (hidden || !runtime.active) return;
     const dt = Math.min(delta, 0.05);
     if (!reducedMotion || riding) {
-      turns.current += dt / ISLAND_RAIL.lapSeconds;
+      turns.current += dt / rail.lapSeconds;
       phase.current -= dt * 7.5;
     }
     coaches.current?.children.forEach((car, i) => {
-      const pose = railPose(turns.current, i * 0.009);
-      car.position.set(pose.x, ISLAND_RAIL.height, pose.z);
+      const pose = railPose(turns.current, i * rail.coachTurns, world);
+      car.position.set(pose.x, rail.height, pose.z);
       car.rotation.y = pose.heading;
     });
     const isNear =
-      Math.hypot(
-        runtime.x - ISLAND_RAIL.station[0],
-        runtime.z - ISLAND_RAIL.station[1],
-      ) < 5;
+      Math.hypot(runtime.x - rail.station[0], runtime.z - rail.station[1]) < 5;
     if (isNear !== near) setNear(isNear);
     if (riding) {
-      const p = railPose(turns.current, 0.009);
+      const p = railPose(turns.current, rail.coachTurns, world);
       look.set(p.x, 1.5, p.z);
       cameraTarget.set(p.x + 20, 26, p.z + 28);
       camera.position.lerp(cameraTarget, 1 - Math.exp(-dt * 3));
@@ -303,14 +309,14 @@ export function IslandTrain({
   };
   return (
     <group>
-      <CoastalTrack />
+      <CoastalTrack world={world} />
       <group ref={coaches} visible={!disabled}>
         {[0, 1, 2].map((i) => {
-          const pose = railPose(0, i * 0.009);
+          const pose = railPose(0, i * rail.coachTurns, world);
           return (
             <group
               key={i}
-              position={[pose.x, ISLAND_RAIL.height, pose.z]}
+              position={[pose.x, rail.height, pose.z]}
               rotation={[0, pose.heading, 0]}
             >
               <RailCar engine={i === 0} phase={phase} />
@@ -318,7 +324,7 @@ export function IslandTrain({
           );
         })}
       </group>
-      <group position={[-80.2, 0, ISLAND_RAIL.centerZ]}>
+      <group position={[rail.centerX - rail.radiusX + 6.3, 0, rail.centerZ]}>
         <Box p={[-0.5, 0.6, 0]} s={[12.4, 0.5, 4.5]} c="#9c7952" />
         <Box p={[4.6, 0.2, 0]} s={[2.2, 0.3, 4]} c="#b39a72" />
         {[-5, -1, 3].flatMap((x) =>
@@ -353,15 +359,39 @@ export function IslandTrain({
             onPointerDown={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
           >
-            <strong>Island rail</strong>
+            <strong>{riding ? "Island rail" : "Station"}</strong>
             {riding ? (
               <button ref={exitRef} onClick={leave}>
                 Return to station
               </button>
             ) : (
-              <button ref={boardRef} onClick={board}>
-                Ride island loop
-              </button>
+              <div className="island-rail-actions">
+                {travelOptions(world, "station")
+                  .sort(
+                    (a, b) =>
+                      Number(b.mode === "train") - Number(a.mode === "train"),
+                  )
+                  .map((option) => (
+                    <button
+                      key={option.mode}
+                      aria-label={`${option.mode === "train" ? "Train" : "Drive"} to ${WORLD_NAMES[option.destination]}`}
+                      onClick={() =>
+                        useGame.setState({ travelRequest: option })
+                      }
+                    >
+                      {option.mode === "train"
+                        ? `Train to ${WORLD_NAMES[option.destination]}`
+                        : "Drive"}
+                    </button>
+                  ))}
+                <button
+                  ref={boardRef}
+                  onClick={board}
+                  aria-label="Ride island loop"
+                >
+                  Island loop
+                </button>
+              </div>
             )}
           </section>
         </Html>

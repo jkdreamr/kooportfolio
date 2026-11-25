@@ -3,6 +3,7 @@ export type Blackjack = {
   phase: "bet" | "player" | "dealer" | "over";
   bank: number;
   bet: number;
+  stake: number;
   player: Card[];
   dealer: Card[];
   deck: Card[];
@@ -10,6 +11,11 @@ export type Blackjack = {
   result: "" | "win" | "blackjack" | "push" | "lose";
   message: string;
 };
+export const canDouble = (state: Blackjack) =>
+  state.phase === "player" &&
+  state.player.length === 2 &&
+  state.bank >= state.stake &&
+  state.deck.length > 0;
 export const cardLabel = (card: Card) =>
   `${({ 1: "A", 11: "J", 12: "Q", 13: "K" } as Record<number, string>)[card.rank] ?? card.rank}${card.suit}`;
 export function handValue(cards: readonly Card[]): number {
@@ -35,6 +41,7 @@ export const newBlackjack = (): Blackjack => ({
   phase: "bet",
   bank: 100,
   bet: 10,
+  stake: 0,
   player: [],
   dealer: [],
   deck: [],
@@ -47,16 +54,17 @@ type Action =
   | { type: "deal"; deck: Card[] }
   | { type: "hit" }
   | { type: "stand" }
+  | { type: "double" }
   | { type: "dealer" }
   | { type: "refill" };
 function settle(state: Blackjack, result: Blackjack["result"]): Blackjack {
   const payout =
     result === "blackjack"
-      ? state.bet * 2.5
+      ? state.stake * 2.5
       : result === "win"
-        ? state.bet * 2
+        ? state.stake * 2
         : result === "push"
-          ? state.bet
+          ? state.stake
           : 0;
   return {
     ...state,
@@ -65,9 +73,9 @@ function settle(state: Blackjack, result: Blackjack["result"]): Blackjack {
     bank: state.bank + payout,
     message:
       result === "blackjack"
-        ? `Blackjack. +${state.bet * 1.5} chips.`
+        ? `Blackjack. +${state.stake * 1.5} chips.`
         : result === "win"
-          ? `You win. +${state.bet} chips.`
+          ? `You win. +${state.stake} chips.`
           : result === "push"
             ? "Push. Bet returned."
             : handValue(state.player) > 21
@@ -98,6 +106,7 @@ export function blackjackReducer(state: Blackjack, action: Action): Blackjack {
       phase: "player",
       result: "",
       bank: state.bank - state.bet,
+      stake: state.bet,
       player: [action.deck[0], action.deck[2]],
       dealer: [action.deck[1], action.deck[3]],
       deck: action.deck.slice(4),
@@ -113,6 +122,19 @@ export function blackjackReducer(state: Blackjack, action: Action): Blackjack {
     return state.phase === "player"
       ? { ...state, phase: "dealer", message: "Dealer’s turn." }
       : state;
+  if (action.type === "double") {
+    if (!canDouble(state)) return state;
+    const next = {
+      ...state,
+      bank: state.bank - state.stake,
+      stake: state.stake * 2,
+      player: [...state.player, state.deck[0]],
+      deck: state.deck.slice(1),
+    };
+    return handValue(next.player) > 21
+      ? settle(next, "lose")
+      : { ...next, phase: "dealer", message: "Doubled. Dealer’s turn." };
+  }
   if (action.type === "hit") {
     if (state.phase !== "player" || !state.deck.length) return state;
     const next = {

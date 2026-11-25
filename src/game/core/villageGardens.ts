@@ -121,6 +121,20 @@ function koreaPlotClear(x: number, z: number, orchard: boolean) {
 }
 
 export function villageGardenPlots(world: WorldId) {
+  if (world === "home")
+    return [
+      [-6, -37],
+      [0, -37],
+      [6, -35],
+      [13, -34],
+      [-32, -32],
+      [-35, -28],
+    ].map(([x, z]) => ({
+      x,
+      z,
+      orchard: true,
+      worlds: ["home"] as readonly WorldId[],
+    }));
   return plots.filter(
     ({ worlds, x, z, orchard }) =>
       worlds.includes(world) &&

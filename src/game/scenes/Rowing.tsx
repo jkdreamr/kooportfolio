@@ -30,6 +30,7 @@ import { RowingShell } from "./RowingShell";
 import { RowingWater } from "./RowingWater";
 import { RowingBanks } from "./RowingBanks";
 import { recordLeaderboardResult } from "../core/leaderboard";
+import "./rowing.css";
 export const useRaceHud = create<{
   race: RaceState;
   place: number;

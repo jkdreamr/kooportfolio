@@ -1,41 +1,64 @@
 .island-rail-controls {
   position: absolute;
-  bottom: max(110px, calc(env(safe-area-inset-bottom) + 100px));
+  /* Walking controls occupy the lower-left 221px on portrait phones. */
+  bottom: max(242px, calc(env(safe-area-inset-bottom) + 232px));
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  align-items: center;
-  gap: 16px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
   width: max-content;
-  max-width: calc(100vw - 32px);
-  padding: 10px 12px;
-  border: 2px solid #b39b66;
-  border-radius: 9px;
-  background: #304650;
-  box-shadow: 0 4px 0 #152630;
-  color: #f5f4e9;
+  max-width: calc(100vw - 24px);
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid #647580;
+  border-radius: 8px;
+  background: #243946;
+  box-shadow: 0 3px 10px #14232c33;
+  color: #fff;
   font:
-    bold 14px Trebuchet MS,
-    Arial,
+    600 13px system-ui,
     sans-serif;
   pointer-events: auto;
 }
+.island-rail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
 .island-rail-controls button {
   min-height: 44px;
-  padding: 9px 12px;
-  border: 1px solid #8ba275;
-  border-bottom-width: 3px;
+  padding: 8px 10px;
+  border: 1px solid #71808b;
   border-radius: 5px;
-  background: #486832;
-  color: #fff8e3;
+  background: #354d5b;
+  color: #fff;
   font: inherit;
   cursor: pointer;
   touch-action: manipulation;
 }
 .island-rail-controls button:hover {
-  background: #5a7a40;
+  background: #496373;
 }
 .island-rail-controls button:focus-visible {
-  outline: 3px solid #f0c56b;
+  outline: 2px solid #fff;
   outline-offset: 3px;
+}
+@media (min-width: 701px) and (pointer: fine) {
+  .island-rail-controls {
+    bottom: max(110px, calc(env(safe-area-inset-bottom) + 100px));
+  }
+}
+@media (max-height: 600px) and (orientation: landscape) {
+  .island-rail-controls {
+    left: auto;
+    right: max(16px, env(safe-area-inset-right));
+    bottom: max(112px, calc(env(safe-area-inset-bottom) + 104px));
+    transform: none;
+    max-width: calc(100vw - 160px);
+  }
+  .island-rail-controls > strong {
+    display: none;
+  }
 }

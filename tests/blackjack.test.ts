@@ -60,4 +60,24 @@ describe("blackjack", () => {
     expect(blackjackReducer(broke, { type: "refill" }).bank).toBe(100);
     expect(blackjackReducer(newBlackjack(), { type: "refill" }).bank).toBe(100);
   });
+  it("doubles once on two cards for one card, then pays the doubled stake", () => {
+    let state = deal(5, 10, 6, 7, 10, 9);
+    expect(state.bank).toBe(90);
+    state = blackjackReducer(state, { type: "double" });
+    expect(state.bank).toBe(80);
+    expect(state.stake).toBe(20);
+    expect(state.player).toHaveLength(3);
+    expect(state.phase).toBe("dealer");
+    expect(blackjackReducer(state, { type: "double" })).toBe(state);
+    state = blackjackReducer(state, { type: "dealer" });
+    state = blackjackReducer(state, { type: "dealer" });
+    expect(state.result).toBe("win");
+    expect(state.bank).toBe(120);
+    expect(state.bet).toBe(10);
+    const hit = blackjackReducer(deal(5, 10, 6, 7, 2, 9), { type: "hit" });
+    expect(blackjackReducer(hit, { type: "double" })).toBe(hit);
+    const bust = blackjackReducer(deal(10, 10, 6, 7, 10), { type: "double" });
+    expect(bust.result).toBe("lose");
+    expect(bust.bank).toBe(80);
+  });
 });

@@ -4,6 +4,34 @@ import { sampleWeather } from "./weather";
 import type { WorldId } from "./worlds";
 
 type Point = readonly [number, number];
+export const HOME_ANIMALS: readonly Animal[] = [
+  {
+    kind: "dog",
+    route: [
+      [0, 7],
+      [2, 7],
+      [2, 2],
+      [0, 2],
+    ],
+    speed: 0.9,
+    rest: 2.5,
+    offset: 0,
+    color: "#bd824a",
+  },
+  {
+    kind: "cat",
+    route: [
+      [-29, -4],
+      [-24, -3],
+      [-17, -3],
+      [-24, -4],
+    ],
+    speed: 0.65,
+    rest: 3,
+    offset: 4,
+    color: "#dba962",
+  },
+];
 const DUCK_ROUTE: readonly Point[] = [
   [POND.x - 3, POND.z],
   [POND.x, POND.z - 2],
@@ -140,7 +168,11 @@ const stanfordAnimals = ANIMALS.map((animal, i): Animal => {
   return { ...animal, route: animal.route.map(([x, z]) => [x + dx, z + dz]) };
 });
 export const animalsInWorld = (world: WorldId) =>
-  world === "stanford" ? stanfordAnimals : ANIMALS;
+  world === "home"
+    ? HOME_ANIMALS
+    : world === "stanford"
+      ? stanfordAnimals
+      : ANIMALS;
 
 /** Constant-speed legs with a sniff/graze at each waypoint; loops without teleporting. */
 export function animalPose(animal: Animal, seconds: number) {

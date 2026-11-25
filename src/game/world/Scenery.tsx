@@ -16,6 +16,7 @@ import {
   isStanfordTownSpace,
   isStanfordTreeSite,
 } from "../core/stanfordLayout";
+import { isHomeLand } from "../core/homeIsland";
 
 type Part = {
   p: [number, number, number];
@@ -77,21 +78,22 @@ forest.forEach(({ x, z }, i) => {
 });
 export function GroundGrass({
   avoid,
-  stanford = false,
+  world,
 }: {
   avoid: readonly GroundFootprint[];
-  stanford?: boolean;
+  world?: WorldId;
 }) {
   const parts = useMemo(
     () =>
       grassSites(avoid)
-        .filter(({ x, z }) => !stanford || onStanfordLand(x, z, 0.3))
+        .filter(({ x, z }) => world !== "home" || isHomeLand(x, z, 1))
+        .filter(({ x, z }) => world !== "stanford" || onStanfordLand(x, z, 0.3))
         .map<Part>(({ x, z, variant }) => ({
           p: [x, 0.32, z],
           s: [0.12, 0.35 + (variant % 4) * 0.1, 0.12],
           c: variant % 3 ? "#638143" : "#8b9c59",
         })),
-    [avoid, stanford],
+    [avoid, world],
   );
   return <Instances parts={parts} geometry={reed} />;
 }
@@ -108,6 +110,8 @@ const koreaRocks = rocks.filter(outsideLandmarks);
 
 export function Scenery({ world }: { world: WorldId }) {
   const korea = world === "korea";
+  // Home's authored trees and colliders live together in HomeGardens.
+  if (world === "home") return null;
   return (
     <>
       <NaturalTrees
