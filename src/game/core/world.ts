@@ -1,16 +1,25 @@
 import { WORLD_BOUNDS, WORLD_ELLIPSE } from "../../shared/world-bounds";
 import { ISLAND_RAIL } from "./islandRail";
 import { forest, koreaForest } from "./scenery";
+import { isOnKoreaLand } from "./koreaDistrict";
 import {
   KOREA_LANDMARK_DESTINATIONS,
   KOREA_LANDMARK_SOLIDS,
+  KOREA_STREET_BUILDINGS,
 } from "./koreaLandmarks";
 import { campusObstacles } from "./campus";
 import { POND } from "./pond";
-import { PHOTO_BOOTH_ENTRY, PHOTO_BOOTH_OBSTACLES, PHOTO_BOOTH_ORIGIN } from "./photoBoothLayout";
+import {
+  PHOTO_BOOTH_ENTRY,
+  PHOTO_BOOTH_OBSTACLES,
+  PHOTO_BOOTH_ORIGIN,
+} from "./photoBoothLayout";
 import { belongsToWorld, type WorldId } from "./worlds";
 import { HOME_COMMUNITY_OBSTACLES } from "../world/CommunityScenery";
 import { villageGardenSolids } from "./villageGardens";
+import { HOME_GARDEN_OBSTACLES } from "./homeGardens";
+import { HOME_DESTINATION_CENTERS } from "./homeLayout";
+import { STANFORD_BUILDINGS, isStanfordTownSpace } from "./stanfordLayout";
 import {
   KOREA_WATER_OBSTACLES,
   KOREA_BRIDGE_RAILS,
@@ -156,13 +165,19 @@ const largerHouses = new Set<string>([
 export const doors = villageDoors.map((door) => {
   const horizontal = largerHouses.has(door.id) ? 1.5 : 1;
   const vertical = horizontal > 1 ? 1.2 : 1;
-  const [cx, cz, hx, hz] = door.footprint;
+  const [oldX, oldZ, hx, hz] = door.footprint;
+  const [cx, cz] = STANFORD_BUILDINGS[
+    door.id as keyof typeof STANFORD_BUILDINGS
+  ] ?? [oldX, oldZ];
+  const rotation = door.id === "skate" ? Math.PI : 0;
   return {
     ...door,
-    z: cz + (door.z - cz) * horizontal,
+    x: cx + (door.x - oldX) * horizontal,
+    z: cz + (door.z - oldZ) * horizontal * (rotation ? -1 : 1),
     anchor: [cx, door.anchor[1] * vertical, cz] as const,
     footprint: [cx, cz, hx * horizontal, hz * horizontal] as const,
     scale: [horizontal, vertical, horizontal] as const,
+    rotation,
   };
 });
 export const landmarks = [
@@ -217,11 +232,43 @@ export const landmarks = [
     anchor: [-76, 4, ISLAND_RAIL.station[1]] as const,
   },
 ] as const;
-export const destinations = [...doors, ...landmarks];
+const koreaDoors = doors
+  .filter((door) => belongsToWorld(door.id, "korea"))
+  .map((door) => {
+    if (door.id !== "theater" && door.id !== "cognition") return door;
+    const [x, z] = KOREA_STREET_BUILDINGS[door.id];
+    const [, originalZ, halfWidth, halfDepth] = door.footprint;
+    return {
+      ...door,
+      x,
+      z: z + (door.z - originalZ),
+      anchor: [x, door.anchor[1], z] as const,
+      footprint: [x, z, halfWidth, halfDepth] as const,
+    };
+  });
 export const doorsInWorld = (world: WorldId) =>
-  doors.filter((door) => belongsToWorld(door.id, world));
-export const destinationsInWorld = (world: WorldId) =>
-  destinations.filter((place) => belongsToWorld(place.id, world));
+  world === "korea"
+    ? koreaDoors
+    : doors
+        .filter((door) => belongsToWorld(door.id, world))
+        .map((door) => {
+          const center = world === "home" && HOME_DESTINATION_CENTERS[door.id];
+          if (!center) return door;
+          const [x, z] = center;
+          const dx = x - door.footprint[0],
+            dz = z - door.footprint[1];
+          return {
+            ...door,
+            x: door.x + dx,
+            z: door.z + dz,
+            anchor: [x, door.anchor[1], z] as const,
+            footprint: [x, z, door.footprint[2], door.footprint[3]] as const,
+          };
+        });
+export const destinationsInWorld = (world: WorldId) => [
+  ...doorsInWorld(world),
+  ...landmarks.filter((place) => belongsToWorld(place.id, world)),
+];
 export type PlaceId = (typeof doors)[number]["id"];
 export function isInterior(scene: string) {
   return (
@@ -234,16 +281,14 @@ const sharedObstacles: ReadonlyArray<readonly number[]> = [
   [0, -6.6, 2.1, 0.4],
   [0, 0, 1.5, 1.5],
   [-19, -38, 6, 6],
-  [58, 52, 9, 7],
 ];
 const obstaclesFor = (world?: WorldId): ReadonlyArray<readonly number[]> => [
   ...sharedObstacles,
-  ...(world === "korea" ? koreaForest : forest).map(({ x, z }) => [
-    x,
-    z,
-    0.4,
-    0.4,
-  ]),
+  // Korea's south-bank walk runs behind the terminal, outside its roof.
+  world === "korea" ? [58, 52, 4.9, 3.9] : [58, 52, 9, 7],
+  ...(world === "korea" ? koreaForest : forest)
+    .filter(({ x, z }) => world !== "stanford" || !isStanfordTownSpace(x, z, 3))
+    .map((tree) => [tree.x, tree.z, 0.4, 0.4]),
   ...(world ? villageGardenSolids(world) : []),
   ...(world ? doorsInWorld(world) : doors).map((door) => door.footprint),
   ...(world === undefined || world === "stanford" ? campusObstacles : []),
@@ -257,7 +302,9 @@ const obstaclesFor = (world?: WorldId): ReadonlyArray<readonly number[]> => [
         ...KOREA_PARK_TREES.map(({ p }) => [p[0], p[2], 0.4, 0.4]),
       ]
     : []),
-  ...(world === "home" ? [...HOME_COMMUNITY_OBSTACLES] : []),
+  ...(world === "home"
+    ? [...HOME_COMMUNITY_OBSTACLES, ...HOME_GARDEN_OBSTACLES]
+    : []),
 ];
 const regionalObstacles = {
   home: obstaclesFor("home"),
@@ -271,9 +318,11 @@ export function canWalk(x: number, z: number, world?: WorldId) {
     x > WORLD_BOUNDS.maxX ||
     z < WORLD_BOUNDS.minZ ||
     z > WORLD_BOUNDS.maxZ ||
-    (x / WORLD_ELLIPSE.radiusX) ** 2 +
-      ((z - WORLD_ELLIPSE.centerZ) / WORLD_ELLIPSE.radiusZ) ** 2 >
-      1
+    (world === "korea"
+      ? !isOnKoreaLand(x, z, 0.35)
+      : (x / WORLD_ELLIPSE.radiusX) ** 2 +
+          ((z - WORLD_ELLIPSE.centerZ) / WORLD_ELLIPSE.radiusZ) ** 2 >
+        1)
   )
     return false;
   return !regionalObstacles[world ?? "all"].some(

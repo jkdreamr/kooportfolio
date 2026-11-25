@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { OrthographicCamera, Vector3 } from "three";
 import {
+  islandCenter,
   islandFollow,
   islandZoom,
   ISLAND_CAMERA_OFFSET,
@@ -13,6 +14,8 @@ import {
   zoomWorld,
 } from "../src/game/core/worldView";
 import { WORLD_ELLIPSE } from "../src/shared/world-bounds";
+import { KOREA_SHORE } from "../src/game/core/koreaDistrict";
+import { KOREA_LANDMARKS } from "../src/game/core/koreaLandmarks";
 import { POND_SURFACE } from "../src/game/core/pond";
 import { villageGardenPlots } from "../src/game/core/villageGardens";
 import { WORLD_IDS } from "../src/game/core/worlds";
@@ -80,6 +83,57 @@ describe("whole-island camera", () => {
     for (const factor of [NaN, Infinity, 0, -1]) zoomWorld(factor);
     expect(useWorldView.getState().zoom).toBe(1);
   });
+
+  it("keeps Korea within half the area of the shared island ellipse", () => {
+    const area =
+      Math.abs(
+        KOREA_SHORE.reduce((sum, [x, z], i) => {
+          const [nextX, nextZ] = KOREA_SHORE[(i + 1) % KOREA_SHORE.length];
+          return sum + x * nextZ - z * nextX;
+        }, 0),
+      ) / 2;
+    expect(area).toBeLessThan(
+      (Math.PI * WORLD_ELLIPSE.radiusX * WORLD_ELLIPSE.radiusZ) / 2,
+    );
+  });
+
+  it.each([
+    [1280, 800],
+    [390, 844],
+    [844, 390],
+  ])("fits the Korea shoreline and tower at %s × %s", (width, height) => {
+    const [x, z] = islandCenter("korea");
+    const camera = new OrthographicCamera(
+      -width / 2,
+      width / 2,
+      height / 2,
+      -height / 2,
+      0.1,
+      350,
+    );
+    camera.position.set(
+      x + ISLAND_CAMERA_OFFSET[0],
+      ISLAND_CAMERA_OFFSET[1],
+      z + ISLAND_CAMERA_OFFSET[2],
+    );
+    camera.lookAt(x, 0.7, z);
+    camera.zoom = islandZoom(width, height, "korea");
+    camera.updateProjectionMatrix();
+    camera.updateMatrixWorld();
+    const {
+      origin: [towerX, towerZ],
+      height: towerHeight,
+    } = KOREA_LANDMARKS.namsan;
+    for (const point of [
+      ...KOREA_SHORE.map(([px, pz]) => new Vector3(px, -3.7, pz)),
+      new Vector3(towerX, towerHeight, towerZ),
+    ]) {
+      point.project(camera);
+      expect(Math.abs(point.x)).toBeLessThan(0.95);
+      expect(Math.abs(point.y)).toBeLessThan(0.9);
+      expect(Math.abs(point.z)).toBeLessThan(1);
+    }
+  });
 });
 
 describe("stable, planted island", () => {
@@ -109,7 +163,7 @@ describe("stable, planted island", () => {
     "roots every %s garden inside the smaller coastline and keeps water clear",
     (world) => {
       const plots = villageGardenPlots(world);
-      expect(plots.length).toBeGreaterThan(100);
+      expect(plots.length).toBeGreaterThan(world === "home" ? 100 : 0);
       for (const { x, z } of plots) {
         expect(
           (x / WORLD_ELLIPSE.radiusX) ** 2 +

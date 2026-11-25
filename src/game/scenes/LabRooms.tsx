@@ -23,16 +23,17 @@ import {
   BEAT_PAD_KEYS,
   beatCue,
   beatPadLane,
+  beatRewardCoins,
   beatRoundEnd,
+  createLightsHintTracker,
   flipLights,
-  hitBeat,
   HIT_WINDOW,
   LIGHTS_TARGET,
-  lightsHint,
   lightsPar,
   lightsReach,
   newBeatGame,
   newLightsBoard,
+  queueBeatPad,
   type BeatGame,
 } from "../core/labGames";
 import { newRunId } from "../../shared/run-id";
@@ -467,10 +468,7 @@ export function BeatLabInterior() {
       if (!gameIsActive() || useGameMode.getState().active?.id !== "music")
         return;
       const g = syncBeat();
-      if (g.phase === "playing") {
-        game.current = hitBeat(g, lane);
-        setView(game.current);
-      }
+      game.current = queueBeatPad(g, lane);
       labTone(lane);
       const setPadLit = (value: boolean) =>
         setLit((previous) => {
@@ -521,11 +519,8 @@ export function BeatLabInterior() {
     if (g.phase === "done" && !rewarded.current) {
       stopBeatTrack();
       rewarded.current = true;
-      const hits = g.notes.filter((n) => n.hit).length;
-      if (hits >= 20)
-        useGame
-          .getState()
-          .award(`music-${newRunId()}`, g.points >= 2600 ? 20 : 12, 10);
+      const coins = beatRewardCoins(g);
+      if (coins) useGame.getState().award(`music-${newRunId()}`, coins, 10);
     }
     refresh.current += dt;
     if (refresh.current > 0.04) {
@@ -548,6 +543,7 @@ export function BeatLabInterior() {
     }
   };
   const hits = view.notes.filter((note) => note.hit).length;
+  const coins = beatRewardCoins(view);
   return (
     <>
       {active && <LabCamera id="music" />}
@@ -576,7 +572,7 @@ export function BeatLabInterior() {
                 {view.phase !== "ready" && (
                   <p className="lab-feedback" role="status">
                     {view.phase === "done"
-                      ? `${hits}/32 hits · best ${view.best}×${hits >= 20 ? ` · +${view.points >= 2600 ? 20 : 12} coins` : " · 20 hits earns coins"}`
+                      ? `${hits}/${view.notes.length} hits · best ${view.best}× · ${coins ? `+${coins} coins` : "No coins"}`
                       : view.feedback && view.time - view.feedbackAt < 0.75
                         ? view.feedback
                         : view.time < BEAT_COUNT_IN
@@ -738,6 +734,7 @@ const MATH_KEYS: Record<string, "undo" | "hint" | "reset"> = {
   r: "reset",
 };
 const FLIP_MS = 220;
+const mathHints = createLightsHintTracker();
 
 function LightsBoard({
   board,
@@ -813,10 +810,12 @@ export function MathLabInterior() {
     [board, setBoard] = useState(() => newLightsBoard(0));
   const [history, setHistory] = useState<number[]>([]),
     [hint, setHint] = useState<number | null>(null),
-    [preview, setPreview] = useState<number | null>(null);
+    [preview, setPreview] = useState<number | null>(null),
+    [practiceClear, setPracticeClear] = useState(false);
   const [near, setNear] = useState(false);
   const rewarded = useRef(false),
     boardRef = useRef(board),
+    startingBoard = useRef(board),
     roundRef = useRef(0),
     seedRef = useRef(0),
     historyRef = useRef<number[]>([]),
@@ -832,7 +831,10 @@ export function MathLabInterior() {
   const load = useCallback((nextRound: number, nextSeed: number) => {
     roundRef.current = nextRound;
     seedRef.current = nextSeed;
-    boardRef.current = newLightsBoard(nextRound, nextSeed);
+    startingBoard.current = boardRef.current = newLightsBoard(
+      nextRound,
+      nextSeed,
+    );
     historyRef.current = [];
     rewarded.current = false;
     flips.current = [];
@@ -862,14 +864,19 @@ export function MathLabInterior() {
       // Settle ripple from the centre once the last flip lands.
       for (let i = 0; i < 9; i++)
         flips.current[i] =
-          now + FLIP_MS + (Math.abs((i % 3) - 1) + Math.abs(Math.floor(i / 3) - 1)) * 90;
-      useGame
-        .getState()
-        .award(
-          `math-${newRunId()}`,
-          moves <= lightsPar(roundRef.current) ? 15 : 10,
-          10,
-        );
+          now +
+          FLIP_MS +
+          (Math.abs((i % 3) - 1) + Math.abs(Math.floor(i / 3) - 1)) * 90;
+      const practice = mathHints.wasUsed(startingBoard.current);
+      setPracticeClear(practice);
+      if (!practice)
+        useGame
+          .getState()
+          .award(
+            `math-${newRunId()}`,
+            moves <= lightsPar(roundRef.current) ? 15 : 10,
+            10,
+          );
     }
   }, []);
   const undo = useCallback(() => {
@@ -891,7 +898,8 @@ export function MathLabInterior() {
     labTone(0);
   }, []);
   const showHint = useCallback(() => {
-    if (playing()) setHint(lightsHint(boardRef.current));
+    if (playing())
+      setHint(mathHints.reveal(startingBoard.current, boardRef.current));
   }, []);
   const reset = useCallback(() => {
     if (playing() && boardRef.current !== LIGHTS_TARGET)
@@ -1027,9 +1035,11 @@ export function MathLabInterior() {
             <footer className="lab-game-bottom lab-math-bottom">
               <p role="status">
                 {solved
-                  ? moves <= par
-                    ? `Solved at par · +${coins}`
-                    : `Solved in ${moves} · +${coins}`
+                  ? practiceClear
+                    ? "Solved · practice"
+                    : moves <= par
+                      ? `Solved at par · +${coins}`
+                      : `Solved in ${moves} · +${coins}`
                   : "Light all nine"}
               </p>
               {solved ? (

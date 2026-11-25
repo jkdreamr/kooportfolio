@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   type PointerEvent,
+  type MouseEvent,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { Html } from "@react-three/drei";
@@ -174,10 +175,20 @@ function Skater({
   );
 }
 
-/** Hub model only. Parcel: 32×24, centered at (-50, 50); mounting belongs to Hub. */
-export function SkateParkBuilding() {
+/** Hub model only. The full-size 32×24 parcel is positioned by the world layout. */
+export function SkateParkBuilding({
+  position = [-50, 0, 50],
+  rotation = 0,
+}: {
+  position?: [number, number, number];
+  rotation?: number;
+}) {
   return (
-    <group position={[-50, 0, 50]} scale={[1.42, 1, 0.9]}>
+    <group
+      position={position}
+      rotation={[0, rotation, 0]}
+      scale={[1.42, 1, 0.9]}
+    >
       <SkateParkTerrain detailed={false} />
     </group>
   );
@@ -452,8 +463,25 @@ export function SkateParkInterior() {
       uiKeys.current.delete(control);
     },
   });
-  const trick = (kind: SkateTrick) => {
-    if (active()) input.current.trick = kind;
+  const tap = (kind: "ollie" | SkateTrick) => {
+    const fire = () => {
+      if (!active()) return;
+      if (kind === "ollie") input.current.jump = true;
+      else input.current.trick = kind;
+    };
+    return {
+      // Secondary touch pointers don't synthesize a click. Act on contact so
+      // one thumb can push/steer while the other performs a trick.
+      onPointerDown: (e: PointerEvent<HTMLButtonElement>) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        fire();
+      },
+      onClick: (e: MouseEvent<HTMLButtonElement>) => {
+        // Keep native keyboard/assistive activation without double-firing a tap.
+        if (e.detail === 0) fire();
+      },
+    };
   };
   return (
     <>
@@ -524,14 +552,17 @@ export function SkateParkInterior() {
               <>
                 <section className="skate-score" aria-label="Skate score">
                   <span>{mode === "run" ? `${view.time}s` : "Free skate"}</span>
-                  <strong>{view.score.toLocaleString()}</strong>
+                  <div className="skate-banked">
+                    <span>Banked</span>
+                    <strong>{view.score.toLocaleString()}</strong>
+                  </div>
                   <span>{view.speed} km/h</span>
                   {view.combo > 0 && (
                     <div className="skate-combo">
-                      <b>
-                        {view.combo.toLocaleString()}{" "}
-                        <small>×{view.multiplier}</small>
-                      </b>
+                      <span className="skate-combo-label">
+                        Unbanked <small>×{view.multiplier}</small>
+                      </span>
+                      <b>{view.combo.toLocaleString()}</b>
                       <meter
                         aria-label="Combo link time"
                         min={0}
@@ -579,18 +610,13 @@ export function SkateParkInterior() {
                       </button>
                     </div>
                     <div className="skate-tricks" aria-label="Skate tricks">
-                      <button
-                        className="skate-ollie"
-                        onClick={() => {
-                          if (active()) input.current.jump = true;
-                        }}
-                      >
+                      <button className="skate-ollie" {...tap("ollie")}>
                         Ollie <kbd>Space</kbd>
                       </button>
-                      <button onClick={() => trick("kickflip")}>
+                      <button {...tap("kickflip")}>
                         Kickflip <kbd>Q</kbd>
                       </button>
-                      <button onClick={() => trick("shove-it")}>
+                      <button {...tap("shove-it")}>
                         Shove-it <kbd>E</kbd>
                       </button>
                       <button
@@ -603,7 +629,7 @@ export function SkateParkInterior() {
                         Step off
                       </button>
                     </div>
-                    <p className="skate-hint">Ollie, flip, land to bank.</p>
+                    <p className="skate-hint">Flip to jump. Land to bank.</p>
                   </>
                 )}
               </>

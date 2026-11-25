@@ -3,10 +3,13 @@ import {
   advanceBeat,
   beatCue,
   beatPadLane,
+  beatRewardCoins,
   beatRoundEnd,
+  createLightsHintTracker,
   BEAT_COUNT_IN,
   BEAT_INTERVAL,
   newBeatGame,
+  queueBeatPad,
   hitBeat,
   HIT_WINDOW,
   flipLights,
@@ -16,6 +19,7 @@ import {
   lightsReach,
   lightsSolution,
   lightsHint,
+  type BeatGame,
 } from "../src/game/core/labGames";
 
 describe("Beat Lab", () => {
@@ -88,6 +92,16 @@ describe("Beat Lab", () => {
     const onBeat = advanceBeat(hit, BEAT_COUNT_IN - hit.time);
     expect(hitBeat(onBeat, 1).points).toBe(25);
   });
+  it("keeps late practice taps out of the opening note's burst", () => {
+    const start = { ...newBeatGame(), phase: "playing" as const };
+    const practice = advanceBeat(start, BEAT_COUNT_IN - 0.03);
+    expect(queueBeatPad(practice, 1)).toBe(practice);
+    const opening = advanceBeat(queueBeatPad(practice, 1), 0.03);
+    const judged = advanceBeat(queueBeatPad(opening, 0), 0.07);
+    expect(judged.notes[0].hit).toBe(true);
+    expect(judged.points).toBe(100);
+    expect(judged.offBeatPresses).toBe(0);
+  });
   it("introduces the rhythm before faster pairs without extending the round", () => {
     const game = newBeatGame();
     const gaps = game.notes
@@ -119,6 +133,83 @@ describe("Beat Lab", () => {
     expect(expired.combo).toBe(1);
     expect(hitBeat(hitNext, skipped.lane).combo).toBe(3);
   });
+  it("rejects a four-pad burst on every note regardless of pad order", () => {
+    let game: BeatGame = { ...newBeatGame(), phase: "playing" };
+    for (const [index, note] of game.notes.entries()) {
+      for (let i = 0; i < 4; i++) {
+        const at = note.at + i * 0.015;
+        game = queueBeatPad(advanceBeat(game, at - game.time), (index + i) % 4);
+      }
+    }
+    game = advanceBeat(game, 1);
+    expect(game.phase).toBe("done");
+    expect(game.notes.every((note) => !note.hit)).toBe(true);
+    expect(game.points).toBe(0);
+    expect(beatRewardCoins(game)).toBe(0);
+  });
+  it("counts every press in an off-beat burst against reward accuracy", () => {
+    let game: BeatGame = { ...newBeatGame(), phase: "playing" };
+    for (const [index, note] of game.notes.entries()) {
+      game = queueBeatPad(advanceBeat(game, note.at - game.time), note.lane);
+      if (index >= 9) continue;
+      game = advanceBeat(game, 0.23);
+      for (const lane of [0, 1, 2, 3]) game = queueBeatPad(game, lane);
+    }
+    game = advanceBeat(game, 1);
+    expect(game.notes.filter((note) => note.hit)).toHaveLength(32);
+    expect(game.points).toBe(2885);
+    expect(game.offBeatPresses).toBe(36);
+    expect(beatRewardCoins(game)).toBe(0);
+  });
+  it("scores a single press at its original time even while the hit window closes", () => {
+    const start = { ...newBeatGame(), phase: "playing" as const };
+    const late = advanceBeat(start, BEAT_COUNT_IN + HIT_WINDOW - 0.01);
+    const queued = queueBeatPad(late, 0);
+    const waiting = advanceBeat(queued, 0.03);
+    expect(waiting.notes[0].missed).toBe(false);
+    const judged = advanceBeat(waiting, 0.04);
+    expect(judged.notes[0].hit).toBe(true);
+    expect(judged.points).toBe(60);
+  });
+  it("scores two rapid taps when each matches a distinct live half-beat note", () => {
+    const start = { ...newBeatGame(), phase: "playing" as const };
+    const [first, second] = start.notes.slice(18, 20);
+    const overlap = advanceBeat(start, first.at + 0.14);
+    expect(beatCue(overlap, first.lane)).toBe(true);
+    expect(beatCue(overlap, second.lane)).toBe(true);
+    const pressed = queueBeatPad(overlap, first.lane);
+    const both = queueBeatPad(advanceBeat(pressed, 0.02), second.lane);
+    const judged = advanceBeat(both, 0.07);
+    expect(judged.notes.slice(18, 20).map((note) => note.hit)).toEqual([
+      true,
+      true,
+    ]);
+    expect(judged.combo).toBe(2);
+    expect(judged.points).toBe(120);
+  });
+  it.each([
+    { cleanHits: 20, delay: 0.1, mistakes: 0, coins: 12 },
+    { cleanHits: 20, delay: 0.1, mistakes: 1, coins: 0 },
+    { cleanHits: 32, delay: 0, mistakes: 0, coins: 20 },
+    { cleanHits: 32, delay: 0, mistakes: 17, coins: 0 },
+  ])(
+    "awards $coins coins for $cleanHits hits, $delay timing error and $mistakes wrong taps",
+    ({ cleanHits, delay, mistakes, coins }) => {
+      let game: BeatGame = { ...newBeatGame(), phase: "playing" };
+      for (const [index, note] of game.notes.slice(0, cleanHits).entries()) {
+        game = queueBeatPad(
+          advanceBeat(game, note.at + delay - game.time),
+          note.lane,
+        );
+        if (index < mistakes)
+          game = queueBeatPad(advanceBeat(game, 0.1), (note.lane + 1) % 4);
+      }
+      expect(beatRewardCoins(game)).toBe(0);
+      game = advanceBeat(game, beatRoundEnd(game) - game.time + 0.01);
+      expect(game.notes.filter((note) => note.hit)).toHaveLength(cleanHits);
+      expect(beatRewardCoins(game)).toBe(coins);
+    },
+  );
 });
 
 describe("Math Lab", () => {
@@ -168,5 +259,16 @@ describe("Math Lab", () => {
   it("reports which tiles a press flips", () => {
     expect(lightsReach(4)).toBe(flipLights(0, 4));
     expect(lightsReach(9)).toBe(0);
+  });
+  it("keeps hint usage with the starting board rather than the attempt", () => {
+    const hints = createLightsHintTracker();
+    const first = newLightsBoard(0);
+    const second = newLightsBoard(1);
+    expect(hints.wasUsed(first)).toBe(false);
+    expect(hints.reveal(first, flipLights(first, 5))).not.toBeNull();
+    expect(hints.wasUsed(second)).toBe(false);
+    expect(hints.wasUsed(newLightsBoard(0))).toBe(true);
+    expect(hints.reveal(second, LIGHTS_TARGET)).toBeNull();
+    expect(hints.wasUsed(second)).toBe(false);
   });
 });

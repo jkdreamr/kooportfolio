@@ -1,0 +1,122 @@
+/* Keep the lower river clear for the shell and thumb controls. */
+@media (max-width: 700px) and (orientation: portrait) {
+  .game-shell .game-ui.scene-rowing .race-control-panel {
+    top: 186px;
+    right: 16px;
+    bottom: auto;
+    left: 16px;
+    width: auto;
+    padding: 10px 12px;
+  }
+
+  .game-shell .game-ui.scene-rowing .energy-track {
+    margin: 6px 0 8px;
+  }
+
+  .game-shell .game-ui.scene-rowing .cadence-switch button {
+    min-height: 44px;
+  }
+
+  .game-shell .game-ui.scene-rowing .last-split {
+    top: 320px;
+    right: 16px;
+    bottom: auto;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 11px;
+    letter-spacing: 0;
+  }
+
+  .game-shell .game-ui.scene-rowing .last-split b {
+    margin: 0;
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 700px) and (max-height: 700px) and (orientation: portrait) {
+  .game-shell .game-ui.scene-rowing .challenge-heading {
+    top: 78px;
+    left: 16px;
+  }
+
+  .game-shell .game-ui.scene-rowing .challenge-heading h1 {
+    margin: 0;
+    font-size: 24px;
+  }
+
+  .game-shell .game-ui.scene-rowing .challenge-heading p {
+    display: none;
+  }
+
+  .game-shell .game-ui.scene-rowing .race-instruments {
+    top: 76px;
+    padding: 8px 0;
+  }
+
+  .game-shell .game-ui.scene-rowing .race-instruments strong {
+    margin-top: 2px;
+    font-size: 20px;
+  }
+
+  .game-shell .game-ui.scene-rowing .race-control-panel {
+    top: 140px;
+    padding: 8px 10px;
+    display: grid;
+    grid-template-columns: 76px minmax(0, 1fr);
+    column-gap: 10px;
+    align-items: center;
+  }
+
+  .game-shell .game-ui.scene-rowing .stamina-label {
+    grid-column: 1;
+    grid-row: 1;
+    flex-wrap: wrap;
+    gap: 2px;
+  }
+
+  .game-shell .game-ui.scene-rowing .energy-track {
+    grid-column: 1;
+    grid-row: 2;
+    margin: 4px 0 0;
+  }
+
+  .game-shell .game-ui.scene-rowing .cadence-switch {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .game-shell .game-ui.scene-rowing .race-control-panel p {
+    grid-column: 1 / -1;
+  }
+
+  .game-shell .game-ui.scene-rowing .last-split {
+    top: 112px;
+    right: auto;
+    left: 16px;
+  }
+}
+
+@media (max-width: 700px) and (max-height: 500px) and (orientation: portrait) {
+  .game-shell .game-ui.scene-rowing .race-touch {
+    bottom: calc(60px + env(safe-area-inset-bottom));
+  }
+
+  .game-shell .game-ui.scene-rowing .race-touch button {
+    height: 48px;
+  }
+
+  .game-shell .game-ui.scene-rowing .challenge-heading {
+    display: none;
+  }
+
+  .game-shell .game-ui.scene-rowing .race-control-panel p {
+    position: absolute;
+    top: -64px;
+    left: 0;
+    width: calc(100% - 150px);
+    margin: 0;
+    color: var(--hud-ink);
+    text-shadow: 0 1px 4px #0d233b;
+  }
+}

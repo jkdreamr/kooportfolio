@@ -17,6 +17,7 @@ const COLUMNS = "ABCDEFGHJ";
 const colorName = (color: number) => color === 1 ? "Black" : "White";
 const coordinate = (point: number) => `${COLUMNS[point % GO_SIZE]}${GO_SIZE - Math.floor(point / GO_SIZE)}`;
 type Match = { game: GoGame; past: GoGame[] };
+type FocusTarget = "board" | "confirm" | "resume" | "new" | "launch";
 const freshMatch = (): Match => ({ game: newGoGame(), past: [] });
 const GO_LEVEL_KEY = "go-opponent-level";
 
@@ -105,19 +106,32 @@ export function GoInterior() {
   const [level, setLevel] = useState(savedGoLevel);
   const [message, setMessage] = useState("");
   const [confirmNew, setConfirmNew] = useState(false);
-  const [focus, setFocus] = useState(0);
+  const [focus, setFocus] = useState(40);
+  const [aim, setAim] = useState<number | null>(null);
+  const aimKind = useRef<"keyboard" | "pointer">("keyboard");
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
-  const playButton = useRef<HTMLButtonElement>(null);
+  const focusTarget = useRef<FocusTarget | null>(null);
+  // Html commits in a separate DOM root. Focus when the native node is ready,
+  // rather than racing that root with an effect or animation frame.
+  const focusWhenReady = (node: HTMLButtonElement | null, target: FocusTarget) => {
+    if (node && focusTarget.current === target) {
+      focusTarget.current = null;
+      node.focus();
+    }
+  };
   const gl = useThree((s) => s.gl);
   const portal = useMemo(() => ({ current: gl.domElement.parentElement! }), [gl]);
   const hidden = useGame((s) => s.paused || s.panel !== "none" || s.build);
   const { game } = match;
   const thinking = computer && game.turn === 2 && game.phase === "playing";
   const score = useMemo(() => scoreGo(game), [game]);
+  const preview = useMemo(() => aim !== null && game.phase === "playing" && !thinking && !confirmNew
+    ? playGo(game, aim) : null, [aim, game, thinking, confirmNew]);
   const close = useCallback(() => {
+    focusTarget.current = "launch";
+    setAim(null);
     setConfirmNew(false);
     endGameMode();
-    requestAnimationFrame(() => playButton.current?.focus());
   }, []);
   useEffect(() => {
     // Shared Escape/room navigation can close the mode without clicking our UI.
@@ -129,15 +143,22 @@ export function GoInterior() {
     setConfirmNew(false);
   };
   const open = () => {
-    if (!startGameMode("go")) return;
+    focusTarget.current = "board";
+    if (!startGameMode("go")) { focusTarget.current = null; return; }
     keys.clear(); touch.x = 0; touch.z = 0;
     setConfirmNew(false);
-    requestAnimationFrame(() => buttons.current[focus]?.focus());
+  };
+  const reset = () => {
+    focusTarget.current = "board";
+    setFocus(40);
+    setMatch(freshMatch());
+    setConfirmNew(false);
+    setMessage("");
   };
   const place = (point: number) => {
-    if (!started || hidden) return;
+    if (!started || hidden || confirmNew) return;
     if (game.phase === "scoring") { setMatch((old) => ({ ...old, game: toggleGoDead(old.game, point) })); return; }
-    if (thinking || game.phase !== "playing" || confirmNew) return;
+    if (thinking || game.phase !== "playing") return;
     const move = playGo(game, point);
     if (!move.ok) { setMessage(move.reason); return; }
     commit(move.game);
@@ -151,8 +172,9 @@ export function GoInterior() {
       timer = window.setTimeout(() => {
         const move = point === null ? null : playGo(game, point);
         const next = move?.ok ? move.game : passGo(game);
+        if (next.phase === "scoring") focusTarget.current = "resume";
         setMatch((old) => old.game === game ? { game: next, past: [...old.past, game] } : old);
-        setMessage(move?.ok && point !== null
+        setMessage(next.phase === "scoring" ? "" : move?.ok && point !== null
           ? `White ${coordinate(point)}${move.captured ? ` · captured ${move.captured}` : ""}`
           : "White passed.");
       }, Math.max(0, readyAt - performance.now()));
@@ -172,14 +194,22 @@ export function GoInterior() {
     return () => { worker?.terminate(); window.clearTimeout(timer); };
   }, [started, hidden, thinking, confirmNew, game, level]);
   const boardKey = (event: KeyboardEvent<HTMLButtonElement>, point: number) => {
+    aimKind.current = "keyboard";
+    setAim(point);
+    if (event.key === "Enter" || event.key === " ") {
+      event.currentTarget.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }
     const row = Math.floor(point / GO_SIZE), col = point % GO_SIZE;
     const next = ({ ArrowLeft: row * GO_SIZE + Math.max(0, col - 1),
       ArrowRight: row * GO_SIZE + Math.min(GO_SIZE - 1, col + 1),
       ArrowUp: Math.max(0, row - 1) * GO_SIZE + col,
       ArrowDown: Math.min(GO_SIZE - 1, row + 1) * GO_SIZE + col,
-      Home: row * GO_SIZE, End: row * GO_SIZE + GO_SIZE - 1 } as Record<string, number>)[event.key];
+      Home: event.ctrlKey ? 0 : row * GO_SIZE,
+      End: event.ctrlKey ? GO_SIZE * GO_SIZE - 1 : row * GO_SIZE + GO_SIZE - 1 } as Record<string, number>)[event.key];
     if (next !== undefined) {
-      event.preventDefault(); setFocus(next); buttons.current[next]?.focus();
+      event.preventDefault(); setAim(next); setFocus(next); buttons.current[next]?.focus();
+      // Focus alone does not scroll an already-focused point back into view.
+      buttons.current[next]?.scrollIntoView({ block: "nearest", inline: "nearest" });
     }
   };
   const panelKey = (event: KeyboardEvent<HTMLElement>) => {
@@ -194,7 +224,7 @@ export function GoInterior() {
     if (event.key === "Escape") { event.preventDefault(); close(); return; }
     if (event.key !== "Tab") return;
     const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(
-      'button:not(:disabled):not([tabindex="-1"]), select, summary',
+      confirmNew ? '.go-confirm button' : 'button:not(:disabled):not([tabindex="-1"]), select, summary',
     )).filter((el) => el.getClientRects().length);
     const first = controls[0], last = controls.at(-1);
     if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
@@ -234,41 +264,61 @@ export function GoInterior() {
         <div className={`go-room-ui${started ? " go-room-ui--playing" : ""}`}>
           <section className={`go-card${started ? " go-card-playing" : ""}`} aria-label="Go game"
             role={started ? "dialog" : undefined} aria-modal={started ? true : undefined}
+            onPointerDownCapture={(event) => {
+              // Inert prevents background actions, but clicking it can still
+              // blur the modal's button. Keep that native focus change inside.
+              if (confirmNew && !(event.target instanceof Element && event.target.closest(".go-confirm button"))) {
+                event.preventDefault(); event.stopPropagation();
+              }
+            }}
             onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
             onKeyDown={panelKey}>
-            {!started ? <button ref={playButton} className="go-primary" onClick={open}>Play Go</button> : <>
-              <header className="go-heading"><h2>Go <small>9 × 9</small></h2>
+            {!started ? <button ref={(node) => focusWhenReady(node, "launch")} className="go-primary" onClick={open}>Play Go</button> : <>
+              <header className="go-heading" inert={confirmNew}><h2>Go <small>9 × 9</small></h2>
+                <strong className="go-status" aria-live="polite">{status}</strong>
                 <button className="go-close" onClick={close} aria-label="Close Go board">Close</button></header>
               <div className="go-layout">
-                <div className="go-board" role="grid" aria-label="9 by 9 Go board" aria-rowcount={9} aria-colcount={9} aria-busy={thinking}>
+                <div className="go-board" inert={confirmNew} role="grid" aria-label="9 by 9 Go board" aria-rowcount={9} aria-colcount={9} aria-busy={thinking}
+                  aria-describedby="go-help" onPointerLeave={() => { if (aimKind.current === "pointer") setAim(null); }}>
                   {Array.from({ length: GO_SIZE }, (_, row) => <div role="row" key={row}>
                     {Array.from({ length: GO_SIZE }, (_, col) => {
                       const point = row * GO_SIZE + col, stone = game.board[point];
                       const dead = game.dead.includes(point);
                       const territory = game.phase !== "playing" && !stone ? score.owners[point] : 0;
-                      return <button key={point} role="gridcell" ref={(el) => { buttons.current[point] = el; }}
-                        tabIndex={focus === point ? 0 : -1} onFocus={() => setFocus(point)}
+                      return <button key={point} role="gridcell" ref={(el) => { buttons.current[point] = el; if (focus === point) focusWhenReady(el, "board"); }}
+                        tabIndex={focus === point ? 0 : -1} onFocus={() => { setFocus(point); setAim(point); }}
+                        onBlur={() => setAim(null)}
+                        onPointerMove={(event) => { if (event.pointerType === "mouse") { aimKind.current = "pointer"; setAim(point); } }}
                         aria-label={`${coordinate(point)}, ${stone ? colorName(stone) + (dead ? ", marked dead" : " stone") : "empty"}${game.last === point ? ", last move" : ""}`}
-                        aria-disabled={game.phase === "finished" || (game.phase === "playing" && (!!stone || thinking))}
+                        aria-disabled={confirmNew || game.phase === "finished" || (game.phase === "playing" && (!!stone || thinking))}
                         className={`go-point${col === 0 ? " go-left" : col === 8 ? " go-right" : ""}${row === 0 ? " go-top" : row === 8 ? " go-bottom" : ""}`}
                         onKeyDown={(e) => boardKey(e, point)} onClick={() => place(point)}>
+                        {row === 0 && <span className="go-axis go-axis-column" aria-hidden="true">{COLUMNS[col]}</span>}
+                        {col === 0 && <span className="go-axis go-axis-row" aria-hidden="true">{GO_SIZE - row}</span>}
                         {[20, 24, 40, 56, 60].includes(point) && <i className="go-star" />}
                         {!!stone && <span className={`go-stone go-stone-${stone}${dead ? " go-dead" : ""}${game.last === point ? " go-last" : ""}`} />}
+                        {aim === point && preview?.ok && <span className={`go-stone go-stone-${game.turn} go-preview`} aria-hidden="true" />}
+                        {!confirmNew && <span className="go-cursor" aria-hidden="true" />}
                         {!!territory && <i className={`go-territory go-territory-${territory}`} />}
                       </button>;
                     })}
                   </div>)}
                 </div>
                 <div className="go-details">
-                  <strong className="go-status" aria-live="polite">{status}</strong>
-                  <p className="go-caption">{computer ? "You: Black · Computer: White" : "Two players · same device"}</p>
+                  <div inert={confirmNew}>
+                  <p className="go-caption">{computer ? `You: Black · Computer: White (${level})` : "Two players · same device"}</p>
                   {game.phase === "playing" ? <>
                     <div className="go-captures"><span>Black <b>{game.captures[0]}</b></span><span>White <b>{game.captures[1]}</b></span></div>
                     <p className="go-caption">Captured stones</p>
                     <div className="go-actions">
-                      <button disabled={thinking || confirmNew} onClick={() => { commit(passGo(game)); setMessage(`${colorName(game.turn)} passed.`); }}>Pass</button>
+                      <button disabled={thinking || confirmNew} onClick={() => {
+                        const next = passGo(game);
+                        focusTarget.current = next.phase === "scoring" ? "resume" : "board";
+                        commit(next); setMessage(next.phase === "scoring" ? "" : `${colorName(game.turn)} passed.`);
+                      }}>Pass</button>
                       <button disabled={!match.past.length || confirmNew} onClick={() => {
+                        focusTarget.current = "board";
                         const count = computer && game.turn === 1 ? 2 : 1;
                         const index = Math.max(0, match.past.length - count);
                         setMatch({ game: match.past[index], past: match.past.slice(0, index) });
@@ -276,22 +326,33 @@ export function GoInterior() {
                       }}>Undo</button>
                     </div>
                   </> : <>
-                    <div className="go-score"><span>Black <b>{score.black}</b></span><span>White <b>{score.white}</b></span></div>
+                    <div className="go-score">
+                      <div><span>Black <b>{score.black}</b></span>
+                        <small>{score.stones[0]} {score.stones[0] === 1 ? "stone" : "stones"} + {score.territory[0]} territory</small></div>
+                      <div><span>White <b>{score.white}</b></span>
+                        <small>{score.stones[1]} {score.stones[1] === 1 ? "stone" : "stones"} + {score.territory[1]} territory + {GO_KOMI} komi</small></div>
+                    </div>
+                    <p className="go-caption go-legend"><i className="go-territory-1" /><i className="go-territory-2" />Squares show territory.</p>
                     {game.phase === "scoring" && <>
                       <p className="go-caption">Tap dead groups to remove them. Both players agree, or resume play.</p>
-                      <div className="go-actions"><button onClick={() => { setMatch((old) => ({ ...old, game: resumeGo(old.game) })); setMessage(""); }}>Resume</button>
-                        <button className="go-primary" onClick={() => setMatch((old) => ({ ...old, game: { ...old.game, phase: "finished" } }))}>Finish</button></div>
+                      <div className="go-actions"><button ref={(node) => focusWhenReady(node, "resume")} disabled={confirmNew} onClick={() => {
+                        focusTarget.current = "board"; setMatch((old) => ({ ...old, game: resumeGo(old.game) })); setMessage("");
+                      }}>Resume</button>
+                        <button className="go-primary" disabled={confirmNew} onClick={() => {
+                          focusTarget.current = "new"; setMatch((old) => ({ ...old, game: { ...old.game, phase: "finished" } })); setMessage("");
+                        }}>Finish</button></div>
                     </>}
                   </>}
-                  <p className="go-message" role="status">{message || "Tap an intersection to place a stone."}</p>
-                  {confirmNew ? <div className="go-confirm"><p>Start over?</p><div className="go-actions">
-                    <button onClick={() => setConfirmNew(false)}>Keep playing</button>
-                    <button onClick={() => { setMatch(freshMatch()); setConfirmNew(false); setMessage(""); }}>Start over</button>
-                  </div></div> : <button className="go-new" onClick={() => {
-                    if (game.moves && game.phase !== "finished") setConfirmNew(true);
-                    else { setMatch(freshMatch()); setMessage(""); }
+                  <p id="go-help" className="go-message" role="status">{game.phase === "finished" ? "Final score · stones + territory + komi" : game.phase === "scoring" ? "Tap a group to mark or restore it." : message || "Tap a point, or use arrows + Enter / Space."}</p>
+                  </div>
+                  {confirmNew ? <div className="go-confirm" role="alertdialog" aria-modal="true" aria-label="Start a new Go game?"><p>Start over?</p><div className="go-actions">
+                    <button ref={(node) => focusWhenReady(node, "confirm")} onClick={() => { focusTarget.current = "board"; setConfirmNew(false); }}>Keep playing</button>
+                    <button onClick={reset}>Start over</button>
+                  </div></div> : <button ref={(node) => focusWhenReady(node, "new")} className="go-new" onClick={() => {
+                    if (game.moves && game.phase !== "finished") { focusTarget.current = "confirm"; setConfirmNew(true); }
+                    else reset();
                   }}>New game</button>}
-                  {game.moves === 0 && <label className="go-mode">Opponent <select value={computer ? level : "local"} onChange={(e) => {
+                  {game.moves === 0 && <label className="go-mode" inert={confirmNew}>Opponent <select value={computer ? level : "local"} onChange={(e) => {
                     const next = GO_LEVELS.find((option) => option === e.target.value);
                     setComputer(Boolean(next));
                     if (next) {
@@ -302,7 +363,7 @@ export function GoInterior() {
                     <optgroup label="Computer">{GO_LEVELS.map((option) =>
                       <option key={option} value={option}>{option[0].toUpperCase() + option.slice(1)}</option>)}</optgroup>
                     <option value="local">Local player</option></select></label>}
-                  <details className="go-rules"><summary>Rules</summary><p>Black starts. Connect stones and surround space. Groups with no adjacent empty points are captured. No suicide or repeated positions. Pass twice to count; mark dead groups by agreement, or resume to capture them.</p>
+                  <details className="go-rules" inert={confirmNew}><summary>Rules</summary><p>Black starts. Connect stones and surround space. Groups with no adjacent empty points are captured. No suicide or repeated positions. Pass twice to count; mark dead groups by agreement, or resume to capture them.</p>
                     <p>Area scoring: stones + surrounded space. White gets {GO_KOMI} komi. Captures aren’t added again. Arrow keys move; Enter places. Local game, no online opponent.</p></details>
                 </div>
               </div>
