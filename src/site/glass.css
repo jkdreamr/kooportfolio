@@ -1,7 +1,8 @@
 /* The editorial site uses the same silver edge in a lighter material. */
 .portfolio {
-  --site-glass: linear-gradient(145deg, #ffffffdc, #edf2f580);
-  --site-edge: #b8c5ce80;
+  --site-glass: linear-gradient(135deg, #ffffffb3, #ffffff26 45%, #dce5ed1a), #ffffff1a;
+  --site-edge: #aabacb66;
+  background: linear-gradient(115deg, #f8fafb, #edf2f6 42%, #fff 70%, #eef2f5);
 }
 .portfolio :is(.repair-note, .repair-face, .portfolio-nav a, .work-row,
   .availability, .site-footer button, .break-caption button, .repair-note button) {
@@ -9,9 +10,9 @@
   border: 1px solid var(--site-edge);
   border-top-color: #fff;
   border-radius: 10px;
-  box-shadow: inset 0 1px 0 #fff, 0 3px 12px #102b3d08;
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+  box-shadow: inset 0 1px 0 #fff, inset 1px 0 0 #ffffffb3, inset 0 -1px 0 #ffffff66, 0 5px 18px #102b3d0d;
+  -webkit-backdrop-filter: blur(20px) saturate(110%);
+  backdrop-filter: blur(20px) saturate(110%);
   color: #3c4b58;
 }
 .portfolio .portfolio-nav {
@@ -25,7 +26,7 @@
 }
 .portfolio .portfolio-nav a.active {
   border-color: #8b9eae;
-  background: linear-gradient(150deg, #fff, #dce5edb3);
+  background: linear-gradient(135deg, #ffffffe6, #dce5ed4d);
   box-shadow: inset 0 1px 0 #fff, 0 2px 6px #102b3d0d;
 }
 .portfolio :is(.availability, .site-footer button, .break-caption button, .repair-note button) {
@@ -46,7 +47,7 @@
   .portfolio :is(.portfolio-nav a, .work-row, .availability, .site-footer button,
     .break-caption button, .repair-note button):hover {
     border-color: #8b9eae;
-    background: #f3f7fa;
+    background: linear-gradient(135deg, #ffffffd9, #ffffff4d);
     color: #20374b;
   }
 }
@@ -59,5 +60,10 @@
     .availability, .site-footer button, .break-caption button, .repair-note button) {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
+  }
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .portfolio {
+    --site-glass: #f4f7fa;
   }
 }

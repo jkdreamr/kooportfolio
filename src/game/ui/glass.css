@@ -1,28 +1,31 @@
-/* A shared material, not a new layout: silver edges over smoked slate.
+/* A shared material, not a new layout: reflective edges over clear frost.
    Blur belongs to floating surfaces; nested controls use a cheaper glaze.
    Reference: Apple HIG / Materials — denser glass for reading surfaces. */
 .game-shell {
-  --hud-face: #23303edb;
+  --hud-face: #13212c4d;
   --hud-low: #18232f;
-  --hud-edge: #dceaff38;
-  --hud-rim: #f1f7ff70;
+  --hud-edge: #e6f0ff45;
+  --hud-rim: #ffffffb3;
   --hud-ink: #f7f9fc;
-  --hud-muted: #c6d0dc;
+  --hud-muted: #edf2f8;
   --hud-gold: #dce8f5;
   --hud-shadow: 0 8px 28px #06101e2e;
-  --glass-fill: linear-gradient(145deg, #f2f7ff24, #e4eeff08 46%, #08121d18), var(--hud-face);
-  --glass-control: linear-gradient(160deg, #f0f6ff26, #e5efff0a 50%, #07111e1a), #2030408f;
-  --glass-selected: linear-gradient(155deg, #e5f1ff40, #bbd5ed12), #466078c9;
+  --glass-fill: linear-gradient(135deg, #ffffff26, #ffffff08 28%, #ffffff00 60%, #e4eeff0d), var(--hud-face);
+  --glass-panel-fill: linear-gradient(135deg, #ffffff2e, #ffffff0d 28%, #ffffff03 62%, #ffffff14), #101b2952;
+  --glass-control: linear-gradient(145deg, #ffffff26, #ffffff06 48%, #e4eeff0d), #08121d1a;
+  --glass-selected: linear-gradient(145deg, #ffffff38, #ffffff12 55%, #e4eeff24), #d9e8f51a;
   --glass-edge: 1px solid var(--hud-edge);
-  --glass-shadow: inset 0 1px 0 #ffffff59, inset 0 -1px 0 #09132140, 0 8px 24px #030b1826;
-  --glass-blur: blur(18px) saturate(125%);
+  --glass-shadow: inset 0 1px 0 #ffffffb3, inset 1px 0 0 #ffffff3d, inset 0 -1px 0 #ffffff1a, 0 1px 2px #030b1826, 0 10px 30px #030b1833;
+  --glass-blur: blur(20px) saturate(115%) brightness(0.54);
+  --glass-panel-blur: blur(28px) saturate(115%) brightness(0.54);
 }
 
 /* Independent floating surfaces, including scene controls outside the HUD. */
 .game-shell :is(
   .world-toolbar, .resource, .icon-button, .brand-glyph, .context-action,
   .objective-card, .race-instruments, .race-control-panel, .basket-score,
-  .shot-panel, .build-panel, .race-select, .room-story, .game-modal,
+  .shot-panel, .build-panel, .race-select, .room-story,
+  :where(.interior-game:not(.interior-game--viewport)), .game-modal,
   .game-toast, .npc-dialog, .time-of-day-control, .world-zoom,
   :where(.lab-controls:not(.lab-game)), .lab-game-topbar, .lab-game-bottom,
   .gym-room-card, .gym-game-topbar, .gym-game-bottom,
@@ -47,9 +50,17 @@
 }
 
 .game-shell :is(.game-modal, .writing-dialog, .photo-booth-dialog) {
-  --hud-face: #1e2938ed;
+  background: var(--glass-panel-fill);
   border-radius: 20px;
-  box-shadow: inset 0 1px 0 #ffffff59, 0 24px 80px #02081566;
+  box-shadow: inset 0 1px 0 #ffffffb3, inset 1px 0 0 #ffffff38, inset 0 -1px 0 #ffffff1a, 0 24px 80px #0208154d;
+  -webkit-backdrop-filter: var(--glass-panel-blur);
+  backdrop-filter: var(--glass-panel-blur);
+}
+/* Keep the world sharp outside the pane so the frost has something to reveal. */
+.game-shell .modal-scrim {
+  background: #07111e26;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 /* Keep full-screen playing fields clear; only their floating chrome is glass. */
@@ -58,6 +69,8 @@
   background: var(--glass-fill);
   border-color: var(--hud-edge);
   box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
 }
 
 .game-shell .world-toolbar {
@@ -95,8 +108,8 @@
   border-radius: 9px;
   background: var(--glass-fill);
   box-shadow: inset 0 1px 0 #ffffff26, 0 3px 10px #06101e26;
-  -webkit-backdrop-filter: blur(10px) saturate(120%);
-  backdrop-filter: blur(10px) saturate(120%);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
 }
 .game-shell .label-dot {
   background: #d9e9f9;
@@ -126,9 +139,9 @@
   color: var(--hud-ink);
   background: var(--glass-control);
   border: var(--glass-edge);
-  border-top-color: #e3eeff66;
-  border-radius: 9px;
-  box-shadow: inset 0 1px 0 #ffffff26, 0 2px 6px #050e1c12;
+  border-top-color: #ffffff8c;
+  border-radius: 10px;
+  box-shadow: inset 0 1px 0 #ffffff40, inset 1px 0 0 #ffffff12, 0 2px 6px #050e1c1a;
   text-shadow: none;
   transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
 }
@@ -152,10 +165,10 @@
 }
 .game-shell :is(.memory-card, .reward-line, .build-preview, .quest-icon, .island-map-stop) {
   color: var(--hud-ink);
-  background: linear-gradient(145deg, #e7f1ff12, #c9e0ff04), #12203045;
+  background: linear-gradient(135deg, #ffffff1f, #ffffff05 55%, #ffffff0d), #1220301a;
   border: var(--glass-edge);
   border-radius: 10px;
-  box-shadow: inset 0 1px 0 #ffffff20;
+  box-shadow: inset 0 1px 0 #ffffff59, inset 1px 0 0 #ffffff1a, 0 4px 12px #030b1812;
 }
 .game-shell .island-map {
   background: linear-gradient(145deg, #304456, #172637);
@@ -233,7 +246,7 @@
 @media (hover: hover) {
   .game-shell :is(button:not(.world-label, .go-point, .color-swatches button, .beat-buttons button, .lights-buttons button),
     .world-toolbar > a, .cinema-viewer a):hover:not(:disabled) {
-    background-color: #526a82;
+    background-color: #ffffff1f;
     border-color: #e7f2ff9c;
     color: #fff;
   }
@@ -250,7 +263,9 @@
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .game-shell {
     --hud-face: #243140;
+    --glass-panel-fill: #243140;
     --glass-control: linear-gradient(155deg, #ffffff1c, #ffffff00), #243140;
+    --glass-selected: #48637f;
   }
 }
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
@@ -261,6 +276,8 @@
     --glass-control: #26394e;
     --glass-selected: #48637f;
     --glass-blur: none;
+    --glass-panel-fill: #1d2a3a;
+    --glass-panel-blur: none;
   }
   .game-shell .world-label::before {
     -webkit-backdrop-filter: none;
