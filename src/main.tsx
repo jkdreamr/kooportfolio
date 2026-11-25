@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import { Portfolio } from "./site/Portfolio";
 import "./style.css";
+import "./site/glass.css";
 const Game = lazy(() => import("./game/Game"));
 function App() {
   return location.pathname.startsWith("/play") ? (

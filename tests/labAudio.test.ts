@@ -97,6 +97,21 @@ it("plays a metronome count-in then the drum pattern", async () => {
   expect(noises.length).toBeGreaterThan(0);
 });
 
+it("schedules melodic instrument notes for layered beats", async () => {
+  const { scheduleLabBeat } = await import("../src/game/scenes/labAudio");
+  scheduleLabBeat(() => 0, 4.8, 0.6, "boombap");
+  const drumsOnly = clicks.length;
+  clicks = [];
+  scheduleLabBeat(() => 0, 4.8, 0.6, "pianobap");
+  // Piano Bap layers piano chords and a bass line over the same drums.
+  expect(clicks.length).toBeGreaterThan(drumsOnly);
+  // First piano chord lands on slot 0 of bar 1 (step 16), two partials per note.
+  const chordStarts = clicks.map((c) => c.start.mock.calls[0][0] - 10);
+  expect(
+    chordStarts.filter((t) => Math.abs(t - 16 * 0.15) < 1e-6).length,
+  ).toBeGreaterThanOrEqual(6);
+});
+
 it("schedules only hits still ahead of the read time", async () => {
   const { scheduleLabBeat } = await import("../src/game/scenes/labAudio");
   const cancel = scheduleLabBeat(() => 2.8, 4.2, 0.6, "boombap");
