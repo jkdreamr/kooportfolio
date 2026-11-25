@@ -142,6 +142,10 @@ type Flight = {
   blocked: boolean;
   /** [time, sx] samples so the trail can reuse the steered path. */
   samples: [number, number][];
+  /** Previous rendered position, for plane-crossing tests between frames. */
+  prevX: number;
+  prevY: number;
+  prevZ: number;
 };
 
 /** Complete room-sized outdoor stadium. Mount instead of the generic room shell. */
@@ -275,6 +279,9 @@ export function StadiumInterior() {
         postHit: null,
         blocked: false,
         samples: [],
+        prevX: spot.x,
+        prevY: 0.48,
+        prevZ: spot.z,
       };
       sound("kick");
       timing.current = sample;
@@ -435,6 +442,9 @@ export function StadiumInterior() {
           postHit: null,
           blocked: true,
           samples: [],
+          prevX: spot.x,
+          prevY: 0.48,
+          prevZ: spot.z,
         };
         if (ball.current) ball.current.position.set(spot.x, 0.48, spot.z);
         if (defender.current) {
@@ -476,29 +486,41 @@ export function StadiumInterior() {
         x += current.sx;
         if (ball.current) ball.current.rotation.x -= flightDelta * 13;
         // Judge the kick at the goal plane so later steering can't change it.
+        const prevZ = current.prevZ;
+        current.prevZ = z;
         if (current.judged === undefined && z <= FIELD_GOAL.goalZ)
           current.judged = judgeKick({
             ...current.kick,
             spot: { ...spot, x: spot.x + current.sx },
           });
-        // Grazing an upright or the crossbar clangs and deflects the steer.
-        if (!current.postHit && Math.abs(z - FIELD_GOAL.goalZ) < 0.24) {
+        // Grazing an upright or the crossbar clangs and deflects the steer;
+        // test at the plane crossing so fast kicks can't skip between frames.
+        if (
+          !current.postHit &&
+          prevZ > FIELD_GOAL.goalZ &&
+          z <= FIELD_GOAL.goalZ
+        ) {
+          const f = (prevZ - FIELD_GOAL.goalZ) / (prevZ - z);
+          const cx = current.prevX + (x - current.prevX) * f;
+          const cy = current.prevY + (y - current.prevY) * f;
           const half = FIELD_GOAL.halfWidth;
+          const clearance = FIELD_GOAL.ballRadius + FIELD_GOAL.postRadius;
           const nearPost =
-            Math.min(Math.abs(x - half), Math.abs(x + half)) <
-              FIELD_GOAL.ballRadius + FIELD_GOAL.postRadius + 0.05 &&
-            y > FIELD_GOAL.crossbar - 0.2 &&
-            y < FIELD_GOAL.crossbar + 3.2;
+            Math.min(Math.abs(cx - half), Math.abs(cx + half)) <
+              clearance + 0.05 &&
+            cy > FIELD_GOAL.crossbar - 0.2 &&
+            cy < FIELD_GOAL.crossbar + 3.2;
           const nearBar =
-            Math.abs(y - FIELD_GOAL.crossbar) <
-              FIELD_GOAL.ballRadius + FIELD_GOAL.postRadius + 0.05 &&
-            Math.abs(x) < half + 0.2;
+            Math.abs(cy - FIELD_GOAL.crossbar) < clearance + 0.05 &&
+            Math.abs(cx) < half + 0.2;
           if (nearPost || nearBar) {
             current.postHit = nearPost ? "post" : "crossbar";
             current.sv = -current.sv * 0.4;
             sound("clang");
           }
         }
+        current.prevX = x;
+        current.prevY = y;
       }
       if (ball.current) ball.current.position.set(x, Math.max(0.32, y), z);
       if (trail.current) {
