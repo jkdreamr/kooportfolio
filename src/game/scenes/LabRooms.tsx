@@ -733,8 +733,9 @@ export function MathLabInterior() {
     [board, setBoard] = useState(() => newLightsBoard(0));
   const [moves, setMoves] = useState(0),
     [hint, setHint] = useState<number | null>(null);
+  const [practiceClear, setPracticeClear] = useState(false);
   const [near, setNear] = useState(false);
-  const rewarded = useRef(false),
+  const usedHint = useRef(false),
     boardRef = useRef(board);
   const solved = board === LIGHTS_TARGET;
   const cancelRound = useCallback(() => {
@@ -743,7 +744,7 @@ export function MathLabInterior() {
     setRound(0);
     setMoves(0);
     setHint(null);
-    rewarded.current = false;
+    usedHint.current = false;
   }, []);
   const close = useLabClose("math", cancelRound);
   const toggle = useCallback((tile: number) => {
@@ -759,9 +760,10 @@ export function MathLabInterior() {
     setMoves((v) => v + 1);
     setHint(null);
     labTone(tile % 4);
-    if (next === LIGHTS_TARGET && !rewarded.current) {
-      rewarded.current = true;
-      useGame.getState().award(`math-${newRunId()}`, 15, 10);
+    if (next === LIGHTS_TARGET) {
+      setPracticeClear(usedHint.current);
+      if (!usedHint.current)
+        useGame.getState().award(`math-${newRunId()}`, 15, 10);
     }
   }, []);
   useEffect(() => {
@@ -783,12 +785,12 @@ export function MathLabInterior() {
   });
   const reset = (nextRound = round) => {
     if (!gameIsActive() || useGameMode.getState().active?.id !== "math") return;
+    if (nextRound !== round) usedHint.current = false;
     setRound(nextRound);
     setMoves(0);
     setHint(null);
     boardRef.current = newLightsBoard(nextRound);
     setBoard(boardRef.current);
-    rewarded.current = false;
   };
   const start = () => {
     if (!near || !gameIsActive() || !startGameMode("math")) return;
@@ -871,7 +873,11 @@ export function MathLabInterior() {
             </div>
             <footer className="lab-game-bottom lab-math-bottom">
               <p role="status">
-                {solved ? "All lit · +15 coins" : "Light all nine · 1–9"}
+                {solved
+                  ? practiceClear
+                    ? "All lit · practice"
+                    : "All lit · +15 coins"
+                  : "Light all nine · 1–9"}
               </p>
               {solved ? (
                 <button
@@ -884,7 +890,11 @@ export function MathLabInterior() {
                 <div className="lab-game-actions">
                   <button
                     onClick={() => {
-                      if (gameIsActive()) setHint(lightsHint(board));
+                      if (!gameIsActive()) return;
+                      const tile = lightsHint(boardRef.current);
+                      if (tile === null) return;
+                      usedHint.current = true;
+                      setHint(tile);
                     }}
                   >
                     Hint

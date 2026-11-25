@@ -233,4 +233,18 @@ describe("Math Lab", () => {
     }
     expect(lightsHint(LIGHTS_TARGET)).toBeNull();
   });
+  it("uses every non-solved board once before repeating", () => {
+    let solvable = [LIGHTS_TARGET];
+    for (let tile = 0; tile < 9; tile++) {
+      solvable = [
+        ...solvable,
+        ...solvable.map((board) => flipLights(board, tile)),
+      ];
+    }
+    const rounds = Array.from({ length: LIGHTS_TARGET }, (_, round) =>
+      newLightsBoard(round),
+    );
+    expect(new Set(rounds)).toEqual(new Set(solvable.slice(1)));
+    expect(newLightsBoard(LIGHTS_TARGET)).toBe(rounds[0]);
+  });
 });

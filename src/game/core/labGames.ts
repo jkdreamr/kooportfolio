@@ -213,15 +213,29 @@ export function flipLights(board: number, tile: number): number {
   }
   return board;
 }
-export function newLightsBoard(round: number): number {
+const lightsBoards = (() => {
   // Scramble a solved board with legal moves; every puzzle is solvable.
-  const scrambles = [
+  const opening = [
     [0, 4, 8],
     [1, 3, 6, 8],
     [0, 2, 4, 7, 8],
   ];
-  const steps = scrambles[((Math.floor(round) % 3) + 3) % 3];
-  return steps.reduce(flipLights, LIGHTS_TARGET);
+  const boards = new Set(
+    opening.map((steps) => steps.reduce(flipLights, LIGHTS_TARGET)),
+  );
+  for (let i = 1; i <= LIGHTS_TARGET; i++) {
+    const mask = (i * 137) & LIGHTS_TARGET;
+    let board = LIGHTS_TARGET;
+    for (let tile = 0; tile < 9; tile++) {
+      if (mask & (1 << tile)) board = flipLights(board, tile);
+    }
+    if (board !== LIGHTS_TARGET) boards.add(board);
+  }
+  return [...boards];
+})();
+export function newLightsBoard(round: number): number {
+  const index = Math.floor(round) % lightsBoards.length;
+  return lightsBoards[(index + lightsBoards.length) % lightsBoards.length];
 }
 export function lightsHint(board: number): number | null {
   if (board === LIGHTS_TARGET) return null;
