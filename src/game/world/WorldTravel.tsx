@@ -14,7 +14,7 @@ import {
 } from "../core/travel";
 import { journeyGate } from "../core/journey";
 import { Box, Cylinder, Sign } from "./Models";
-import { PassengerJet } from "./TravelVehicles";
+import { PassengerJet, PassengerStairs } from "./TravelVehicles";
 import { IslandJourney, type IslandTrip } from "./IslandJourney";
 import "./world-travel.css";
 import { screenOverlayPosition, screenOverlayStyle } from "./screenOverlay";
@@ -67,6 +67,7 @@ function Airport({
       {!traveling && (
         <group position={[58, 1.2, 65]}>
           <PassengerJet />
+          <PassengerStairs />
         </group>
       )}
     </group>
@@ -156,7 +157,7 @@ export function WorldTravel({
         return;
       const origin: [number, number] = [runtime.x, runtime.z];
       clearTravelInput();
-      setTrip({ ...option, from: world, origin });
+      setTrip({ ...option, from: world, origin, heading: runtime.heading });
     },
     [hidden, traveling, world],
   );
