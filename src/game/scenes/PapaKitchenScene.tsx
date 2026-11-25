@@ -338,14 +338,14 @@ export function PapaKitchenScene({
               </group>
               <Sign
                 text={ticket.name}
-                p={[0, 2.45, 0]}
+                p={[0, 2.65, 0]}
                 size={[0.9, 0.32]}
                 color="#31564b"
                 ink="#efe3b8"
               />
-              <Box p={[0, 2.15, 0.2]} s={[0.92, 0.07, 0.08]} c="#4d4d3b" />
+              <Box p={[0, 2.35, 0.2]} s={[0.92, 0.07, 0.08]} c="#4d4d3b" />
               <Box
-                p={[(-ticket.waited / 62) * 0.46, 2.15, 0.25]}
+                p={[(-ticket.waited / 62) * 0.46, 2.35, 0.25]}
                 s={[
                   Math.max(0.01, 0.92 * (1 - ticket.waited / 62)),
                   0.045,
@@ -387,7 +387,12 @@ export function PapaKitchenScene({
           {cooking.map((order) => (
             <group
               key={order.ticket.id}
-              position={[-1 + (order.slot ?? 0) * 2, 1.68, 0]}
+              position={[
+                ((order.slot ?? 0) - (game.burners - 1) / 2) *
+                  (game.burners > 2 ? 1.8 : 2),
+                1.68,
+                0,
+              ]}
               onClick={(event) => {
                 event.stopPropagation();
                 dispatch({ type: "select", id: order.ticket.id });

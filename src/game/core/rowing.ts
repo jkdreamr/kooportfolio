@@ -25,8 +25,23 @@ export type RaceState = {
   effort: number;
   current: number;
   bursting: boolean;
+  boostedStroke: number | null;
 };
-export type RaceInput = { steer: number; cadence: number; burst: boolean };
+export type RaceInput = {
+  steer: number;
+  cadence: number;
+  burst: boolean;
+  catchPressed?: boolean;
+};
+export const CATCH_WINDOW_START = 0.73;
+export const catchReady = (race: RaceState) =>
+  race.time > 0 &&
+  !race.finished &&
+  race.stroke >= CATCH_WINDOW_START &&
+  race.boostedStroke !== race.strokes + 1;
+export const catchBoosted = (race: RaceState) =>
+  race.boostedStroke === race.strokes + 1 ||
+  (race.boostedStroke === race.strokes && race.stroke < 0.38);
 export const riverCenter = (s: number, seed = 1) =>
   Math.sin(s / 75) * 7 + (Math.sin(s / 32 + seed) - Math.sin(seed)) * 3;
 export const riverTangent = (s: number, seed = 1) =>
@@ -56,6 +71,7 @@ export const newRace = (): RaceState => ({
   effort: 0,
   current: 0,
   bursting: false,
+  boostedStroke: null,
 });
 export function stepRace(
   old: RaceState,
@@ -71,6 +87,8 @@ export function stepRace(
     splits: [...old.splits],
   };
   if (s.time <= 0) return s;
+  if (input.catchPressed && catchReady(old))
+    s.boostedStroke = old.strokes + 1;
   const cadence = Math.max(24, Math.min(36, input.cadence)),
     steer = Math.max(-1, Math.min(1, input.steer));
   // Hysteresis prevents a held burst from flickering on/off at exhaustion.
@@ -102,6 +120,7 @@ export function stepRace(
     (cadence / 30) ** 1.5 *
     fatigue *
     (burst ? 1.65 : 1) *
+    (s.boostedStroke === s.strokes ? 1.32 : 1) *
     (s.bank ? 0.4 : 1);
   const throughWater = Math.max(0, s.speed - s.current);
   const drag =

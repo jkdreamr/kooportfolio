@@ -1,120 +1,92 @@
 import { describe, expect, it } from "vitest";
 import {
-  advanceBeat,
-  beatCue,
-  beatPadLane,
-  beatRoundEnd,
-  BEAT_COUNT_IN,
-  BEAT_INTERVAL,
-  newBeatGame,
-  hitBeat,
-  HIT_WINDOW,
+  advanceRhyme,
+  createLightsHintTracker,
   flipLights,
   newLightsBoard,
+  newRhymeGame,
   LIGHTS_TARGET,
   lightsHint,
+  RHYME_BARS,
+  RHYME_FAMILIES,
+  RHYME_BEATS,
+  rhymeBarIndex,
+  rhymeBarInterval,
+  rhymeBeatInterval,
+  rhymeCountIn,
+  rhymeRewardCoins,
+  rhymeRoundEnd,
 } from "../src/game/core/labGames";
 
 describe("Beat Lab", () => {
-  it("takes letter and number shortcuts without treating browser shortcuts as hits", () => {
-    const press = (key: string, modifiers: Partial<KeyboardEvent> = {}) =>
-      beatPadLane({
-        key,
-        altKey: false,
-        ctrlKey: false,
-        metaKey: false,
-        isComposing: false,
-        ...modifiers,
-      });
-    expect(
-      ["f", "G", "h", "j", "1", "2", "3", "4"].map((key) => press(key)),
-    ).toEqual([0, 1, 2, 3, 0, 1, 2, 3]);
-    expect(press("f", { metaKey: true })).toBe(-1);
-    expect(press("1", { ctrlKey: true })).toBe(-1);
-    expect(press("g", { altKey: true })).toBe(-1);
-    expect(press("j", { isComposing: true })).toBe(-1);
-    expect(press("Escape")).toBe(-1);
-  });
-  it("judges timing and lane, never scores a note twice, and penalizes spamming", () => {
-    const start = { ...newBeatGame(), phase: "playing" as const, time: 2.4 };
-    const hit = hitBeat(start, 0);
-    expect(hit.points).toBe(100);
-    expect(hit.combo).toBe(1);
-    expect(hitBeat(hit, 0).points).toBe(65);
-    expect(hitBeat(start, 2).points).toBe(0);
-    expect(
-      hitBeat({ ...start, time: 2.4 + HIT_WINDOW - 0.001 }, 0).points,
-    ).toBe(60);
-    expect(
-      hitBeat({ ...start, time: 2.4 - HIT_WINDOW - 0.001 }, 0).points,
-    ).toBe(0);
-    expect(hitBeat(newBeatGame(), 0).points).toBe(0);
-  });
-  it("expires missed notes, finishes without input, and preserves hits", () => {
-    let game = { ...newBeatGame(), phase: "playing" as const };
-    for (const note of game.notes) {
-      game = advanceBeat(game, note.at - game.time) as typeof game;
-      game = hitBeat(game, note.lane) as typeof game;
+  it("deals AABB couplets from the rhyme dictionary", () => {
+    const game = newRhymeGame(42);
+    expect(game.bars).toHaveLength(RHYME_BARS);
+    for (let couplet = 0; couplet < RHYME_BARS; couplet += 2) {
+      const [first, second] = game.bars.slice(couplet, couplet + 2);
+      expect(second.family).toBe(first.family);
+      expect(second.word).not.toBe(first.word);
+      expect(RHYME_FAMILIES[first.family]).toContain(first.word);
+      expect(RHYME_FAMILIES[first.family]).toContain(second.word);
     }
-    expect(game.points).toBe(3200);
-    expect(game.best).toBe(32);
-    expect(advanceBeat(game, 1).phase).toBe("done");
-    const idle = advanceBeat({ ...newBeatGame(), phase: "playing" }, 40);
-    expect(idle.phase).toBe("done");
-    expect(idle.notes.every((n) => n.missed)).toBe(true);
-    expect(advanceBeat(idle, 1)).toBe(idle);
   });
-  it("lets players try pads in the count-in, then cues only scoring windows", () => {
-    const start = { ...newBeatGame(), phase: "playing" as const };
-    const countIn = advanceBeat(start, BEAT_COUNT_IN - HIT_WINDOW - 0.01);
-    expect(hitBeat(countIn, 0)).toBe(countIn);
-    expect(beatCue(countIn, 0)).toBe(false);
-    const first = advanceBeat(countIn, 0.02);
-    expect(beatCue(first, 0)).toBe(true);
-    expect(beatCue(first, 1)).toBe(false);
-    expect(beatCue(hitBeat(first, 0), 0)).toBe(false);
-    expect(beatCue(advanceBeat(first, 0.5), 0)).toBe(false);
+  it("deals the same round for a seed and different rounds across seeds", () => {
+    expect(newRhymeGame(7).bars).toEqual(newRhymeGame(7).bars);
+    const words = (seed: number) =>
+      newRhymeGame(seed).bars.map((bar) => bar.word).join(" ");
+    expect(words(7)).not.toBe(words(8));
   });
-  it("does not deduct points for a wrong pad after an early hit in the count-in", () => {
-    const start = { ...newBeatGame(), phase: "playing" as const };
-    const early = advanceBeat(start, BEAT_COUNT_IN - 0.1);
-    const hit = hitBeat(early, 0);
-    expect(hit.points).toBe(60);
-    expect(hitBeat(hit, 1)).toBe(hit);
-    expect(hitBeat(hit, 0)).toBe(hit);
-    const onBeat = advanceBeat(hit, BEAT_COUNT_IN - hit.time);
-    expect(hitBeat(onBeat, 1).points).toBe(25);
-  });
-  it("introduces the rhythm before faster pairs without extending the round", () => {
-    const game = newBeatGame();
-    const gaps = game.notes
-      .slice(1)
-      .map((note, i) => note.at - game.notes[i].at);
-    expect(
-      gaps.slice(0, 15).every((gap) => Math.abs(gap - BEAT_INTERVAL) < 0.001),
-    ).toBe(true);
-    expect(
-      gaps.slice(15).some((gap) => Math.abs(gap - BEAT_INTERVAL / 2) < 0.001),
-    ).toBe(true);
-    expect(beatRoundEnd(game)).toBeCloseTo(BEAT_COUNT_IN + 32 * BEAT_INTERVAL);
-  });
-  it("starts a new combo on an early hit after skipping the preceding half beat", () => {
-    const initial = { ...newBeatGame(), phase: "playing" as const };
-    const [lead, skipped, next] = initial.notes.slice(17, 20);
-    const hitLead = hitBeat(advanceBeat(initial, lead.at), lead.lane);
-    const early = next.at - 0.13;
-    const overlap = advanceBeat(hitLead, early - hitLead.time);
-    expect(overlap.notes[18].missed).toBe(false);
-    const hitNext = hitBeat(overlap, next.lane);
-    expect(hitNext.combo).toBe(1);
-    expect(hitNext.best).toBe(1);
-    const expired = advanceBeat(
-      hitNext,
-      skipped.at + HIT_WINDOW + 0.001 - early,
+  it("scores each bar played through and ends the round", () => {
+    let game: ReturnType<typeof newRhymeGame> = {
+      ...newRhymeGame(1),
+      phase: "playing",
+    };
+    game = advanceRhyme(
+      game,
+      rhymeCountIn(game) + rhymeBarInterval(game) + 0.01,
     );
-    expect(expired.notes[18].missed).toBe(true);
-    expect(expired.combo).toBe(1);
-    expect(hitBeat(hitNext, skipped.lane).combo).toBe(3);
+    expect(game.barsDone).toBe(1);
+    expect(game.points).toBe(100);
+    expect(rhymeBarIndex(game)).toBe(1);
+    game = advanceRhyme(game, rhymeRoundEnd(game));
+    expect(game.phase).toBe("done");
+    expect(game.barsDone).toBe(RHYME_BARS);
+    expect(game.points).toBe(RHYME_BARS * 100);
+    expect(rhymeRewardCoins(game)).toBe(15);
+    expect(advanceRhyme(game, 1)).toBe(game);
+  });
+  it("awards nothing until the whole round is played", () => {
+    let game: ReturnType<typeof newRhymeGame> = {
+      ...newRhymeGame(1),
+      phase: "playing",
+    };
+    expect(rhymeRewardCoins(game)).toBe(0);
+    game = advanceRhyme(game, rhymeCountIn(game) + 4 * rhymeBarInterval(game));
+    expect(rhymeRewardCoins(game)).toBe(0);
+  });
+  it("runs the count-in and honours each beat", () => {
+    for (let beat = 0; beat < RHYME_BEATS.length; beat++) {
+      const game = newRhymeGame(3, beat);
+      expect(rhymeBeatInterval(game)).toBeCloseTo(
+        60 / RHYME_BEATS[beat].bpm,
+      );
+      expect(rhymeRoundEnd(game)).toBeCloseTo(
+        rhymeBarInterval(game) * (RHYME_BARS + 1),
+      );
+      const waiting = advanceRhyme(
+        { ...game, phase: "playing" },
+        rhymeBeatInterval(game) * 2,
+      );
+      expect(rhymeBarIndex(waiting)).toBe(-1);
+      expect(waiting.barsDone).toBe(0);
+    }
+  });
+  it("ignores non-playing or invalid advances", () => {
+    const ready = newRhymeGame(2);
+    expect(advanceRhyme(ready, 1)).toBe(ready);
+    const playing = { ...ready, phase: "playing" as const };
+    expect(advanceRhyme(playing, -1)).toBe(playing);
+    expect(advanceRhyme(playing, Number.NaN)).toBe(playing);
   });
 });
 
@@ -142,5 +114,43 @@ describe("Math Lab", () => {
       expect(board).toBe(LIGHTS_TARGET);
     }
     expect(lightsHint(LIGHTS_TARGET)).toBeNull();
+  });
+  it("uses every non-solved board once before repeating", () => {
+    let solvable = [LIGHTS_TARGET];
+    for (let tile = 0; tile < 9; tile++) {
+      solvable = [
+        ...solvable,
+        ...solvable.map((board) => flipLights(board, tile)),
+      ];
+    }
+    const rounds = Array.from({ length: LIGHTS_TARGET }, (_, round) =>
+      newLightsBoard(round),
+    );
+    expect(new Set(rounds)).toEqual(new Set(solvable.slice(1)));
+    expect(newLightsBoard(LIGHTS_TARGET)).toBe(rounds[0]);
+  });
+  it("keeps hint usage with the starting board rather than the attempt", () => {
+    const hints = createLightsHintTracker();
+    const first = newLightsBoard(0);
+    const second = newLightsBoard(1);
+    expect(hints.wasUsed(first)).toBe(false);
+    expect(hints.reveal(first, flipLights(first, 5))).not.toBeNull();
+    expect(hints.wasUsed(second)).toBe(false);
+    expect(hints.wasUsed(newLightsBoard(0))).toBe(true);
+    expect(hints.reveal(second, LIGHTS_TARGET)).toBeNull();
+    expect(hints.wasUsed(second)).toBe(false);
+  });
+  it("restores practice status for only the hinted board after reload", () => {
+    const data = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => data.get(key) ?? null,
+      setItem: (key: string, value: string) => data.set(key, value),
+    };
+    const first = newLightsBoard(0);
+    const second = newLightsBoard(1);
+    createLightsHintTracker(storage).reveal(first, flipLights(first, 5));
+    const reloaded = createLightsHintTracker(storage);
+    expect(reloaded.wasUsed(first)).toBe(true);
+    expect(reloaded.wasUsed(second)).toBe(false);
   });
 });

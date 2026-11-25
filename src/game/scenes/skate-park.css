@@ -101,7 +101,17 @@
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
-.skate-score > strong {
+.skate-banked {
+  display: grid;
+  gap: 2px;
+  text-align: center;
+  line-height: 1;
+}
+.skate-banked > span {
+  color: #c3d0d0;
+  font-size: 9px;
+}
+.skate-banked > strong {
   font-size: 28px;
 }
 .skate-combo {
@@ -114,11 +124,21 @@
   color: #f6d081;
 }
 .skate-combo b {
+  display: block;
   font-size: 23px;
+  line-height: 1.2;
+  text-shadow: 0 2px 2px #20352a;
+}
+.skate-combo-label {
+  color: #f5f4e9;
+  font-size: 10px;
+  font-weight: 700;
   text-shadow: 0 2px 2px #20352a;
 }
 .skate-combo small {
-  font-size: 14px;
+  margin-left: 3px;
+  color: #f6d081;
+  font-size: 10px;
 }
 .skate-combo meter {
   display: block;
@@ -128,7 +148,7 @@
 }
 .skate-feedback {
   position: absolute;
-  top: 202px;
+  top: 226px;
   left: 50%;
   transform: translateX(-50%);
   margin: 0;
@@ -199,6 +219,24 @@
 .scene-skate .joystick {
   display: none;
 }
+/* Keep the real gate action left of the mode picker, including touch layouts. */
+.game-shell .scene-skate .context-action[data-action="exit"] {
+  left: max(22px, env(safe-area-inset-left));
+  right: auto;
+  bottom: max(92px, calc(env(safe-area-inset-bottom) + 84px));
+  transform: none;
+  min-width: 0;
+  width: max-content;
+  padding: 8px;
+}
+.scene-skate .context-action[data-action="exit"] > div {
+  display: none;
+}
+.game-shell:has(.scene-skate .context-action.visible[data-action="exit"])
+  .skate-ui:not(.is-riding)
+  .skate-card {
+  max-width: calc(100vw - 154px);
+}
 @media (max-width: 700px) {
   .skate-view-controls {
     top: 150px;
@@ -208,6 +246,9 @@
     font-size: 10px !important;
     padding: 6px !important;
   }
+  .skate-ui.is-riding .skate-view-controls {
+    top: 16px;
+  }
   .skate-card {
     right: 12px;
     bottom: 85px;
@@ -215,11 +256,11 @@
     padding: 14px;
   }
   .skate-score {
-    top: 87px;
+    top: 72px;
     gap: 10px;
     padding: 6px 12px;
   }
-  .skate-score > strong {
+  .skate-banked > strong {
     font-size: 23px;
   }
   .skate-score > span {
@@ -236,6 +277,8 @@
     right: 10px;
     bottom: 90px;
     width: 166px;
+    /* Preserve an 8px gutter beside the 140px movement deck. */
+    max-width: calc(100% - 168px);
     gap: 4px;
   }
   .skate-tricks button {
@@ -255,6 +298,9 @@
   }
 }
 @media (max-height: 520px) {
+  .skate-ui:not(.is-riding) .skate-card > :is(.skate-eyebrow, h2, p) {
+    display: none;
+  }
   .skate-card {
     bottom: 72px;
     padding: 10px;

@@ -222,6 +222,25 @@ function CourtSessionHud({ close }: { close: () => void }) {
       ref={focusCourt}
       onPointerDown={(e) => e.stopPropagation()}
       onKeyDown={(e) => {
+        const target = e.target as HTMLElement;
+        if (
+          e.key.toLowerCase() === "c" &&
+          !e.ctrlKey &&
+          !e.metaKey &&
+          !e.altKey &&
+          !target.matches("select") &&
+          ready()
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+          runtime.aim = 0;
+        }
+        // Keep native arrow-key aiming, but Space still belongs to the shot.
+        if (e.key === " " && target.matches('input[type="range"]')) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!e.repeat && ready()) runtime.shooting = true;
+        }
         if (e.key === " " && (e.target as HTMLElement).closest("button"))
           e.stopPropagation();
         if (e.key === "Tab") {
@@ -242,6 +261,14 @@ function CourtSessionHud({ close }: { close: () => void }) {
         }
       }}
       onKeyUp={(e) => {
+        if (
+          e.key === " " &&
+          (e.target as HTMLElement).matches('input[type="range"]')
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+          releaseShot();
+        }
         if (e.key === " " && (e.target as HTMLElement).closest("button"))
           e.stopPropagation();
       }}
@@ -290,9 +317,10 @@ function CourtSessionHud({ close }: { close: () => void }) {
               <i style={{ width: `${hud.charge * 100}%` }} />
               <b />
             </div>
-            <label>
-              Aim{" "}
+            <div className="court-aim">
+              <label htmlFor="court-shot-aim">Aim</label>
               <input
+                id="court-shot-aim"
                 type="range"
                 aria-label="Shot aim"
                 min={-0.7}
@@ -302,8 +330,26 @@ function CourtSessionHud({ close }: { close: () => void }) {
                 onChange={(e) => {
                   runtime.aim = Number(e.target.value);
                 }}
+                onPointerUp={(e) =>
+                  focusCourt(
+                    e.currentTarget.closest<HTMLElement>(".court-session"),
+                  )
+                }
               />
-            </label>
+              <button
+                aria-label="Reset shot aim"
+                title="Reset aim (C)"
+                onClick={(e) => {
+                  runtime.aim = 0;
+                  if (e.detail > 0)
+                    focusCourt(
+                      e.currentTarget.closest<HTMLElement>(".court-session"),
+                    );
+                }}
+              >
+                Reset
+              </button>
+            </div>
             <button
               className="court-shoot"
               disabled={!hud.holding}
@@ -343,7 +389,7 @@ function CourtSessionHud({ close }: { close: () => void }) {
                 }
               }}
             >
-              {hud.holding ? "Hold · Release" : "Rebound"}
+              {hud.holding ? "Hold · Release" : "Chase the ball"}
             </button>
           </div>
           <div
@@ -372,7 +418,7 @@ function CourtSessionHud({ close }: { close: () => void }) {
             />
           </div>
           <p className="court-keys">
-            WASD move · Q / E aim · Hold Space, release in gold
+            WASD move · Q / E aim · C reset aim · Hold Space, release in gold
           </p>
         </>
       )}

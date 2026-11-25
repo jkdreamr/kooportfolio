@@ -1,3 +1,5 @@
+import { KOREA_PICNIC_GUEST, KOREA_RAMEN_COUNTER } from "../core/koreaDistrict";
+
 import { useEffect, useRef, useState } from "react";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
@@ -144,7 +146,10 @@ function PicnicGuest({ fed }: { fed: boolean }) {
         : -1.2 + Math.sin(clock.elapsedTime * 3) * 0.25;
   });
   return (
-    <group position={[-41, 0.35, 54]} rotation={[0, Math.PI, 0]}>
+    <group
+      position={[KOREA_PICNIC_GUEST[0], 0.35, KOREA_PICNIC_GUEST[1]]}
+      rotation={[0, Math.PI, 0]}
+    >
       <WorldSceneryParts parts={seated} />
       <group ref={arm} position={[0.43, 0.95, 0]}>
         <mesh position={[0, -0.24, 0]} castShadow>
@@ -333,10 +338,10 @@ export function RegionalActivities({ world }: { world: WorldId }) {
       {world === "home" && (
         <>
           {[
-            [12, 42],
-            [12, 55],
-            [28, 42],
-            [28, 55],
+            [-19, 0],
+            [-19, 7],
+            [-7, 0],
+            [-7, 7],
           ].map(([x, z], i) => (
             <group key={i}>
               {now >= play.gardenReadyAt[i] && (
@@ -362,7 +367,7 @@ export function RegionalActivities({ world }: { world: WorldId }) {
             <Basket count={Math.min(3, play.produceCrates)} />
           </group>
           <group
-            position={[5.2, 0, -5.4]}
+            position={[17.2, 0, -5.4]}
             rotation={[0, -0.5, 0]}
             onPointerDown={(e) => selectActivity("postbox", world, e)}
           >
@@ -423,7 +428,7 @@ export function RegionalActivities({ world }: { world: WorldId }) {
       {world === "korea" && (
         <>
           <group
-            position={[39, 2.25, 8.2]}
+            position={[KOREA_RAMEN_COUNTER[0], 2.25, KOREA_RAMEN_COUNTER[1]]}
             onPointerDown={(e) => selectActivity("ramen", world, e)}
           >
             <Bowl />
@@ -434,7 +439,9 @@ export function RegionalActivities({ world }: { world: WorldId }) {
           </group>
           <group onPointerDown={(e) => selectActivity("picnic", world, e)}>
             <PicnicGuest fed={play.guestFedUntil > now} />
-            <mesh position={[-41, 1.2, 54]}>
+            <mesh
+              position={[KOREA_PICNIC_GUEST[0], 1.2, KOREA_PICNIC_GUEST[1]]}
+            >
               <boxGeometry args={[2, 2.5, 2]} />
               <meshBasicMaterial transparent opacity={0} depthWrite={false} />
             </mesh>

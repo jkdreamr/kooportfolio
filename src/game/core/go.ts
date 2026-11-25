@@ -92,9 +92,10 @@ export function scoreGo(game: GoGame) {
   const board = [...game.board];
   game.dead.forEach((point) => { board[point] = 0; });
   const owners = [...board], seen = new Set<number>();
-  const points = [0, GO_KOMI];
+  const stones: [number, number] = [0, 0];
+  const territory: [number, number] = [0, 0];
   board.forEach((stone, point) => {
-    if (stone) { points[stone - 1]++; return; }
+    if (stone) { stones[stone - 1]++; return; }
     if (seen.has(point)) return;
     const region = new Set([point]), borders = new Set<GoColor>();
     for (const p of region) {
@@ -106,11 +107,13 @@ export function scoreGo(game: GoGame) {
     }
     if (borders.size === 1) {
       const owner = [...borders][0];
-      points[owner - 1] += region.size;
+      territory[owner - 1] += region.size;
       region.forEach((p) => { owners[p] = owner; });
     }
   });
-  return { black: points[0], white: points[1], owners,
-    winner: (points[0] > points[1] ? 1 : 2) as GoColor,
-    margin: Math.abs(points[0] - points[1]) };
+  const black = stones[0] + territory[0];
+  const white = stones[1] + territory[1] + GO_KOMI;
+  return { black, white, stones, territory, owners,
+    winner: (black > white ? 1 : 2) as GoColor,
+    margin: Math.abs(black - white) };
 }

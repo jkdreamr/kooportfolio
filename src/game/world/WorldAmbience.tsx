@@ -27,19 +27,17 @@ export function WorldAmbience() {
     audio.current = engine;
     const gesture = () => engine.unlock();
     const sync = () => engine.sync();
-    const blur = () => engine.stop();
     const unsubscribe = useGame.subscribe(sync);
     // Capture runs before HUD unmute handlers, while browser activation is live.
+    // No blur->stop(): a visible window losing focus must not cut the sound.
     window.addEventListener("pointerdown", gesture, true);
     window.addEventListener("keydown", gesture, true);
-    window.addEventListener("blur", blur);
     document.addEventListener("visibilitychange", sync);
     return () => {
       audio.current = null;
       unsubscribe();
       window.removeEventListener("pointerdown", gesture, true);
       window.removeEventListener("keydown", gesture, true);
-      window.removeEventListener("blur", blur);
       document.removeEventListener("visibilitychange", sync);
       engine.dispose();
     };

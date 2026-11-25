@@ -9,11 +9,12 @@ import {
 } from "../src/shared/save";
 import {
   canWalk,
-  destinations,
+  destinationsInWorld,
   doors,
   findPath,
   moveWorld,
 } from "../src/game/core/world";
+import { WORLD_IDS } from "../src/game/core/worlds";
 import {
   dailySeed,
   newRace,
@@ -82,7 +83,7 @@ describe("guest save trust boundary", () => {
     expect(reward(s, "a", 200, 25)).toBe(s);
     expect(reward(s, "b", -10, 0)).toBe(s);
     s = upgrade(upgrade(s, "garden"), "garden");
-    expect(s.coins).toBe(20);
+    expect(s.coins).toBe(60);
     expect(s.upgrades.garden).toBe(3);
     expect(upgrade(s, "garden")).toBe(s);
   });
@@ -128,16 +129,23 @@ describe("walkable physical world", () => {
     const p = moveWorld(0, 5, 100, 100);
     expect(canWalk(...p)).toBe(true);
   });
-  it("finds collision-free paths to every door", () => {
-    for (const door of destinations) {
-      const path = findPath([0, 5], [door.x, door.z]);
-      expect(path.length).toBeGreaterThan(0);
-      expect(path.every((p) => canWalk(...p))).toBe(true);
-      expect(
-        Math.hypot(path.at(-1)![0] - door.x, path.at(-1)![1] - door.z),
-      ).toBeLessThan(1.2);
-    }
-  });
+  it.each(WORLD_IDS)(
+    "finds collision-free paths to every %s destination",
+    (world) => {
+      for (const door of destinationsInWorld(world)) {
+        const path = findPath([0, 5], [door.x, door.z], world);
+        expect(path.length, door.id).toBeGreaterThan(0);
+        expect(
+          path.every((p) => canWalk(...p, world)),
+          door.id,
+        ).toBe(true);
+        expect(
+          Math.hypot(path.at(-1)![0] - door.x, path.at(-1)![1] - door.z),
+          door.id,
+        ).toBeLessThan(1.2);
+      }
+    },
+  );
   it("reaches every rotated campus stop without crossing its buildings", () => {
     for (const [x, z] of campusObstacles) expect(canWalk(x, z)).toBe(false);
     for (const [name, target] of Object.entries(campusStops)) {

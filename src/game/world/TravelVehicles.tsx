@@ -1,4 +1,5 @@
-import { useRef } from "react";
+import { useRef, type RefObject } from "react";
+import type { Group } from "three";
 import { useFrame } from "@react-three/fiber";
 import { Ball, Box, Cylinder } from "./Models";
 import { RailCar } from "./IslandTrain";
@@ -49,13 +50,17 @@ export function RoadCar() {
   );
 }
 
-export function JourneyTrain() {
+export function JourneyTrain({
+  carsRef,
+}: {
+  carsRef: RefObject<Group | null>;
+}) {
   const phase = useRef(0);
   useFrame((_, delta) => {
     phase.current -= Math.min(delta, 0.05) * 12;
   });
   return (
-    <group>
+    <group ref={carsRef}>
       {[0, 1, 2].map((i) => (
         <group key={i} position={[0, 0, -i * 4.6]}>
           <RailCar engine={i === 0} phase={phase} />
@@ -70,6 +75,7 @@ export function PassengerJet() {
     <group>
       <Ball p={[0, 0, 0]} s={[0.65, 0.65, 4]} c="#ece5cf" />
       <Ball p={[0, 0.28, 2.8]} s={[0.52, 0.32, 0.8]} c="#527781" />
+      <Box p={[-0.625, 0, -1.7]} s={[0.06, 0.8, 0.65]} c="#526673" />
       <Box
         p={[0, -0.02, -0.2]}
         s={[8.5, 0.15, 1.6]}
@@ -100,6 +106,34 @@ export function PassengerJet() {
           />
         )),
       ])}
+    </group>
+  );
+}
+
+/** Local to the parked aircraft; these stay on the apron during flight. */
+export function PassengerStairs() {
+  return (
+    <group name="passenger-stairs">
+      {[0, 1, 2, 3, 4].map((step) => {
+        const height = 0.2 + step * 0.13;
+        return (
+          <Box
+            key={step}
+            p={[-2.9 + step * 0.48, height / 2 - 1.2, -1.7]}
+            s={[0.5, height, 0.8]}
+            c="#a9b2b9"
+          />
+        );
+      })}
+      {[-2.1, -1.3].map((z) => (
+        <Box
+          key={z}
+          p={[-1.95, 0, z]}
+          s={[2.5, 0.07, 0.07]}
+          r={[0, 0, 0.25]}
+          c="#d3d9dd"
+        />
+      ))}
     </group>
   );
 }

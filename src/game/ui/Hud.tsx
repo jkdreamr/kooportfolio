@@ -1,10 +1,30 @@
 import { useEffect, useRef, useState } from "react";
 import { runtime, useGame, walkTo, type Scene } from "../core/store";
 import { keys, touch } from "../core/input";
-import { dailySeed, raceTime } from "../core/rowing";
-import { useRaceHud } from "../scenes/Rowing";
+import {
+  catchBoosted,
+  catchReady,
+  CATCH_WINDOW_START,
+  dailySeed,
+  raceTime,
+} from "../core/rowing";
+import { useRaceCatch, useRaceHud } from "../scenes/Rowing";
 import { CourtControls, useBasketHud } from "../scenes/Basketball";
 import { Icon } from "./Icon";
+import {
+  BUILDING_ORDER,
+  BUILDINGS,
+  MAX_LEVEL,
+  gardenCapacity,
+  gardenStored,
+  type BuildingId,
+} from "../../shared/buildings";
+
+const BUILD_ICON: Record<BuildingId, string> = {
+  garden: "star",
+  kitchen: "home",
+  boathouse: "oar",
+};
 import { destinationsInWorld, doors, isInterior } from "../core/world";
 import { WORLDS } from "../core/worlds";
 import { profile } from "../../content/profile";
@@ -52,6 +72,36 @@ export function Joystick() {
     </div>
   );
 }
+function RaceCatch() {
+  const race = useRaceCatch();
+  const ready = catchReady(race);
+  const boosted = catchBoosted(race);
+  return (
+    <div className="race-catch">
+      <div className="race-catch-track" aria-hidden="true">
+        <i style={{ left: `${CATCH_WINDOW_START * 100}%` }} />
+        <b style={{ left: `${race.stroke * 100}%` }} />
+      </div>
+      <button
+        type="button"
+        data-ready={ready}
+        data-boosted={boosted}
+        disabled={race.time <= 0 || race.finished}
+        onPointerDown={(event) => {
+          if (event.button !== 0) return;
+          event.preventDefault();
+          runtime.raceCatch = true;
+        }}
+        onClick={(event) => {
+          if (event.detail === 0) runtime.raceCatch = true;
+        }}
+      >
+        {ready ? "Catch now" : boosted ? "Good catch" : "Catch"}
+      </button>
+    </div>
+  );
+}
+
 export function RaceHud() {
   const { race, place } = useRaceHud();
   const pointers = useRef(new Map<number, "left" | "right" | "burst">());
@@ -66,6 +116,7 @@ export function RaceHud() {
   const touchButton = (control: "left" | "right" | "burst") => ({
     "data-held": held.includes(control),
     onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
+      event.preventDefault();
       event.currentTarget.setPointerCapture(event.pointerId);
       pointers.current.set(event.pointerId, control);
       updateTouch();
@@ -87,6 +138,7 @@ export function RaceHud() {
     () => () => {
       runtime.steer = 0;
       runtime.burst = false;
+      runtime.raceCatch = false;
     },
     [],
   );
@@ -95,9 +147,9 @@ export function RaceHud() {
       <div className="challenge-heading">
         <h1>Regatta</h1>
         <p className="keyboard-hint">
-          A / D steer · 1 / 2 / 3 cadence · hold Space for a burst
+          A / D steer · 1 / 2 / 3 pace · R to catch · hold Space to burst
         </p>
-        <p className="touch-hint">Steer with arrows · hold burst</p>
+        <p className="touch-hint">Tap Catch in green · hold Burst</p>
       </div>
       <div className="race-progress">
         <div
@@ -152,6 +204,7 @@ export function RaceHud() {
             <button
               className={runtime.raceCadence === n ? "selected" : ""}
               key={n}
+              onPointerDown={(event) => event.preventDefault()}
               onClick={() => {
                 runtime.raceCadence = Number(n);
               }}
@@ -161,11 +214,12 @@ export function RaceHud() {
             </button>
           ))}
         </div>
+        <RaceCatch />
         <p>
           {race.bank
-            ? "Shallows — steer inside the buoys."
+            ? "Stay inside the buoys."
             : race.stamina < 20
-              ? "Low energy — settle the pace."
+              ? "Low energy. Settle."
               : "Stay in the pale current."}
         </p>
       </div>
@@ -376,9 +430,15 @@ export function Hud({ interact }: { interact: () => void }) {
     };
   }, []);
   const g = useGame(),
-    [confirmBuild, setConfirmBuild] = useState<"garden" | "boathouse" | null>(
-      null,
-    );
+    [confirmBuild, setConfirmBuild] = useState<BuildingId | null>(null),
+    [now, setNow] = useState(Date.now),
+    stored = gardenStored(g.save.upgrades.garden, g.save.collectedAt, now);
+  useEffect(() => {
+    if (!g.build) return;
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 5000);
+    return () => clearInterval(timer);
+  }, [g.build, g.save.collectedAt]);
   useEffect(() => {
     if (pendingExit.current && pendingExit.current !== g.scene)
       pendingExit.current = null;
@@ -481,7 +541,7 @@ export function Hud({ interact }: { interact: () => void }) {
           <RoomStory
             key={g.scene}
             scene={g.scene as PlaceId}
-            hidden={g.paused || g.panel !== "none"}
+            hidden={g.paused || g.panel !== "none" || g.near === "exit"}
           />
         </div>
       )}
@@ -499,6 +559,7 @@ export function Hud({ interact }: { interact: () => void }) {
           <>
             <div
               className={`context-action ${g.scene === "stadium" ? "context-action--stadium" : ""} ${g.near ? "visible" : ""}`}
+              data-action={g.near ?? undefined}
               style={{ zIndex: 20 }}
             >
               <div>
@@ -535,7 +596,10 @@ export function Hud({ interact }: { interact: () => void }) {
                   if (g.near === "photo") event.stopPropagation();
                 }}
                 onKeyDown={(event) => {
-                  if ((g.near === "stargazing" || g.near === "photo") && event.key === " ")
+                  if (
+                    (g.near === "stargazing" || g.near === "photo") &&
+                    event.key === " "
+                  )
                     event.stopPropagation();
                 }}
               >
@@ -614,42 +678,39 @@ export function Hud({ interact }: { interact: () => void }) {
             <h1>Build</h1>
           </div>
           <div className="build-panel">
-            {(["boathouse", "garden"] as const).map((key) => {
+            {BUILDING_ORDER.map((key) => {
               const level = g.save.upgrades[key],
-                cost = level === 1 ? 60 : 120;
+                cost = BUILDINGS[key].cost[level - 1],
+                max = level === MAX_LEVEL;
               return (
                 <div key={key} className="build-option">
                   <div className={`build-preview ${key}`}>
-                    <Icon
-                      name={key === "boathouse" ? "home" : "star"}
-                      size={40}
-                    />
+                    <Icon name={BUILD_ICON[key]} size={40} />
                     <span>LV. {level}</span>
                   </div>
                   <div>
-                    <h3>
-                      {key === "boathouse"
-                        ? "The Boathouse"
-                        : "The Little Garden"}
-                    </h3>
+                    <h3>{BUILDINGS[key].name}</h3>
                     <p>
-                      {level === 3
-                        ? "Max level"
-                        : key === "boathouse"
-                          ? level === 1
-                            ? "A waterside balcony for the crew."
-                            : "A lookout tower and new silhouette."
-                          : level === 1
-                            ? "Flower beds & a leafy pergola."
-                            : "More flowers, trees & a place to rest."}
+                      {BUILDINGS[key].perk(level)}
+                      {!max && <> → {BUILDINGS[key].perk(level + 1)}</>}
                     </p>
+                    {key === "garden" && (
+                      <button
+                        className="upgrade-button"
+                        disabled={stored < 1}
+                        onClick={g.collect}
+                      >
+                        <Icon name="coin" size={16} /> {stored}/
+                        {gardenCapacity(level)} <span>Collect</span>
+                      </button>
+                    )}
                     <button
                       className="upgrade-button"
-                      disabled={level === 3 || g.save.coins < cost}
+                      disabled={max || g.save.coins < cost}
                       onClick={() => setConfirmBuild(key)}
                     >
-                      {level === 3 ? (
-                        "Fully upgraded"
+                      {max ? (
+                        "Max level"
                       ) : (
                         <>
                           <Icon name="coin" size={16} /> {cost}{" "}
@@ -665,9 +726,6 @@ export function Hud({ interact }: { interact: () => void }) {
                 </div>
               );
             })}
-            <p className="local-note">
-              Upgrades change the village, not your scores.
-            </p>
             <button
               className="primary-button"
               onClick={() => useGame.setState({ build: false })}
@@ -761,10 +819,10 @@ export function Hud({ interact }: { interact: () => void }) {
       {confirmBuild && (
         <Modal eyebrow="" title="Upgrade?" close={() => setConfirmBuild(null)}>
           <p>
-            {confirmBuild === "boathouse"
-              ? "Expand the boathouse"
-              : "Improve the garden"}{" "}
-            for {g.save.upgrades[confirmBuild] === 1 ? 60 : 120} coins?
+            {BUILDINGS[confirmBuild].name} to Lv{" "}
+            {g.save.upgrades[confirmBuild] + 1} for{" "}
+            {BUILDINGS[confirmBuild].cost[g.save.upgrades[confirmBuild] - 1]}{" "}
+            coins.
           </p>
           <button
             className="primary-button"
@@ -918,12 +976,12 @@ export function Hud({ interact }: { interact: () => void }) {
             <b>Row</b>
             <p>
               <span className="keyboard-hint">
-                A/D to steer. 1/2/3 for cadence. Space for a burst.{" "}
+                A/D to steer. 1/2/3 for pace. R to catch. Space for a burst.{" "}
               </span>
               <span className="touch-hint">
-                Hold arrows to steer and BURST to sprint. Tap a pace.{" "}
+                Hold arrows to steer and Burst to sprint. Tap a pace or Catch.{" "}
               </span>
-              Stay inside the buoys; sprinting drains energy.
+              Catch in the green for a boost. Sprinting drains energy.
             </p>
             <b>Shoot</b>
             <p>
@@ -937,8 +995,8 @@ export function Hud({ interact }: { interact: () => void }) {
             </p>
             <b>Grow</b>
             <p>
-              Finish games to earn local coins. Build adds visible architecture,
-              never paid advantages.
+              Finish games to earn coins. The garden grows coins while you are
+              away. Upgrades add burners, race prizes and garden storage.
             </p>
           </div>
         </Modal>

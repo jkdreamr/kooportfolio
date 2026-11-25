@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { onStanfordLand } from "../../shared/stanford-ground";
 import {
   forest,
   grassSites,
@@ -7,9 +8,15 @@ import {
   type GroundFootprint,
 } from "../core/scenery";
 import { isKoreaGardenWalk, isKoreaLandmarkArea } from "../core/koreaLandmarks";
+import { isOnKoreaLand } from "../core/koreaDistrict";
 import type { WorldId } from "../core/worlds";
 import { NaturalTrees } from "./TreeArt";
 import { sculptedMaterial } from "./Surface";
+import {
+  isStanfordTownSpace,
+  isStanfordTreeSite,
+} from "../core/stanfordLayout";
+import { isHomeLand } from "../core/homeIsland";
 
 type Part = {
   p: [number, number, number];
@@ -69,30 +76,54 @@ forest.forEach(({ x, z }, i) => {
       c: i % 2 ? "#8c9380" : "#aaa78c",
     });
 });
-export function GroundGrass({ avoid }: { avoid: readonly GroundFootprint[] }) {
+export function GroundGrass({
+  avoid,
+  world,
+}: {
+  avoid: readonly GroundFootprint[];
+  world?: WorldId;
+}) {
   const parts = useMemo(
     () =>
-      grassSites(avoid).map<Part>(({ x, z, variant }) => ({
-        p: [x, 0.32, z],
-        s: [0.12, 0.35 + (variant % 4) * 0.1, 0.12],
-        c: variant % 3 ? "#638143" : "#8b9c59",
-      })),
-    [avoid],
+      grassSites(avoid)
+        .filter(({ x, z }) => world !== "home" || isHomeLand(x, z, 1))
+        .filter(({ x, z }) => world !== "stanford" || onStanfordLand(x, z, 0.3))
+        .map<Part>(({ x, z, variant }) => ({
+          p: [x, 0.32, z],
+          s: [0.12, 0.35 + (variant % 4) * 0.1, 0.12],
+          c: variant % 3 ? "#638143" : "#8b9c59",
+        })),
+    [avoid, world],
   );
   return <Instances parts={parts} geometry={reed} />;
 }
+const stanfordTrees = trees.filter(({ p }) => isStanfordTreeSite(p[0], p[2]));
+const stanfordRocks = rocks.filter(
+  ({ p }) =>
+    !isStanfordTownSpace(p[0], p[2], 3) && onStanfordLand(p[0], p[2], 2),
+);
 const outsideLandmarks = ({ p: [x, , z] }: Part) =>
-  !isKoreaLandmarkArea(x, z, 0.6) && !isKoreaGardenWalk(x, z, 0.6);
+  isOnKoreaLand(x, z, 2.5) &&
+  !isKoreaLandmarkArea(x, z, 0.6) &&
+  !isKoreaGardenWalk(x, z, 0.6);
 const koreaRocks = rocks.filter(outsideLandmarks);
 
 export function Scenery({ world }: { world: WorldId }) {
   const korea = world === "korea";
+  // Home's authored trees and colliders live together in HomeGardens.
+  if (world === "home") return null;
   return (
     <>
-      <NaturalTrees trees={korea ? koreaTrees : trees} />
+      <NaturalTrees
+        trees={
+          korea ? koreaTrees : world === "stanford" ? stanfordTrees : trees
+        }
+      />
       <Instances
-        key={korea ? "korea-rocks" : "rocks"}
-        parts={korea ? koreaRocks : rocks}
+        key={`${world}-rocks`}
+        parts={
+          korea ? koreaRocks : world === "stanford" ? stanfordRocks : rocks
+        }
         geometry={crown}
       />
     </>

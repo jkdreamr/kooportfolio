@@ -5,7 +5,8 @@ export type Save = {
   xp: number;
   position: [number, number];
   world: WorldId;
-  upgrades: { boathouse: number; garden: number };
+  upgrades: Record<BuildingId, number>;
+  collectedAt: number;
   color: string;
   hat: boolean;
   bestRace: number | null;
@@ -14,6 +15,8 @@ export type Save = {
   rewards: string[];
 };
 import { WORLD_BOUNDS } from "./world-bounds";
+import { onStanfordLand, STANFORD_SHORE_CLEARANCE } from "./stanford-ground";
+import { BUILDINGS, gardenStored, type BuildingId } from "./buildings";
 import { isWorld, type WorldId } from "./worlds";
 
 export const SAVE_KEY = "joshua-exe-save-v1";
@@ -27,14 +30,15 @@ export function writeGuestSave(
   storage.setItem(SAVE_KEY, raw);
   return raw;
 }
-export const freshSave = (): Save => ({
+export const freshSave = (now = Date.now()): Save => ({
   version: 1,
   revision: 0,
   coins: 0,
   xp: 0,
   position: [0, 5],
   world: "home",
-  upgrades: { boathouse: 1, garden: 1 },
+  upgrades: { boathouse: 1, garden: 1, kitchen: 1 },
+  collectedAt: now,
   color: "#6f8670",
   hat: true,
   bestRace: null,
@@ -44,11 +48,14 @@ export const freshSave = (): Save => ({
 });
 const finiteRange = (x: unknown, min: number, max: number): x is number =>
   typeof x === "number" && Number.isFinite(x) && x >= min && x <= max;
-export function parseSave(raw: string | null): Save {
-  if (!raw) return freshSave();
+export function parseSave(raw: string | null, now = Date.now()): Save {
+  if (!raw) return freshSave(now);
   const s = JSON.parse(raw) as Save;
   // Version-one saves predate the three regions; all other progress survives.
   if (s.world === undefined) s.world = "home";
+  // Saves from before the kitchen upgrade and garden collector start fresh there.
+  if (s.upgrades && s.upgrades.kitchen === undefined) s.upgrades.kitchen = 1;
+  if (s.collectedAt === undefined) s.collectedAt = now;
   if (
     s.version !== 1 ||
     !isWorld(s.world) ||
@@ -62,6 +69,8 @@ export function parseSave(raw: string | null): Save {
     !finiteRange(s.position[1], -76, WORLD_BOUNDS.maxZ) ||
     ![1, 2, 3].includes(s.upgrades?.boathouse) ||
     ![1, 2, 3].includes(s.upgrades?.garden) ||
+    ![1, 2, 3].includes(s.upgrades?.kitchen) ||
+    !finiteRange(s.collectedAt, 0, 1e15) ||
     typeof s.color !== "string" ||
     !/^#[0-9a-f]{6}$/i.test(s.color) ||
     typeof s.hat !== "boolean" ||
@@ -73,7 +82,13 @@ export function parseSave(raw: string | null): Save {
     !finiteRange(s.bestBasket, 0, 1e6)
   )
     throw new Error("Unrecognized save");
-  if (s.position[1] < WORLD_BOUNDS.minZ) s.position = [0, 5];
+  if (
+    s.position[1] < WORLD_BOUNDS.minZ ||
+    (s.world === "stanford" &&
+      !onStanfordLand(...s.position, STANFORD_SHORE_CLEARANCE))
+  )
+    s.position = [0, 5];
+  if (s.collectedAt > now) s.collectedAt = now;
   return s;
 }
 export function reward(s: Save, id: string, coins: number, xp: number): Save {
@@ -93,14 +108,26 @@ export function reward(s: Save, id: string, coins: number, xp: number): Save {
     revision: s.revision + 1,
   };
 }
-export function upgrade(s: Save, key: "boathouse" | "garden"): Save {
-  const level = s.upgrades[key],
-    cost = level === 1 ? 60 : 120;
-  if (level >= 3 || s.coins < cost) return s;
+export function collectGarden(s: Save, now = Date.now()): Save {
+  const stored = gardenStored(s.upgrades.garden, s.collectedAt, now);
+  if (stored < 1) return s;
   return {
     ...s,
-    coins: s.coins - cost,
-    upgrades: { ...s.upgrades, [key]: level + 1 },
+    coins: s.coins + stored,
+    collectedAt: now,
+    revision: s.revision + 1,
+  };
+}
+export function upgrade(s: Save, key: BuildingId, now = Date.now()): Save {
+  const level = s.upgrades[key],
+    cost = BUILDINGS[key].cost[level - 1];
+  if (cost === undefined || s.coins < cost) return s;
+  // Like a mine in Clash of Clans, upgrading the garden banks what it held.
+  const banked = key === "garden" ? collectGarden(s, now) : s;
+  return {
+    ...banked,
+    coins: banked.coins - cost,
+    upgrades: { ...banked.upgrades, [key]: level + 1 },
     revision: s.revision + 1,
   };
 }

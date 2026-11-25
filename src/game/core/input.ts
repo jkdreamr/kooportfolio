@@ -33,6 +33,14 @@ export function useInput(interact: () => void) {
       if (k === "1") runtime.raceCadence = 24;
       if (k === "2") runtime.raceCadence = 30;
       if (k === "3") runtime.raceCadence = 36;
+      if (
+        k === "r" &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        useGame.getState().scene === "rowing"
+      )
+        runtime.raceCatch = true;
       if (k === " " && useGame.getState().scene === "basketball")
         runtime.shooting = true;
     };
@@ -49,6 +57,7 @@ export function useInput(interact: () => void) {
       touch.z = 0;
       runtime.shooting = false;
       runtime.burst = false;
+      runtime.raceCatch = false;
     };
     window.addEventListener("keydown", down);
     window.addEventListener("keydown", closeGame, true);

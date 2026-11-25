@@ -5,6 +5,7 @@ import {
   scoreboards,
   type LeaderboardEntry,
 } from "../src/shared/leaderboard";
+import { isAllowedOrigin, type CorsEnv } from "./cors";
 
 type Statement = {
   bind(...values: (string | number)[]): Statement;
@@ -13,7 +14,7 @@ type Statement = {
   run(): Promise<{ meta: { changes?: number } }>;
 };
 
-export type LeaderboardEnv = {
+export type LeaderboardEnv = CorsEnv & {
   LEADERBOARD_DB?: { prepare(sql: string): Statement };
 };
 
@@ -63,8 +64,9 @@ async function networkBucket(request: Request, now: number) {
 
 export async function leaderboardApi(
   request: Request,
-  { LEADERBOARD_DB: db }: LeaderboardEnv,
+  env: LeaderboardEnv,
 ): Promise<Response> {
+  const { LEADERBOARD_DB: db } = env;
   if (!db) return unavailable();
   const url = new URL(request.url);
   try {
@@ -85,7 +87,8 @@ export async function leaderboardApi(
       return reply({ error: "Method not allowed." }, 405, {
         Allow: "GET, POST",
       });
-    if (request.headers.get("Origin") !== url.origin)
+    const origin = request.headers.get("Origin");
+    if (!origin || !isAllowedOrigin(origin, request.url, env))
       return reply({ error: "Use the in-game leaderboard." }, 403);
 
     let raw: unknown;

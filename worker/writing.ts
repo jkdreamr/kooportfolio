@@ -1,4 +1,5 @@
 import { validateWriting } from "../src/shared/writing";
+import { isAllowedOrigin, type CorsEnv } from "./cors";
 import type { WritingPost } from "../src/shared/writing";
 
 // Small structural types keep this module usable in local SQLite tests too.
@@ -8,7 +9,7 @@ type Statement = {
   all<T>(): Promise<{ results: T[] }>;
   run(): Promise<{ meta: { changes?: number } }>;
 };
-export type WritingEnv = {
+export type WritingEnv = CorsEnv & {
   WRITING_DB?: { prepare(sql: string): Statement };
   WRITING_ADMIN_TOKEN?: string;
 };
@@ -104,7 +105,8 @@ export async function writingApi(
       return reply({ error: "Method not allowed." }, 405, {
         Allow: collection ? "GET, POST" : "DELETE",
       });
-    if (request.headers.get("Origin") !== url.origin)
+    const origin = request.headers.get("Origin");
+    if (!origin || !isAllowedOrigin(origin, request.url, env))
       return reply({ error: "Open the writing room to post." }, 403);
     if (request.method === "DELETE" && id) {
       const token =

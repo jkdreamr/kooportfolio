@@ -1,16 +1,40 @@
-import { WORLD_BOUNDS, WORLD_ELLIPSE } from "../../shared/world-bounds";
+import { WORLD_BOUNDS } from "../../shared/world-bounds";
+import {
+  onStanfordLand,
+  STANFORD_SHORE_CLEARANCE,
+} from "../../shared/stanford-ground";
 import { ISLAND_RAIL } from "./islandRail";
+import {
+  STANFORD_STATION,
+  STANFORD_STATION_GATE,
+  STANFORD_TELESCOPE,
+  STANFORD_TELESCOPE_ENTRY,
+  STANFORD_BULLETIN,
+  STANFORD_BULLETIN_ENTRY,
+} from "../../shared/stanford-transport";
 import { forest, koreaForest } from "./scenery";
+import { isOnKoreaLand } from "./koreaDistrict";
 import {
   KOREA_LANDMARK_DESTINATIONS,
   KOREA_LANDMARK_SOLIDS,
+  KOREA_STREET_BUILDINGS,
 } from "./koreaLandmarks";
 import { campusObstacles } from "./campus";
 import { POND } from "./pond";
-import { PHOTO_BOOTH_ENTRY, PHOTO_BOOTH_OBSTACLES, PHOTO_BOOTH_ORIGIN } from "./photoBoothLayout";
+import {
+  PHOTO_BOOTH_ENTRY,
+  PHOTO_BOOTH_OBSTACLES,
+  PHOTO_BOOTH_ORIGIN,
+} from "./photoBoothLayout";
 import { belongsToWorld, type WorldId } from "./worlds";
 import { HOME_COMMUNITY_OBSTACLES } from "../world/CommunityScenery";
 import { villageGardenSolids } from "./villageGardens";
+import { HOME_GARDEN_OBSTACLES } from "./homeGardens";
+import { HOME_DESTINATION_CENTERS } from "./homeLayout";
+import { HOME_AIRPORT_GATE, islandForWorld } from "./homeIsland";
+import { journeyGate } from "./journey";
+import { railForWorld } from "./islandRail";
+import { STANFORD_BUILDINGS, isStanfordTreeSite } from "./stanfordLayout";
 import {
   KOREA_WATER_OBSTACLES,
   KOREA_BRIDGE_RAILS,
@@ -156,13 +180,19 @@ const largerHouses = new Set<string>([
 export const doors = villageDoors.map((door) => {
   const horizontal = largerHouses.has(door.id) ? 1.5 : 1;
   const vertical = horizontal > 1 ? 1.2 : 1;
-  const [cx, cz, hx, hz] = door.footprint;
+  const [oldX, oldZ, hx, hz] = door.footprint;
+  const [cx, cz] = STANFORD_BUILDINGS[
+    door.id as keyof typeof STANFORD_BUILDINGS
+  ] ?? [oldX, oldZ];
+  const rotation = door.id === "skate" ? Math.PI : 0;
   return {
     ...door,
-    z: cz + (door.z - cz) * horizontal,
+    x: cx + (door.x - oldX) * horizontal,
+    z: cz + (door.z - oldZ) * horizontal * (rotation ? -1 : 1),
     anchor: [cx, door.anchor[1] * vertical, cz] as const,
     footprint: [cx, cz, hx * horizontal, hz * horizontal] as const,
     scale: [horizontal, vertical, horizontal] as const,
+    rotation,
   };
 });
 export const landmarks = [
@@ -217,12 +247,116 @@ export const landmarks = [
     anchor: [-76, 4, ISLAND_RAIL.station[1]] as const,
   },
 ] as const;
-export const destinations = [...doors, ...landmarks];
+const koreaDoors = doors
+  .filter((door) => belongsToWorld(door.id, "korea"))
+  .map((door) => {
+    if (door.id !== "theater" && door.id !== "cognition") return door;
+    const [x, z] = KOREA_STREET_BUILDINGS[door.id];
+    const [, originalZ, halfWidth, halfDepth] = door.footprint;
+    return {
+      ...door,
+      x,
+      z: z + (door.z - originalZ),
+      anchor: [x, door.anchor[1], z] as const,
+      footprint: [x, z, halfWidth, halfDepth] as const,
+    };
+  });
 export const doorsInWorld = (world: WorldId) =>
-  doors.filter((door) => belongsToWorld(door.id, world));
-export const destinationsInWorld = (world: WorldId) =>
-  destinations.filter((place) => belongsToWorld(place.id, world));
+  world === "korea"
+    ? koreaDoors
+    : doors
+        .filter((door) => belongsToWorld(door.id, world))
+        .map((door) => {
+          const center = world === "home" && HOME_DESTINATION_CENTERS[door.id];
+          if (!center) return door;
+          const [x, z] = center;
+          const dx = x - door.footprint[0],
+            dz = z - door.footprint[1];
+          return {
+            ...door,
+            x: door.x + dx,
+            z: door.z + dz,
+            anchor: [x, door.anchor[1], z] as const,
+            footprint: [x, z, door.footprint[2], door.footprint[3]] as const,
+          };
+        });
+export const destinationsInWorld = (world: WorldId) => [
+  ...doorsInWorld(world),
+  ...landmarks
+    .filter((place) => belongsToWorld(place.id, world))
+    .map((place) => {
+      if (world === "stanford") {
+        if (place.id === "station") {
+          const [x, z] = STANFORD_STATION_GATE;
+          return {
+            ...place,
+            x,
+            z,
+            anchor: [STANFORD_STATION[0], 4, z] as const,
+          };
+        }
+        if (place.id === "stargazing") {
+          const [x, z] = STANFORD_TELESCOPE_ENTRY;
+          return {
+            ...place,
+            x,
+            z,
+            anchor: [STANFORD_TELESCOPE[0], 10, STANFORD_TELESCOPE[1]] as const,
+          };
+        }
+        if (place.id === "bulletin") {
+          const [x, z] = STANFORD_BULLETIN_ENTRY;
+          return {
+            ...place,
+            x,
+            z,
+            anchor: [STANFORD_BULLETIN[0], 4.6, STANFORD_BULLETIN[1]] as const,
+          };
+        }
+        return place;
+      }
+      if (world !== "home") return place;
+      if (place.id === "airport") {
+        const [x, z] = HOME_AIRPORT_GATE;
+        return { ...place, x, z, anchor: [x, 8, z - 9] as const };
+      }
+      if (place.id === "station") {
+        const [x, z] = journeyGate("train", world);
+        return {
+          ...place,
+          x,
+          z,
+          anchor: [railForWorld(world).station[0], 4, z] as const,
+        };
+      }
+      return place;
+    }),
+];
 export type PlaceId = (typeof doors)[number]["id"];
+const interactionLandmarks = new Map<
+  WorldId,
+  ReturnType<typeof destinationsInWorld>
+>();
+
+/** Resolve static Places once per region, not again in every animation frame. */
+export function landmarkActionAt(x: number, z: number, world: WorldId) {
+  let places = interactionLandmarks.get(world);
+  if (!places) {
+    places = destinationsInWorld(world).filter(
+      (place) => place.id === "bulletin" || place.id === "stargazing",
+    );
+    interactionLandmarks.set(world, places);
+  }
+  const place = places.find(
+    (place) => Math.hypot(place.x - x, place.z - z) < 1.9,
+  );
+  return place?.id === "bulletin"
+    ? "read"
+    : place?.id === "stargazing"
+      ? "stargazing"
+      : "";
+}
+
 export function isInterior(scene: string) {
   return (
     scene === "secret" ||
@@ -234,16 +368,28 @@ const sharedObstacles: ReadonlyArray<readonly number[]> = [
   [0, -6.6, 2.1, 0.4],
   [0, 0, 1.5, 1.5],
   [-19, -38, 6, 6],
-  [58, 52, 9, 7],
 ];
 const obstaclesFor = (world?: WorldId): ReadonlyArray<readonly number[]> => [
-  ...sharedObstacles,
-  ...(world === "korea" ? koreaForest : forest).map(({ x, z }) => [
-    x,
-    z,
-    0.4,
-    0.4,
-  ]),
+  ...(world === "home"
+    ? [
+        ...sharedObstacles.slice(1, 4),
+        [HOME_AIRPORT_GATE[0], HOME_AIRPORT_GATE[1] - 9, 5, 3.8],
+      ]
+    : [
+        ...(world === "stanford"
+          ? [
+              sharedObstacles[0],
+              sharedObstacles[2],
+              [...STANFORD_BULLETIN, 2.1, 0.4],
+              [...STANFORD_TELESCOPE, 6, 6],
+            ]
+          : sharedObstacles),
+        // Korea keeps its south-bank walk behind the full-size terminal.
+        world === "korea" ? [58, 52, 4.9, 3.9] : [58, 52, 9, 7],
+      ]),
+  ...(world === "home" ? [] : world === "korea" ? koreaForest : forest)
+    .filter(({ x, z }) => world !== "stanford" || isStanfordTreeSite(x, z))
+    .map((tree) => [tree.x, tree.z, 0.4, 0.4]),
   ...(world ? villageGardenSolids(world) : []),
   ...(world ? doorsInWorld(world) : doors).map((door) => door.footprint),
   ...(world === undefined || world === "stanford" ? campusObstacles : []),
@@ -257,7 +403,9 @@ const obstaclesFor = (world?: WorldId): ReadonlyArray<readonly number[]> => [
         ...KOREA_PARK_TREES.map(({ p }) => [p[0], p[2], 0.4, 0.4]),
       ]
     : []),
-  ...(world === "home" ? [...HOME_COMMUNITY_OBSTACLES] : []),
+  ...(world === "home"
+    ? [...HOME_COMMUNITY_OBSTACLES, ...HOME_GARDEN_OBSTACLES]
+    : []),
 ];
 const regionalObstacles = {
   home: obstaclesFor("home"),
@@ -266,14 +414,18 @@ const regionalObstacles = {
   all: obstaclesFor(),
 };
 export function canWalk(x: number, z: number, world?: WorldId) {
+  const island = islandForWorld(world);
   if (
+    (world === "stanford" && !onStanfordLand(x, z, STANFORD_SHORE_CLEARANCE)) ||
     x < WORLD_BOUNDS.minX ||
     x > WORLD_BOUNDS.maxX ||
     z < WORLD_BOUNDS.minZ ||
     z > WORLD_BOUNDS.maxZ ||
-    (x / WORLD_ELLIPSE.radiusX) ** 2 +
-      ((z - WORLD_ELLIPSE.centerZ) / WORLD_ELLIPSE.radiusZ) ** 2 >
-      1
+    (world === "korea"
+      ? !isOnKoreaLand(x, z, 0.35)
+      : ((x - island.centerX) / island.radiusX) ** 2 +
+          ((z - island.centerZ) / island.radiusZ) ** 2 >
+        1)
   )
     return false;
   return !regionalObstacles[world ?? "all"].some(
@@ -303,10 +455,68 @@ export function findPath(
 ): [number, number][] {
   const grid = 0.6,
     key = (x: number, z: number) => `${x},${z}`;
-  const sx = Math.round(start[0] / grid),
-    sz = Math.round(start[1] / grid),
-    ex = Math.round(end[0] / grid),
+  let sx = Math.round(start[0] / grid),
+    sz = Math.round(start[1] / grid);
+  const ex = Math.round(end[0] / grid),
     ez = Math.round(end[1] / grid);
+  const clear = (x0: number, z0: number, x1: number, z1: number) => {
+    const dx = x1 - x0,
+      dz = z1 - z0;
+    const steps = Math.max(1, Math.ceil(Math.hypot(dx, dz) / 0.05));
+    for (let step = 1; step <= steps; step++)
+      if (!canWalk(x0 + (dx * step) / steps, z0 + (dz * step) / steps, world))
+        return false;
+    return true;
+  };
+  const connected = (x: number, z: number) =>
+    clear(start[0], start[1], x * grid, z * grid);
+  // Reaching a seed can need a turn (e.g. the gap between a western Korea tree
+  // and crop bed), which a straight check rejects. A single bend through a
+  // walkable elbow still connects the start to the grid.
+  const bend = (x: number, z: number, elbows: [number, number][]) => {
+    for (const [ex, ez] of elbows)
+      if (
+        clear(start[0], start[1], ex, ez) &&
+        clear(ex, ez, x * grid, z * grid)
+      )
+        return [ex, ez] as [number, number];
+    return null;
+  };
+  let entry: [number, number] | null = null;
+  if (!connected(sx, sz)) {
+    // A valid off-grid position can round into two adjoining walls (e.g. the
+    // photo booth's back corner). Seed A* on the same walkable side instead.
+    const nearby = Array.from({ length: 25 }, (_, i) => [
+      sx + (i % 5) - 2,
+      sz + Math.floor(i / 5) - 2,
+    ]);
+    nearby.sort(
+      (a, b) =>
+        Math.hypot(a[0] * grid - start[0], a[1] * grid - start[1]) -
+        Math.hypot(b[0] * grid - start[0], b[1] * grid - start[1]),
+    );
+    const seed = nearby.find(([x, z]) => connected(x, z));
+    if (seed) [sx, sz] = seed;
+    else {
+      const elbows: [number, number][] = nearby.map(([x, z]) => [
+        x * grid,
+        z * grid,
+      ]);
+      for (const [x, z] of nearby) {
+        // The axis elbows cover most turns; a neighbouring cell covers the rest.
+        entry =
+          bend(x, z, [
+            [x * grid, start[1]],
+            [start[0], z * grid],
+          ]) ?? bend(x, z, elbows);
+        if (entry) {
+          [sx, sz] = [x, z];
+          break;
+        }
+      }
+      if (!entry) return [];
+    }
+  }
   type Node = { x: number; z: number; cost: number; f: number };
   const open: Node[] = [],
     seen = new Map<string, number>(),
@@ -359,7 +569,12 @@ export function findPath(
         const [x, z] = k.split(",").map(Number);
         out.unshift([x * grid, z * grid]);
       }
-      return out.slice(1);
+      // Keep the entry segment; skipping it can cut back through the corner.
+      const route =
+        Math.hypot(start[0] - sx * grid, start[1] - sz * grid) > 0.0001
+          ? out
+          : out.slice(1);
+      return entry ? [entry, ...route] : route;
     }
     for (const [dx, dz] of [
       [1, 0],

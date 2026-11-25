@@ -14,17 +14,24 @@ import {
 } from "./Models";
 import { runtime, useGame, walkTo } from "../core/store";
 import { movement, movementSpeed } from "../core/input";
-import { canWalk, doorsInWorld, moveWorld } from "../core/world";
+import {
+  canWalk,
+  doorsInWorld,
+  landmarkActionAt,
+  moveWorld,
+} from "../core/world";
 import { LabelProjection } from "./Labels";
 import { Landscape } from "./Landscape";
 import { VillageGardens } from "./VillageGardens";
 import { HomeWorldEnvironment } from "./HomeWorldEnvironment";
+import { HomeBuildingArt } from "./HomeBuildingArt";
 import { KoreaWorldEnvironment } from "./KoreaWorldEnvironment";
 import { Bulletin } from "./Bulletin";
 import { roomFor } from "../core/room";
 import { useGameMode } from "../core/gameMode";
 import { useWorldView } from "../core/worldView";
 import {
+  islandCenter,
   islandZoom,
   islandFollow,
   ISLAND_CAMERA_OFFSET,
@@ -43,6 +50,10 @@ import { PhotoBooth } from "./PhotoBooth";
 import { PhotoBoothView } from "./PhotoBoothView";
 import { isNearPhotoBooth } from "../core/photoBoothLayout";
 import { StargazingHill } from "./StargazingHill";
+import {
+  STANFORD_BULLETIN,
+  STANFORD_TELESCOPE,
+} from "../../shared/stanford-transport";
 import { SkateParkBuilding } from "../scenes/SkatePark";
 import { BeatLabShell, MathLabShell } from "./LabBuildings";
 import { GoShell } from "./GoShell";
@@ -79,6 +90,18 @@ export function Walker({
     if (locked || useGameMode.getState().active) {
       runtime.moving = false;
       state.setNear("");
+      if (locked && !interior) {
+        // Travel owns the live view. Keep its last framing for a damped handoff,
+        // including the new world key so landing cannot trigger a camera cut.
+        follow.current
+          .copy(camera.position)
+          .sub(offset.current.set(...ISLAND_CAMERA_OFFSET));
+        cameraScene.current = `${state.scene}:${state.world}`;
+        if (avatar.current) {
+          avatar.current.position.set(runtime.x, 0.18, runtime.z);
+          avatar.current.rotation.y = runtime.heading;
+        }
+      }
       return;
     }
     let [dx, dz] = state.overlayLocked ? [0, 0] : movement(),
@@ -166,15 +189,13 @@ export function Walker({
         doorsInWorld(state.world).find(
           (d) => Math.hypot(d.x - runtime.x, d.z - runtime.z) < 1.9,
         )?.id ?? "";
-      if (!near && Math.hypot(runtime.x, runtime.z + 4.6) < 1.9) near = "read";
+      if (!near) near = landmarkActionAt(runtime.x, runtime.z, state.world);
       if (
         !near &&
         state.world === "korea" &&
         isNearPhotoBooth(runtime.x, runtime.z)
       )
         near = "photo";
-      if (!near && Math.hypot(runtime.x + 19, runtime.z + 30) < 1.9)
-        near = "stargazing";
       if (
         !near &&
         state.world === "stanford" &&
@@ -196,20 +217,20 @@ export function Walker({
     const mobile = size.width < 700 || size.height < 500;
     const worldZoom = useWorldView.getState().zoom;
     const playerFollow = islandFollow(worldZoom);
+    const [centerX, centerZ] = islandCenter(state.world);
     desired.current.set(
-      interior ? runtime.x * 0.9 : runtime.x * 0.92 * playerFollow,
+      interior
+        ? runtime.x * 0.9
+        : THREE.MathUtils.lerp(centerX, runtime.x * 0.92, playerFollow),
       0,
       interior
         ? runtime.z * 0.9 - 2
-        : THREE.MathUtils.lerp(
-            WORLD_ELLIPSE.centerZ,
-            runtime.z * 0.92,
-            playerFollow,
-          ),
+        : THREE.MathUtils.lerp(centerZ, runtime.z * 0.92, playerFollow),
     );
     const cameraKey = `${state.scene}:${state.world}`;
     const changedScene = cameraScene.current !== cameraKey;
-    if (changedScene) {
+    const wholeIsland = !interior && worldZoom === 1 && !state.build;
+    if (changedScene || wholeIsland) {
       follow.current.copy(desired.current);
       cameraScene.current = cameraKey;
     }
@@ -217,9 +238,13 @@ export function Walker({
     if (interior) offset.current.set(15, 21, 25);
     else offset.current.set(...ISLAND_CAMERA_OFFSET);
     camera.position.copy(offset.current.add(follow.current));
-    camera.lookAt(follow.current.x, interior ? 0.5 : 0.7, follow.current.z);
+    camera.lookAt(
+      follow.current.x,
+      interior ? 0.5 : follow.current.y + 0.7,
+      follow.current.z,
+    );
     if (camera instanceof THREE.OrthographicCamera) {
-      const fitted = islandZoom(size.width, size.height);
+      const fitted = islandZoom(size.width, size.height, state.world);
       const targetZoom = interior
         ? mobile
           ? Math.max(
@@ -234,15 +259,16 @@ export function Walker({
           ? fitted * 0.9
           : fitted;
       const zoom = !interior && !state.build ? worldZoom : 1;
-      camera.zoom = changedScene
-        ? targetZoom * zoom
-        : THREE.MathUtils.damp(camera.zoom, targetZoom * zoom, 5, dt);
+      camera.zoom =
+        changedScene || wholeIsland
+          ? targetZoom * zoom
+          : THREE.MathUtils.damp(camera.zoom, targetZoom * zoom, 5, dt);
       camera.updateProjectionMatrix();
     }
   });
   return (
     <group ref={avatar} name="village-player" visible={!locked && !playing}>
-      <Character color={save.color} hat={save.hat} scale={0.65} />
+      <Character player color={save.color} hat={save.hat} scale={0.65} />
     </group>
   );
 }
@@ -330,6 +356,7 @@ export function Hub() {
     build = useGame((s) => s.build),
     world = useGame((s) => s.world),
     traveling = useGame((s) => s.traveling);
+  const skate = doorsInWorld(world).find((door) => door.id === "skate");
   return (
     <group>
       <Landscape world={world} />
@@ -343,14 +370,16 @@ export function Hub() {
           }}
         />
       )}
-      <Bulletin />
+      <Bulletin
+        position={world === "stanford" ? STANFORD_BULLETIN : undefined}
+      />
       <Wildlife />
       {world === "stanford" && !save.memories.includes(HOOVER_KEY) && (
         <group position={[HOOVER.key[0], 0.2, HOOVER.key[1]]}>
           <HooverKey />
         </group>
       )}
-      {world === "stanford" && (
+      {world === "stanford" && skate && (
         <group
           onPointerDown={(event) => {
             event.stopPropagation();
@@ -360,7 +389,10 @@ export function Hub() {
             if (!build && !traveling) walkTo(door.x, door.z);
           }}
         >
-          <SkateParkBuilding />
+          <SkateParkBuilding
+            position={[skate.footprint[0], 0, skate.footprint[1]]}
+            rotation={skate.rotation}
+          />
         </group>
       )}
       {world === "korea" && (
@@ -369,9 +401,20 @@ export function Hub() {
           <PhotoBoothView />
         </>
       )}
-      <StargazingHill position={[-19, 0, -38]} />
+      <StargazingHill
+        position={
+          world === "stanford"
+            ? [STANFORD_TELESCOPE[0], 0, STANFORD_TELESCOPE[1]]
+            : [-19, 0, -38]
+        }
+      />
       {world !== "korea" && (
-        <IslandTrain disabled={traveling} onRidingChange={setTrainRiding} />
+        <IslandTrain
+          key={world}
+          world={world}
+          disabled={traveling}
+          onRidingChange={setTrainRiding}
+        />
       )}
       <WorldTravel
         world={world}
@@ -421,6 +464,7 @@ export function Hub() {
           {door.id === "cognition" && <CognitionShell />}
           {door.id === "kitchen" && <KitchenShell />}
           {door.id === "gym" && <GymShell />}
+          {world === "home" && <HomeBuildingArt id={door.id} />}
         </group>
       ))}
       {world === "home" && <Garden level={save.upgrades.garden} />}

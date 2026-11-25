@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import {
+  collectGarden,
   freshSave,
   parseSave,
   reward,
@@ -8,6 +9,7 @@ import {
   upgrade,
   writeGuestSave,
 } from "../../shared/save";
+import { BUILDINGS, type BuildingId } from "../../shared/buildings";
 import { canWalk, findPath, isInterior, type PlaceId } from "./world";
 import { roomFor } from "./room";
 import { findInteriorPath } from "./houseRooms";
@@ -18,7 +20,8 @@ import {
   type WorldId,
 } from "./worlds";
 import { keys, touch } from "./input";
-import { ISLAND_RAIL } from "./islandRail";
+import { journeyGate } from "./journey";
+import type { TravelOption } from "./travel";
 export type Scene = "hub" | "rowing" | "secret" | PlaceId;
 let storageIssue = "";
 let savedRaw: string | null = null;
@@ -46,6 +49,7 @@ export const runtime = {
   path: [] as [number, number][],
   near: "",
   raceCadence: 30,
+  raceCatch: false,
   raceLength: 360,
   raceSeed: 1,
   raceMode: "sprint" as "sprint" | "regatta" | "daily",
@@ -75,7 +79,7 @@ type State = {
   paused: boolean;
   overlayLocked: boolean;
   traveling: boolean;
-  travelRequest: WorldId | null;
+  travelRequest: WorldId | TravelOption | null;
   build: boolean;
   panel:
     | "none"
@@ -107,7 +111,8 @@ type State = {
   setNear: (near: string) => void;
   persist: () => void;
   award: (id: string, coins: number, xp: number, extra?: Partial<Save>) => void;
-  upgrade: (key: "boathouse" | "garden") => void;
+  upgrade: (key: BuildingId) => void;
+  collect: () => void;
   customize: (color: string, hat: boolean) => void;
 };
 export const useGame = create<State>((set, get) => ({
@@ -146,6 +151,7 @@ export const useGame = create<State>((set, get) => ({
     runtime.aim = 0;
     runtime.steer = 0;
     runtime.burst = false;
+    runtime.raceCatch = false;
     set({
       scene,
       near: "",
@@ -160,8 +166,7 @@ export const useGame = create<State>((set, get) => ({
     if (!validJourney(get().world, world, mode) || get().scene !== "hub")
       return;
     get().persist();
-    const position: [number, number] =
-      mode === "plane" ? [58, 61] : [-73, ISLAND_RAIL.station[1]];
+    const position: [number, number] = [...journeyGate(mode, world)];
     [runtime.x, runtime.z] = position;
     runtime.path = [];
     runtime.target = null;
@@ -229,9 +234,19 @@ export const useGame = create<State>((set, get) => ({
     if (next === get().save) return;
     set({
       save: next,
-      notice: key === "garden" ? "Garden upgraded." : "Boathouse upgraded.",
+      notice: `${BUILDINGS[key].name} · Lv ${next.upgrades[key]}`,
     });
     get().persist();
+  },
+  collect() {
+    const before = get().save,
+      next = collectGarden(before);
+    set(
+      next === before
+        ? { notice: "Nothing to collect yet." }
+        : { save: next, notice: `+${next.coins - before.coins} coins` },
+    );
+    if (next !== before) get().persist();
   },
   customize(color, hat) {
     set({ save: { ...get().save, color, hat } });

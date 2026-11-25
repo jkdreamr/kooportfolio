@@ -5,19 +5,15 @@ import { daylightClock } from "../core/timeOfDay";
 import { sampleDaylight } from "../core/daylight";
 import {
   KOREA_GARDEN_WALKS,
-  KOREA_LANDMARK_FOOTPRINTS,
   KOREA_LANDMARKS,
+  KOREA_MAIN_STREET,
 } from "../core/koreaLandmarks";
-import { KOREA_EXERCISE_YARD } from "../core/regionalActivities";
 import { HanRiverBridge } from "./HanRiverBridge";
-import { RegionalTerrain } from "./RegionalTerrain";
 import { KoreaHistoricLandmarks } from "./KoreaHistoricLandmarks";
 import { NamsanTower } from "./NamsanTower";
+import { KoreaPublicGrounds, KOREA_PUBLIC_TREES } from "./KoreaPublicGrounds";
 import { NaturalTrees, type TreePlacement } from "./TreeArt";
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
-import { GroundGrass } from "./Scenery";
-import type { GroundFootprint } from "../core/scenery";
-import { KOREA_RIVER_FOOTPRINT } from "./KoreaRiverGround";
 import {
   KoreaRiversideLife,
   KOREA_ACTIVITY_OBSTACLES,
@@ -30,34 +26,47 @@ export const KOREA_PARK_TREES: readonly TreePlacement[] = trees;
 function slab(x: number, z: number, sx: number, sz: number, c = "#aaa99e") {
   paving.push({ p: [x, 0.188, z], s: [sx, 0.04, sz], c, shape: "block" });
 }
+const cityBlocks = [
+  [-39.5, -14.4, 18, 10.4, "#bfb196"],
+  [-16, -18.5, 27, 13.2, "#c9bfac"],
+  [9, -18.5, 18, 13.2, "#c3bfb1"],
+  [32, -18.5, 33.5, 12.8, "#c6b599"],
+] as const;
+for (const [x, z, width, depth, color] of cityBlocks) {
+  paving.push({
+    p: [x, 0.169, z],
+    s: [width, 0.035, depth],
+    c: color,
+    shape: "block",
+  });
+}
 // No paths over water: connect the office/booth to continuous bank promenades.
 slab(0, 0, 13, 15, "#a8aaa2");
-slab(0, -23, 4, 45);
+slab(0, -10.95, 4, 6.9, "#b3ab97");
 slab(9, 1, 18, 3.4);
-slab(18, -10, 14, 12, "#b0afa5");
-slab(18, -3, 3.5, 10);
 slab(11.5, 10, 27, 3.4);
-slab(-6, -3, 3.3, 5);
-slab(-10, -30, 24, 3.5);
-slab(-19, -34, 38, 3);
 const [towerX, towerZ] = KOREA_LANDMARKS.namsan.origin;
-slab(towerX, towerZ + 1, 4.4, 4.2, "#b8b5a8");
-slab(towerX, towerZ + 7.8, 2.4, 9.4);
-slab(-48, -11.9, 2.25, 14);
-slab(-49.25, -5, 4.1, 2.15);
-slab(-53, 2.875, 2.25, 14.5);
-for (const [x, z, width, depth] of KOREA_GARDEN_WALKS) {
-  slab(x, z, width, depth, "#b3ab97");
+slab(towerX, towerZ, 5.2, 5.2, "#b8b5a8");
+for (const walk of KOREA_GARDEN_WALKS) {
+  const [x, z, width, depth] = walk;
+  slab(x, z, width, depth, walk === KOREA_MAIN_STREET ? "#c8bba4" : "#b3ab97");
 }
-slab(0, 12, 145, 3.3);
+for (let x = -32; x <= 48; x += 1.6) {
+  paving.push({
+    p: [x, 0.213, KOREA_MAIN_STREET[1]],
+    s: [1.56, 0.01, 2.5],
+    c: Math.round(x * 10) % 3 ? "#c7bba6" : "#c0b39e",
+    shape: "block",
+  });
+}
+slab(-0.5, 12, 106, 3.3);
 slab(25, 18.7, 79, 3.2);
 slab(25, 15.8, 79, 1.9, "#a27d72");
-slab(14, 47, 60, 3.2);
-slab(14, 50, 60, 1.9, "#a27d72");
+slab(27.5, 47, 85, 3.2);
+slab(18, 50, 68, 1.9, "#a27d72");
 slab(-15, 33, 3, 30);
 slab(65, 30, 3, 25);
-// A narrow bank lane fits between the airport and the island's curved edge.
-// Its outermost corner [70, 62] remains inside the ellipse; x74 did not.
+// The bank lane skirts the terminal to connect the bridge and departures.
 slab(67.5, 34, 7, 2.4);
 slab(69, 47.5, 2, 27);
 slab(63.5, 61, 13, 2);
@@ -85,12 +94,6 @@ for (let x = -6; x < 7; x += 1.6)
       shape: "block",
     });
 for (const z of [21.55, 44.45]) slab(25, z, 74.8, 0.55, "#cbc7b7");
-const pavedFootprints = [
-  KOREA_RIVER_FOOTPRINT,
-  KOREA_EXERCISE_YARD,
-  ...KOREA_LANDMARK_FOOTPRINTS,
-  ...paving.map<GroundFootprint>(({ p, s }) => [p[0], p[2], s[0], s[2]]),
-];
 
 const benchFootprints: readonly (readonly [number, number, number, number])[] =
   [
@@ -101,6 +104,7 @@ const benchFootprints: readonly (readonly [number, number, number, number])[] =
 export const KOREA_PARK_OBSTACLES = [
   ...benchFootprints,
   ...KOREA_ACTIVITY_OBSTACLES,
+  ...KOREA_PUBLIC_TREES.map(({ p: [x, , z] }) => [x, z, 0.4, 0.4] as const),
 ] as const;
 for (const [x, z] of benchFootprints) {
   for (const dx of [-1.2, 1.2])
@@ -125,9 +129,9 @@ for (const [x, z] of benchFootprints) {
       shape: "block",
     });
 }
-for (let i = 0; i < 16; i++) {
-  const x = -8 + i * 3.1;
-  const z = 57 + Math.sin(i * 2.8) * 2.1;
+for (let i = 0; i < 8; i++) {
+  const x = -5 + i * 5.7;
+  const z = 55.8;
   trees.push({ p: [x, 0, z], size: 0.85 + (i % 3) * 0.08, variant: 2 });
   for (let j = 0; j < 6; j++) {
     const a = j * 2.4 + i;
@@ -216,11 +220,10 @@ export function KoreaWorldEnvironment({
 }) {
   return (
     <group name="korea-environment">
+      <KoreaPublicGrounds onVisit={onVisitLandmark} />
       <WorldSceneryParts parts={paving} />
-      <GroundGrass avoid={pavedFootprints} />
       <WorldSceneryParts parts={park} />
       <NaturalTrees trees={trees} />
-      <RegionalTerrain region="seoul" />
       <NamsanTower onVisit={onVisitLandmark} />
       <KoreaHistoricLandmarks onVisit={onVisitLandmark} />
       <HangangWater />

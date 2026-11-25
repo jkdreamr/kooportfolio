@@ -1,153 +1,149 @@
-export const BEAT_INTERVAL = 0.6;
-export const BEAT_COUNT_IN = 4 * BEAT_INTERVAL;
-export const HIT_WINDOW = 0.21;
-export const BEAT_PAD_KEYS = ["F", "G", "H", "J"] as const;
+export const BEATS_PER_BAR = 4;
+export const RHYME_BARS = 16;
+export const RHYME_COUNT_IN_BARS = 1;
+export const RHYME_BAR_POINTS = 100;
+export const RHYME_BEATS = [
+  { name: "Boom Bap", bpm: 90, pattern: "boombap" },
+  { name: "Lo-Fi", bpm: 76, pattern: "lofi" },
+  { name: "House", bpm: 122, pattern: "house" },
+  { name: "Trap", bpm: 138, pattern: "trap" },
+] as const;
+export type RhymeBeatPattern = (typeof RHYME_BEATS)[number]["pattern"];
 
-export function beatPadLane({
-  key,
-  altKey,
-  ctrlKey,
-  metaKey,
-  isComposing,
-}: Pick<
-  KeyboardEvent,
-  "key" | "altKey" | "ctrlKey" | "metaKey" | "isComposing"
->): number {
-  if (altKey || ctrlKey || metaKey || isComposing) return -1;
-  const letter = BEAT_PAD_KEYS.findIndex((pad) => pad === key.toUpperCase());
-  return letter >= 0 ? letter : /^[1-4]$/.test(key) ? Number(key) - 1 : -1;
-}
+// Rhyme dictionary: each family is a set of rhyming words fed in AABB couplets.
+export const RHYME_FAMILIES: readonly (readonly string[])[] = [
+  ["day", "play", "say", "way", "stay", "okay", "display", "away"],
+  ["go", "flow", "show", "know", "glow", "throw", "below", "hello"],
+  ["mind", "find", "behind", "rewind", "blind", "grind", "signed", "defined"],
+  ["line", "sign", "shine", "design", "align", "divine", "fine", "nine"],
+  ["cat", "hat", "that", "flat", "scat", "acrobat", "diplomat", "habitat"],
+  ["beat", "heat", "street", "feet", "sweet", "repeat", "complete", "elite"],
+  ["cool", "school", "rule", "pool", "tool", "fuel", "jewel", "drool"],
+  [
+    "sound",
+    "ground",
+    "around",
+    "found",
+    "bound",
+    "round",
+    "profound",
+    "surround",
+  ],
+  [
+    "light",
+    "night",
+    "bright",
+    "sight",
+    "flight",
+    "right",
+    "tonight",
+    "delight",
+  ],
+  ["funk", "dunk", "trunk", "monk", "chunk", "debunk", "flunk", "skunk"],
+  ["rock", "clock", "block", "shock", "stock", "unlock", "knock", "tick-tock"],
+  ["cold", "gold", "hold", "bold", "told", "sold", "unfold", "enrolled"],
+];
 
-const phrase = [0, 0, 2, 2, 0, 2, 1, 2, 0, 1, 3, 2, 0, 2, 3, 1];
-const variation = [0, 1, 2, 2.5, 4, 5, 6, 6.5, 8, 9, 10, 10.5, 12, 13, 14, 15];
-export type BeatNote = {
-  lane: number;
-  at: number;
-  hit: boolean;
-  missed: boolean;
-};
-export type BeatGame = {
+export type RhymeBar = { family: number; word: string };
+export type RhymeGame = {
   phase: "ready" | "playing" | "done";
+  seed: number;
+  beat: number;
   time: number;
-  notes: BeatNote[];
+  bars: RhymeBar[];
+  barsDone: number;
   points: number;
-  combo: number;
-  comboHits: number[];
-  best: number;
-  feedback: string;
-  feedbackAt: number;
 };
-export function newBeatGame(): BeatGame {
-  return {
-    phase: "ready",
-    time: 0,
-    points: 0,
-    combo: 0,
-    comboHits: [],
-    best: 0,
-    feedback: "",
-    feedbackAt: 0,
-    notes: [...phrase, ...phrase.map((lane) => (lane + 1) % 4)].map(
-      (lane, i) => ({
-        lane,
-        at:
-          BEAT_COUNT_IN +
-          (i < phrase.length
-            ? i
-            : phrase.length + variation[i - phrase.length]) *
-            BEAT_INTERVAL,
-        hit: false,
-        missed: false,
-      }),
-    ),
+
+function mulberry32(seed: number) {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-export function beatRoundEnd(game: BeatGame): number {
-  return game.notes[game.notes.length - 1].at + BEAT_INTERVAL;
+
+export function rhymeBeatInterval(game: Pick<RhymeGame, "beat">): number {
+  return 60 / RHYME_BEATS[game.beat].bpm;
+}
+export function rhymeBarInterval(game: Pick<RhymeGame, "beat">): number {
+  return rhymeBeatInterval(game) * BEATS_PER_BAR;
+}
+export function rhymeCountIn(game: Pick<RhymeGame, "beat">): number {
+  return rhymeBarInterval(game) * RHYME_COUNT_IN_BARS;
+}
+export function rhymeRoundEnd(game: RhymeGame): number {
+  return rhymeCountIn(game) + game.bars.length * rhymeBarInterval(game);
 }
 
-export function beatCue(game: BeatGame, lane: number): boolean {
-  return (
-    game.phase === "playing" &&
-    game.notes.some(
-      (note) =>
-        note.lane === lane &&
-        !note.hit &&
-        !note.missed &&
-        Math.abs(note.at - game.time) <= HIT_WINDOW,
-    )
+// Bars run in AABB couplets: each pair shares one rhyme family, with the
+// second bar landing a different word of the same family.
+export function newRhymeGame(seed = Date.now(), beat = 0): RhymeGame {
+  const random = mulberry32(seed);
+  const families = RHYME_FAMILIES.map((_, i) => i);
+  for (let i = families.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [families[i], families[j]] = [families[j], families[i]];
+  }
+  const bars: RhymeBar[] = [];
+  for (let couplet = 0; couplet < RHYME_BARS / 2; couplet++) {
+    const family = families[couplet % families.length];
+    const words = RHYME_FAMILIES[family];
+    const first = Math.floor(random() * words.length);
+    let second = Math.floor(random() * (words.length - 1));
+    if (second >= first) second++;
+    bars.push(
+      { family, word: words[first] },
+      { family, word: words[second] },
+    );
+  }
+  return {
+    phase: "ready",
+    seed,
+    beat,
+    time: 0,
+    bars,
+    barsDone: 0,
+    points: 0,
+  };
+}
+
+// Bar index the playhead sits in, or -1 during the count-in.
+export function rhymeBarIndex(game: RhymeGame, time = game.time): number {
+  const bar = Math.floor(
+    (time - rhymeCountIn(game)) / rhymeBarInterval(game),
   );
+  return bar < 0 ? -1 : Math.min(bar, game.bars.length - 1);
 }
 
-function consecutiveHits(notes: BeatNote[], hits: number[]): number {
-  if (!hits.length) return 0;
-  const lastHit = Math.max(...hits);
-  if (notes.slice(lastHit + 1).some((note) => note.missed)) return 0;
-  let combo = 0;
-  while (hits.includes(lastHit - combo)) combo++;
-  return combo;
-}
-
-export function advanceBeat(game: BeatGame, dt: number): BeatGame {
+export function advanceRhyme(game: RhymeGame, dt: number): RhymeGame {
   if (game.phase !== "playing" || !Number.isFinite(dt) || dt <= 0) return game;
-  const time = game.time + dt;
-  let missed = false;
-  const notes = game.notes.map((note) => {
-    if (!note.hit && !note.missed && time - note.at > HIT_WINDOW) {
-      missed = true;
-      return { ...note, missed: true };
-    }
-    return note;
-  });
+  const end = rhymeRoundEnd(game);
+  const time = Math.min(end, game.time + dt);
+  const barsDone =
+    time >= end
+      ? game.bars.length
+      : Math.max(
+          0,
+          Math.floor(
+            (time - rhymeCountIn(game)) / rhymeBarInterval(game),
+          ),
+        );
   return {
     ...game,
     time,
-    notes,
-    phase: time >= beatRoundEnd(game) ? "done" : "playing",
-    combo: missed ? consecutiveHits(notes, game.comboHits) : game.combo,
-    feedback: missed ? "Miss" : game.feedback,
-    feedbackAt: missed ? time : game.feedbackAt,
+    barsDone,
+    points: barsDone * RHYME_BAR_POINTS,
+    phase: time >= end ? "done" : "playing",
   };
 }
-export function hitBeat(game: BeatGame, lane: number): BeatGame {
-  if (
-    game.phase !== "playing" ||
-    !Number.isInteger(lane) ||
-    lane < 0 ||
-    lane > 3 ||
-    game.time < BEAT_COUNT_IN - HIT_WINDOW
-  )
-    return game;
-  const candidates = game.notes.filter(
-    (n) => n.lane === lane && !n.hit && !n.missed,
-  );
-  const note = candidates.sort(
-    (a, b) => Math.abs(a.at - game.time) - Math.abs(b.at - game.time),
-  )[0];
-  const error = note ? Math.abs(note.at - game.time) : Infinity;
-  if (error > HIT_WINDOW) {
-    if (game.time < BEAT_COUNT_IN) return game;
-    return {
-      ...game,
-      combo: 0,
-      comboHits: [],
-      points: Math.max(0, game.points - 35),
-      feedback: "Off beat",
-      feedbackAt: game.time,
-    };
-  }
-  const comboHits = [...game.comboHits, game.notes.indexOf(note)];
-  const combo = consecutiveHits(game.notes, comboHits);
-  return {
-    ...game,
-    combo,
-    comboHits,
-    best: Math.max(game.best, combo),
-    points: game.points + (error <= 0.08 ? 100 : 60),
-    feedback: error <= 0.08 ? "Perfect" : "Good",
-    feedbackAt: game.time,
-    notes: game.notes.map((n) => (n === note ? { ...n, hit: true } : n)),
-  };
+
+// Scoring is for playing the whole round through: every bar finished counts.
+export function rhymeRewardCoins(game: RhymeGame): number {
+  return game.phase === "done" && game.barsDone >= game.bars.length ? 15 : 0;
 }
 
 export const LIGHTS_TARGET = 0b111111111;
@@ -168,15 +164,29 @@ export function flipLights(board: number, tile: number): number {
   }
   return board;
 }
-export function newLightsBoard(round: number): number {
+const lightsBoards = (() => {
   // Scramble a solved board with legal moves; every puzzle is solvable.
-  const scrambles = [
+  const opening = [
     [0, 4, 8],
     [1, 3, 6, 8],
     [0, 2, 4, 7, 8],
   ];
-  const steps = scrambles[((Math.floor(round) % 3) + 3) % 3];
-  return steps.reduce(flipLights, LIGHTS_TARGET);
+  const boards = new Set(
+    opening.map((steps) => steps.reduce(flipLights, LIGHTS_TARGET)),
+  );
+  for (let i = 1; i <= LIGHTS_TARGET; i++) {
+    const mask = (i * 137) & LIGHTS_TARGET;
+    let board = LIGHTS_TARGET;
+    for (let tile = 0; tile < 9; tile++) {
+      if (mask & (1 << tile)) board = flipLights(board, tile);
+    }
+    if (board !== LIGHTS_TARGET) boards.add(board);
+  }
+  return [...boards];
+})();
+export function newLightsBoard(round: number): number {
+  const index = Math.floor(round) % lightsBoards.length;
+  return lightsBoards[(index + lightsBoards.length) % lightsBoards.length];
 }
 export function lightsHint(board: number): number | null {
   if (board === LIGHTS_TARGET) return null;
@@ -194,4 +204,36 @@ export function lightsHint(board: number): number | null {
       shortest = moves;
   }
   return shortest?.[0] ?? null;
+}
+
+const lightsHintKey = (board: number) => `joshua-exe-math-hints-v1:${board}`;
+type HintStorage = Pick<Storage, "getItem" | "setItem">;
+
+export function createLightsHintTracker(storage?: HintStorage) {
+  const hinted = new Set<number>();
+  return {
+    reveal(startingBoard: number, board: number) {
+      const tile = lightsHint(board);
+      if (tile !== null && !hinted.has(startingBoard)) {
+        hinted.add(startingBoard);
+        try {
+          (storage ?? localStorage).setItem(
+            lightsHintKey(startingBoard),
+            "1",
+          );
+        } catch {
+          // Keep the reward blocked even if storage is unavailable.
+        }
+      }
+      return tile;
+    },
+    wasUsed(startingBoard: number) {
+      if (hinted.has(startingBoard)) return true;
+      try {
+        return (storage ?? localStorage).getItem(lightsHintKey(startingBoard)) === "1";
+      } catch {
+        return false;
+      }
+    },
+  };
 }
