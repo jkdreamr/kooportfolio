@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { onStanfordLand, STANFORD_SHORE } from "../src/shared/stanford-ground";
 import { journeyGate, journeyRidePose } from "../src/game/core/journey";
 import { railForWorld, railPose } from "../src/game/core/islandRail";
-import { destinationsInWorld } from "../src/game/core/world";
+import { destinationsInWorld, landmarkActionAt } from "../src/game/core/world";
 import {
   STANFORD_RAIL_LENGTH,
   STANFORD_RAIL_POINTS,
@@ -31,6 +31,29 @@ const shoreDistance = (x: number, z: number) =>
   );
 
 describe("compact Stanford transport", () => {
+  it("offers Look and Read at regional Places approaches, not the removed triggers", () => {
+    expect(landmarkActionAt(...STANFORD_TELESCOPE_ENTRY, "stanford")).toBe(
+      "stargazing",
+    );
+    expect(landmarkActionAt(...STANFORD_BULLETIN_ENTRY, "stanford")).toBe(
+      "read",
+    );
+    expect(landmarkActionAt(-19, -30, "stanford")).toBe("");
+    expect(landmarkActionAt(0, -4.6, "stanford")).toBe("");
+    for (const world of ["home", "korea"] as const) {
+      for (const [id, action] of [
+        ["bulletin", "read"],
+        ["stargazing", "stargazing"],
+      ] as const) {
+        const place = destinationsInWorld(world).find(
+          (place) => place.id === id,
+        )!;
+        expect(landmarkActionAt(place.x, place.z, world)).toBe(action);
+        expect(landmarkActionAt(place.x + 2, place.z, world)).toBe("");
+      }
+    }
+  });
+
   it("removes both distant land arms while retaining the full-size telescope and approaches", () => {
     expect(onStanfordLand(-73, 22)).toBe(false);
     expect(onStanfordLand(-19, -38)).toBe(false);

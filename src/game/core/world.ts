@@ -333,6 +333,30 @@ export const destinationsInWorld = (world: WorldId) => [
     }),
 ];
 export type PlaceId = (typeof doors)[number]["id"];
+const interactionLandmarks = new Map<
+  WorldId,
+  ReturnType<typeof destinationsInWorld>
+>();
+
+/** Resolve static Places once per region, not again in every animation frame. */
+export function landmarkActionAt(x: number, z: number, world: WorldId) {
+  let places = interactionLandmarks.get(world);
+  if (!places) {
+    places = destinationsInWorld(world).filter(
+      (place) => place.id === "bulletin" || place.id === "stargazing",
+    );
+    interactionLandmarks.set(world, places);
+  }
+  const place = places.find(
+    (place) => Math.hypot(place.x - x, place.z - z) < 1.9,
+  );
+  return place?.id === "bulletin"
+    ? "read"
+    : place?.id === "stargazing"
+      ? "stargazing"
+      : "";
+}
+
 export function isInterior(scene: string) {
   return (
     scene === "secret" ||

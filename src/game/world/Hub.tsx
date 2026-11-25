@@ -14,7 +14,12 @@ import {
 } from "./Models";
 import { runtime, useGame, walkTo } from "../core/store";
 import { movement, movementSpeed } from "../core/input";
-import { canWalk, doorsInWorld, moveWorld } from "../core/world";
+import {
+  canWalk,
+  doorsInWorld,
+  landmarkActionAt,
+  moveWorld,
+} from "../core/world";
 import { LabelProjection } from "./Labels";
 import { Landscape } from "./Landscape";
 import { VillageGardens } from "./VillageGardens";
@@ -171,15 +176,13 @@ export function Walker({
         doorsInWorld(state.world).find(
           (d) => Math.hypot(d.x - runtime.x, d.z - runtime.z) < 1.9,
         )?.id ?? "";
-      if (!near && Math.hypot(runtime.x, runtime.z + 4.6) < 1.9) near = "read";
+      if (!near) near = landmarkActionAt(runtime.x, runtime.z, state.world);
       if (
         !near &&
         state.world === "korea" &&
         isNearPhotoBooth(runtime.x, runtime.z)
       )
         near = "photo";
-      if (!near && Math.hypot(runtime.x + 19, runtime.z + 30) < 1.9)
-        near = "stargazing";
       if (
         !near &&
         state.world === "stanford" &&
