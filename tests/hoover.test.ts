@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { freshSave, parseSave, reward } from "../src/shared/save";
+import { freshSave, parseSave } from "../src/shared/save";
 import {
   HOOVER,
+  HOOVER_STASH,
   collectHooverKey,
   claimHooverStash,
 } from "../src/game/core/hoover";
@@ -20,12 +21,11 @@ describe("Hoover discovery", () => {
     expect(claimHooverStash(empty)).toBe(empty);
     const keyed = collectHooverKey(empty);
     expect(collectHooverKey(keyed)).toBe(keyed);
-    let save = claimHooverStash(keyed);
-    expect(save.coins).toBe(75);
-    for (let i = 0; i < 300; i++) save = reward(save, `run-${i}`, 0, 0);
+    const save = claimHooverStash(keyed);
+    expect(save.memories).toContain(HOOVER_STASH);
+    expect(claimHooverStash(save)).toBe(save);
     const reloaded = parseSave(JSON.stringify(save));
     expect(claimHooverStash(reloaded)).toBe(reloaded);
-    expect(reloaded.coins).toBe(75);
   });
   it("stops walking through the chest while leaving a wide collection approach", () => {
     const [x, z] = moveInterior("secret", 0, 0, 0, -6);

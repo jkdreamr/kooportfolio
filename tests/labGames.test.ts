@@ -14,7 +14,6 @@ import {
   rhymeBarInterval,
   rhymeBeatInterval,
   rhymeCountIn,
-  rhymeRewardCoins,
   rhymeRoundEnd,
 } from "../src/game/core/labGames";
 
@@ -52,17 +51,7 @@ describe("Beat Lab", () => {
     expect(game.phase).toBe("done");
     expect(game.barsDone).toBe(RHYME_BARS);
     expect(game.points).toBe(RHYME_BARS * 100);
-    expect(rhymeRewardCoins(game)).toBe(15);
     expect(advanceRhyme(game, 1)).toBe(game);
-  });
-  it("awards nothing until the whole round is played", () => {
-    let game: ReturnType<typeof newRhymeGame> = {
-      ...newRhymeGame(1),
-      phase: "playing",
-    };
-    expect(rhymeRewardCoins(game)).toBe(0);
-    game = advanceRhyme(game, rhymeCountIn(game) + 4 * rhymeBarInterval(game));
-    expect(rhymeRewardCoins(game)).toBe(0);
   });
   it("runs the count-in and honours each beat", () => {
     for (let beat = 0; beat < RHYME_BEATS.length; beat++) {

@@ -14,7 +14,6 @@ import {
   Plant,
   Shelf,
   Table,
-  type InteriorGameProps,
 } from "./InteriorProps";
 
 const hall = roomFor("kappa"),
@@ -174,7 +173,7 @@ function Pennant({ x }: { x: number }) {
 }
 
 /** Furnishings/game only, inside the shared expanded house shell. */
-export function HouseInterior(props: InteriorGameProps) {
+export function HouseInterior() {
   const playing = useGameMode(
     (s) => s.active?.id === "blackjack" || s.active?.id === "pong",
   );
@@ -266,7 +265,7 @@ export function HouseInterior(props: InteriorGameProps) {
         <Plant p={[-15.1, 0, 17.5]} />
         <Plant p={[15.1, 0, 17.5]} />
       </group>
-      <BlackjackTable {...props} />
+      <BlackjackTable />
       <PongTable />
     </group>
   );

@@ -5,7 +5,6 @@ import {
   kickPosition,
 } from "../src/game/core/fieldGoal";
 import {
-  scoreStadiumKick,
   stadiumAimTarget,
   stadiumAimWindow,
   stadiumKick,
@@ -13,7 +12,6 @@ import {
   stadiumTiming,
   stadiumTimingStart,
   STADIUM_KICKS,
-  STADIUM_TARGET,
 } from "../src/game/core/stadiumChallenge";
 
 describe("stadium challenge", () => {
@@ -70,15 +68,4 @@ describe("stadium challenge", () => {
     expect(stadiumTimingStart(1, aimWindow)).toBe(0);
   });
 
-  it("rewards consecutive makes and clears the streak on a miss", () => {
-    let score = { points: 0, streak: 0 };
-    for (let i = 0; i < 3; i++) score = scoreStadiumKick(score, "Good");
-    expect(score).toEqual({ points: STADIUM_TARGET, streak: 3 });
-    expect(scoreStadiumKick(score, "Short")).toEqual({
-      points: STADIUM_TARGET,
-      streak: 0,
-    });
-    score = scoreStadiumKick(scoreStadiumKick(score, "Wide left"), "Good");
-    expect(score).toEqual({ points: STADIUM_TARGET + 3, streak: 1 });
-  });
 });

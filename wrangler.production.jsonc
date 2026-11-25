@@ -11,12 +11,6 @@
   },
   "d1_databases": [
     {
-      "binding": "LEADERBOARD_DB",
-      "database_name": "joshua-leaderboard",
-      "database_id": "FILL_FROM_WRANGLER_D1_CREATE",
-      "migrations_dir": "migrations/leaderboard",
-    },
-    {
       "binding": "BOOTH_DB",
       "database_name": "joshua-booth",
       "database_id": "FILL_FROM_WRANGLER_D1_CREATE",

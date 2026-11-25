@@ -60,13 +60,6 @@
   border-radius: 5px;
   font-variant-numeric: tabular-nums;
 }
-.game-shell .resource.coins svg {
-  color: var(--hud-gold);
-  filter: drop-shadow(0 1px 0 #60451d);
-}
-.game-shell .resource.level svg {
-  color: #b8d3d8;
-}
 .game-shell .world-toolbar {
   gap: 5px;
   padding: 6px;

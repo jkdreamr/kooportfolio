@@ -13,7 +13,6 @@ export function TimeOfDayControls() {
     (state) =>
       state.scene === "hub" &&
       !state.paused &&
-      !state.build &&
       state.panel === "none",
   );
   if (!visible) return null;

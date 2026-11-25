@@ -280,8 +280,8 @@ describe("separate worlds", () => {
     expect(validJourney("stanford", "korea", "train")).toBe(false);
     expect(validJourney("home", "korea", "plane")).toBe(true);
   });
-  it("migrates old saves without losing coins, memories or progress", () => {
-    const original = { ...freshSave(), coins: 79, memories: ["hoover-key"] };
+  it("migrates old saves without losing memories or progress", () => {
+    const original = { ...freshSave(), memories: ["hoover-key"] };
     const legacy = { ...original, world: undefined };
     expect(parseSave(JSON.stringify(legacy))).toEqual(original);
     expect(() =>
@@ -292,7 +292,7 @@ describe("separate worlds", () => {
     useGame.setState({
       world: "home",
       scene: "hub",
-      save: { ...freshSave(), coins: 79 },
+      save: freshSave(),
     });
     runtime.x = 0;
     runtime.z = 5;
@@ -310,6 +310,5 @@ describe("separate worlds", () => {
     expect([runtime.x, runtime.z]).toEqual([58, 61]);
     const save = parseSave(JSON.stringify(useGame.getState().save));
     expect(save.world).toBe("korea");
-    expect(save.coins).toBe(79);
   });
 });

@@ -4,12 +4,10 @@ import {
   kickPosition,
   judgeKick,
   type Kick,
-  type KickResult,
 } from "./fieldGoal";
 
 const AIM_LIMIT = 0.24;
 const MIN_POWER = 0.15;
-const BEST_KEY = "stadium-field-goals-best";
 
 export const STADIUM_KICKS = [
   { x: 0, z: 9.2, wind: 0 },
@@ -19,7 +17,6 @@ export const STADIUM_KICKS = [
   { x: 2.5, z: FIELD_GOAL.startZ, wind: 1.45 },
 ] as const satisfies NonNullable<Kick["spot"]>[];
 
-export const STADIUM_TARGET = 12;
 
 export function stadiumTiming(
   time: number,
@@ -92,34 +89,3 @@ export function stadiumAimWindow(
   ] as const;
 }
 
-export type StadiumScore = { points: number; streak: number };
-
-export function scoreStadiumKick(
-  score: StadiumScore,
-  result: KickResult,
-): StadiumScore {
-  if (result !== "Good") return { points: score.points, streak: 0 };
-  return {
-    points: score.points + 3 + score.streak,
-    streak: score.streak + 1,
-  };
-}
-
-export function loadStadiumBest() {
-  try {
-    const best = Number(localStorage.getItem(BEST_KEY));
-    if (Number.isSafeInteger(best) && best > 0) return best;
-  } catch {
-    return 0;
-  }
-  return 0;
-}
-
-export function saveStadiumBest(points: number) {
-  try {
-    if (points > loadStadiumBest())
-      localStorage.setItem(BEST_KEY, String(points));
-  } catch {
-    // The current round is still playable with storage disabled.
-  }
-}

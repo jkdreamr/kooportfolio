@@ -1,76 +1,8 @@
 import { useMemo } from "react";
 import * as THREE from "three";
 import { useGame } from "../core/store";
-import { Ball, Box, Cylinder } from "../world/Models";
+import { Box, Cylinder } from "../world/Models";
 import { CraftedBox } from "./CraftedDetails";
-
-const segments = [
-  "abcdef",
-  "bc",
-  "abdeg",
-  "abcdg",
-  "bcfg",
-  "acdfg",
-  "acdefg",
-  "abc",
-  "abcdefg",
-  "abcdfg",
-];
-const bars = [
-  [-0.01, 0.62, 0, 0],
-  [0.3, 0.32, 0, 1],
-  [0.3, -0.32, 0, 1],
-  [-0.01, -0.62, 0, 0],
-  [-0.3, -0.32, 0, 1],
-  [-0.3, 0.32, 0, 1],
-  [-0.01, 0, 0, 0],
-];
-
-function Digit({ value, x }: { value: number; x: number }) {
-  return (
-    <group position={[x, 0, 0]}>
-      {bars.map(([bx, y, z, vertical], i) => (
-        <Box
-          key={i}
-          p={[bx, y, z]}
-          s={vertical ? [0.1, 0.48, 0.06] : [0.48, 0.1, 0.06]}
-          c={segments[value].includes("abcdefg"[i]) ? "#eed793" : "#263e43"}
-        />
-      ))}
-    </group>
-  );
-}
-
-function Scoreboard({ score }: { score: number[] }) {
-  return (
-    <group position={[0, 4.65, -19.12]}>
-      <CraftedBox s={[6.6, 2.7, 0.32]} c="#a7844e" metal />
-      <Box p={[0, 0, 0.2]} s={[6.3, 2.4, 0.18]} c="#243a41" />
-      {[-1, 1].map((side, index) => (
-        <group key={side} position={[side * 1.45, 0, 0.35]}>
-          <Box p={[0, 0, -0.015]} s={[2.25, 1.9, 0.06]} c="#172e35" />
-          {score[index] >= 10 && <Digit value={1} x={-0.6} />}
-          <Digit value={score[index] % 10} x={score[index] >= 10 ? 0.36 : 0} />
-          <Box
-            p={[0, -1.04, 0]}
-            s={[1.6, 0.08, 0.08]}
-            c={index ? "#bf735b" : "#78a1a0"}
-          />
-        </group>
-      ))}
-      {[-3.05, 3.05].map((x) =>
-        [-1.08, 1.08].map((y) => (
-          <Ball
-            key={`${x}/${y}`}
-            p={[x, y, 0.33]}
-            s={[0.055, 0.055, 0.03]}
-            c="#d7b46e"
-          />
-        )),
-      )}
-    </group>
-  );
-}
 
 function Bleachers({ side }: { side: number }) {
   return (
@@ -120,8 +52,7 @@ function Bleachers({ side }: { side: number }) {
   );
 }
 
-/** Cutaway gym fixtures, sized for the host's 34×40 hall. */
-export function BadmintonGym({ score }: { score: number[] }) {
+/** Cutaway gym fixtures, sized for the host's 34×40 hall. */export function BadmintonGym() {
   const quality = useGame((s) => s.quality);
   const target = useMemo(() => {
     const object = new THREE.Object3D();
@@ -237,7 +168,6 @@ export function BadmintonGym({ score }: { score: number[] }) {
           </group>
         ))}
       </group>
-      <Scoreboard score={score} />
       <primitive object={target} />
       <spotLight
         position={[8, 9, 4]}

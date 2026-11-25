@@ -13,16 +13,12 @@ import {
   type KickResult,
 } from "../core/fieldGoal";
 import {
-  loadStadiumBest,
-  saveStadiumBest,
-  scoreStadiumKick,
   stadiumAimWindow,
   stadiumKick,
   stadiumPowerTarget,
   stadiumTiming,
   stadiumTimingStart,
   STADIUM_KICKS,
-  STADIUM_TARGET,
 } from "../core/stadiumChallenge";
 import { sound } from "../core/sound";
 import { GameControls, gameIsActive } from "./InteriorProps";
@@ -101,7 +97,6 @@ function FootballPlayer({
 }
 
 type Flight = { kick: Kick; time: number };
-const EMPTY_SCORE = { points: 0, streak: 0 };
 const WALKING_SPOT = { x: 0, z: FIELD_GOAL.startZ, wind: 0 };
 const TRAIL_DOTS = 7;
 
@@ -110,8 +105,6 @@ export function StadiumInterior() {
   const nearExit = useGame((state) => state.near === "exit");
   const playing = useGameMode((state) => state.active?.id === "stadium");
   const [attempt, setAttempt] = useState(0);
-  const [score, setScore] = useState(EMPTY_SCORE);
-  const [best, setBest] = useState(loadStadiumBest);
   const [phase, setPhase] = useState<StadiumPhase>("power");
   const [results, setResults] = useState<KickResult[]>([]);
   const [lockedPower, setLockedPower] = useState(0);
@@ -154,7 +147,6 @@ export function StadiumInterior() {
 
   function reset() {
     setAttempt(0);
-    setScore(EMPTY_SCORE);
     setResults([]);
     showTiming(
       stadiumTimingStart(0, [stadiumPowerTarget(STADIUM_KICKS[0]), 1]),
@@ -278,16 +270,8 @@ export function StadiumInterior() {
           current.time < goalClearanceTime(current.kick)
             ? "Short"
             : judgeKick(current.kick);
-        const next = scoreStadiumKick(score, outcome);
-        setScore(next);
-        if (next.points > best) {
-          setBest(next.points);
-          saveStadiumBest(next.points);
-        }
         setResults((previous) => [...previous, outcome]);
-        if (attempt === STADIUM_KICKS.length - 1)
-          sound(next.points >= STADIUM_TARGET ? "win" : "score");
-        else sound(outcome === "Good" ? "score" : "bounce");
+        sound(outcome === "Good" ? "score" : "bounce");
         moveTo("result");
         flight.current = null;
       }
@@ -317,7 +301,6 @@ export function StadiumInterior() {
   return (
     <group>
       <StadiumArchitecture
-        score={score.points}
         attempt={playing ? attempt + 1 : 0}
         made={playing && phase === "result" && result === "Good"}
       />
@@ -373,8 +356,6 @@ export function StadiumInterior() {
       </group>
       {playing && (
         <StadiumGameHud
-          score={score}
-          best={best}
           attempt={attempt}
           wind={spot.wind}
           phase={phase}

@@ -276,7 +276,6 @@ export default function Game() {
     if (
       g.paused ||
       useGameMode.getState().active ||
-      g.build ||
       g.overlayLocked ||
       g.traveling ||
       g.panel !== "none"
@@ -302,7 +301,7 @@ export default function Game() {
     } else if (g.near === "hoover-door" && g.save.memories.includes(HOOVER_KEY))
       g.go("secret");
     else if (g.near === "stash" && !g.save.memories.includes(HOOVER_STASH)) {
-      useGame.setState({ save: claimHooverStash(g.save), notice: "+75 coins" });
+      useGame.setState({ save: claimHooverStash(g.save), notice: "You found the stash." });
       g.persist();
     }
   }, []);

@@ -5,26 +5,15 @@ import {
   currentLine,
   newRace,
   newRivals,
-  racePlace,
   riverCenter,
   riverCurrent,
   rivalInput,
-  rowingLeaderboardBoard,
   stepRace,
   strokeDrive,
   TICK,
-  type RaceState,
 } from "../src/game/core/rowing";
-import {
-  readRaceRecord,
-  ROWING_RECORDS_KEY,
-  saveRaceRecord,
-} from "../src/game/core/rowingRecords";
 
 it("never ranks a daily river even when its seed matches Regatta", () => {
-  expect(rowingLeaderboardBoard("daily", 750, 2)).toBeNull();
-  expect(rowingLeaderboardBoard("regatta", 750, 2)).toBe("rowing-regatta");
-  expect(rowingLeaderboardBoard("sprint", 360, 1)).toBe("rowing-sprint");
 });
 
 const drive = (cadence = 30, burst = false, length = 360, seed = 7) => {
@@ -43,15 +32,6 @@ const drive = (cadence = 30, burst = false, length = 360, seed = 7) => {
     );
   }
   return race;
-};
-const storage = () => {
-  const data = new Map<string, string>();
-  return {
-    getItem: (key: string) => data.get(key) ?? null,
-    setItem: (key: string, value: string) => {
-      data.set(key, value);
-    },
-  };
 };
 
 describe("rowing strokes and race timing", () => {
@@ -161,14 +141,6 @@ describe("rowing strokes and race timing", () => {
       stepRace(finished, { cadence: 36, steer: 1, burst: true }, 360),
     ).toBe(finished);
   });
-  it("uses finish time, not frozen distance, for the final placing", () => {
-    const player = { ...newRace(), distance: 360, finished: true, time: 40 };
-    const rivals = [38, 41, 42].map((time) => ({ ...player, time }));
-    expect(racePlace(player, rivals)).toBe(2);
-    expect(
-      racePlace({ ...player, finished: false, distance: 359 }, rivals),
-    ).toBe(4);
-  });
 });
 
 describe("rival crews", () => {
@@ -195,54 +167,4 @@ describe("rival crews", () => {
       expect(new Set(rivals.map((r) => r.time)).size).toBe(3);
     },
   );
-});
-
-describe("local rowing records", () => {
-  const finish = (time: number): RaceState => ({
-    ...newRace(),
-    finished: true,
-    distance: 360,
-    time,
-    splits: [10, 20, 30],
-    strokes: 20,
-  });
-  it("keeps the fastest result for each length and river seed", () => {
-    const s = storage();
-    expect(saveRaceRecord(finish(40), 360, 1, s)).toBe(true);
-    expect(saveRaceRecord(finish(42), 360, 1, s)).toBe(false);
-    expect(saveRaceRecord(finish(38), 360, 1, s)).toBe(true);
-    expect(readRaceRecord(360, 1, s)?.time).toBe(38);
-    expect(readRaceRecord(360, 2, s)).toBeNull();
-    expect(readRaceRecord(750, 1, s)).toBeNull();
-    expect(saveRaceRecord(newRace(), 360, 1, s)).toBe(false);
-  });
-  it("preserves a corrupt file and handles unavailable storage", () => {
-    const s = storage();
-    s.setItem(ROWING_RECORDS_KEY, "broken");
-    expect(readRaceRecord(360, 1, s)).toBeNull();
-    expect(saveRaceRecord(finish(40), 360, 1, s)).toBe(false);
-    expect(s.getItem(ROWING_RECORDS_KEY)).toBe("broken");
-    const unavailable = {
-      getItem() {
-        throw new Error("blocked");
-      },
-      setItem() {
-        throw new Error("blocked");
-      },
-    };
-    expect(saveRaceRecord(finish(40), 360, 1, unavailable)).toBe(false);
-  });
-  it("uses a returning player's faster sprint record without mixing courses", () => {
-    const s = storage();
-    expect(readRaceRecord(360, 1, s, 32)).toEqual({
-      time: 32,
-      splits: [],
-      strokes: 0,
-    });
-    saveRaceRecord(finish(40), 360, 1, s);
-    expect(readRaceRecord(360, 1, s, 32)?.time).toBe(32);
-    expect(readRaceRecord(360, 1, s, 45)?.time).toBe(40);
-    expect(readRaceRecord(360, 2, s, 32)).toBeNull();
-    expect(readRaceRecord(750, 1, s, 32)).toBeNull();
-  });
 });

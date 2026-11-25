@@ -65,7 +65,6 @@ export function talkToNpc(id: string) {
   if (
     game.scene !== "hub" ||
     game.paused ||
-    game.build ||
     game.panel !== "none"
   )
     return;
@@ -138,7 +137,7 @@ export function advanceConversation() {
 /** Called by the existing E-key action, so doors and conversations never double-fire. */
 export function interactWithNpc() {
   const game = useGame.getState();
-  if (game.scene !== "hub" || game.paused || game.build) return false;
+  if (game.scene !== "hub" || game.paused) return false;
   if (game.panel === "npc") {
     advanceConversation();
     return true;
