@@ -886,6 +886,11 @@
     bottom: max(32px, calc(env(safe-area-inset-bottom) + 16px));
     left: max(24px, calc(env(safe-area-inset-left) + 16px));
   }
+}
+@media (max-width: 900px) and (max-height: 650px) and (orientation: landscape),
+  (max-height: 500px) and (orientation: landscape) {
+  /* Match the time/zoom top-dock breakpoints; on wider, taller viewports
+     those controls still need the lower-right lane. */
   /* Keep navigation beside the walking pad, not centered across its lane. */
   .game-shell .world-toolbar {
     left: auto;
