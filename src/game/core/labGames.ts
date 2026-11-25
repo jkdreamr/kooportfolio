@@ -1,198 +1,147 @@
-export const BEAT_INTERVAL = 0.6;
-export const BEAT_COUNT_IN = 4 * BEAT_INTERVAL;
-export const HIT_WINDOW = 0.21;
-const PAD_BURST_WINDOW = 0.065;
-export const BEAT_PAD_KEYS = ["F", "G", "H", "J"] as const;
+export const BEATS_PER_BAR = 4;
+export const RHYME_BARS = 16;
+export const RHYME_COUNT_IN_BARS = 1;
+export const RHYME_BAR_POINTS = 100;
+export const RHYME_TEMPOS = [
+  { name: "Chill", bpm: 82 },
+  { name: "Bounce", bpm: 96 },
+  { name: "Sprint", bpm: 114 },
+] as const;
 
-export function beatPadLane({
-  key,
-  altKey,
-  ctrlKey,
-  metaKey,
-  isComposing,
-}: Pick<
-  KeyboardEvent,
-  "key" | "altKey" | "ctrlKey" | "metaKey" | "isComposing"
->): number {
-  if (altKey || ctrlKey || metaKey || isComposing) return -1;
-  const letter = BEAT_PAD_KEYS.findIndex((pad) => pad === key.toUpperCase());
-  return letter >= 0 ? letter : /^[1-4]$/.test(key) ? Number(key) - 1 : -1;
-}
+// Rhyme dictionary: each family is a set of rhyming words fed in AABB couplets.
+export const RHYME_FAMILIES: readonly (readonly string[])[] = [
+  ["day", "play", "say", "way", "stay", "okay", "display", "away"],
+  ["go", "flow", "show", "know", "glow", "throw", "below", "hello"],
+  ["mind", "find", "behind", "rewind", "blind", "grind", "signed", "defined"],
+  ["line", "sign", "shine", "design", "align", "divine", "fine", "nine"],
+  ["cat", "hat", "that", "flat", "scat", "acrobat", "diplomat", "habitat"],
+  ["beat", "heat", "street", "feet", "sweet", "repeat", "complete", "elite"],
+  ["cool", "school", "rule", "pool", "tool", "fuel", "jewel", "drool"],
+  [
+    "sound",
+    "ground",
+    "around",
+    "found",
+    "bound",
+    "round",
+    "profound",
+    "surround",
+  ],
+  [
+    "light",
+    "night",
+    "bright",
+    "sight",
+    "flight",
+    "right",
+    "tonight",
+    "delight",
+  ],
+  ["funk", "dunk", "trunk", "monk", "chunk", "debunk", "flunk", "skunk"],
+  ["rock", "clock", "block", "shock", "stock", "unlock", "knock", "tick-tock"],
+  ["cold", "gold", "hold", "bold", "told", "sold", "unfold", "enrolled"],
+];
 
-const phrase = [0, 0, 2, 2, 0, 2, 1, 2, 0, 1, 3, 2, 0, 2, 3, 1];
-const variation = [0, 1, 2, 2.5, 4, 5, 6, 6.5, 8, 9, 10, 10.5, 12, 13, 14, 15];
-export type BeatNote = {
-  lane: number;
-  at: number;
-  hit: boolean;
-  missed: boolean;
-};
-type BeatPress = { at: number; lane: number };
-export type BeatGame = {
+export type RhymeBar = { family: number; word: string };
+export type RhymeGame = {
   phase: "ready" | "playing" | "done";
+  seed: number;
+  tempo: number;
   time: number;
-  notes: BeatNote[];
+  bars: RhymeBar[];
+  barsDone: number;
   points: number;
-  offBeatPresses: number;
-  pendingPresses: BeatPress[];
-  combo: number;
-  comboHits: number[];
-  best: number;
-  feedback: string;
-  feedbackAt: number;
 };
-export function newBeatGame(): BeatGame {
-  return {
-    phase: "ready",
-    time: 0,
-    points: 0,
-    offBeatPresses: 0,
-    pendingPresses: [],
-    combo: 0,
-    comboHits: [],
-    best: 0,
-    feedback: "",
-    feedbackAt: 0,
-    notes: [...phrase, ...phrase.map((lane) => (lane + 1) % 4)].map(
-      (lane, i) => ({
-        lane,
-        at:
-          BEAT_COUNT_IN +
-          (i < phrase.length
-            ? i
-            : phrase.length + variation[i - phrase.length]) *
-            BEAT_INTERVAL,
-        hit: false,
-        missed: false,
-      }),
-    ),
+
+function mulberry32(seed: number) {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-export function beatRoundEnd(game: BeatGame): number {
-  return game.notes[game.notes.length - 1].at + BEAT_INTERVAL;
+
+export function rhymeBeatInterval(game: Pick<RhymeGame, "tempo">): number {
+  return 60 / RHYME_TEMPOS[game.tempo].bpm;
+}
+export function rhymeBarInterval(game: Pick<RhymeGame, "tempo">): number {
+  return rhymeBeatInterval(game) * BEATS_PER_BAR;
+}
+export function rhymeCountIn(game: Pick<RhymeGame, "tempo">): number {
+  return rhymeBarInterval(game) * RHYME_COUNT_IN_BARS;
+}
+export function rhymeRoundEnd(game: RhymeGame): number {
+  return rhymeCountIn(game) + game.bars.length * rhymeBarInterval(game);
 }
 
-export function beatRewardCoins(game: BeatGame): number {
-  if (game.phase !== "done" || game.points < 1200) return 0;
-  const hits = game.notes.filter((note) => note.hit).length;
-  if (hits < 20 || 2 * game.offBeatPresses > hits) return 0;
-  return game.points >= 2600 ? 20 : 12;
+// Bars run in AABB couplets: each pair shares one rhyme family, with the
+// second bar landing a different word of the same family.
+export function newRhymeGame(seed = Date.now(), tempo = 0): RhymeGame {
+  const random = mulberry32(seed);
+  const families = RHYME_FAMILIES.map((_, i) => i);
+  for (let i = families.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [families[i], families[j]] = [families[j], families[i]];
+  }
+  const bars: RhymeBar[] = [];
+  for (let couplet = 0; couplet < RHYME_BARS / 2; couplet++) {
+    const family = families[couplet % families.length];
+    const words = RHYME_FAMILIES[family];
+    const first = Math.floor(random() * words.length);
+    let second = Math.floor(random() * (words.length - 1));
+    if (second >= first) second++;
+    bars.push(
+      { family, word: words[first] },
+      { family, word: words[second] },
+    );
+  }
+  return {
+    phase: "ready",
+    seed,
+    tempo,
+    time: 0,
+    bars,
+    barsDone: 0,
+    points: 0,
+  };
 }
 
-export function beatCue(game: BeatGame, lane: number): boolean {
-  return (
-    game.phase === "playing" &&
-    game.notes.some(
-      (note) =>
-        note.lane === lane &&
-        !note.hit &&
-        !note.missed &&
-        Math.abs(note.at - game.time) <= HIT_WINDOW,
-    )
+// Bar index the playhead sits in, or -1 during the count-in.
+export function rhymeBarIndex(game: RhymeGame, time = game.time): number {
+  const bar = Math.floor(
+    (time - rhymeCountIn(game)) / rhymeBarInterval(game),
   );
+  return bar < 0 ? -1 : Math.min(bar, game.bars.length - 1);
 }
 
-function consecutiveHits(notes: BeatNote[], hits: number[]): number {
-  if (!hits.length) return 0;
-  const lastHit = Math.max(...hits);
-  if (notes.slice(lastHit + 1).some((note) => note.missed)) return 0;
-  let combo = 0;
-  while (hits.includes(lastHit - combo)) combo++;
-  return combo;
-}
-
-export function advanceBeat(game: BeatGame, dt: number): BeatGame {
+export function advanceRhyme(game: RhymeGame, dt: number): RhymeGame {
   if (game.phase !== "playing" || !Number.isFinite(dt) || dt <= 0) return game;
-  const time = game.time + dt;
-  const done = time >= beatRoundEnd(game);
-  const first = game.pendingPresses[0];
-  if (first && (done || time >= first.at + PAD_BURST_WINDOW))
-    game = scoreBeatBurst(game, game.pendingPresses);
-  const expireAt = game.pendingPresses[0]?.at ?? time;
-  let missed = false;
-  const notes = game.notes.map((note) => {
-    if (!note.hit && !note.missed && expireAt - note.at > HIT_WINDOW) {
-      missed = true;
-      return { ...note, missed: true };
-    }
-    return note;
-  });
+  const end = rhymeRoundEnd(game);
+  const time = Math.min(end, game.time + dt);
+  const barsDone =
+    time >= end
+      ? game.bars.length
+      : Math.max(
+          0,
+          Math.floor(
+            (time - rhymeCountIn(game)) / rhymeBarInterval(game),
+          ),
+        );
   return {
     ...game,
     time,
-    notes,
-    phase: done ? "done" : "playing",
-    combo: missed ? consecutiveHits(notes, game.comboHits) : game.combo,
-    feedback: missed ? "Miss" : game.feedback,
-    feedbackAt: missed ? time : game.feedbackAt,
+    barsDone,
+    points: barsDone * RHYME_BAR_POINTS,
+    phase: time >= end ? "done" : "playing",
   };
 }
 
-function canPressBeat(game: BeatGame, lane: number): boolean {
-  return (
-    game.phase === "playing" &&
-    Number.isInteger(lane) &&
-    lane >= 0 &&
-    lane < 4 &&
-    game.time >= BEAT_COUNT_IN - HIT_WINDOW
-  );
-}
-
-export function queueBeatPad(game: BeatGame, lane: number): BeatGame {
-  if (!canPressBeat(game, lane)) return game;
-  if (game.time < BEAT_COUNT_IN) return hitBeat(game, lane);
-  return {
-    ...game,
-    pendingPresses: [...game.pendingPresses, { at: game.time, lane }],
-  };
-}
-
-function scoreBeatBurst(game: BeatGame, presses: BeatPress[]): BeatGame {
-  const start = { ...game, time: presses[0].at, pendingPresses: [] };
-  let scored: BeatGame = start;
-  for (const { at, lane } of presses) {
-    const next = hitBeat({ ...scored, time: at }, lane);
-    if (next.notes === scored.notes) return offBeat(start, presses.length);
-    scored = next;
-  }
-  return scored;
-}
-
-function offBeat(game: BeatGame, count = 1): BeatGame {
-  if (game.time < BEAT_COUNT_IN) return game;
-  return {
-    ...game,
-    combo: 0,
-    comboHits: [],
-    points: Math.max(0, game.points - 35),
-    offBeatPresses: game.offBeatPresses + count,
-    feedback: "Off beat",
-    feedbackAt: game.time,
-  };
-}
-
-export function hitBeat(game: BeatGame, lane: number): BeatGame {
-  if (!canPressBeat(game, lane)) return game;
-  const candidates = game.notes.filter(
-    (n) => n.lane === lane && !n.hit && !n.missed,
-  );
-  const note = candidates.sort(
-    (a, b) => Math.abs(a.at - game.time) - Math.abs(b.at - game.time),
-  )[0];
-  const error = note ? Math.abs(note.at - game.time) : Infinity;
-  if (error > HIT_WINDOW) return offBeat(game);
-  const comboHits = [...game.comboHits, game.notes.indexOf(note)];
-  const combo = consecutiveHits(game.notes, comboHits);
-  return {
-    ...game,
-    combo,
-    comboHits,
-    best: Math.max(game.best, combo),
-    points: game.points + (error <= 0.08 ? 100 : 60),
-    feedback: error <= 0.08 ? "Perfect" : "Good",
-    feedbackAt: game.time,
-    notes: game.notes.map((n) => (n === note ? { ...n, hit: true } : n)),
-  };
+// Scoring is for playing the whole round through: every bar finished counts.
+export function rhymeRewardCoins(game: RhymeGame): number {
+  return game.phase === "done" && game.barsDone >= game.bars.length ? 15 : 0;
 }
 
 export const LIGHTS_TARGET = 0b111111111;

@@ -455,10 +455,68 @@ export function findPath(
 ): [number, number][] {
   const grid = 0.6,
     key = (x: number, z: number) => `${x},${z}`;
-  const sx = Math.round(start[0] / grid),
-    sz = Math.round(start[1] / grid),
-    ex = Math.round(end[0] / grid),
+  let sx = Math.round(start[0] / grid),
+    sz = Math.round(start[1] / grid);
+  const ex = Math.round(end[0] / grid),
     ez = Math.round(end[1] / grid);
+  const clear = (x0: number, z0: number, x1: number, z1: number) => {
+    const dx = x1 - x0,
+      dz = z1 - z0;
+    const steps = Math.max(1, Math.ceil(Math.hypot(dx, dz) / 0.05));
+    for (let step = 1; step <= steps; step++)
+      if (!canWalk(x0 + (dx * step) / steps, z0 + (dz * step) / steps, world))
+        return false;
+    return true;
+  };
+  const connected = (x: number, z: number) =>
+    clear(start[0], start[1], x * grid, z * grid);
+  // Reaching a seed can need a turn (e.g. the gap between a western Korea tree
+  // and crop bed), which a straight check rejects. A single bend through a
+  // walkable elbow still connects the start to the grid.
+  const bend = (x: number, z: number, elbows: [number, number][]) => {
+    for (const [ex, ez] of elbows)
+      if (
+        clear(start[0], start[1], ex, ez) &&
+        clear(ex, ez, x * grid, z * grid)
+      )
+        return [ex, ez] as [number, number];
+    return null;
+  };
+  let entry: [number, number] | null = null;
+  if (!connected(sx, sz)) {
+    // A valid off-grid position can round into two adjoining walls (e.g. the
+    // photo booth's back corner). Seed A* on the same walkable side instead.
+    const nearby = Array.from({ length: 25 }, (_, i) => [
+      sx + (i % 5) - 2,
+      sz + Math.floor(i / 5) - 2,
+    ]);
+    nearby.sort(
+      (a, b) =>
+        Math.hypot(a[0] * grid - start[0], a[1] * grid - start[1]) -
+        Math.hypot(b[0] * grid - start[0], b[1] * grid - start[1]),
+    );
+    const seed = nearby.find(([x, z]) => connected(x, z));
+    if (seed) [sx, sz] = seed;
+    else {
+      const elbows: [number, number][] = nearby.map(([x, z]) => [
+        x * grid,
+        z * grid,
+      ]);
+      for (const [x, z] of nearby) {
+        // The axis elbows cover most turns; a neighbouring cell covers the rest.
+        entry =
+          bend(x, z, [
+            [x * grid, start[1]],
+            [start[0], z * grid],
+          ]) ?? bend(x, z, elbows);
+        if (entry) {
+          [sx, sz] = [x, z];
+          break;
+        }
+      }
+      if (!entry) return [];
+    }
+  }
   type Node = { x: number; z: number; cost: number; f: number };
   const open: Node[] = [],
     seen = new Map<string, number>(),
@@ -511,7 +569,12 @@ export function findPath(
         const [x, z] = k.split(",").map(Number);
         out.unshift([x * grid, z * grid]);
       }
-      return out.slice(1);
+      // Keep the entry segment; skipping it can cut back through the corner.
+      const route =
+        Math.hypot(start[0] - sx * grid, start[1] - sz * grid) > 0.0001
+          ? out
+          : out.slice(1);
+      return entry ? [entry, ...route] : route;
     }
     for (const [dx, dz] of [
       [1, 0],
