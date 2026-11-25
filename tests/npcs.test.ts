@@ -191,6 +191,9 @@ describe("NPC interaction boundaries", () => {
     expect(interactWithNpc()).toBe(true);
     expect(useNpcs.getState().line).toBe(1);
     advanceConversation();
+    // Every local now has follow-up topics, so the dialog stays open for them.
+    expect(useGame.getState().panel).toBe("npc");
+    closeConversation();
     expect(useGame.getState().panel).toBe("none");
     expect(useNpcs.getState().talking).toBeNull();
     expect(useGame.getState().save).toBe(save);
