@@ -51,12 +51,25 @@
   }
 }
 @media (max-height: 600px) and (orientation: landscape) {
+  /* Prioritize station actions over optional camera controls, as with the
+     other compact context actions. Keeping both lanes squeezed the menu
+     into enough rows to clip its first action on short phones. */
+  .game-shell:has(.island-rail-controls)
+    :is(.time-of-day-control, .world-zoom) {
+    visibility: hidden;
+  }
   .island-rail-controls {
     left: auto;
     right: max(16px, env(safe-area-inset-right));
     bottom: max(112px, calc(env(safe-area-inset-bottom) + 104px));
     transform: none;
     max-width: calc(100vw - 160px);
+    max-height: calc(
+      100% - max(112px, calc(env(safe-area-inset-bottom) + 104px)) -
+        max(64px, calc(env(safe-area-inset-top) + 56px))
+    );
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
   .island-rail-controls > strong {
     display: none;
