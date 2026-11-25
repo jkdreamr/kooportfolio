@@ -32,6 +32,7 @@ import {
 } from "../core/paperToss";
 import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import { runtime, useGame } from "../core/store";
+import { sound } from "../core/sound";
 import { Box, Cylinder } from "../world/Models";
 import "./paper-toss.css";
 
@@ -186,6 +187,7 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
   const toss = (strength: number) => {
     if (!ready()) return;
     round.current = throwPaper(round.current, aim.current, strength);
+    sound("whoosh");
     setHud(round.current);
   };
   const begin = (source: "key" | "pointer" | "button") => {
@@ -236,6 +238,11 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
     const before = round.current;
     const step = Math.min(dt, 0.1);
     const next = stepToss(before, step);
+    if (next.attempts > before.attempts) {
+      if (next.attempts >= TOSS_LEVELS[next.level].attempts)
+        sound(levelCleared(next) ? "win" : "bounce");
+      else sound(next.result === "hit" ? "score" : "bounce");
+    }
     round.current = next;
     if (
       next.attempts !== before.attempts ||

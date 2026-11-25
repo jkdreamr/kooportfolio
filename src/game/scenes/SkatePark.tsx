@@ -13,6 +13,7 @@ import * as THREE from "three";
 import { runtime, useGame } from "../core/store";
 import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import { keys, movement, movementSpeed, touch } from "../core/input";
+import { footstep, sound } from "../core/sound";
 import { newRunId } from "../../shared/run-id";
 import { Box, Ball, Character, Cylinder } from "../world/Models";
 import { gameIsActive } from "./InteriorProps";
@@ -314,7 +315,21 @@ export function SkateParkInterior() {
         input.current.brake =
           h.has("s") || h.has("arrowdown") || has("brake") || touch.z > 0.3;
         input.current.grind = h.has("shift") || has("grind");
+        const before = {
+          grounded: g.grounded,
+          trick: g.trick,
+          score: g.score,
+          phase: g.phase,
+          bail: g.bailTime,
+        };
         stepSkate(g, input.current, delta);
+        if (g.phase !== before.phase && g.phase === "done")
+          sound(g.score >= 800 ? "win" : "score");
+        else if (g.bailTime > before.bail) sound("bounce");
+        else if (g.score > before.score) sound("score");
+        else if (!before.grounded && g.grounded) sound("land");
+        else if (before.grounded && !g.grounded) sound("whoosh");
+        else if (g.trick && g.trick !== before.trick) sound("whoosh");
         input.current.jump = false;
         input.current.trick = null;
         runtime.x = g.x * S;
@@ -349,6 +364,8 @@ export function SkateParkInterior() {
         }
         runtime.moving = Math.hypot(dx, dz) > 0.1;
         const walking = movementSpeed(5);
+        const px = runtime.x,
+          pz = runtime.z;
         runtime.x = THREE.MathUtils.clamp(
           runtime.x + dx * walking * dt,
           -20.5,
@@ -359,6 +376,7 @@ export function SkateParkInterior() {
           -24.5,
           25,
         );
+        if (Math.hypot(runtime.x - px, runtime.z - pz) > 0.0001) footstep();
         if (runtime.moving) runtime.heading = Math.atan2(dx, dz);
         if (walker.current) {
           walker.current.position.set(

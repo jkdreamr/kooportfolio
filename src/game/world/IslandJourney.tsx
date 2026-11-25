@@ -14,6 +14,7 @@ import type { TravelOption, TravelWorld } from "../core/travel";
 import { Character } from "./Models";
 import { JourneyTrain, PassengerJet, PassengerStairs } from "./TravelVehicles";
 import { ISLAND_CAMERA_OFFSET } from "../core/islandCamera";
+import { footstep, sound } from "../core/sound";
 
 export type IslandTrip = TravelOption & {
   from: TravelWorld;
@@ -148,6 +149,7 @@ export function IslandJourney({
       actorVisible = passenger.visible;
       walking.current = t > 0.02 && t < 0.98;
       if (t === 1) {
+        sound("chime");
         phase.current = "ride";
         time.current = 0;
       }
@@ -168,6 +170,7 @@ export function IslandJourney({
       actorVisible = false;
       if (p >= 0.5 && !arrived.current) {
         arrived.current = true;
+        sound("chime");
         onArrive();
       }
       if (p === 1) {
@@ -185,6 +188,7 @@ export function IslandJourney({
         phase.current = "done";
       }
     }
+    if (walking.current) footstep();
     if (actor.current) {
       actor.current.visible = actorVisible;
       actor.current.position.copy(position.current);
