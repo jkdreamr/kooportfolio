@@ -11,17 +11,17 @@ export const roomStories: Partial<
     label: "About Josh",
   },
   theater: {
-    text: "Josh grew up in Los Altos, just down the road from Stanford.",
+    text: "Josh grew up in Los Altos, just down the road from Stanford. He studies CS and math there now.",
     link: "https://joshuakoo.xyz",
     label: "About Josh",
   },
   badminton: {
-    text: "Josh is a Division I student athlete at Stanford.",
+    text: "Josh is a Division I student athlete at Stanford, where he studies CS and math.",
     link: "https://gostanford.com/sports/mens-rowing/roster/player/joshua-koo",
     label: "Roster",
   },
   go: {
-    text: "Josh speaks Korean and leads Cognition's efforts in Korea.",
+    text: "Josh speaks Korean and leads Cognition's efforts in Korea. Before that he worked at a coding-education startup in Seoul.",
     link: "https://linkedin.com/in/joshuaykoo",
     label: "LinkedIn",
   },
@@ -31,12 +31,12 @@ export const roomStories: Partial<
     label: "About Josh",
   },
   stadium: {
-    text: "Josh is a lifelong 49ers fan.",
+    text: "Josh is a lifelong 49ers fan. He grew up in Los Altos, deep in Niners country.",
     link: "https://joshuakoo.xyz",
     label: "About Josh",
   },
   boathouse: {
-    text: "Josh walked on to Stanford men's rowing as a freshman and is now a coxswain on the team.",
+    text: "Josh walked on to Stanford men's rowing as a freshman. As coxswain he steers the boat and coordinates the crew.",
     link: "https://gostanford.com/sports/mens-rowing/roster/player/joshua-koo",
     label: "Roster",
   },
@@ -46,17 +46,17 @@ export const roomStories: Partial<
     label: "About Josh",
   },
   office: {
-    text: "Josh is an investment intern at CRV. Before that he founded a startup called Alphag3n.",
+    text: "Josh is an investment intern at CRV. Before Stanford he founded Alphag3n, a startup backed by sponsors like Coinbase, Solana and Polygon.",
     link: "https://linkedin.com/in/joshuaykoo",
     label: "LinkedIn",
   },
   kappa: {
-    text: "Josh is a junior studying computer science and mathematics at Stanford.",
-    link: "https://joshuakoo.xyz",
-    label: "About Josh",
+    text: "Josh is a junior studying computer science and mathematics at Stanford. He ran growth and operations for the Stanford Blockchain Club.",
+    link: "https://linkedin.com/in/joshuaykoo",
+    label: "LinkedIn",
   },
   cognition: {
-    text: "Josh works at Cognition, leading the company's efforts in Korea.",
+    text: "Josh works at Cognition. He joined as a GTM engineer and now leads the company's Korea efforts as Chief of Staff, APAC.",
     link: "https://linkedin.com/in/joshuaykoo",
     label: "LinkedIn",
   },
@@ -76,8 +76,8 @@ export const roomStories: Partial<
     label: "SoundCloud",
   },
   math: {
-    text: "Josh studies computer science and mathematics at Stanford.",
-    link: "https://joshuakoo.xyz",
-    label: "About Josh",
+    text: "Josh studies computer science and mathematics at Stanford. He also spent a summer as an ecosystem engineer at NEAR Protocol.",
+    link: "https://linkedin.com/in/joshuaykoo",
+    label: "LinkedIn",
   },
 };
