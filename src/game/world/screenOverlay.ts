@@ -5,6 +5,8 @@ export const screenOverlayStyle = {
   top: 0,
   left: 0,
   width: "100vw",
-  height: "100dvh",
+  // Keep a usable height when dynamic viewport units aren't supported.
+  height: "100vh",
+  maxHeight: "100dvh",
   pointerEvents: "none",
 } as const;
