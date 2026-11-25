@@ -373,31 +373,18 @@ export function IslandTrain({
               </button>
             ) : (
               <div className="island-rail-actions">
-                {travelOptions(world, "station")
-                  .sort(
-                    (a, b) =>
-                      Number(b.mode === "train") - Number(a.mode === "train"),
-                  )
-                  .map((option) => (
-                    <button
-                      key={option.mode}
-                      aria-label={`${option.mode === "train" ? "Train" : "Drive"} to ${WORLD_NAMES[option.destination]}`}
-                      onClick={() =>
-                        useGame.setState({ travelRequest: option })
-                      }
-                    >
-                      {option.mode === "train" ? (
-                        <>
-                          <span className="rail-full-label">
-                            Train to {WORLD_NAMES[option.destination]}
-                          </span>
-                          <span className="rail-compact-label">Train</span>
-                        </>
-                      ) : (
-                        "Drive"
-                      )}
-                    </button>
-                  ))}
+                {travelOptions(world, "station").map((option) => (
+                  <button
+                    key={option.mode}
+                    aria-label={`Train to ${WORLD_NAMES[option.destination]}`}
+                    onClick={() => useGame.setState({ travelRequest: option })}
+                  >
+                    <span className="rail-full-label">
+                      Train to {WORLD_NAMES[option.destination]}
+                    </span>
+                    <span className="rail-compact-label">Train</span>
+                  </button>
+                ))}
                 <button
                   ref={boardRef}
                   onClick={board}

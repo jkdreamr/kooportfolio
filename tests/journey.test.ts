@@ -102,7 +102,7 @@ describe("world-space transport", () => {
       expect(near.pitch).toBeCloseTo(0, 5);
       expect(near.roll ?? 0).toBeCloseTo(0, 5);
     }
-    for (const mode of ["train", "car"] as const) {
+    for (const mode of ["train"] as const) {
       for (const end of [0, 1]) {
         const near = journeyPose(mode, end === 0 ? 0.0001 : 0.9999);
         expect(near.pitch).toBeCloseTo(0, 5);
@@ -130,7 +130,7 @@ describe("world-space transport", () => {
   });
 
   it("walks a reversible boarding path from ground level into the cabin", () => {
-    for (const mode of ["plane", "train", "car"] as const) {
+    for (const mode of ["plane", "train"] as const) {
       for (const world of ["home", "stanford", "korea"] as const) {
         if (world === "korea" && mode !== "plane") continue;
         const start = boardingPose(mode, 0, world),

@@ -273,12 +273,11 @@ describe("separate worlds", () => {
     const [x, z] = route.at(-1)!;
     expect(Math.hypot(x - picnic.p[0], z - picnic.p[1])).toBeLessThan(1);
   });
-  it("requires a plane for Korea and car/train for domestic travel", () => {
+  it("requires a plane for Korea and the train for domestic travel", () => {
     expect(validJourney("home", "stanford", "train")).toBe(true);
-    expect(validJourney("stanford", "home", "car")).toBe(true);
     expect(validJourney("home", "stanford", "plane")).toBe(false);
     expect(validJourney("korea", "home", "train")).toBe(false);
-    expect(validJourney("stanford", "korea", "car")).toBe(false);
+    expect(validJourney("stanford", "korea", "train")).toBe(false);
     expect(validJourney("home", "korea", "plane")).toBe(true);
   });
   it("migrates old saves without losing coins, memories or progress", () => {
