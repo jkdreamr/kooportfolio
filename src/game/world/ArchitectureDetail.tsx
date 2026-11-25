@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { sculptedMaterial } from "./Surface";
+import { glassMaterial } from "./GlossKit";
 
 type Piece = {
   p: [number, number, number];
@@ -49,6 +50,36 @@ function Pieces({
       args={[clay, masonry ? stone : wood ? timber : ceramic, pieces.length]}
       castShadow
       receiveShadow
+      dispose={null}
+    />
+  );
+}
+
+export type Pane = { p: [number, number, number]; s: [number, number, number] };
+const paneGeometry = new THREE.BoxGeometry();
+/** One shared pane glass: sky sheen by day, lit from inside after dusk. */
+export const windowGlass = glassMaterial();
+
+/** Clear-coated panes, one draw per window group. They neither cast nor
+ * receive shadows: a shadowed pane loses the reflection that makes it glass. */
+export function Glazing({ panes }: { panes: Pane[] }) {
+  const ref = useRef<THREE.InstancedMesh>(null);
+  useLayoutEffect(() => {
+    const object = new THREE.Object3D(),
+      mesh = ref.current!;
+    panes.forEach(({ p, s }, i) => {
+      object.position.set(...p);
+      object.scale.set(...s);
+      object.updateMatrix();
+      mesh.setMatrixAt(i, object.matrix);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.computeBoundingSphere();
+  }, [panes]);
+  return (
+    <instancedMesh
+      ref={ref}
+      args={[paneGeometry, windowGlass, panes.length]}
       dispose={null}
     />
   );
@@ -261,16 +292,25 @@ export function WindowDetail({ width }: { width: number }) {
         },
         { p: [0, side * 0.51, 0.18], s: [width, 0.06, 0.1], c: "#846443" },
       );
+    }
+    return out;
+  }, [width]);
+  const panes = useMemo(() => {
+    const out: Pane[] = [];
+    for (const side of [-1, 1])
       for (const vertical of [-1, 1])
         out.push({
           p: [(side * width) / 4, vertical * 0.25, 0.12],
           s: [width / 2 - 0.06, 0.44, 0.06],
-          c: vertical === 1 ? "#b4c7bb" : "#e6bc74",
         });
-    }
     return out;
   }, [width]);
-  return <Pieces pieces={pieces} />;
+  return (
+    <>
+      <Pieces pieces={pieces} />
+      <Glazing panes={panes} />
+    </>
+  );
 }
 
 export function GableRoof({
