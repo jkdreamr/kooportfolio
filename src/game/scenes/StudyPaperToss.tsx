@@ -447,13 +447,6 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
                 <header>
                   <div>
                     <h2>Paper Toss</h2>
-<<<<<<< HEAD
-                    <span aria-label={`Shots ${hud.attempts} of ${TOSS_LIMIT}`}>
-                      Shot {hud.attempts} / {TOSS_LIMIT}
-||||||| be3ed55
-                    <span aria-label={`Score ${hud.score}; shots ${hud.attempts} of ${TOSS_LIMIT}`}>
-                      <b key={hud.score} className={hud.score ? "toss-score-pop" : undefined}>{hud.score}</b> / {TOSS_LIMIT} scored
-=======
                     <span
                       aria-label={`Level ${hud.level + 1}: ${level.name}; ${hud.made} of ${level.target} to clear`}
                     >
@@ -465,18 +458,8 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
                         {hud.made}
                       </b>{" "}
                       of {level.target}
->>>>>>> origin/main
                     </span>
                     <p className="toss-status" role="status">
-<<<<<<< HEAD
-                      {finished ? "All shots taken"
-                        : !hud.landing && `Shot ${hud.attempts + 1} of ${TOSS_LIMIT}`}
-                      {!finished && hud.result && <strong key={hud.attempts} data-result={hud.result}>{hud.result === "hit" ? "In" : "Miss"}</strong>}
-||||||| be3ed55
-                      {finished ? `${hud.score} of ${TOSS_LIMIT} made`
-                        : !hud.landing && `Shot ${hud.attempts + 1} of ${TOSS_LIMIT}`}
-                      {!finished && hud.result && <strong key={hud.attempts} data-result={hud.result}>{hud.result === "hit" ? "+1" : "Miss"}</strong>}
-=======
                       {finished
                         ? cleared
                           ? "Level cleared"
@@ -491,7 +474,6 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
                       {!finished && level.wind !== 0 && (
                         <span>Wind {level.wind > 0 ? "→" : "←"}</span>
                       )}
->>>>>>> origin/main
                     </p>
                   </div>
                   <button onClick={close}>Close</button>
