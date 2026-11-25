@@ -115,7 +115,7 @@ export function StadiumGameHud({
   const outcome = outcomeText(result, postHit);
   const status =
     phase === "power"
-      ? "Beat the rush — stop the bar in green."
+      ? "Stop the bar in green."
       : phase === "aim"
         ? "Quick, line up the kick!"
         : phase === "flight"
