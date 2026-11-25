@@ -1,13 +1,28 @@
 import { describe, expect, it } from "vitest";
 import { OrthographicCamera, Vector3 } from "three";
 import { WORLD_ELLIPSE } from "../src/shared/world-bounds";
-import { HOME_ISLAND, islandForWorld } from "../src/game/core/homeIsland";
+import {
+  HOME_ISLAND,
+  HOME_RAIL_POINTS,
+  HOME_SHORE,
+  isHomeLand,
+  islandForWorld,
+} from "../src/game/core/homeIsland";
+import {
+  distanceToPolygon,
+  minCurveRadius,
+  offsetLoop,
+} from "../src/game/core/coast";
 import {
   islandCenter,
   islandZoom,
   ISLAND_CAMERA_OFFSET,
 } from "../src/game/core/islandCamera";
-import { railForWorld, railPose } from "../src/game/core/islandRail";
+import {
+  HOME_RAIL_LENGTH,
+  railForWorld,
+  railPose,
+} from "../src/game/core/islandRail";
 import {
   AIRPORT_GATE,
   STATION_GATE,
@@ -99,14 +114,36 @@ describe("Home’s actual compact island", () => {
       expect(b.x).toBeCloseTo(a.x);
       expect(b.z).toBeCloseTo(a.z);
     }
-    for (let i = 0; i < 100; i++) {
-      const p = railPose(i / 100, 0, "home");
-      const coach = railPose(i / 100, rail.coachTurns, "home");
+    // The loop follows the organic shore, not an ellipse: closed, gentle
+    // enough for full-size coaches, and never over the lawn.
+    expect(HOME_RAIL_LENGTH).toBeGreaterThan(255);
+    expect(HOME_RAIL_LENGTH).toBeLessThan(290);
+    expect(minCurveRadius(HOME_RAIL_POINTS, 4)).toBeGreaterThanOrEqual(8);
+    const before = railPose(1 - 0.00001, 0, "home"),
+      after = railPose(0.00001, 0, "home");
+    expect(Math.hypot(before.x - after.x, before.z - after.z)).toBeLessThan(
+      0.02,
+    );
+    const turn = before.heading - after.heading;
+    expect(Math.abs(Math.atan2(Math.sin(turn), Math.cos(turn)))).toBeLessThan(
+      0.05,
+    );
+    let previous = railPose(0, 0, "home").heading;
+    for (let i = 0; i < 600; i++) {
+      const p = railPose(i / 600, 0, "home");
+      const coach = railPose(i / 600, rail.coachTurns, "home");
       expect(Math.hypot(p.x - coach.x, p.z - coach.z)).toBeGreaterThan(4.4);
-      expect(
-        ((p.x - rail.centerX) / rail.radiusX) ** 2 +
-          ((p.z - rail.centerZ) / rail.radiusZ) ** 2,
-      ).toBeCloseTo(1);
+      expect(Math.hypot(p.x - coach.x, p.z - coach.z)).toBeLessThan(5.51);
+      expect(isHomeLand(p.x, p.z), `${p.x},${p.z}`).toBe(false);
+      expect(distanceToPolygon(p.x, p.z, HOME_SHORE)).toBeGreaterThan(1.5);
+      expect(Math.abs(p.x - rail.centerX)).toBeLessThanOrEqual(rail.radiusX);
+      expect(Math.abs(p.z - rail.centerZ)).toBeLessThanOrEqual(rail.radiusZ);
+      // No kinks: under 4 degrees of turn per 1/600 lap (0.45 of track).
+      const bend = p.heading - previous;
+      expect(Math.abs(Math.atan2(Math.sin(bend), Math.cos(bend)))).toBeLessThan(
+        0.07,
+      );
+      previous = p.heading;
     }
   });
 
@@ -124,7 +161,7 @@ describe("Home’s actual compact island", () => {
     [1440, 900],
     [390, 844],
     [844, 390],
-  ])("fits the actual compact shore and rail at %s × %s", (width, height) => {
+  ])("fits the organic shore and rail at %s × %s", (width, height) => {
     const [centerX, centerZ] = islandCenter("home");
     expect([centerX, centerZ]).toEqual([
       HOME_ISLAND.centerX,
@@ -147,14 +184,14 @@ describe("Home’s actual compact island", () => {
     camera.zoom = islandZoom(width, height, "home");
     camera.updateProjectionMatrix();
     camera.updateMatrixWorld();
-    const rail = railForWorld("home");
-    for (let i = 0; i < 180; i++) {
-      const a = (i / 180) * Math.PI * 2;
-      const point = new Vector3(
-        rail.centerX + (rail.radiusX + 1.5) * Math.cos(a),
-        0,
-        rail.centerZ + (rail.radiusZ + 1.5) * Math.sin(a),
-      ).project(camera);
+    // Sleepers and the rock ledge reach 1.5 beyond the rail's centreline.
+    for (const [x, z] of offsetLoop(HOME_RAIL_POINTS, 1.5)) {
+      const point = new Vector3(x, 0, z).project(camera);
+      expect(Math.abs(point.x)).toBeLessThan(0.98);
+      expect(Math.abs(point.y)).toBeLessThan(0.9);
+    }
+    for (const [x, z] of HOME_SHORE) {
+      const point = new Vector3(x, 13, z).project(camera);
       expect(Math.abs(point.x)).toBeLessThan(0.98);
       expect(Math.abs(point.y)).toBeLessThan(0.9);
     }

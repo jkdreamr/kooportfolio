@@ -22,7 +22,10 @@ export type DetailPart = {
   shape: DetailShape;
 };
 export type Lantern = { p: V3; c: string };
+export type Crystal = { p: V3; s: V3; c: string; r: V3 };
 export type UndersideDetail = {
+  /** Quartz points growing from the strata: skipped on low quality. */
+  crystals: Crystal[];
   parts: DetailPart[];
   /** Hanging roots and vines: skipped on low quality. */
   fine: DetailPart[];
@@ -391,7 +394,7 @@ function homeDetail(model: UndersideModel): UndersideDetail {
       "#5f4b37",
     );
   }
-  return { parts, fine, lanterns, trees, wheel };
+  return { parts, fine, lanterns, trees, wheel, crystals: [] };
 }
 
 function koreaDetail(model: UndersideModel): UndersideDetail {
@@ -497,7 +500,7 @@ function koreaDetail(model: UndersideModel): UndersideDetail {
     lanterns.push({ p: [cx + 0.9, cy + 0.35, cz + 0.2], c: "#3f6ec2" });
     lanterns.push({ p: [cx - 0.6, cy + 0.35, cz + 1.4], c: "#d8483c" });
   }
-  return { parts, fine, lanterns, trees, wheel: null };
+  return { parts, fine, lanterns, trees, wheel: null, crystals: [] };
 }
 
 function stanfordDetail(model: UndersideModel): UndersideDetail {
@@ -573,7 +576,71 @@ function stanfordDetail(model: UndersideModel): UndersideDetail {
     lanterns.push({ p: [cx - 0.6, cy + 1.25, cz + 0.2], c: "#ffc46b" });
     lanterns.push({ p: [cx + 0.6, cy + 1.25, cz + 0.2], c: "#ffc46b" });
   }
-  return { parts, fine, lanterns, trees, wheel: null };
+  return { parts, fine, lanterns, trees, wheel: null, crystals: [] };
+}
+
+const quartzColors: Record<WorldId, readonly string[]> = {
+  home: ["#f6dca6", "#fbf2df", "#eebf7c"],
+  korea: ["#c6e6d8", "#f0f6f3", "#93cdbb"],
+  stanford: ["#f8d27f", "#fdf0d0", "#ee9f55"],
+};
+/** Clusters of quartz on the camera-facing mid strata, pointing out and down. */
+function quartz(model: UndersideModel, world: WorldId): Crystal[] {
+  const crystals: Crystal[] = [];
+  const colors = quartzColors[world];
+  const { profile } = model.spec;
+  for (let k = 2; k < model.rings.length - 1; k++) {
+    if (profile[k].t < 0.12 || profile[k].t > 0.7) continue;
+    model.rings[k].points.forEach((point, i) => {
+      if (facing(model, point) < 0.3) return;
+      const h = hash01(model.spec.seed, k, i, 140);
+      if (h > 0.085) return;
+      const [nx, nz] = outward(model, point);
+      const yaw = Math.atan2(nx, nz);
+      for (let n = 0; n < 4; n++) {
+        const g = hash01(model.spec.seed, k, i, 141 + n);
+        const length = n === 0 ? 2.1 + g * 1.2 : 0.9 + g * 1.1;
+        const pitch = 1.75 + (g - 0.5) * 0.9;
+        const turn = yaw + (n === 0 ? 0 : (n - 2) * 0.55);
+        const axis: V3 = [
+          Math.sin(pitch) * Math.sin(turn),
+          Math.cos(pitch),
+          Math.sin(pitch) * Math.cos(turn),
+        ];
+        const side = (n - 1.5) * 0.42;
+        crystals.push({
+          p: [
+            point[0] + axis[0] * length * 0.28 - nz * side,
+            point[1] + axis[1] * length * 0.28 + (n % 2) * 0.3,
+            point[2] + axis[2] * length * 0.28 + nx * side,
+          ],
+          s: [length * 0.3, length, length * 0.3],
+          r: [pitch, turn, 0],
+          c: colors[(i + n) % colors.length],
+        });
+      }
+    });
+  }
+  // A small point beside each islet's planting, where the cap meets the rock.
+  model.islets.forEach((islet, n) => {
+    const a = hash01(model.spec.seed, n, 150) * Math.PI * 2;
+    for (let j = 0; j < 3; j++) {
+      const g = hash01(model.spec.seed, n, j, 151);
+      const height = j === 0 ? 0.9 + g * 0.4 : 0.45 + g * 0.3;
+      const b = a + j * 0.9;
+      crystals.push({
+        p: [
+          islet.top[0] + Math.cos(b) * islet.radius * 0.62,
+          islet.top[1] + height * 0.4,
+          islet.top[2] + Math.sin(b) * islet.radius * 0.62,
+        ],
+        s: [height * 0.32, height, height * 0.32],
+        r: [j === 0 ? 0 : 0.35, b, 0],
+        c: colors[(n + j) % colors.length],
+      });
+    }
+  });
+  return crystals;
 }
 
 const details = new Map<WorldId, UndersideDetail>();
@@ -587,6 +654,7 @@ export function undersideDetail(world: WorldId): UndersideDetail {
         : world === "korea"
           ? koreaDetail(model)
           : stanfordDetail(model);
+    detail.crystals = quartz(model, world);
     details.set(world, detail);
   }
   return detail;

@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { KOREA_MARKET, KOREA_PICNIC } from "../core/koreaDistrict";
 import { KOREA_EXERCISE_YARD } from "../core/regionalActivities";
 import { beam, WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
+import { Glazing, type Pane } from "./ArchitectureDetail";
 
 type Footprint = readonly [number, number, number, number];
 const home: SceneryPart[] = [],
@@ -151,6 +152,55 @@ for (let i = 0; i < 13; i++)
 for (const dz of [-4.3, 4.3])
   part(home, 10, 4.5, 2 + dz, 12, 0.25, 0.22, "#806d52");
 picnic(home, homeSolids, 10, 2);
+
+// A glazed cold frame beside the water barrel: timber box, seedling trays and
+// a propped lid whose panes are real glass (see HomeCommunity).
+const coldFrame = [-28.4, 0.5] as const;
+const coldFramePanes: Pane[] = [];
+{
+  const [x, z] = coldFrame;
+  homeSolids.push([x, z, 1.05, 0.65]);
+  part(home, x, 0.36, z, 2.1, 0.44, 1.3, "#8a6f4c");
+  part(home, x, 0.5, z - 0.6, 2.1, 0.7, 0.1, "#7b6243");
+  part(home, x, 0.6, z, 1.9, 0.06, 1.1, "#5d5140");
+  for (let i = 0; i < 6; i++)
+    for (let j = 0; j < 2; j++)
+      part(
+        home,
+        x - 0.75 + i * 0.3,
+        0.7,
+        z - 0.2 + j * 0.4,
+        0.1,
+        0.16,
+        0.2,
+        (i + j) % 2 ? "#7c9a58" : "#93ab66",
+        "block",
+        [0.3, i * 1.3, 0.2],
+      );
+  const tilt = -0.42;
+  for (const dx of [-1, 0, 1])
+    part(home, x + dx * 0.98, 0.98, z - 0.02, 0.09, 0.08, 1.36, "#a98a5e", "block", [tilt, 0, 0]);
+  for (const dz of [-1, 1])
+    part(
+      home,
+      x,
+      0.98 + dz * Math.sin(tilt) * -0.64,
+      z - 0.02 + dz * Math.cos(tilt) * 0.64,
+      2.05,
+      0.08,
+      0.09,
+      "#a98a5e",
+      "block",
+      [tilt, 0, 0],
+    );
+  part(home, x + 0.6, 0.86, z + 0.5, 0.06, 0.5, 0.06, "#6f5a3e");
+  for (const dx of [-0.49, 0.49])
+    coldFramePanes.push({
+      p: [x + dx, 0.975, z - 0.02],
+      s: [0.9, 0.03, 1.22],
+      r: [tilt, 0, 0],
+    });
+}
 
 const { z: marketZ } = KOREA_MARKET;
 for (const [i, x] of KOREA_MARKET.stalls.entries()) {
@@ -307,6 +357,44 @@ for (const side of [-1, 1]) {
   part(korea, deckX, 3.31, shelterZ + side * 2.65, 11.5, 0.29, 0.19, "#8e6150");
 }
 part(korea, deckX, 4.68, shelterZ, 12.6, 0.23, 0.37, "#3d5450");
+// Dancheong: painted rafter ends under both eaves, a jade band with cinnabar
+// lozenges on the purlins, and gilded ridge ends. Colour, not new structure.
+const dancheong = ["#3f8a70", "#c9483b", "#2f62ad", "#f0e8d2", "#e0a93f"];
+for (const side of [-1, 1]) {
+  for (let i = 0; i < 17; i++) {
+    const x = deckX - 5.76 + i * 0.72;
+    part(korea, x, 3.3, shelterZ + side * 3.5, 0.2, 0.2, 0.42, dancheong[i % 4]);
+    part(korea, x, 3.3, shelterZ + side * 3.73, 0.24, 0.24, 0.05, dancheong[4]);
+  }
+  part(korea, deckX, 3.31, shelterZ + side * 2.76, 11.5, 0.2, 0.03, dancheong[0]);
+  for (let i = 0; i < 8; i++)
+    part(
+      korea,
+      deckX - 5.04 + i * 1.44,
+      3.31,
+      shelterZ + side * 2.78,
+      0.2,
+      0.2,
+      0.03,
+      dancheong[1],
+      "block",
+      [0, 0, Math.PI / 4],
+    );
+  part(korea, deckX + side * 6.38, 4.72, shelterZ, 0.12, 0.42, 0.5, dancheong[4]);
+}
+// Market canopies carry the same five colours as a scalloped front valance.
+for (const x of KOREA_MARKET.stalls)
+  for (let i = 0; i < 13; i++)
+    part(
+      korea,
+      x - 4.5 + i * 0.75,
+      3.26 - (i % 2) * 0.07,
+      marketZ + 3.52,
+      0.7,
+      0.3 + (i % 2) * 0.12,
+      0.06,
+      dancheong[i % 4],
+    );
 for (let i = 0; i < 19; i++)
   part(
     korea,
@@ -360,6 +448,7 @@ export function HomeCommunity() {
   return (
     <group name="neighborhood-main-street-and-allotments">
       <WorldSceneryParts parts={home} />
+      <Glazing panes={coldFramePanes} />
     </group>
   );
 }

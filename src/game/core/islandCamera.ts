@@ -1,6 +1,8 @@
-import { islandForWorld } from "./homeIsland";
+import { HOME_ISLAND, HOME_RAIL_POINTS, islandForWorld } from "./homeIsland";
 import type { WorldId } from "./worlds";
-import { KOREA_SHORE } from "./koreaDistrict";
+import { KOREA_COAST } from "./koreaDistrict";
+import { STANFORD_MESA } from "../../shared/stanford-ground";
+import { TERRAIN } from "./terrain";
 import { KOREA_LANDMARKS } from "./koreaLandmarks";
 import {
   STANFORD_RAIL_POINTS,
@@ -26,99 +28,106 @@ const stanfordView: [number, number] = [
   STANFORD_RAIL_PROFILE.centerX,
   STANFORD_RAIL_PROFILE.centerZ,
 ];
-const stanfordExtent = {
-  width:
-    2 *
-      Math.max(
-        ...STANFORD_RAIL_POINTS.map(([x, z]) =>
-          Math.abs(
-            (x - stanfordView[0]) * right.x + (z - stanfordView[1]) * right.z,
-          ),
-        ),
-      ) +
-    10,
-  height:
-    2 *
-      Math.max(
-        ...STANFORD_RAIL_POINTS.map(([x, z]) =>
-          Math.abs((x - stanfordView[0]) * up.x + (z - stanfordView[1]) * up.z),
-        ),
-        Math.abs(
-          (4.82 - stanfordView[0]) * up.x +
-            (54.6125 - stanfordView[1]) * up.z +
-            30 * up.y,
-        ),
-      ) +
-    10,
-};
+const homeView: [number, number] = [HOME_ISLAND.centerX, HOME_ISLAND.centerZ];
+
+type Tall = readonly [x: number, z: number, height: number];
+/** Projected size of a coastline, its relief and its tallest landmarks about
+ * the view centre, in screen units at zoom 1 with a margin all round. */
+function extent(
+  view: readonly [number, number],
+  coast: readonly (readonly [number, number])[],
+  tall: readonly Tall[],
+  margin: readonly [number, number],
+) {
+  const across = (x: number, z: number) =>
+    Math.abs((x - view[0]) * right.x + (z - view[1]) * right.z);
+  const upward = (x: number, z: number, y = 0) =>
+    (x - view[0]) * up.x + (z - view[1]) * up.z + y * up.y;
+  return {
+    width:
+      2 *
+        Math.max(
+          ...coast.map(([x, z]) => across(x, z)),
+          ...tall.map(([x, z]) => across(x, z)),
+        ) +
+      margin[0],
+    height:
+      2 *
+        Math.max(
+          ...coast.map(([x, z]) => Math.abs(upward(x, z))),
+          ...tall.map(([x, z, height]) => Math.abs(upward(x, z, height))),
+        ) +
+      margin[1],
+  };
+}
+/** Hills, peaks and the trees on them, as points the frame must hold. */
+const relief = (world: WorldId): Tall[] =>
+  TERRAIN[world]
+    .filter(({ height }) => height > 0)
+    .map(({ focus, height, trees }) => [
+      focus[0],
+      focus[1],
+      height + (trees.length ? 6 : 1),
+    ]);
+const stanfordExtent = extent(
+  stanfordView,
+  [...STANFORD_RAIL_POINTS, ...STANFORD_MESA],
+  // Hoover Tower's lantern.
+  [[4.82, 54.6125, 30], ...relief("stanford")],
+  [10, 10],
+);
 const {
   origin: [towerX, towerZ],
   height: towerHeight,
 } = KOREA_LANDMARKS.namsan;
-const koreaExtent = {
-  width:
-    2 *
-      Math.max(
-        ...KOREA_SHORE.map(([x, z]) =>
-          Math.abs((x - koreaView[0]) * right.x + (z - koreaView[1]) * right.z),
-        ),
-      ) +
-    10,
-  height:
-    2 *
-      Math.max(
-        ...KOREA_SHORE.map(([x, z]) =>
-          Math.abs((x - koreaView[0]) * up.x + (z - koreaView[1]) * up.z),
-        ),
-        Math.abs(
-          (towerX - koreaView[0]) * up.x +
-            (towerZ - koreaView[1]) * up.z +
-            towerHeight * up.y,
-        ),
-      ) +
-    8,
-};
-const homeIsland = islandForWorld("home");
-const homeAbove =
-  Math.hypot((homeIsland.radiusX + 6) * up.x, (homeIsland.radiusZ + 8) * up.z) +
-  13 * up.y;
+const koreaExtent = extent(
+  koreaView,
+  KOREA_COAST,
+  [[towerX, towerZ, towerHeight], ...relief("korea")],
+  [7, 6],
+);
+// Rooftops and canopies stand up to 13 above the lawn anywhere on the island.
+const homeExtent = extent(
+  homeView,
+  HOME_RAIL_POINTS,
+  [
+    ...HOME_RAIL_POINTS.filter((_, i) => i % 8 === 0).map(
+      ([x, z]): Tall => [x, z, 13],
+    ),
+    ...relief("home"),
+  ],
+  [9, 5],
+);
+const extents = { home: homeExtent, korea: koreaExtent, stanford: stanfordExtent };
 
 /** Above and below the view centre, in screen units at zoom 1. The rock that
  * hangs under each island may need more room below than its rooftops above. */
 function verticalExtent(world?: WorldId) {
   if (world !== "home" && world !== "korea" && world !== "stanford") return null;
-  const above =
-    world === "home"
-      ? homeAbove
-      : (world === "korea" ? koreaExtent : stanfordExtent).height / 2;
+  const above = extents[world].height / 2;
   const below = Math.max(above, undersideFrame(world).bottom);
   return { above, below };
 }
 
-export const islandCenter = (world: WorldId): readonly [number, number] => {
-  const island = islandForWorld(world);
-  return world === "stanford"
-    ? stanfordView
-    : world === "korea"
-      ? koreaView
-      : [island.centerX, island.centerZ];
-};
+export const islandCenter = (world: WorldId): readonly [number, number] =>
+  world === "stanford" ? stanfordView : world === "korea" ? koreaView : homeView;
 
 /** Project the island's ellipse, coastal rail, lake and tallest landmark.
  * Fit against the usable viewport, not a hard-coded desktop zoom. */
 export function islandZoom(width: number, height: number, world?: WorldId) {
   const island = islandForWorld(world);
-  const rx = island.radiusX + (world === "home" ? 6 : 9);
-  const rz = island.radiusZ + (world === "home" ? 8 : 16);
-  const projectedWidth =
-    world === "stanford"
-      ? stanfordExtent.width
-      : world === "korea"
-        ? koreaExtent.width
-        : 2 * Math.hypot(rx * right.x, rz * right.z);
-  const extent = verticalExtent(world);
-  const projectedHeight = extent
-    ? extent.above + extent.below
+  const rx = island.radiusX + 9;
+  const rz = island.radiusZ + 16;
+  const known =
+    world === "home" || world === "korea" || world === "stanford"
+      ? extents[world]
+      : null;
+  const projectedWidth = known
+    ? known.width
+    : 2 * Math.hypot(rx * right.x, rz * right.z);
+  const vertical = verticalExtent(world);
+  const projectedHeight = vertical
+    ? vertical.above + vertical.below
     : 2 * Math.hypot(rx * up.x, rz * up.z) + 26 * up.y;
   const compact = height < 500;
   const verticalSpace = compact ? 125 : width < 700 ? 220 : 170;
@@ -134,8 +143,8 @@ export function islandZoom(width: number, height: number, world?: WorldId) {
 /** World-space pan of the overview target so the frame holds the hanging rock:
  * a pure screen-down move, so depth and clipping stay unchanged. */
 export function islandViewShift(world?: WorldId): readonly [number, number, number] {
-  const extent = verticalExtent(world);
-  const s = extent ? (extent.below - extent.above) / 2 : 0;
+  const vertical = verticalExtent(world);
+  const s = vertical ? (vertical.below - vertical.above) / 2 : 0;
   return [-up.x * s, -up.y * s, -up.z * s];
 }
 

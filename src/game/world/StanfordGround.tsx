@@ -1,36 +1,46 @@
 import * as THREE from "three";
-import { STANFORD_SHORE } from "../../shared/stanford-ground";
+import { STANFORD_COAST, STANFORD_SHORE } from "../../shared/stanford-ground";
+import { ccwLoop, offsetLoop, type P2 } from "../core/coast";
+import { STANFORD_VERGE_Y } from "../core/terrain";
 
-const shore = new THREE.Shape();
-STANFORD_SHORE.forEach(([x, z], i) =>
-  i ? shore.lineTo(x, z) : shore.moveTo(x, z),
-);
-shore.closePath();
-const ground = new THREE.ExtrudeGeometry(shore, {
-  depth: 1,
-  steps: 1,
-  bevelEnabled: false,
-}).rotateX(Math.PI / 2);
+function slab(outline: readonly P2[], top: number, bottom: number) {
+  const shape = new THREE.Shape(
+    outline.map(([x, z]) => new THREE.Vector2(x, z)),
+  );
+  shape.closePath();
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth: top - bottom,
+    steps: 1,
+    bevelEnabled: false,
+  });
+  // Shape lives in XY; map its Y to world Z and extrude downward from `top`.
+  geometry.rotateX(Math.PI / 2);
+  geometry.translate(0, top, 0);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+// The mown campus lawn is the walkable parcel, edged in sandstone. A kerb's
+// drop below it, an unmown summer-gold verge rolls out along the viaduct on
+// the rounded coast, over a sandstone lip and dark soil down to the shelf.
+const lawn = ccwLoop(STANFORD_SHORE);
+const layers = [
+  [slab(offsetLoop(STANFORD_COAST, 0.42), -1.3, -4.2), "#655e3e"],
+  [
+    slab(offsetLoop(STANFORD_COAST, 0.24), STANFORD_VERGE_Y - 0.4, -1.3),
+    "#a49564",
+  ],
+  [slab(STANFORD_COAST, STANFORD_VERGE_Y, STANFORD_VERGE_Y - 0.4), "#a9ab55"],
+  [slab(offsetLoop(lawn, 0.16), -0.02, STANFORD_VERGE_Y - 0.1), "#c9b88a"],
+  [slab(lawn, 0.14, -0.02), "#639343"],
+] as const;
 
 /** A compact Stanford-only coastline; no changes to other islands or landmark scale. */
 export function StanfordGround() {
   return (
     <group>
-      {(
-        [
-          [-0.8, 3.4, 1.02, "#655e3e"],
-          [-0.16, 0.64, 1.012, "#a49564"],
-          [0.14, 0.3, 1, "#639343"],
-        ] as const
-      ).map(([y, depth, rim, color]) => (
-        <mesh
-          key={color}
-          geometry={ground}
-          position={[0, y, 0]}
-          scale={[rim, depth, rim]}
-          receiveShadow
-          dispose={null}
-        >
+      {layers.map(([geometry, color]) => (
+        <mesh key={color} geometry={geometry} receiveShadow dispose={null}>
           <meshStandardMaterial color={color} roughness={1} />
         </mesh>
       ))}

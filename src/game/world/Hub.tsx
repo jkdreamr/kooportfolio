@@ -23,6 +23,7 @@ import {
 import { LabelProjection } from "./Labels";
 import { Landscape } from "./Landscape";
 import { IslandUnderside } from "./IslandUnderside";
+import { IslandTerrain } from "./IslandTerrain";
 import { VillageGardens } from "./VillageGardens";
 import { HomeWorldEnvironment } from "./HomeWorldEnvironment";
 import { HomeBuildingArt } from "./HomeBuildingArt";
@@ -371,6 +372,7 @@ export function Hub() {
   return (
     <group>
       <Landscape world={world} />
+      <IslandTerrain world={world} detail={quality === "high"} />
       <IslandUnderside world={world} detail={quality === "high"} />
       <VillageGardens world={world} />
       <RegionalActivities world={world} />

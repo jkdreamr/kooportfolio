@@ -1,22 +1,33 @@
 import * as THREE from "three";
-import { HOME_ISLAND } from "../core/homeIsland";
+import { HOME_ISLAND, HOME_SHORE } from "../core/homeIsland";
+import { loopNormals, resampleLoop, type P2 } from "../core/coast";
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
 
-// Art only. The playable ellipse, ground level, rail and gates remain owned by
+// Art only. The playable shore, ground level, rail and gates remain owned by
 // homeIsland/world. Keep this module store-free: Landscape is in world's graph.
-const { centerX, centerZ, radiusX, radiusZ } = HOME_ISLAND;
-const segments = 128;
+const { centerZ } = HOME_ISLAND;
+const segments = 192;
+// Even samples keep every cliff facet the same width round headland and cove.
+const shore = resampleLoop(HOME_SHORE, segments);
+const outward = loopNormals(shore);
+/** A point `reach` beyond the lawn's edge at shore sample `i` (wraps). */
+const beyond = (i: number, reach: number): P2 => {
+  const [x, z] = shore[i % segments],
+    [nx, nz] = outward[i % segments];
+  return [x + nx * reach, z + nz * reach];
+};
+// Height, ledge beyond the lawn's edge, colour. The lawn overhangs the first.
 const strata = [
-  [0.1, 2.03, "#7b7854"],
-  [-0.26, 2.38, "#b3a17b"],
-  [-0.57, 2.46, "#c1ad89"],
-  [-0.73, 2.12, "#716e63"],
-  [-1.24, 2.42, "#9c9381"],
-  [-1.43, 2.16, "#626968"],
-  [-2.16, 2.48, "#818a84"],
-  [-2.4, 2.08, "#4c5c60"],
-  [-3.22, 2.36, "#687a7d"],
-  [-4.2, 2.18, "#41545c"],
+  [0.1, 0.03, "#7b7854"],
+  [-0.26, 0.38, "#b3a17b"],
+  [-0.57, 0.46, "#c1ad89"],
+  [-0.73, 0.12, "#716e63"],
+  [-1.24, 0.42, "#9c9381"],
+  [-1.43, 0.16, "#626968"],
+  [-2.16, 0.48, "#818a84"],
+  [-2.4, 0.08, "#4c5c60"],
+  [-3.22, 0.36, "#687a7d"],
+  [-4.2, 0.18, "#41545c"],
 ] as const;
 
 function cliffGeometry() {
@@ -28,14 +39,10 @@ function cliffGeometry() {
     for (let i = 0; i <= segments; i++) {
       const a = (i / segments) * Math.PI * 2;
       // Paired vertices make continuous, geological folds, not detached rocks.
-      // All displacement is inward from the accepted 2.5-unit coastal skirt.
-      const fold = (Math.sin(a * 11) + Math.sin(a * 23 + 0.7) + 2) * 0.085;
+      const fold = (Math.sin(a * 11) + Math.sin(a * 23 + 0.7) + 2) * 0.05;
       const dip = row === 0 ? 0 : Math.sin(a * 9 + 0.3) * 0.065;
-      positions.push(
-        centerX + Math.cos(a) * (radiusX + ledge - fold),
-        height + dip,
-        centerZ + Math.sin(a) * (radiusZ + ledge - fold),
-      );
+      const [x, z] = beyond(i, row === 0 ? ledge : ledge - fold);
+      positions.push(x, height + dip, z);
       color.set(shade).multiplyScalar(0.94 + Math.sin(a * 17) * 0.055);
       colors.push(color.r, color.g, color.b);
       if (row < strata.length - 1 && i < segments) {
@@ -58,8 +65,23 @@ function cliffGeometry() {
   return geometry;
 }
 
+/** The lawn: one slab cut to the shore, its top at the walking level. */
+function lawnGeometry() {
+  const shape = new THREE.Shape(shore.map(([x, z]) => new THREE.Vector2(x, z)));
+  shape.closePath();
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth: 0.3,
+    bevelEnabled: false,
+  });
+  // Shape lives in XY; map its Y to world Z and extrude downward from .14.
+  geometry.rotateX(Math.PI / 2);
+  geometry.translate(0, 0.14, 0);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
 const cliff = cliffGeometry();
-const lawn = new THREE.CylinderGeometry(1, 1, 1, segments);
+const lawn = lawnGeometry();
 const lawnMaterial = new THREE.MeshStandardMaterial({
   color: "#6c8653",
   roughness: 1,
@@ -69,23 +91,24 @@ const cliffMaterial = new THREE.MeshStandardMaterial({
   roughness: 0.94,
 });
 const details: SceneryPart[] = [];
-for (let i = 0; i < 96; i++) {
-  const a = (i / 96) * Math.PI * 2;
-  const x = centerX + Math.cos(a) * (radiusX + 2.05);
-  const z = centerZ + Math.sin(a) * (radiusZ + 2.05);
+for (let i = 0; i < segments; i += 2) {
+  const [x, z] = beyond(i, 0.12);
+  const [nx, nz] = outward[i];
+  const a = Math.atan2(nz, nx);
+  const k = i / 2;
   // Leave transport's west station and east runway silhouettes untouched.
   if ((x < -40 && Math.abs(z - centerZ) < 5) || (x > 22 && z > -27 && z < 2))
     continue;
-  if (i % 3 === 0 && Math.sin(a * 5 + 1.1) > -0.2) {
+  if (k % 3 === 0 && Math.sin(k * 0.327 + 1.1) > -0.2) {
     details.push({
       p: [x, -0.14, z],
-      s: [1.1 + (i % 4) * 0.2, 0.54, 0.72],
+      s: [1.1 + (k % 4) * 0.2, 0.54, 0.72],
       r: [0, -a, 0.1],
-      c: i % 2 ? "#949484" : "#aeb099",
+      c: k % 2 ? "#949484" : "#aeb099",
       shape: "rock",
     });
     details.push({
-      p: [x - Math.cos(a) * 0.4, 0.12, z - Math.sin(a) * 0.4],
+      p: [x + nx * 0.1, 0.1, z + nz * 0.1],
       s: [1.02, 0.26, 0.61],
       r: [0, -a, 0],
       c: "#667951",
@@ -99,8 +122,6 @@ export function HomeCoastArt() {
   return (
     <group name="home-stratified-coast">
       <mesh
-        position={[centerX, -0.01, centerZ]}
-        scale={[radiusX + 2, 0.3, radiusZ + 2]}
         geometry={lawn}
         material={lawnMaterial}
         receiveShadow

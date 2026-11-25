@@ -274,7 +274,8 @@ body:has(.game-shell),
   border: 1px solid #dcdac7;
   border-radius: 15px;
   box-shadow: 0 5px 20px #4a57350a;
-  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
 }
 .objective-card > .eyebrow {
   font-size: 7px;
@@ -348,7 +349,8 @@ body:has(.game-shell),
   border-radius: 18px;
   background: #f8f5e9e8;
   box-shadow: 0 6px 22px #3a4f3812;
-  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
 }
 .world-toolbar > button,
 .world-toolbar > a {
@@ -461,7 +463,8 @@ body:has(.game-shell),
   visibility: hidden;
   border: 1px solid #cecfb9;
   background: #faf7e9f0;
-  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
   padding: 14px 16px 14px 23px;
   border-radius: 13px;
   box-shadow: 0 8px 25px #35443214;
@@ -593,7 +596,8 @@ body:has(.game-shell),
   padding: 23px;
   background: #faf7eaf0;
   border: 1px solid #d3d6be;
-  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
   pointer-events: auto;
 }
 .build-option {
@@ -683,7 +687,8 @@ body:has(.game-shell),
   position: absolute;
   inset: 0;
   background: #364b3347;
-  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: var(--glass-scrim-blur);
+  backdrop-filter: var(--glass-scrim-blur);
   display: flex;
   align-items: center;
   justify-content: center;

@@ -1,10 +1,8 @@
 import { ShapeUtils, Vector2 } from "three";
-import { HOME_ISLAND } from "./homeIsland";
-import { KOREA_SHORE } from "./koreaDistrict";
-import {
-  STANFORD_RAIL_POINTS,
-  STANFORD_RAIL_PROFILE,
-} from "../../shared/stanford-transport";
+import { HOME_ISLAND, HOME_RAIL_POINTS } from "./homeIsland";
+import { KOREA_COAST } from "./koreaDistrict";
+import { STANFORD_RAIL_PROFILE } from "../../shared/stanford-transport";
+import { STANFORD_MESA } from "../../shared/stanford-ground";
 import {
   ISLAND_SCREEN_DOWN_GROUND,
   ISLAND_SCREEN_RIGHT,
@@ -230,19 +228,6 @@ function centroid(points: readonly V2[]): V2 {
   return [cx / (3 * area), cz / (3 * area)];
 }
 
-const ellipse = (
-  cx: number,
-  cz: number,
-  rx: number,
-  rz: number,
-  count: number,
-): V2[] =>
-  Array.from({ length: count }, (_, i) => {
-    const a = (i / count) * Math.PI * 2;
-    return [cx + Math.cos(a) * rx, cz + Math.sin(a) * rz];
-  });
-
-
 /** Paired rings per band: a near-flat undercut (hidden from the raised camera)
  * then the next visible wall. `shape` maps depth fraction to outline scale. */
 function bandedProfile(
@@ -291,14 +276,9 @@ const SPECS: Record<WorldId, UndersideSpec> = {
   home: {
     world: "home",
     view: HOME_VIEW,
-    // Tucked 0.3 above the base of the accepted coastal strata skirt.
-    outline: ellipse(
-      HOME_ISLAND.centerX,
-      HOME_ISLAND.centerZ,
-      HOME_ISLAND.radiusX + 1.7,
-      HOME_ISLAND.radiusZ + 1.7,
-      96,
-    ),
+    // A rock ledge under the coastal trestle: its piers stand 1 inside the
+    // rim, and the lawn's stratified skirt and cove shelves sit on top of it.
+    outline: offsetOutline(resampleCurve(ccw(HOME_RAIL_POINTS), 128), 1),
     topY: -3.9,
     depth: 36,
     tipShift: 0.2,
@@ -321,7 +301,7 @@ const SPECS: Record<WorldId, UndersideSpec> = {
     isletShape: "bowl",
     islets: [
       {
-        screen: [-41, -15],
+        screen: [-45, -17],
         topY: -1.2,
         radius: 4.8,
         depth: 9,
@@ -339,7 +319,7 @@ const SPECS: Record<WorldId, UndersideSpec> = {
         prop: "none",
       },
       {
-        screen: [40, -30],
+        screen: [42.5, -31],
         topY: -6.5,
         radius: 5.2,
         depth: 10,
@@ -371,7 +351,8 @@ const SPECS: Record<WorldId, UndersideSpec> = {
   korea: {
     world: "korea",
     view: KOREA_VIEW,
-    outline: offsetOutline(resampleOutline(ccw(KOREA_SHORE), 128), -1),
+    // Tucked 1 inside the rounded ground slab, which reaches KOREA_COAST.
+    outline: offsetOutline(resampleCurve(ccw(KOREA_COAST), 128), -1),
     topY: -3,
     depth: 26,
     tipShift: 0.12,
@@ -454,8 +435,9 @@ const SPECS: Record<WorldId, UndersideSpec> = {
   stanford: {
     world: "stanford",
     view: STANFORD_VIEW,
-    // A rock shelf carries the coastal viaduct's piers, 2.4 beyond the rail.
-    outline: resampleCurve(offsetOutline(ccw(STANFORD_RAIL_POINTS), 2.4), 128),
+    // A rock shelf carries the coastal viaduct's piers, 2.4 beyond the rail,
+    // and swells behind the campus into ground for the golden foothills.
+    outline: resampleCurve(ccw(STANFORD_MESA), 128),
     topY: -3,
     depth: 30,
     tipShift: 0.06,

@@ -68,6 +68,8 @@ export const HOME_RAIL_POINTS: readonly P2[] = resampleLoop(
   480,
 );
 
+/** The avatar keeps this far from the lawn's cliff edge. */
+export const HOME_SHORE_CLEARANCE = 0.6;
 /** On the organic shore, at least `margin` in from its edge. */
 export function isHomeLand(x: number, z: number, margin = 0) {
   const dx = (x - HOME_ISLAND.centerX) / HOME_ISLAND.radiusX;

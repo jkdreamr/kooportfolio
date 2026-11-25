@@ -3,9 +3,9 @@
    after it, so equal-specificity rules here win over the matte skin.
 
    Blur budget (≤ 8 backdrop surfaces at once): dock, header capsule, the
-   zoom + time card (one pane), ≤ 5 place plaques, or — while a transient
-   pane is up — that pane instead of the plaques. Small or fast-moving
-   surfaces (joystick, touch plaques) use the dense fill and never blur. */
+   zoom + time card (one pane), the four nearest place plaques and the
+   context prompt. A toast, conversation or station pane takes the plaques'
+   share while it is up. The joystick and touch plaques never blur. */
 
 /* ── Scheme and capability fallbacks ───────────────────────────────────── */
 
@@ -26,7 +26,8 @@
     --glass-border-solid: #4f646d;
     --glass-highlight:
       inset 0 1px 0 rgb(255 255 255 / 0.92),
-      inset 0 0 0 1px rgb(255 255 255 / 0.24);
+      inset 0 0 0 1px rgb(255 255 255 / 0.24),
+      inset 0 -1px 0 rgb(20 40 54 / 0.06);
     --glass-shadow-sm:
       0 0 0 1px rgb(20 40 54 / 0.08), 0 1px 2px rgb(20 40 54 / 0.14),
       0 4px 12px rgb(20 40 54 / 0.12);
@@ -43,9 +44,9 @@
     );
     --glass-ink: #14242e;
     --glass-muted: #384b55;
-    --glass-gold: #6b4a0b;
-    --glass-well: rgb(20 36 46 / 0.06);
-    --glass-well-hover: rgb(20 36 46 / 0.11);
+    --glass-gold: #644508;
+    --glass-well: rgb(255 255 255 / 0.6);
+    --glass-well-hover: rgb(20 36 46 / 0.09);
     --glass-active: rgb(20 36 46 / 0.12);
     --glass-hairline: rgb(20 36 46 / 0.14);
     --glass-accent: #44663a;
@@ -75,7 +76,8 @@
 
 /* Reduced transparency, more contrast or forced colours: solid panes, no
    blur, no sheen, and one plain 1px border instead of the lit rim. */
-@media (prefers-reduced-transparency: reduce), (prefers-contrast: more),
+@media (prefers-reduced-transparency: reduce),
+  (prefers-contrast: more),
   (forced-colors: active) {
   :root,
   .game-shell:has(.game-ui.scene-hub) {
@@ -124,6 +126,7 @@
     .npc-dialog,
     .island-rail-controls,
     .world-travel-stop,
+    .world-travel-status,
     .objective-card,
     .race-instruments,
     .race-control-panel,
@@ -148,6 +151,11 @@
   border: 1px solid var(--glass-border);
   border-radius: var(--glass-radius-lg);
   box-shadow: var(--glass-highlight), var(--glass-shadow-lg);
+}
+/* The dialog takes focus on open only so Tab starts inside it; the lit rim
+   already marks it, and a system ring around the whole pane reads as a flaw. */
+.game-shell .game-modal:focus {
+  outline: none;
 }
 .game-shell .modal-scrim {
   background: var(--glass-scrim);
@@ -263,20 +271,13 @@
   background: var(--glass-gold);
   box-shadow: 0 0 0 2px rgb(240 207 142 / 0.18);
 }
-/* Plaques frost only on a fine pointer, with five or fewer on the island,
-   and while no transient pane needs the budget. */
+/* Plaques frost only on a fine pointer, only the nearest four (Labels.tsx
+   marks them), and not while a transient pane needs the budget. */
 @media (hover: hover) and (pointer: fine) {
   .game-shell:not(
-      :has(
-        .context-action.visible,
-        .npc-dialog,
-        .game-toast,
-        .island-rail-controls,
-        .world-travel-stop
-      )
+      :has(.npc-dialog, .game-toast, .island-rail-controls, .world-travel-stop)
     )
-    .world-labels:not(:has(.world-label:nth-child(6)))
-    .world-label::before {
+    .world-label.is-frosted::before {
     background: var(--glass-sheen) var(--glass-bg);
     -webkit-backdrop-filter: var(--glass-blur-sm);
     backdrop-filter: var(--glass-blur-sm);
@@ -360,7 +361,7 @@
     bottom: -1px;
   }
 }
-.game-shell .time-of-day-control select option {
+.game-shell :is(.time-of-day-control, .leaderboard) select option {
   color: var(--glass-ink);
   background: var(--glass-bg-solid);
 }
@@ -387,7 +388,7 @@
 .game-shell .setting-row {
   margin-bottom: 6px;
   padding: 14px 16px;
-  border: 1px solid transparent;
+  border: 1px solid var(--glass-hairline);
   border-radius: var(--glass-radius-sm);
 }
 .game-shell .setting-row b {
@@ -507,7 +508,11 @@
   outline-offset: 2px;
 }
 .game-shell
-  :is(.time-of-day-control select, .world-zoom button, .npc-dialog button):focus-visible {
+  :is(
+    .time-of-day-control select,
+    .world-zoom button,
+    .npc-dialog button
+  ):focus-visible {
   outline: 2px solid var(--glass-focus);
   outline-offset: -3px;
 }
@@ -625,45 +630,42 @@
   transform: scale(0.97);
 }
 @media (prefers-reduced-motion: reduce) {
-  .game-shell :is(button, a),
-  .game-shell :is(button, a) svg,
-  .game-shell .world-label::before {
-    transition-duration: 0.01ms;
-  }
-  .game-shell :is(button, a):is(:hover, :active),
-  .game-shell :is(button, a):is(:hover, :active) svg,
+  /* Colour may still change; nothing lifts, sinks or slides. */
+  .game-shell
+    :is(
+      .world-toolbar > button,
+      .world-toolbar > a,
+      .icon-button,
+      .close-button,
+      .quiet-button,
+      .setting-row,
+      .places-list button,
+      .primary-button,
+      .shoot-button,
+      .upgrade-button,
+      .context-action > button,
+      .npc-dialog button,
+      .island-rail-controls button,
+      .world-travel-stop button
+    ):is(:hover, :active):not(:disabled),
+  .game-shell .world-toolbar > :is(button, a):hover svg,
   .game-shell .world-label:is(:hover, :active)::before {
     transform: none;
   }
 }
 
-/* Forced colours: let the system palette draw every pane and control. */
+/* Forced colours: the UA already swaps colours and drops shadows, and the
+   tokens above have removed blur and translucency. Only the painted bits
+   that survive (gradient fills, the active dock item) need a system colour. */
 @media (forced-colors: active) {
-  .game-shell
-    :is(
-      .world-toolbar,
-      .resources,
-      .context-action,
-      .game-toast,
-      .time-of-day-control,
-      .world-zoom,
-      .npc-dialog,
-      .game-modal,
-      .build-panel,
-      .island-rail-controls,
-      .world-travel-stop,
-      .joystick
-    ) {
+  .game-shell :is(.joystick, .joystick > span) {
     background: Canvas;
-    color: CanvasText;
     border: 1px solid CanvasText;
-    box-shadow: none;
   }
   .game-shell .world-label::before,
   .game-shell .world-zoom::before {
     background: Canvas;
     border: 1px solid CanvasText;
-    box-shadow: none;
   }
   .game-shell .world-toolbar > button.active {
     border-color: Highlight;

@@ -18,8 +18,9 @@ import {
   ISLAND_CAMERA_OFFSET,
 } from "../src/game/core/islandCamera";
 import { ISLAND_SCREEN_DOWN_GROUND } from "../src/game/core/islandView";
-import { HOME_ISLAND } from "../src/game/core/homeIsland";
-import { isOnKoreaLand } from "../src/game/core/koreaDistrict";
+import { HOME_RAIL_POINTS, HOME_SHORE } from "../src/game/core/homeIsland";
+import { KOREA_COAST, isOnKoreaLand } from "../src/game/core/koreaDistrict";
+import { distanceToPolygon, insidePolygon } from "../src/game/core/coast";
 import { journeyPose } from "../src/game/core/journey";
 import { railPose } from "../src/game/core/islandRail";
 import { STANFORD_RAIL_POINTS } from "../src/shared/stanford-transport";
@@ -126,13 +127,22 @@ describe("floating-island undersides", () => {
   });
 
   it("tucks the top ring under the land and carries Stanford's viaduct", () => {
+    // Home: a rock ledge under the trestle, between the lawn and 1.3 beyond
+    // the rail, so every pier has ground to stand on.
     const home = undersideModel("home").rings[0].points;
-    for (const [x, , z] of home)
-      expect(
-        Math.hypot((x - HOME_ISLAND.centerX) / (HOME_ISLAND.radiusX + 1.84), (z - HOME_ISLAND.centerZ) / (HOME_ISLAND.radiusZ + 1.84)),
-      ).toBeLessThan(1);
-    for (const [x, , z] of undersideModel("korea").rings[0].points)
-      expect(isOnKoreaLand(x, z, 0.4), `${x},${z}`).toBe(true);
+    for (const [x, , z] of home) {
+      expect(insidePolygon(x, z, HOME_SHORE), `${x},${z}`).toBe(false);
+      expect(insidePolygon(x, z, HOME_RAIL_POINTS), `${x},${z}`).toBe(false);
+      expect(distanceToPolygon(x, z, HOME_RAIL_POINTS)).toBeGreaterThan(0.7);
+      expect(distanceToPolygon(x, z, HOME_RAIL_POINTS)).toBeLessThan(1.3);
+    }
+    for (const [x, z] of HOME_RAIL_POINTS) expect(inside([x, 0, z], home)).toBe(true);
+    // Korea: tucked inside the rounded ground slab, outside the walking shore.
+    for (const [x, , z] of undersideModel("korea").rings[0].points) {
+      expect(insidePolygon(x, z, KOREA_COAST), `${x},${z}`).toBe(true);
+      expect(distanceToPolygon(x, z, KOREA_COAST), `${x},${z}`).toBeGreaterThan(0.4);
+      expect(isOnKoreaLand(x, z), `${x},${z}`).toBe(false);
+    }
     const shelf = undersideModel("stanford").rings[0].points;
     for (const [x, z] of STANFORD_RAIL_POINTS) {
       expect(inside([x, 0, z], shelf)).toBe(true);

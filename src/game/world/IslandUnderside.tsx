@@ -11,6 +11,7 @@ import {
 import { daylightClock } from "../core/timeOfDay";
 import type { WorldId } from "../core/worlds";
 import { sculptedMaterial } from "./Surface";
+import { crystalMaterial, gemGeometry, glassMaterial, gloss } from "./GlossKit";
 import { NaturalTrees } from "./TreeArt";
 import {
   undersideDetail,
@@ -68,11 +69,11 @@ function bounceLit(material: THREE.MeshStandardMaterial, key: string) {
 }
 const rockMaterial = bounceLit(
   sculptedMaterial({ vertexColors: true, roughness: 1 }),
-  "island-underside-rock-v1",
+  "island-underside-rock-v2",
 );
 const partMaterial = bounceLit(
   sculptedMaterial({ roughness: 0.9 }),
-  "island-underside-part-v1",
+  "island-underside-part-v2",
 );
 
 const shapes: Record<DetailShape, THREE.BufferGeometry> = {
@@ -141,19 +142,10 @@ function DetailBatches({ parts }: { parts: readonly DetailPart[] }) {
   ));
 }
 
-// Lanterns glow in their own colour (honey, or Korean red/green/blue) by night.
-const lanternGlow = { value: 0 };
-const lanternMaterial = new THREE.MeshStandardMaterial({ roughness: 0.6 });
-lanternMaterial.onBeforeCompile = (shader) => {
-  shader.uniforms.uGlow = lanternGlow;
-  shader.fragmentShader = shader.fragmentShader
-    .replace("#include <common>", "#include <common>\nuniform float uGlow;")
-    .replace(
-      "#include <emissivemap_fragment>",
-      "#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * uGlow;",
-    );
-};
-lanternMaterial.customProgramCacheKey = () => "island-underside-lantern-v1";
+// Clear glass lanterns: sky sheen by day, lit in their own colour (honey, or
+// Korean red/green/blue) by night. Quartz shares the gloss rig's baked sky.
+const lanternMaterial = glassMaterial({ tint: true });
+const quartzMaterial = crystalMaterial();
 const lanternBox = new THREE.BoxGeometry(0.42, 0.58, 0.42);
 
 function Lanterns({ lanterns }: { lanterns: readonly Lantern[] }) {
@@ -184,7 +176,13 @@ const fallUniforms = {
   uTime: { value: 0 },
   uTint: { value: new THREE.Color(1, 1, 1) },
   uLanes: { value: 5 },
+  uGlossSky: gloss.sky,
+  uGlossWarm: gloss.warm,
+  uGlossNight: gloss.night,
 };
+// A glassy sheet: clear teal body, sky-bright fresnel edges where the ribbon
+// curls away, a specular thread down each lane, scalloped foam at the lip and
+// the village's warm light caught in the first few metres after dark.
 const fallMaterial = new THREE.ShaderMaterial({
   uniforms: fallUniforms,
   transparent: true,
@@ -204,6 +202,9 @@ const fallMaterial = new THREE.ShaderMaterial({
     uniform float uTime;
     uniform vec3 uTint;
     uniform float uLanes;
+    uniform vec3 uGlossSky;
+    uniform vec3 uGlossWarm;
+    uniform float uGlossNight;
     varying vec2 vUv;
     varying float vFade;
     void main() {
@@ -214,10 +215,21 @@ const fallMaterial = new THREE.ShaderMaterial({
       float column = fract(vUv.x * uLanes);
       foam *= smoothstep(0.0, 0.35, column) * (1.0 - smoothstep(0.65, 1.0, column));
       float edge = smoothstep(0.0, 0.14, vUv.x) * (1.0 - smoothstep(0.86, 1.0, vUv.x));
-      vec3 water = mix(vec3(0.34, 0.6, 0.68), vec3(0.88, 0.96, 0.97), foam * 0.7);
-      float lip = 1.0 - smoothstep(0.0, 2.2, vUv.y);
-      water = mix(water, vec3(0.92, 0.97, 0.97), lip * 0.55);
-      gl_FragColor = vec4(water * uTint, (0.66 + 0.28 * foam) * edge * vFade);
+      float across = abs(vUv.x - 0.5) * 2.0;
+      float fresnel = across * across * across;
+      float thread = (1.0 - smoothstep(0.0, 0.07, abs(column - 0.36))) * (0.55 + 0.45 * sin(vUv.y * 1.7 - uTime * 3.0 + seed * 6.0));
+      vec3 body = mix(vec3(0.20, 0.50, 0.60), vec3(0.36, 0.64, 0.70), column);
+      vec3 water = mix(body, vec3(0.88, 0.96, 0.97), foam * 0.7);
+      float scallop = 0.5 + 0.5 * sin(vUv.x * uLanes * 12.566 + uTime * 2.0);
+      float lip = 1.0 - smoothstep(0.0, 1.5 + 1.1 * scallop, vUv.y);
+      water = mix(water, vec3(0.93, 0.97, 0.97), lip * 0.7);
+      water *= uTint;
+      vec3 sky = uGlossSky * (1.0 - 0.75 * uGlossNight);
+      water += sky * (fresnel * 0.42 + thread * 0.22) * (1.0 - lip * 0.6);
+      float lit = 1.0 - smoothstep(0.0, 9.0, vUv.y);
+      water += uGlossWarm * uGlossNight * (0.07 + 0.3 * lit * (0.5 + 0.5 * foam + 0.4 * thread));
+      float alpha = (0.6 + 0.28 * foam + 0.2 * fresnel + 0.16 * thread + 0.25 * lip) * edge * vFade;
+      gl_FragColor = vec4(min(water, vec3(0.96)), min(alpha, 0.94));
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
     }
@@ -264,7 +276,7 @@ const wheelGeometry = (() => {
 })();
 const wheelMaterial = bounceLit(
   sculptedMaterial({ vertexColors: true, roughness: 0.9 }),
-  "island-underside-wheel-v1",
+  "island-underside-wheel-v2",
 );
 
 const cloudGeometry = new THREE.IcosahedronGeometry(1, 1);
@@ -312,7 +324,6 @@ export function IslandUnderside({
       .copy(skyKeys[light.index])
       .lerp(skyKeys[light.index + 1], light.blend)
       .multiplyScalar(0.34 - 0.2 * light.night);
-    lanternGlow.value = 0.06 + light.night * 1.5;
     cloudMaterial.emissive.copy(bounce.value).multiplyScalar(1.4);
     fallUniforms.uTint.value.copy(dayWater).lerp(nightWater, light.night);
     fallUniforms.uLanes.value = world === "stanford" ? 9 : world === "korea" ? 2 : 4;
@@ -335,6 +346,13 @@ export function IslandUnderside({
       {detail && <DetailBatches parts={dressing.fine} />}
       {detail && dressing.lanterns.length > 0 && (
         <Lanterns lanterns={dressing.lanterns} />
+      )}
+      {detail && dressing.crystals.length > 0 && (
+        <Parts
+          parts={dressing.crystals}
+          geometry={gemGeometry}
+          material={quartzMaterial}
+        />
       )}
       <NaturalTrees trees={dressing.trees} />
       {wheelSpec && (

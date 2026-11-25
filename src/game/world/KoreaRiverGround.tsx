@@ -1,5 +1,6 @@
 import * as THREE from "three";
-import { KOREA_SHORE } from "../core/koreaDistrict";
+import { KOREA_COAST, KOREA_SHORE } from "../core/koreaDistrict";
+import { KOREA_APRON_Y } from "../core/terrain";
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
 import type { GroundFootprint } from "../core/scenery";
 
@@ -39,6 +40,23 @@ const soilMaterial = new THREE.MeshStandardMaterial({
   roughness: 1,
 });
 const terrainMaterials = [groundMaterial, soilMaterial];
+// The streets end at a stone edge; a rounded, mossy apron of unwalkable rock
+// lies a step below it and carries the pine hillside and the granite ridge.
+const coast = new THREE.Shape(
+  KOREA_COAST.map(([x, z]) => new THREE.Vector2(x, z)),
+);
+coast.closePath();
+const apron = new THREE.ExtrudeGeometry(coast, {
+  depth: 4.34 + KOREA_APRON_Y - 0.14,
+  bevelEnabled: false,
+});
+apron.rotateX(Math.PI / 2);
+apron.translate(0, KOREA_APRON_Y, 0);
+apron.computeVertexNormals();
+const apronMaterials = [
+  new THREE.MeshStandardMaterial({ color: "#7f8c6c", roughness: 1 }),
+  new THREE.MeshStandardMaterial({ color: "#8f9087", roughness: 1 }),
+];
 const walls: SceneryPart[] = [];
 for (let x = -11; x < 62; x += 2.4) {
   for (const z of [22, 44]) {
@@ -66,6 +84,12 @@ export function KoreaRiverGround() {
         material={terrainMaterials}
         receiveShadow
         castShadow
+        dispose={null}
+      />
+      <mesh
+        geometry={apron}
+        material={apronMaterials}
+        receiveShadow
         dispose={null}
       />
       <WorldSceneryParts parts={walls} />

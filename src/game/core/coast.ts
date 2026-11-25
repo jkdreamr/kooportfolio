@@ -9,13 +9,15 @@ export type P2 = readonly [number, number];
 export type Lobe = { at: number; amp: number; width: number; name?: string };
 
 const TAU = Math.PI * 2;
-const wrapRadians = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle));
+const wrapRadians = (angle: number) =>
+  Math.atan2(Math.sin(angle), Math.cos(angle));
 
 /** Radial scale of a lobed loop at parameter angle `phi` (radians). */
 export function lobeScale(phi: number, lobes: readonly Lobe[]) {
   let scale = 1;
   for (const { at, amp, width } of lobes) {
-    const d = wrapRadians(phi - (at * Math.PI) / 180) / ((width * Math.PI) / 180);
+    const d =
+      wrapRadians(phi - (at * Math.PI) / 180) / ((width * Math.PI) / 180);
     scale += amp * Math.exp(-d * d);
   }
   return scale;
@@ -334,7 +336,8 @@ export function minCurveRadius(points: readonly P2[], stride = 1) {
     const area2 = Math.abs(
       (b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1]),
     );
-    if (area2 > 1e-12) tightest = Math.min(tightest, (ab * bc * ca) / (2 * area2));
+    if (area2 > 1e-12)
+      tightest = Math.min(tightest, (ab * bc * ca) / (2 * area2));
   }
   return tightest;
 }
@@ -376,11 +379,7 @@ export function splineLoop(control: readonly P2[], perSegment = 16): P2[] {
 
 /** Distance along a ray to its first crossing of the closed polyline, or
  * Infinity. `direction` need not be normalised; the result is in its units. */
-export function rayToPolygon(
-  origin: P2,
-  direction: P2,
-  points: readonly P2[],
-) {
+export function rayToPolygon(origin: P2, direction: P2, points: readonly P2[]) {
   let nearest = Infinity;
   for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
     const [ax, az] = points[j];

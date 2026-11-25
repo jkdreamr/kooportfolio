@@ -14,11 +14,15 @@ import { Box, Cylinder, Sign } from "./Models";
 import { runtime, useGame } from "../core/store";
 import { keys, touch } from "../core/input";
 import { railForWorld, railPose } from "../core/islandRail";
+import { HOME_SHORE } from "../core/homeIsland";
+import { distanceToPolygon } from "../core/coast";
 import type { WorldId } from "../core/worlds";
 import { travelOptions, WORLD_NAMES } from "../core/travel";
 import "./island-train.css";
 
 const TIES = 320;
+/** Clear span between Home's lawn and its rail that counts as a cove crossing. */
+const TRESTLE_GAP = 3.1;
 const RAIL_SEGMENTS = 400;
 
 function CoastalTrack({ world }: { world: WorldId }) {
@@ -26,6 +30,7 @@ function CoastalTrack({ world }: { world: WorldId }) {
   const ties = useRef<THREE.InstancedMesh>(null);
   const rails = useRef<THREE.InstancedMesh>(null);
   const piers = useRef<THREE.InstancedMesh>(null);
+  const braces = useRef<THREE.InstancedMesh>(null);
   useLayoutEffect(() => {
     const object = new THREE.Object3D();
     for (let i = 0; i < TIES; i++) {
@@ -39,23 +44,21 @@ function CoastalTrack({ world }: { world: WorldId }) {
     for (let i = 0; i < RAIL_SEGMENTS; i++) {
       const p = railPose(i / RAIL_SEGMENTS, 0, world);
       const next = railPose((i + 1) / RAIL_SEGMENTS, 0, world);
-      const length =
-        world === "home" ? Math.hypot(next.x - p.x, next.z - p.z) * 0.98 : 1.65;
       for (let side = 0; side < 2; side++) {
         const offset = side === 0 ? -0.77 : 0.77;
         const ax = p.x + Math.cos(p.heading) * offset;
         const az = p.z - Math.sin(p.heading) * offset;
-        if (world === "stanford") {
+        if (world !== "korea") {
           const bx = next.x + Math.cos(next.heading) * offset;
           const bz = next.z - Math.sin(next.heading) * offset;
-          // Join each actual side rail around the tighter coastal bends.
+          // Join each actual side rail around the coast's headlands and coves.
           object.position.set((ax + bx) / 2, rail.height, (az + bz) / 2);
           object.rotation.set(0, Math.atan2(bx - ax, bz - az), 0);
           object.scale.set(0.13, 0.16, Math.hypot(bx - ax, bz - az) * 1.02);
         } else {
           object.position.set(ax, rail.height, az);
           object.rotation.set(0, p.heading, 0);
-          object.scale.set(0.13, 0.16, length);
+          object.scale.set(0.13, 0.16, 1.65);
         }
         object.updateMatrix();
         rails.current!.setMatrixAt(i * 2 + side, object.matrix);
@@ -63,13 +66,41 @@ function CoastalTrack({ world }: { world: WorldId }) {
     }
     for (let i = 0; i < 72; i++) {
       const p = railPose(i / 72, 0, world);
-      object.position.set(p.x, -1, p.z);
+      // Home's trestle stands on the rock ledge a little below Stanford's shelf.
+      const depth = world === "home" ? 5 : 4;
+      object.position.set(p.x, 1 - depth / 2, p.z);
       object.rotation.set(0, p.heading, 0);
-      object.scale.set(1.9, 4, 0.45);
+      object.scale.set(1.9, depth, 0.45);
       object.updateMatrix();
       piers.current!.setMatrixAt(i, object.matrix);
     }
-    for (const ref of [ties, rails, piers]) {
+    // Where Home's line leaves the cliff to cross a cove, cross-braces turn
+    // the row of piers into a timber trestle.
+    let braced = 0;
+    if (world === "home") {
+      const from = new THREE.Vector3(),
+        to = new THREE.Vector3();
+      for (let i = 0; i < 72; i++) {
+        const a = railPose(i / 72, 0, world),
+          b = railPose((i + 1) / 72, 0, world);
+        if (
+          distanceToPolygon(a.x, a.z, HOME_SHORE) < TRESTLE_GAP ||
+          distanceToPolygon(b.x, b.z, HOME_SHORE) < TRESTLE_GAP
+        )
+          continue;
+        for (const rising of [true, false]) {
+          from.set(a.x, rising ? -3.3 : 0.5, a.z);
+          to.set(b.x, rising ? 0.5 : -3.3, b.z);
+          object.position.copy(from).add(to).multiplyScalar(0.5);
+          object.lookAt(to);
+          object.scale.set(0.2, 0.2, from.distanceTo(to));
+          object.updateMatrix();
+          braces.current!.setMatrixAt(braced++, object.matrix);
+        }
+      }
+    }
+    braces.current!.count = braced;
+    for (const ref of [ties, rails, piers, braces]) {
       ref.current!.instanceMatrix.needsUpdate = true;
       ref.current!.computeBoundingSphere();
     }
@@ -102,6 +133,10 @@ function CoastalTrack({ world }: { world: WorldId }) {
       >
         <boxGeometry />
         <meshStandardMaterial color="#998b73" roughness={0.95} />
+      </instancedMesh>
+      <instancedMesh ref={braces} args={[undefined, undefined, 144]}>
+        <boxGeometry />
+        <meshStandardMaterial color="#7d6648" roughness={0.9} />
       </instancedMesh>
     </group>
   );

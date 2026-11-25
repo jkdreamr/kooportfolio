@@ -10,11 +10,8 @@
   display: flex;
   align-items: center;
   gap: 18px;
-  padding: 8px 10px 8px 18px;
-  border: 1px solid #7a8d89;
-  border-radius: 9px;
-  background: #f4f2e8;
-  color: #243e40;
+  /* Surface, edge and depth come from the shared glass recipe (glass.css). */
+  padding: 7px 7px 7px 18px;
   font:
     13px system-ui,
     sans-serif;
@@ -23,16 +20,12 @@
 }
 .world-travel-status button {
   min-height: 44px;
-  border: 0;
-  border-radius: 5px;
+  border: 1px solid var(--glass-accent-border, #8ba275);
+  border-radius: var(--glass-radius-sm, 11px);
   padding: 8px 12px;
-  color: #fffdf5;
-  background: #335a4b;
+  color: var(--glass-accent-ink, #fff8e1);
+  background: var(--glass-accent, #4c6d42);
   cursor: pointer;
-}
-.world-travel-status button:focus-visible {
-  outline: 2px solid #243e40;
-  outline-offset: 3px;
 }
 .world-travel-stop {
   position: absolute;
@@ -42,12 +35,7 @@
   width: max-content;
   max-width: calc(100vw - 28px);
   box-sizing: border-box;
-  padding: 10px 12px;
-  border: 2px solid #b39b66;
-  border-radius: 9px;
-  background: #304650;
-  box-shadow: 0 4px 0 #152630;
-  color: #f5f4e9;
+  padding: 12px;
   font:
     bold 14px Trebuchet MS,
     Arial,
@@ -70,11 +58,13 @@
 .world-journey button {
   min-height: 44px;
   padding: 10px 13px;
-  border: 1px solid #8ba275;
-  border-bottom-width: 3px;
-  border-radius: 6px;
-  background: #486832;
-  color: #f5f4e9;
+  border: 1px solid var(--glass-accent-border, #8ba275);
+  border-radius: var(--glass-radius-sm, 11px);
+  background: var(--glass-accent, #4c6d42);
+  color: var(--glass-accent-ink, #fff8e1);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.22),
+    0 1px 2px rgb(4 16 24 / 0.24);
   font:
     bold 14px Trebuchet MS,
     Arial,
@@ -84,12 +74,7 @@
 }
 .world-travel-stop button:hover,
 .world-journey button:hover {
-  background: #5a7a40;
-}
-.world-travel-stop button:focus-visible,
-.world-journey button:focus-visible {
-  outline: 3px solid #f0c56b;
-  outline-offset: 3px;
+  background: var(--glass-accent-hover, #557849);
 }
 .world-journey {
   position: absolute;
@@ -102,8 +87,8 @@
   padding: max(16px, env(safe-area-inset-top))
     max(20px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom))
     max(20px, env(safe-area-inset-left));
-  background: #21353f;
-  color: #f5f4e9;
+  background: var(--hud-low, #14262f);
+  color: var(--hud-ink, #f6f5ec);
   font:
     14px Trebuchet MS,
     Arial,
@@ -128,8 +113,9 @@
 .world-journey-view {
   flex: 1;
   min-height: 0;
-  border: 2px solid #b39b66;
-  border-radius: 9px;
+  border: 1px solid var(--glass-border, #71878e);
+  border-radius: var(--glass-radius, 16px);
+  box-shadow: var(--glass-shadow, none);
   overflow: hidden;
 }
 .world-journey footer {

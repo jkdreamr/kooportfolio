@@ -15,6 +15,7 @@ import { onStanfordLand } from "../../shared/stanford-ground";
 import { StanfordGround } from "./StanfordGround";
 import type { WorldId } from "../core/worlds";
 import { waterMaterial } from "./GlossKit";
+import { MicroDetail } from "./MicroDetail";
 import { STANFORD_WALKS } from "../core/stanfordLayout";
 import { doorsInWorld } from "../core/world";
 
@@ -134,6 +135,7 @@ export function Landscape({ world = "stanford" }: { world?: WorldId }) {
         </>
       )}
       <Scenery world={world} />
+      <MicroDetail world={world} />
       {world === "stanford" && (
         <group position={[campus.x, 0, campus.z]} rotation={[0, Math.PI, 0]}>
           <CampusDistrict />
@@ -200,6 +202,7 @@ function HomeCoast() {
   return (
     <group name="home-compact-coast">
       <HomeCoastArt />
+      <MicroDetail world="home" />
       <Bench p={[-2.7, 0.2, 3.4]} />
       <Bench p={[2.8, 0.2, -2.9]} rotation={Math.PI} />
       {[-1, 1].map((side) => (

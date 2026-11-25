@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { surfaceSky } from "./Surface";
 
 /** Shared gloss rig. One frame driver (Game's Sun) feeds every glossy
@@ -17,6 +18,7 @@ type Glossy = THREE.MeshStandardMaterial & {
 };
 const registry: Glossy[] = [];
 let environment: THREE.Texture | null = null;
+let environmentTarget: THREE.WebGLRenderTarget | null = null;
 let environmentFor: THREE.WebGLRenderer | null = null;
 
 function register<T extends THREE.MeshStandardMaterial>(
@@ -78,7 +80,7 @@ function bakeEnvironment(renderer: THREE.WebGLRenderer) {
   sky.dispose();
   cardGeometry.dispose();
   cardMaterial.dispose();
-  return target.texture;
+  return target;
 }
 
 const rim = new THREE.Color();
@@ -93,7 +95,10 @@ export function updateGloss(
 ) {
   if (environmentFor !== renderer) {
     // A new canvas (context restore, remount) owns its own GPU texture.
-    environment = bakeEnvironment(renderer);
+    // Baked exactly once per renderer; the previous canvas's copy is freed.
+    environmentTarget?.dispose();
+    environmentTarget = bakeEnvironment(renderer);
+    environment = environmentTarget.texture;
     environmentFor = renderer;
     for (const material of registry) {
       material.envMap = environment;
@@ -222,11 +227,11 @@ export function waterMaterial({
   const material = register(
     new THREE.MeshStandardMaterial({
       color,
-      roughness: 0.14,
-      metalness: 0.28,
+      roughness: 0.16,
+      metalness: 0.1,
     }),
-    0.85,
-    0.25,
+    0.5,
+    0.12,
   );
   const deepColor = new THREE.Color(deep);
   material.onBeforeCompile = (shader) => {
@@ -266,14 +271,14 @@ export function waterMaterial({
         }
         float waterShallow = smoothstep(0.35, 0.95, waterEdge);
         diffuseColor.rgb = mix(uWaterDeep, diffuseColor.rgb, 0.45 + 0.55 * waterShallow);
-        diffuseColor.rgb *= 1.0 + waterCrest * 0.07;
-        waterFoam = ${foam.toFixed(2)} * smoothstep(${shore === "band" ? "0.955" : "0.86"} + waterLap, ${shore === "band" ? "0.985" : "0.93"} + waterLap, waterEdge);
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.86, 0.93, 0.92), waterFoam * 0.7);`,
+        diffuseColor.rgb *= 1.0 + waterCrest * 0.06;
+        waterFoam = ${foam.toFixed(2)} * smoothstep(${shore === "band" ? "0.962" : "0.9"} + waterLap, ${shore === "band" ? "0.988" : "0.955"} + waterLap, waterEdge);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.80, 0.90, 0.89), waterFoam * 0.6);`,
       )
       .replace(
         "#include <normal_fragment_maps>",
         `#include <normal_fragment_maps>
-        normal = normalize(normal + (viewMatrix * vec4(-waterSlope.x, 0.0, -waterSlope.y, 0.0)).xyz * 0.085);`,
+        normal = normalize(normal + (viewMatrix * vec4(-waterSlope.x, 0.0, -waterSlope.y, 0.0)).xyz * 0.04);`,
       )
       .replace(
         "#include <roughnessmap_fragment>",
@@ -285,15 +290,15 @@ export function waterMaterial({
         `#include <emissivemap_fragment>
         float waterFresnel = 1.0 - saturate(dot(normal, vec3(0.0, 0.0, 1.0)));
         waterFresnel = waterFresnel * waterFresnel;
-        float waterGlint = smoothstep(0.80, 0.97, waterCrest) * (1.0 - waterFoam);
-        vec3 waterSky = uGlossSky * (0.10 + 0.55 * waterFresnel) * (1.0 - 0.8 * uGlossNight);
+        float waterGlint = smoothstep(0.90, 0.985, waterCrest) * (1.0 - waterFoam);
+        vec3 waterSky = uGlossSky * (0.03 + 0.34 * waterFresnel) * (1.0 - 0.85 * uGlossNight);
         totalEmissiveRadiance += waterSky * (1.0 - waterFoam * 0.6);
-        totalEmissiveRadiance += mix(uGlossSky * 0.42, uGlossWarm * 0.5, uGlossNight) * waterGlint;
-        totalEmissiveRadiance += uGlossWarm * uGlossNight * (0.035 + 0.05 * waterShallow);`,
+        totalEmissiveRadiance += mix(uGlossSky * 0.34, uGlossWarm * 0.22, uGlossNight) * waterGlint;
+        totalEmissiveRadiance += uGlossWarm * uGlossNight * (0.02 + 0.05 * waterShallow * (0.6 + 0.4 * waterCrest));`,
       );
   };
   material.customProgramCacheKey = () =>
-    `gloss-water-v1:${shore}:${scale}:${flow.join(",")}:${foam}`;
+    `gloss-water-v2:${shore}:${scale}:${flow.join(",")}:${foam}`;
   return material;
 }
 
@@ -357,10 +362,22 @@ export function haloMaterial() {
       varying vec3 vHaloColor;
       void main() {
         float d = length(vHalo);
-        float glow = pow(max(0.0, 1.0 - d), 2.4);
-        gl_FragColor = vec4(vHaloColor * glow * 0.42 * smoothstep(0.25, 0.9, uGlossNight), 1.0);
+        float glow = max(0.0, exp(-d * d * 4.2) - 0.015) * (1.0 - smoothstep(0.8, 1.0, d));
+        gl_FragColor = vec4(vHaloColor * glow * 0.4 * smoothstep(0.25, 0.9, uGlossNight), 1.0);
         #include <colorspace_fragment>
       }
     `,
   });
 }
+
+/** A hexagonal prism with a pointed crown: a lantern body or a quartz point.
+ * Unit height, origin at mid-height; module-owned, never disposed. */
+export const gemGeometry = (() => {
+  const body = new THREE.CylinderGeometry(0.5, 0.5, 0.68, 6).translate(0, -0.16, 0);
+  const crown = new THREE.ConeGeometry(0.5, 0.32, 6).translate(0, 0.34, 0);
+  const merged = mergeGeometries([body.toNonIndexed(), crown.toNonIndexed()])!;
+  merged.computeVertexNormals();
+  body.dispose();
+  crown.dispose();
+  return merged;
+})();

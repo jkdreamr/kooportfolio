@@ -16,15 +16,8 @@
   );
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 19px 20px 15px;
-  color: var(--hud-ink, #f5f4e9);
-  background: var(--hud-face, #304650);
-  border: 1px solid var(--hud-edge, #536873);
-  border-bottom: 3px solid #162e39;
-  border-radius: 10px;
-  box-shadow:
-    inset 0 1px #bbc7b82e,
-    0 5px 16px #102b3d33;
+  /* Surface, edge and depth come from the shared glass recipe (glass.css). */
+  padding: 20px 20px 14px;
   font-family: inherit;
 }
 .npc-speaker {
@@ -35,8 +28,9 @@
 .npc-speaker i {
   width: 12px;
   height: 12px;
-  border: 1px solid #ffffff40;
-  border-radius: 2px;
+  border: 1px solid var(--glass-border, #ffffff40);
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgb(4 16 24 / 0.3);
 }
 .npc-dialog h2 {
   font-size: 14px;
@@ -75,10 +69,10 @@
 .npc-picture {
   margin: 0;
   padding: 5px 5px 4px;
-  border-radius: 2px;
-  border: 1px solid var(--hud-edge, #536873);
-  background: var(--hud-low, #21353f);
-  color: var(--hud-ink, #f5f4e9);
+  border-radius: var(--glass-radius-xs, 8px);
+  border: 1px solid var(--glass-hairline, #536873);
+  background: var(--glass-well, #21353f);
+  color: var(--glass-ink, #f5f4e9);
 }
 .npc-picture svg {
   display: block;
@@ -94,9 +88,9 @@
   min-width: 44px;
   min-height: 44px;
   padding: 8px 10px;
-  border-radius: 3px;
-  border: 1px solid var(--hud-edge, #536873);
-  background: var(--hud-low, #21353f);
+  border-radius: var(--glass-radius-sm, 11px);
+  border: 1px solid var(--glass-hairline, #536873);
+  background: var(--glass-well, #21353f);
   color: inherit;
   font-family: inherit;
   font-size: 12px;
@@ -105,25 +99,25 @@
 }
 .npc-dialog .npc-continue,
 .npc-dialog .npc-topics button {
-  background: #48616d;
-  border-color: #82959b;
+  background: var(--glass-active, #48616d);
+  border-color: var(--glass-border, #82959b);
 }
 .npc-dialog button:hover {
-  filter: brightness(1.12);
+  background: var(--glass-well-hover, #48616d);
 }
-.game-shell .npc-dialog button:focus-visible {
-  outline: 1px solid #d2dee0;
-  outline-offset: 2px;
+.npc-dialog :is(.npc-continue, .npc-topics button):hover {
+  filter: brightness(1.1);
+  background: var(--glass-active, #48616d);
 }
 .npc-dialog .npc-goodbye {
   margin-left: auto;
   border-color: transparent;
-  color: var(--hud-muted, #c3d0d0);
+  color: var(--glass-muted, #d3dedd);
 }
 .npc-dialog kbd {
   margin-left: 12px;
   font-size: 10px;
-  opacity: 0.65;
+  color: var(--glass-muted, #d3dedd);
 }
 @media (pointer: coarse) {
   .npc-dialog kbd {

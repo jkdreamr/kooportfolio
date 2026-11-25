@@ -55,7 +55,11 @@ function Pieces({
   );
 }
 
-export type Pane = { p: [number, number, number]; s: [number, number, number] };
+export type Pane = {
+  p: [number, number, number];
+  s: [number, number, number];
+  r?: [number, number, number];
+};
 const paneGeometry = new THREE.BoxGeometry();
 /** One shared pane glass: sky sheen by day, lit from inside after dusk. */
 export const windowGlass = glassMaterial();
@@ -67,9 +71,10 @@ export function Glazing({ panes }: { panes: Pane[] }) {
   useLayoutEffect(() => {
     const object = new THREE.Object3D(),
       mesh = ref.current!;
-    panes.forEach(({ p, s }, i) => {
+    panes.forEach(({ p, s, r = [0, 0, 0] }, i) => {
       object.position.set(...p);
       object.scale.set(...s);
+      object.rotation.set(...r);
       object.updateMatrix();
       mesh.setMatrixAt(i, object.matrix);
     });

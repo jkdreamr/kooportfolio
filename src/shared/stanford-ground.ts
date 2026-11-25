@@ -1,5 +1,6 @@
 import {
   ccwLoop,
+  displaceLoop,
   distanceToPolygon,
   insidePolygon,
   loopCentroid,
@@ -70,14 +71,16 @@ export const STANFORD_COAST_VERGE = 1.2;
 export const STANFORD_COAST_RAIL_CLEARANCE = 2.6;
 /** Bays, by bearing in degrees about the rail's centre (0 east, 90 south). */
 export const STANFORD_COAST_BAYS = [
-  { name: "north-east bay", at: -62, width: 13, depth: 0.95 },
   { name: "east bay", at: -8, width: 10, depth: 0.9 },
   { name: "south bay", at: 78, width: 9, depth: 0.8 },
   { name: "west bay", at: 152, width: 9, depth: 0.85 },
-  { name: "north-west bay", at: -128, width: 8, depth: 0.7 },
+  { name: "north bay", at: -103, width: 7, depth: 0.75 },
 ] as const;
 const stanfordVerge = smoothLoop(
-  offsetLoop(resampleCorners(ccwLoop(STANFORD_SHORE), 256), STANFORD_COAST_VERGE),
+  offsetLoop(
+    resampleCorners(ccwLoop(STANFORD_SHORE), 256),
+    STANFORD_COAST_VERGE,
+  ),
   8,
 );
 const stanfordRail = resampleLoop(ccwLoop(STANFORD_RAIL_POINTS), 256);
@@ -127,3 +130,31 @@ function outsideShore(loop: readonly P2[], margin: number): P2[] {
 }
 /** Counter-clockwise, 256 vertices, outside the shore and inside the rail. */
 export const STANFORD_COAST: readonly P2[] = outsideShore(stanfordRolled, 0.45);
+
+// Render-only rock shelf under the viaduct: 2.4 beyond the rail all round,
+// swelling behind the campus (north and west, the far side from the overview
+// camera) into ground for the golden foothills. Nothing here is walkable.
+export const STANFORD_MESA_SWELLS = [
+  { name: "north range", at: [-6, -11], reach: 12.5, spread: 19 },
+  { name: "north-west shoulder", at: [-31, -5], reach: 6, spread: 10 },
+  { name: "west range", at: [-33, 14], reach: 11.5, spread: 11 },
+  { name: "north-east spur", at: [37, -1], reach: 8, spread: 10 },
+] as const;
+/** Counter-clockwise, 160 even vertices. */
+export const STANFORD_MESA: readonly P2[] = resampleLoop(
+  smoothLoop(
+    displaceLoop(
+      offsetLoop(resampleLoop(ccwLoop(STANFORD_RAIL_POINTS), 256), 2.4),
+      (_, [x, z]) =>
+        STANFORD_MESA_SWELLS.reduce(
+          (sum, { at, reach, spread }) =>
+            sum +
+            reach *
+              Math.exp(-(((x - at[0]) ** 2 + (z - at[1]) ** 2) / spread ** 2)),
+          0,
+        ),
+    ),
+    9,
+  ),
+  160,
+);
