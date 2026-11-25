@@ -24,6 +24,7 @@ import { LabelProjection } from "./Labels";
 import { Landscape } from "./Landscape";
 import { VillageGardens } from "./VillageGardens";
 import { HomeWorldEnvironment } from "./HomeWorldEnvironment";
+import { HomeBuildingArt } from "./HomeBuildingArt";
 import { KoreaWorldEnvironment } from "./KoreaWorldEnvironment";
 import { Bulletin } from "./Bulletin";
 import { roomFor } from "../core/room";
@@ -447,6 +448,7 @@ export function Hub() {
           {door.id === "cognition" && <CognitionShell />}
           {door.id === "kitchen" && <KitchenShell />}
           {door.id === "gym" && <GymShell />}
+          {world === "home" && <HomeBuildingArt id={door.id} />}
         </group>
       ))}
       {world === "home" && <Garden level={save.upgrades.garden} />}
