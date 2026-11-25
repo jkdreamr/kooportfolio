@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { Html, PerspectiveCamera } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
 import { create } from "zustand";
@@ -114,6 +121,254 @@ function TheaterSeat({ x, z }: { x: number; z: number }) {
   );
 }
 
+/** Most item buttons a program view renders before asking for more. */
+const PROGRAM_PAGE = 60;
+
+const KIND_NOUN: Record<TheaterFilm["kind"], string> = {
+  "Full episode": "episode",
+  "Full movie": "movie",
+  "Short film": "short",
+  Trailer: "trailer",
+};
+
+function countLabel(films: readonly TheaterFilm[]) {
+  const kinds = new Set(films.map((film) => film.kind));
+  const noun = kinds.size === 1 ? KIND_NOUN[films[0].kind] : "video";
+  return `${films.length} ${noun}${films.length === 1 ? "" : "s"}`;
+}
+
+function channelLabel(films: readonly TheaterFilm[]) {
+  const channels = [...new Set(films.map((film) => film.channel))];
+  return channels.length > 1
+    ? `${channels[0]} + ${channels.length - 1} more`
+    : channels[0];
+}
+
+/**
+ * Drill-down program: shows → episodes, or a flat search. Lives inside the
+ * Html DOM root (not the R3F root) so the controlled search input updates in
+ * the same React root that owns it; it mounts each time the panel opens.
+ */
+function ProgramPanel({
+  program,
+  filmId,
+  onPick,
+}: {
+  program: readonly TheaterFilm[];
+  filmId: string | null;
+  onPick: (film: TheaterFilm) => void;
+}) {
+  const groups = useMemo(() => {
+    const map = new Map<string, TheaterFilm[]>();
+    for (const film of program) {
+      const films = map.get(film.title);
+      if (films) films.push(film);
+      else map.set(film.title, [film]);
+    }
+    return map;
+  }, [program]);
+  const playing = program.find((film) => film.id === filmId);
+  const [query, setQuery] = useState("");
+  const [openTitle, setOpenTitle] = useState<string | null>(() =>
+    playing && (groups.get(playing.title)?.length ?? 0) > 1
+      ? playing.title
+      : null,
+  );
+  const [limit, setLimit] = useState(PROGRAM_PAGE);
+  // Focus requests, honoured by callback refs once the target node mounts.
+  const focusBack = useRef(false);
+  const focusShow = useRef<string | null>(null);
+  const focusIndex = useRef<number | null>(null);
+
+  const needle = query.trim().toLowerCase();
+  const matches = useMemo(
+    () =>
+      needle
+        ? program.filter((film) =>
+            `${film.title}\u0000${film.episode}`.toLowerCase().includes(needle),
+          )
+        : [],
+    [needle, program],
+  );
+  const episodes = openTitle ? (groups.get(openTitle) ?? []) : [];
+
+  const openShow = (title: string) => {
+    focusBack.current = true;
+    setOpenTitle(title);
+    setLimit(PROGRAM_PAGE);
+  };
+  const allShows = () => {
+    focusShow.current = openTitle;
+    setOpenTitle(null);
+    setLimit(PROGRAM_PAGE);
+  };
+  const showMore = () => {
+    focusIndex.current = limit;
+    setLimit(limit + PROGRAM_PAGE);
+  };
+  const itemRef = (index: number) => (button: HTMLButtonElement | null) => {
+    if (button && focusIndex.current === index) {
+      focusIndex.current = null;
+      button.focus();
+    }
+  };
+  const filmButton = (film: TheaterFilm, index: number, inShow: boolean) => (
+    <button
+      key={film.id}
+      ref={itemRef(index)}
+      aria-pressed={filmId === film.id}
+      onClick={() => onPick(film)}
+    >
+      <strong>{inShow ? film.episode : film.title}</strong>
+      <span>{inShow ? film.kind : film.episode}</span>
+    </button>
+  );
+  const moreButton = (total: number, noun: string) =>
+    total > limit && (
+      <button className="cinema-more" onClick={showMore}>
+        Show {Math.min(PROGRAM_PAGE, total - limit)} more {noun}
+        <span>
+          {limit} of {total} shown
+        </span>
+      </button>
+    );
+
+  let status: string;
+  let body: ReactNode;
+  if (program.length === 0) {
+    status = "The program is being prepared.";
+    body = <p className="cinema-note">The program is being prepared.</p>;
+  } else if (needle) {
+    status = matches.length
+      ? `${matches.length} ${matches.length === 1 ? "match" : "matches"} for “${query.trim()}”`
+      : `No matches for “${query.trim()}”`;
+    body = (
+      <>
+        {matches
+          .slice(0, PROGRAM_PAGE)
+          .map((film, index) => filmButton(film, index, false))}
+        {matches.length > PROGRAM_PAGE && (
+          <p className="cinema-note">
+            {matches.length - PROGRAM_PAGE} more — refine search
+          </p>
+        )}
+        {matches.length === 0 && (
+          <p className="cinema-note">
+            Try a show, an episode name or a number.
+          </p>
+        )}
+      </>
+    );
+  } else if (openTitle && episodes.length) {
+    status = `${openTitle}: ${countLabel(episodes)}`;
+    body = (
+      <>
+        <button
+          className="cinema-back"
+          ref={(button) => {
+            if (button && focusBack.current) {
+              focusBack.current = false;
+              button.focus();
+            }
+          }}
+          onClick={allShows}
+        >
+          <span aria-hidden="true">←</span> All shows
+        </button>
+        {episodes
+          .slice(0, limit)
+          .map((film, index) => filmButton(film, index, true))}
+        {moreButton(episodes.length, KIND_NOUN[episodes[0].kind] + "s")}
+      </>
+    );
+  } else {
+    const shows = [...groups];
+    status = `${shows.length} ${shows.length === 1 ? "show" : "shows"} · ${countLabel(program)}`;
+    body = (
+      <>
+        {shows.slice(0, limit).map(([title, films], index) => {
+          const single = films.length === 1 ? films[0] : null;
+          const ref = (button: HTMLButtonElement | null) => {
+            itemRef(index)(button);
+            if (button && focusShow.current === title) {
+              focusShow.current = null;
+              button.focus();
+            }
+          };
+          // A one-film show plays straight away; anything else drills in.
+          return single ? (
+            <button
+              key={title}
+              ref={ref}
+              aria-pressed={filmId === single.id}
+              onClick={() => onPick(single)}
+            >
+              <strong>{title}</strong>
+              <span>
+                {single.episode} · {single.channel}
+              </span>
+            </button>
+          ) : (
+            <button
+              key={title}
+              ref={ref}
+              className="cinema-show"
+              aria-current={playing?.title === title || undefined}
+              onClick={() => openShow(title)}
+            >
+              <strong>{title}</strong>
+              <span>
+                {countLabel(films)} · {channelLabel(films)}
+              </span>
+            </button>
+          );
+        })}
+        {moreButton(shows.length, "shows")}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="cinema-program-bar">
+        <input
+          type="search"
+          className="cinema-search"
+          aria-label="Search program"
+          aria-controls="cinema-program-list"
+          placeholder="Search shows & episodes"
+          autoComplete="off"
+          spellCheck={false}
+          enterKeyHint="search"
+          value={query}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setLimit(PROGRAM_PAGE);
+          }}
+          onKeyDown={(event) => {
+            // Keep typed letters (WASD, E…) away from the game's listeners.
+            event.stopPropagation();
+            if (event.key === "Escape" && query) {
+              event.preventDefault();
+              setQuery("");
+            }
+          }}
+        />
+        <p className="cinema-status" role="status" aria-live="polite">
+          {status}
+        </p>
+      </div>
+      <div
+        id="cinema-program-list"
+        className="cinema-program"
+        aria-label="Program"
+      >
+        {body}
+      </div>
+    </>
+  );
+}
+
 function TheaterViewer({
   program,
   title,
@@ -137,7 +392,7 @@ function TheaterViewer({
   const dialog = useRef<HTMLElement>(null);
   const getControls = useCallback(
     () => dialog.current?.querySelectorAll<HTMLElement>(
-      ".cinema-controls button, .cinema-controls a[href], #cinema-program:not([hidden]) button",
+      ".cinema-controls button, .cinema-controls a[href], #cinema-program:not([hidden]) :is(button, input)",
     ),
     [],
   );
@@ -150,6 +405,9 @@ function TheaterViewer({
     if (hidden) return;
     const keydown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        // A search with text owns its first Escape: ProgramPanel clears it.
+        const target = event.target as HTMLInputElement;
+        if (target.matches?.(".cinema-search") && target.value) return;
         event.preventDefault();
         event.stopImmediatePropagation();
         onClose();
@@ -272,23 +530,17 @@ function TheaterViewer({
             )}
           </header>
           <div id="cinema-program" hidden={!showProgram}>
-            <div className="cinema-program" aria-label="Program">
-              {program.length === 0 && <p>The program is being prepared.</p>}
-              {program.map((film) => (
-                <button
-                  key={film.id}
-                  aria-pressed={filmId === film.id}
-                  onClick={() => {
-                    useTheater.setState({ filmId: film.id });
-                    setShowProgram(false);
-                    close.current?.focus();
-                  }}
-                >
-                  <strong>{film.title}</strong>
-                  <span>{film.episode}</span>
-                </button>
-              ))}
-            </div>
+            {showProgram && (
+              <ProgramPanel
+                program={program}
+                filmId={filmId}
+                onPick={(film) => {
+                  useTheater.setState({ filmId: film.id });
+                  setShowProgram(false);
+                  close.current?.focus();
+                }}
+              />
+            )}
           </div>
         </section>
       </Html>

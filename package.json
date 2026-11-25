@@ -13,7 +13,9 @@
     "prepreview": "wrangler d1 migrations apply joshua-booth-local --local",
     "preview": "vite preview --host 0.0.0.0",
     "deploy:staging": "node scripts/free-gate.mjs && CLOUDFLARE_ENV=staging npm run build && node scripts/check-staging.mjs && wrangler deploy --config dist/joshua_exe_local/wrangler.json",
-    "audit:assets": "node scripts/asset-audit.mjs"
+    "audit:assets": "node scripts/asset-audit.mjs",
+    "verify:theater": "NODE_USE_ENV_PROXY=1 node --no-warnings scripts/verify-theater.mjs",
+    "harvest:theater": "NODE_USE_ENV_PROXY=1 node --no-warnings scripts/harvest-theater.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.6",

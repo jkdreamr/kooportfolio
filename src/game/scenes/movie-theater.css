@@ -49,6 +49,7 @@
 }
 .cinema-viewer button:focus-visible,
 .cinema-viewer a:focus-visible,
+.cinema-search:focus-visible,
 .cinema-screen:focus-visible {
   outline: 2px solid var(--hud-ink);
   outline-offset: 2px;
@@ -70,6 +71,57 @@
   max-height: min(52dvh, 360px);
   overflow: auto;
   overscroll-behavior: contain;
+  scroll-padding-top: 76px;
+}
+/* Search stays put while a long show list scrolls beneath it. */
+.cinema-program-bar {
+  position: sticky;
+  top: -6px;
+  z-index: 1;
+  margin: -6px -6px 4px;
+  padding: 6px 6px 0;
+  background: var(--hud-low);
+}
+.cinema-search {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--hud-edge);
+  border-radius: 4px;
+  background: var(--hud-face);
+  color: inherit;
+  /* 16px keeps iOS Safari from zooming the page on focus. */
+  font: 16px system-ui, sans-serif;
+  touch-action: manipulation;
+}
+.cinema-search::placeholder {
+  color: var(--hud-muted);
+  opacity: 0.85;
+}
+.cinema-search:hover {
+  border-color: var(--hud-muted);
+}
+.cinema-search::-webkit-search-cancel-button {
+  cursor: pointer;
+}
+.cinema-status,
+.cinema-note {
+  margin: 0;
+  color: var(--hud-muted);
+  font-size: 12px;
+}
+.cinema-status {
+  padding: 5px 2px 6px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.cinema-note {
+  grid-column: 1 / -1;
+  padding: 8px 2px 4px;
 }
 .cinema-program {
   display: grid;
@@ -83,9 +135,45 @@
   gap: 3px;
   text-align: left;
 }
-.cinema-program button[aria-pressed="true"] {
+.cinema-program button[aria-pressed="true"],
+.cinema-program button[aria-current="true"] {
   border-color: var(--hud-muted);
+}
+.cinema-program button[aria-pressed="true"] strong::before,
+.cinema-program button[aria-current="true"] strong::before {
+  content: "▶ ";
+  font-size: 0.85em;
+}
+.cinema-program .cinema-show {
+  position: relative;
+  padding-right: 24px;
+}
+.cinema-program .cinema-show::after {
+  content: "›";
+  position: absolute;
+  top: 50%;
+  right: 9px;
+  transform: translateY(-50%);
+  color: var(--hud-muted);
+  font-size: 18px;
+  font-weight: normal;
+}
+.cinema-program .cinema-back,
+.cinema-program .cinema-more {
+  grid-column: 1 / -1;
+}
+.cinema-program .cinema-back {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+.cinema-program .cinema-more {
+  align-items: center;
+  text-align: center;
 }
 .cinema-program span {
   font-weight: normal;
+}
+.cinema-program button span {
+  color: var(--hud-muted);
 }
