@@ -319,7 +319,10 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
       d: 0.12,
       D: 0.12,
     }[event.key];
-    if (aimKey !== undefined && !(event.target instanceof HTMLInputElement)) {
+    const arrowOnSlider =
+      event.target instanceof HTMLInputElement &&
+      (event.key === "ArrowLeft" || event.key === "ArrowRight");
+    if (aimKey !== undefined && !arrowOnSlider) {
       event.preventDefault();
       setAim(aim.current + aimKey);
     }
@@ -484,8 +487,8 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
                       onClick={() => {
                         hudRef.current?.focus({ preventScroll: true });
                         reset(
-                          cleared && hud.level < TOSS_LEVELS.length - 1
-                            ? hud.level + 1
+                          cleared
+                            ? (hud.level + 1) % TOSS_LEVELS.length
                             : hud.level,
                         );
                       }}
