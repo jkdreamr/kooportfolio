@@ -310,13 +310,13 @@ export function crystalMaterial(
   const material = register(
     new THREE.MeshStandardMaterial({
       color: "#ffffff",
-      roughness: 0.1,
-      metalness: 0.18,
+      roughness: 0.2,
+      metalness: 0.1,
       flatShading: true,
       ...options,
     }),
-    1.25,
-    0.45,
+    0.6,
+    0.4,
   );
   material.onBeforeCompile = (shader) => {
     shared(shader);
@@ -328,10 +328,10 @@ export function crystalMaterial(
       .replace(
         "#include <emissivemap_fragment>",
         `#include <emissivemap_fragment>
-        totalEmissiveRadiance += diffuseColor.rgb * (0.12 + 0.62 * uGlossNight);`,
+        totalEmissiveRadiance += diffuseColor.rgb * (0.04 + 0.5 * uGlossNight);`,
       );
   };
-  material.customProgramCacheKey = () => "gloss-crystal-v1";
+  material.customProgramCacheKey = () => "gloss-crystal-v2";
   return material;
 }
 

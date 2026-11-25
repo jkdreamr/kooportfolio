@@ -153,9 +153,9 @@ for (const dz of [-4.3, 4.3])
   part(home, 10, 4.5, 2 + dz, 12, 0.25, 0.22, "#806d52");
 picnic(home, homeSolids, 10, 2);
 
-// A glazed cold frame beside the water barrel: timber box, seedling trays and
+// A glazed cold frame at the allotments' west end: timber box, seedling trays and
 // a propped lid whose panes are real glass (see HomeCommunity).
-const coldFrame = [-28.4, 0.5] as const;
+const coldFrame = [-26.6, 8.2] as const;
 const coldFramePanes: Pane[] = [];
 {
   const [x, z] = coldFrame;

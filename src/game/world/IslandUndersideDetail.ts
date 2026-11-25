@@ -580,9 +580,9 @@ function stanfordDetail(model: UndersideModel): UndersideDetail {
 }
 
 const quartzColors: Record<WorldId, readonly string[]> = {
-  home: ["#f6dca6", "#fbf2df", "#eebf7c"],
-  korea: ["#c6e6d8", "#f0f6f3", "#93cdbb"],
-  stanford: ["#f8d27f", "#fdf0d0", "#ee9f55"],
+  home: ["#e9c27c", "#f0dcae", "#d99f58"],
+  korea: ["#9fd3c0", "#cfe6dc", "#6fb8a2"],
+  stanford: ["#eeb45a", "#f3d596", "#dd8440"],
 };
 /** Clusters of quartz on the camera-facing mid strata, pointing out and down. */
 function quartz(model: UndersideModel, world: WorldId): Crystal[] {
@@ -599,7 +599,7 @@ function quartz(model: UndersideModel, world: WorldId): Crystal[] {
       const yaw = Math.atan2(nx, nz);
       for (let n = 0; n < 4; n++) {
         const g = hash01(model.spec.seed, k, i, 141 + n);
-        const length = n === 0 ? 2.1 + g * 1.2 : 0.9 + g * 1.1;
+        const length = n === 0 ? 1.5 + g * 0.8 : 0.7 + g * 0.8;
         const pitch = 1.75 + (g - 0.5) * 0.9;
         const turn = yaw + (n === 0 ? 0 : (n - 2) * 0.55);
         const axis: V3 = [
