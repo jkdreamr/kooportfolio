@@ -154,7 +154,7 @@ lanternMaterial.onBeforeCompile = (shader) => {
     );
 };
 lanternMaterial.customProgramCacheKey = () => "island-underside-lantern-v1";
-const lanternBox = new THREE.BoxGeometry(0.3, 0.42, 0.3);
+const lanternBox = new THREE.BoxGeometry(0.42, 0.58, 0.42);
 
 function Lanterns({ lanterns }: { lanterns: readonly Lantern[] }) {
   const parts = useMemo(
@@ -313,6 +313,7 @@ export function IslandUnderside({
       .lerp(skyKeys[light.index + 1], light.blend)
       .multiplyScalar(0.34 - 0.2 * light.night);
     lanternGlow.value = 0.06 + light.night * 1.5;
+    cloudMaterial.emissive.copy(bounce.value).multiplyScalar(1.4);
     fallUniforms.uTint.value.copy(dayWater).lerp(nightWater, light.night);
     fallUniforms.uLanes.value = world === "stanford" ? 9 : world === "korea" ? 2 : 4;
     if (!reduced) {

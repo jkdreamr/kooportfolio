@@ -1078,15 +1078,23 @@ export function undersideClouds(world: WorldId): { p: V3; s: V3 }[] {
   return clusters.flatMap(([sx, sy], c) => {
     const y = lowest - 9 - hash01(model.spec.seed, c, 80) * 10;
     const center = screenToWorld(model.spec.view, [sx, sy], y);
-    return Array.from({ length: 4 }, (_, k): { p: V3; s: V3 } => {
-      const size = 5.5 - k * 0.9 + hash01(model.spec.seed, c, k, 81) * 1.5;
+    // A big crown puff with smaller ones tucked around it, not a row.
+    const puffs = [
+      [0, 0, 0, 3.6],
+      [-3.4, 0.4, -0.5, 2.5],
+      [3.1, -0.5, -0.35, 2.3],
+      [1.2, 2.2, 0.35, 1.9],
+      [-1.6, -1.8, -0.6, 1.6],
+    ] as const;
+    return puffs.map(([right, toward, lift, size], k): { p: V3; s: V3 } => {
+      const scale = size * (0.85 + hash01(model.spec.seed, c, k, 81) * 0.3);
       return {
         p: [
-          center[0] + (k - 1.5) * 4.2 * ISLAND_SCREEN_RIGHT[0] + (hash01(model.spec.seed, c, k, 82) - 0.5) * 4,
-          y + (k % 2) * 0.9,
-          center[2] + (k - 1.5) * 4.2 * ISLAND_SCREEN_RIGHT[2] + (hash01(model.spec.seed, c, k, 83) - 0.5) * 4,
+          center[0] + right * ISLAND_SCREEN_RIGHT[0] + toward * ISLAND_SCREEN_DOWN_GROUND[0],
+          y + lift,
+          center[2] + right * ISLAND_SCREEN_RIGHT[2] + toward * ISLAND_SCREEN_DOWN_GROUND[2],
         ],
-        s: [size * 1.5, size * 0.55, size],
+        s: [scale * 1.35, scale * 0.6, scale],
       };
     });
   });
