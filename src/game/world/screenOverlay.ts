@@ -5,6 +5,7 @@ export const screenOverlayStyle = {
   top: 0,
   left: 0,
   width: "100vw",
-  height: "100dvh",
+  height: "100vh",
+  maxHeight: "100dvh",
   pointerEvents: "none",
 } as const;
