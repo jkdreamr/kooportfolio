@@ -91,7 +91,7 @@ function verticalExtent(world?: WorldId) {
     world === "home"
       ? homeAbove
       : (world === "korea" ? koreaExtent : stanfordExtent).height / 2;
-  const below = Math.max(above, undersideFrame(world, islandCenter(world)).bottom);
+  const below = Math.max(above, undersideFrame(world).bottom);
   return { above, below };
 }
 
