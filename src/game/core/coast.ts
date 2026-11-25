@@ -396,3 +396,22 @@ export function rayToPolygon(
   }
   return nearest;
 }
+
+/** Deterministic integer hash in [0, 1): art never draws random numbers. */
+export function hash01(...values: number[]) {
+  let h = 2166136261;
+  for (const value of values) h = Math.imul(h ^ (value | 0), 16777619);
+  h ^= h >>> 13;
+  h = Math.imul(h, 0x5bd1e995);
+  h ^= h >>> 15;
+  return (h >>> 0) / 4294967296;
+}
+
+/** Scale a loop about a point: never folds, whatever the loop's shape. */
+export const scaleLoop = (points: readonly P2[], about: P2, factor: number) =>
+  points.map(
+    ([x, z]): P2 => [
+      about[0] + (x - about[0]) * factor,
+      about[1] + (z - about[1]) * factor,
+    ],
+  );

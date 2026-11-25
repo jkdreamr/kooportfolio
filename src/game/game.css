@@ -1,4 +1,5 @@
 @import "./ui/village-skin.css";
+@import "./ui/glass.css";
 
 .game-shell {
   height: 100svh;

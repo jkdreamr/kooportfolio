@@ -130,7 +130,24 @@ function Sun() {
   const quality = useGame((s) => s.quality);
   // Desktop gets a 4096 map so the island-wide overview frustum keeps roughly
   // the texel density the old player-sized 2048 frustum had; phones stay 2048.
-  const mapSize = useThree((s) => (s.size.width >= 700 ? 4096 : 2048));
+  // Software rasterisers (SwiftShader, llvmpipe) and small-texture GPUs keep
+  // 2048 too: a 4096 depth target there risks losing the WebGL context.
+  const gl = useThree((s) => s.gl);
+  const capable = useMemo(() => {
+    const context = gl.getContext();
+    const info = context.getExtension("WEBGL_debug_renderer_info");
+    const name = String(
+      context.getParameter(
+        info ? info.UNMASKED_RENDERER_WEBGL : context.RENDERER,
+      ),
+    );
+    return (
+      gl.capabilities.maxTextureSize >= 8192 &&
+      !/swiftshader|llvmpipe|software|basic render/i.test(name)
+    );
+  }, [gl]);
+  const wide = useThree((s) => s.size.width >= 700);
+  const mapSize = capable && wide ? 4096 : 2048;
   useEffect(() => {
     // Three allocates the depth target once; a new size needs a new target.
     const shadow = light.current?.shadow;
@@ -139,7 +156,7 @@ function Sun() {
     shadow.map.dispose();
     shadow.map = null;
   }, [mapSize]);
-  useFrame(({ camera, gl, scene: root }, delta) => {
+  useFrame(({ camera, scene: root }, delta) => {
     const { scene, world, quality: tier, paused } = useGame.getState();
     const race = scene === "rowing";
     const hub = scene === "hub";

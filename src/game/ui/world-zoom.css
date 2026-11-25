@@ -1,7 +1,6 @@
 .world-zoom {
   z-index: 23;
   bottom: calc(var(--world-control-bottom) + var(--world-control-height) + 8px);
-  overflow: hidden;
 }
 .world-zoom button {
   width: 50%;
@@ -15,28 +14,28 @@
     sans-serif;
   cursor: pointer;
 }
-.world-zoom button + button {
-  border-left: 1px solid var(--hud-edge);
+.world-zoom button:first-child {
+  border-radius: 13px 0 0 13px;
 }
-.world-zoom button:hover {
-  background: #ffffff12;
+.world-zoom button:last-child {
+  border-radius: 0 13px 13px 0;
+}
+.world-zoom button + button {
+  border-left: 1px solid var(--glass-hairline, #4d646d);
 }
 .world-zoom button:disabled {
   opacity: 0.35;
   cursor: default;
 }
-.game-shell .world-zoom button:focus-visible {
-  outline: 2px solid #fff;
-  outline-offset: -4px;
-}
 @media (max-width: 900px), (max-height: 500px) {
   .world-zoom {
     bottom: auto;
-    top: calc(141px + env(safe-area-inset-top));
+    /* One 8px gap below the clock row, so both rows share one glass pane. */
+    top: calc(93px + var(--world-control-height) + env(safe-area-inset-top));
   }
 }
 @media (max-height: 500px) {
   .world-zoom {
-    top: calc(116px + env(safe-area-inset-top));
+    top: calc(72px + var(--world-control-height) + env(safe-area-inset-top));
   }
 }

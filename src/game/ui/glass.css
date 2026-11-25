@@ -1,0 +1,710 @@
+/* Glass pass — the shared frosted recipe and every surface that wears it.
+   Tokens are declared on :root in village-skin.css. This sheet is imported
+   after it, so equal-specificity rules here win over the matte skin.
+
+   Blur budget (≤ 8 backdrop surfaces at once): dock, header capsule, the
+   zoom + time card (one pane), ≤ 5 place plaques, or — while a transient
+   pane is up — that pane instead of the plaques. Small or fast-moving
+   surfaces (joystick, touch plaques) use the dense fill and never blur. */
+
+/* ── Scheme and capability fallbacks ───────────────────────────────────── */
+
+/* Light glass is worn by the open-air hub only. Interiors keep the dark
+   set: their scene sheets assume it, and a lit room reads better on it.
+   The --hud-* aliases are opaque dark constants, so anything still written
+   against them stays legible inside a light world. */
+@media (prefers-color-scheme: light) {
+  .game-shell:has(.game-ui.scene-hub) {
+    --glass-bg: rgb(250 251 248 / 0.8);
+    --glass-bg-strong: rgb(250 251 248 / 0.9);
+    --glass-bg-dense: rgb(250 251 248 / 0.94);
+    --glass-bg-solid: #f4f6f2;
+    --glass-blur: blur(22px) saturate(1.8) brightness(1.06);
+    --glass-blur-sm: blur(8px) saturate(1.6) brightness(1.06);
+    --glass-scrim: rgb(16 32 42 / 0.3);
+    --glass-border: rgb(255 255 255 / 0.72);
+    --glass-border-solid: #4f646d;
+    --glass-highlight:
+      inset 0 1px 0 rgb(255 255 255 / 0.92),
+      inset 0 0 0 1px rgb(255 255 255 / 0.24);
+    --glass-shadow-sm:
+      0 0 0 1px rgb(20 40 54 / 0.08), 0 1px 2px rgb(20 40 54 / 0.14),
+      0 4px 12px rgb(20 40 54 / 0.12);
+    --glass-shadow:
+      0 0 0 1px rgb(20 40 54 / 0.08), 0 1px 2px rgb(20 40 54 / 0.14),
+      0 8px 24px rgb(20 40 54 / 0.14), 0 24px 48px rgb(20 40 54 / 0.1);
+    --glass-shadow-lg:
+      0 0 0 1px rgb(20 40 54 / 0.08), 0 2px 6px rgb(20 40 54 / 0.16),
+      0 18px 48px rgb(20 40 54 / 0.22), 0 48px 96px rgb(20 40 54 / 0.14);
+    --glass-sheen: linear-gradient(
+      180deg,
+      rgb(255 255 255 / 0.5),
+      rgb(255 255 255 / 0) 52%
+    );
+    --glass-ink: #14242e;
+    --glass-muted: #384b55;
+    --glass-gold: #6b4a0b;
+    --glass-well: rgb(20 36 46 / 0.06);
+    --glass-well-hover: rgb(20 36 46 / 0.11);
+    --glass-active: rgb(20 36 46 / 0.12);
+    --glass-hairline: rgb(20 36 46 / 0.14);
+    --glass-accent: #44663a;
+    --glass-accent-hover: #527846;
+    --glass-accent-border: rgb(20 36 46 / 0.2);
+    --glass-focus: #14242e;
+    --glass-focus-halo: rgb(255 255 255 / 0.92);
+  }
+  .game-shell:has(.game-ui.scene-hub)
+    :is(.time-of-day-control, .leaderboard)
+    select {
+    color-scheme: light;
+  }
+}
+
+/* No backdrop-filter: every pane falls back to its opaque fill. */
+@supports not (
+  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+) {
+  :root,
+  .game-shell:has(.game-ui.scene-hub) {
+    --glass-bg: var(--glass-bg-solid);
+    --glass-bg-strong: var(--glass-bg-solid);
+    --glass-bg-dense: var(--glass-bg-solid);
+  }
+}
+
+/* Reduced transparency, more contrast or forced colours: solid panes, no
+   blur, no sheen, and one plain 1px border instead of the lit rim. */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more),
+  (forced-colors: active) {
+  :root,
+  .game-shell:has(.game-ui.scene-hub) {
+    --glass-bg: var(--glass-bg-solid);
+    --glass-bg-strong: var(--glass-bg-solid);
+    --glass-bg-dense: var(--glass-bg-solid);
+    --glass-blur: none;
+    --glass-blur-sm: none;
+    --glass-scrim-blur: none;
+    --glass-sheen: none;
+    --glass-border: var(--glass-border-solid);
+    --glass-hairline: var(--glass-border-solid);
+    --glass-highlight: 0 0 0 0 transparent;
+    --glass-shadow-sm: 0 2px 6px rgb(4 16 24 / 0.2);
+    --glass-shadow: 0 4px 12px rgb(4 16 24 / 0.2);
+    --glass-shadow-lg: 0 12px 32px rgb(4 16 24 / 0.28);
+  }
+  :root {
+    --glass-scrim: rgb(6 18 26 / 0.72);
+    --glass-well: #25404c;
+    --glass-well-hover: #31505d;
+    --glass-active: #36586a;
+  }
+}
+@media (prefers-color-scheme: light) and (prefers-reduced-transparency: reduce),
+  (prefers-color-scheme: light) and (prefers-contrast: more),
+  (prefers-color-scheme: light) and (forced-colors: active) {
+  .game-shell:has(.game-ui.scene-hub) {
+    --glass-scrim: rgb(16 32 42 / 0.6);
+    --glass-well: #e6eae5;
+    --glass-well-hover: #d8ded8;
+    --glass-active: #d3dad4;
+  }
+}
+
+/* ── The recipe ────────────────────────────────────────────────────────── */
+
+/* Panes that frost the world behind them. */
+.game-shell
+  :is(
+    .world-toolbar,
+    .resources,
+    .context-action,
+    .game-toast,
+    .time-of-day-control,
+    .npc-dialog,
+    .island-rail-controls,
+    .world-travel-stop,
+    .objective-card,
+    .race-instruments,
+    .race-control-panel,
+    .basket-score,
+    .shot-panel,
+    .build-panel,
+    .race-select
+  ) {
+  color: var(--glass-ink);
+  background: var(--glass-sheen) var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--glass-radius);
+  box-shadow: var(--glass-highlight), var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+/* Panes that already sit on a frosted scrim: translucent, but no second
+   backdrop pass (a nested filter would only re-blur the scrim). */
+.game-shell .game-modal {
+  color: var(--glass-ink);
+  background: var(--glass-sheen) var(--glass-bg-strong);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--glass-radius-lg);
+  box-shadow: var(--glass-highlight), var(--glass-shadow-lg);
+}
+.game-shell .modal-scrim {
+  background: var(--glass-scrim);
+  -webkit-backdrop-filter: var(--glass-scrim-blur);
+  backdrop-filter: var(--glass-scrim-blur);
+}
+/* Long copy gets the denser fill. */
+.game-shell :is(.npc-dialog, .build-panel, .game-toast) {
+  background: var(--glass-sheen) var(--glass-bg-strong);
+}
+
+/* ── Header capsule: coins, level, sound, pause in one pane ────────────── */
+.game-shell .resources {
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  box-shadow: var(--glass-highlight), var(--glass-shadow-sm);
+}
+.game-shell :is(.resource, .icon-button) {
+  color: var(--glass-ink);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.game-shell .resource {
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 14px;
+  gap: 8px;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+}
+.game-shell .resource.coins svg {
+  color: var(--glass-gold);
+  filter: none;
+}
+.game-shell .resource.level svg {
+  color: var(--glass-muted);
+}
+.game-shell .icon-button {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+}
+.game-shell .brand-glyph {
+  color: var(--glass-gold);
+  background: var(--glass-bg-dense);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--glass-radius-sm);
+  box-shadow: var(--glass-highlight), var(--glass-shadow-sm);
+}
+
+/* ── Dock ──────────────────────────────────────────────────────────────── */
+.game-shell .world-toolbar {
+  gap: 2px;
+  padding: 5px;
+  border-radius: 20px;
+}
+.game-shell .world-toolbar > :is(button, a) {
+  color: var(--glass-muted);
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: 15px;
+  font-weight: 500;
+  box-shadow: none;
+}
+.game-shell .world-toolbar > a {
+  position: relative;
+  margin-left: 9px;
+  border-left-color: transparent;
+  border-radius: 15px;
+}
+.game-shell .world-toolbar > a::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  top: 9px;
+  bottom: 9px;
+  width: 1px;
+  background: var(--glass-hairline);
+  pointer-events: none;
+}
+.game-shell .world-toolbar > button.active {
+  color: var(--glass-ink);
+  background-color: var(--glass-active);
+  border-color: var(--glass-hairline);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.16);
+}
+
+/* ── Place plaques ─────────────────────────────────────────────────────── */
+.game-shell .world-label {
+  color: var(--glass-ink);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.game-shell .world-label::before {
+  inset: 7px 0;
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  background: var(--glass-sheen) var(--glass-bg-dense);
+  box-shadow: var(--glass-highlight), var(--glass-shadow-sm);
+}
+.game-shell .world-label {
+  padding: 0 12px 0 11px;
+}
+.game-shell :is(.label-level, .world-label > span:last-child) {
+  color: var(--glass-muted);
+}
+.game-shell .label-dot {
+  width: 4px;
+  height: 4px;
+  background: var(--glass-gold);
+  box-shadow: 0 0 0 2px rgb(240 207 142 / 0.18);
+}
+/* Plaques frost only on a fine pointer, with five or fewer on the island,
+   and while no transient pane needs the budget. */
+@media (hover: hover) and (pointer: fine) {
+  .game-shell:not(
+      :has(
+        .context-action.visible,
+        .npc-dialog,
+        .game-toast,
+        .island-rail-controls,
+        .world-travel-stop
+      )
+    )
+    .world-labels:not(:has(.world-label:nth-child(6)))
+    .world-label::before {
+    background: var(--glass-sheen) var(--glass-bg);
+    -webkit-backdrop-filter: var(--glass-blur-sm);
+    backdrop-filter: var(--glass-blur-sm);
+  }
+}
+
+/* ── Context prompt ────────────────────────────────────────────────────── */
+.game-shell .context-action {
+  border-radius: 20px;
+  padding: 7px 7px 7px 18px;
+}
+.game-shell .context-action small {
+  color: var(--glass-muted);
+}
+.game-shell .context-action :is(button, kbd) {
+  color: var(--glass-accent-ink);
+  background: var(--glass-accent);
+  border-color: var(--glass-accent-border);
+}
+.game-shell .context-action > button {
+  border: 1px solid var(--glass-accent-border);
+  border-radius: 14px;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.22),
+    0 1px 2px rgb(4 16 24 / 0.24);
+}
+.game-shell .context-action kbd {
+  background: rgb(8 22 16 / 0.34);
+  border-color: rgb(255 255 255 / 0.3);
+  border-radius: 5px;
+}
+
+/* ── Zoom + time: two rows, one pane ───────────────────────────────────── */
+.game-shell :is(.time-of-day-control, .world-zoom) {
+  color: var(--glass-ink);
+  border-radius: 14px;
+}
+.game-shell .time-of-day-control {
+  box-shadow: var(--glass-highlight), var(--glass-shadow-sm);
+}
+.game-shell .world-zoom {
+  overflow: visible;
+  isolation: isolate;
+  background: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+}
+.game-shell .world-zoom::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  background: var(--glass-sheen) var(--glass-bg);
+  box-shadow: var(--glass-highlight), var(--glass-shadow-sm);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  pointer-events: none;
+}
+/* With both controls up, the zoom pane grows to hold the clock row and the
+   clock gives up its own surface: one backdrop pass instead of two. */
+.game-shell:has(.time-of-day-control) .world-zoom::before {
+  bottom: calc(-9px - var(--world-control-height));
+  background:
+    linear-gradient(var(--glass-hairline), var(--glass-hairline)) center /
+      calc(100% - 22px) 1px no-repeat,
+    var(--glass-sheen) var(--glass-bg);
+}
+.game-shell:has(.world-zoom) .time-of-day-control {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+@media (max-width: 900px), (max-height: 500px) {
+  /* Docked top-right on small screens, where the clock is the upper row. */
+  .game-shell:has(.time-of-day-control) .world-zoom::before {
+    top: calc(-9px - var(--world-control-height));
+    bottom: -1px;
+  }
+}
+.game-shell .time-of-day-control select option {
+  color: var(--glass-ink);
+  background: var(--glass-bg-solid);
+}
+.game-shell .time-of-day-control time {
+  color: var(--glass-muted);
+}
+
+/* ── Modal contents ────────────────────────────────────────────────────── */
+.game-shell .game-modal h2 {
+  color: var(--glass-ink);
+  text-shadow: none;
+}
+.game-shell
+  :is(.close-button, .quiet-button, .setting-row, .race-select > button) {
+  color: var(--glass-ink);
+  background-color: var(--glass-well);
+  border-color: transparent;
+  box-shadow: none;
+}
+.game-shell .close-button {
+  border: 0;
+  color: var(--glass-muted);
+}
+.game-shell .setting-row {
+  margin-bottom: 6px;
+  padding: 14px 16px;
+  border: 1px solid transparent;
+  border-radius: var(--glass-radius-sm);
+}
+.game-shell .setting-row b {
+  color: var(--glass-muted);
+}
+.game-shell .quiet-button {
+  margin-top: 8px;
+  border-radius: var(--glass-radius-sm);
+}
+.game-shell :is(.memory-card, .places-list button) {
+  color: var(--glass-ink);
+  background-color: var(--glass-well);
+  border: 1px solid var(--glass-hairline);
+  border-radius: var(--glass-radius-sm);
+  box-shadow: none;
+}
+.game-shell .places-list {
+  gap: 6px;
+}
+.game-shell .places-list button {
+  padding: 10px 16px;
+}
+.game-shell .places-list button > :last-child:not(:first-child) {
+  color: var(--glass-muted);
+}
+.game-shell .study-links > a {
+  color: var(--glass-gold);
+  border-color: var(--glass-hairline);
+}
+.game-shell .reward-line {
+  color: var(--glass-gold);
+  background: var(--glass-well);
+  border-color: var(--glass-hairline);
+  border-radius: var(--glass-radius-sm);
+}
+.game-shell .result-score {
+  color: var(--glass-ink);
+}
+.game-shell .color-swatches button {
+  border: 3px solid var(--glass-border);
+  box-shadow: var(--glass-shadow-sm);
+}
+.game-shell .color-swatches button[aria-pressed="true"] {
+  outline: 2px solid var(--glass-ink);
+  outline-offset: 3px;
+}
+
+/* ── Primary action ────────────────────────────────────────────────────── */
+.game-shell :is(.primary-button, .shoot-button, .upgrade-button) {
+  color: var(--glass-accent-ink);
+  background-color: var(--glass-accent);
+  border: 1px solid var(--glass-accent-border);
+  border-radius: var(--glass-radius-sm);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.22),
+    0 1px 2px rgb(4 16 24 / 0.24);
+}
+
+/* ── Scene panes that share the recipe ─────────────────────────────────── */
+.game-shell :is(.quest-icon, .build-preview, .build-preview.garden) {
+  color: var(--glass-gold);
+  background: var(--glass-well);
+  border-color: var(--glass-hairline);
+  border-radius: var(--glass-radius-sm);
+}
+.game-shell .build-option {
+  border-color: var(--glass-hairline);
+}
+.game-shell .build-panel {
+  border-radius: var(--glass-radius-lg);
+}
+.game-shell :is(.race-instruments > div + div, .basket-score > span) {
+  border-color: var(--glass-hairline);
+}
+.game-shell .race-select > button {
+  background-color: transparent;
+  border-top-color: var(--glass-hairline);
+}
+
+/* ── Toast ─────────────────────────────────────────────────────────────── */
+.game-shell .game-toast {
+  align-items: center;
+  border-radius: var(--glass-radius);
+}
+.game-shell .game-toast button {
+  color: var(--glass-muted);
+}
+
+/* ── Joystick: under the thumb, so tinted rather than frosted ──────────── */
+.game-shell .joystick {
+  background: radial-gradient(
+    circle at 50% 38%,
+    rgb(255 255 255 / 0.2),
+    rgb(14 28 38 / 0.34) 72%
+  );
+  border: 1px solid rgb(255 255 255 / 0.42);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.4),
+    inset 0 -10px 18px rgb(4 16 24 / 0.16),
+    0 6px 18px rgb(4 16 24 / 0.2);
+}
+.game-shell .joystick > span {
+  background: linear-gradient(
+    180deg,
+    rgb(255 255 255 / 0.62),
+    rgb(214 226 228 / 0.34)
+  );
+  border: 1px solid rgb(255 255 255 / 0.66);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.7),
+    0 2px 8px rgb(4 16 24 / 0.3);
+}
+
+/* ── Focus ─────────────────────────────────────────────────────────────── */
+.game-shell :is(button, a, input, select):focus-visible {
+  outline: 2px solid var(--glass-focus);
+  outline-offset: 2px;
+}
+.game-shell
+  :is(.time-of-day-control select, .world-zoom button, .npc-dialog button):focus-visible {
+  outline: 2px solid var(--glass-focus);
+  outline-offset: -3px;
+}
+
+/* ── Micro-interactions ────────────────────────────────────────────────── */
+.game-shell
+  :is(
+    .world-toolbar > button,
+    .world-toolbar > a,
+    .icon-button,
+    .close-button,
+    .quiet-button,
+    .setting-row,
+    .places-list button,
+    .primary-button,
+    .shoot-button,
+    .upgrade-button,
+    .context-action > button,
+    .world-zoom button,
+    .npc-dialog button,
+    .island-rail-controls button,
+    .world-travel-stop button
+  ) {
+  transition:
+    background-color var(--glass-speed) var(--glass-ease),
+    border-color var(--glass-speed) var(--glass-ease),
+    color var(--glass-speed) var(--glass-ease),
+    box-shadow var(--glass-speed) var(--glass-ease),
+    transform var(--glass-speed) var(--glass-ease);
+}
+.game-shell .world-label::before {
+  transition:
+    background-color var(--glass-speed) var(--glass-ease),
+    box-shadow var(--glass-speed) var(--glass-ease),
+    transform var(--glass-speed) var(--glass-ease);
+}
+.game-shell .world-toolbar > :is(button, a) svg {
+  transition: transform var(--glass-speed) var(--glass-ease);
+}
+@media (hover: hover) {
+  .game-shell
+    :is(
+      .icon-button,
+      .close-button,
+      .quiet-button,
+      .setting-row,
+      .places-list button,
+      .race-select > button
+    ):hover,
+  .game-shell .world-toolbar > :is(button, a):hover {
+    color: var(--glass-ink);
+    background-color: var(--glass-well-hover);
+  }
+  .game-shell .world-toolbar > button.active:hover {
+    background-color: var(--glass-active);
+  }
+  .game-shell .world-toolbar > :is(button, a):hover svg {
+    transform: translateY(-1px);
+  }
+  .game-shell .places-list button:hover {
+    border-color: var(--glass-border);
+    transform: translateY(-1px);
+    box-shadow: var(--glass-shadow-sm);
+  }
+  .game-shell
+    :is(
+      .primary-button,
+      .shoot-button,
+      .upgrade-button,
+      .context-action > button
+    ):hover:not(:disabled) {
+    background-color: var(--glass-accent-hover);
+    transform: translateY(-1px);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.26),
+      0 4px 12px rgb(4 16 24 / 0.26);
+  }
+  .game-shell .world-label:hover {
+    color: var(--glass-ink);
+    background: transparent;
+  }
+  .game-shell .world-label:hover::before {
+    background-color: var(--glass-bg-strong);
+    transform: translateY(-1px);
+    box-shadow: var(--glass-highlight), var(--glass-shadow);
+  }
+  .game-shell .world-zoom button:hover:not(:disabled) {
+    background-color: var(--glass-well-hover);
+  }
+}
+.game-shell
+  :is(
+    .world-toolbar > button,
+    .world-toolbar > a,
+    .icon-button,
+    .close-button,
+    .quiet-button,
+    .places-list button,
+    .primary-button,
+    .shoot-button,
+    .upgrade-button,
+    .context-action > button,
+    .npc-dialog button,
+    .island-rail-controls button,
+    .world-travel-stop button
+  ):active:not(:disabled) {
+  transform: scale(0.97);
+  transition-duration: 0.06s;
+}
+.game-shell .setting-row:active:not(:disabled) {
+  transform: scale(0.99);
+  transition-duration: 0.06s;
+}
+.game-shell .world-label:active::before {
+  transform: scale(0.97);
+}
+@media (prefers-reduced-motion: reduce) {
+  .game-shell :is(button, a),
+  .game-shell :is(button, a) svg,
+  .game-shell .world-label::before {
+    transition-duration: 0.01ms;
+  }
+  .game-shell :is(button, a):is(:hover, :active),
+  .game-shell :is(button, a):is(:hover, :active) svg,
+  .game-shell .world-label:is(:hover, :active)::before {
+    transform: none;
+  }
+}
+
+/* Forced colours: let the system palette draw every pane and control. */
+@media (forced-colors: active) {
+  .game-shell
+    :is(
+      .world-toolbar,
+      .resources,
+      .context-action,
+      .game-toast,
+      .time-of-day-control,
+      .world-zoom,
+      .npc-dialog,
+      .game-modal,
+      .build-panel,
+      .island-rail-controls,
+      .world-travel-stop,
+      .joystick
+    ) {
+    background: Canvas;
+    color: CanvasText;
+    border: 1px solid CanvasText;
+    box-shadow: none;
+  }
+  .game-shell .world-label::before,
+  .game-shell .world-zoom::before {
+    background: Canvas;
+    border: 1px solid CanvasText;
+    box-shadow: none;
+  }
+  .game-shell .world-toolbar > button.active {
+    border-color: Highlight;
+  }
+}
+
+/* ── Small screens ─────────────────────────────────────────────────────── */
+@media (max-width: 700px) {
+  .game-shell .resource {
+    padding: 0 12px;
+    gap: 6px;
+  }
+  .game-shell .world-toolbar {
+    padding: 4px;
+    border-radius: 18px;
+  }
+  .game-shell .world-toolbar > :is(button, a) {
+    border-radius: 14px;
+  }
+  .game-shell .world-toolbar > a {
+    margin-left: 7px;
+  }
+  .game-shell .world-toolbar > a::before {
+    left: -5px;
+  }
+  .game-shell .context-action {
+    padding: 7px 7px 7px 16px;
+    border-radius: 18px;
+  }
+  .game-shell .world-label {
+    padding: 0 11px 0 10px;
+  }
+  .game-shell .game-modal {
+    border-radius: 20px;
+  }
+}
+@media (max-width: 540px) and (max-height: 650px) and (orientation: landscape) {
+  .game-shell .world-toolbar > a {
+    margin-left: 5px;
+  }
+  .game-shell .world-toolbar > a::before {
+    left: -3px;
+  }
+}
