@@ -9,7 +9,7 @@ describe("world-space transport", () => {
       for (const mode of world === "korea"
         ? (["plane"] as const)
         : (["plane", "train"] as const)) {
-        const gate = journeyGate(mode);
+        const gate = journeyGate(mode, world);
         expect(canWalk(gate[0], gate[1], world)).toBe(true);
         const route = findPath([0, 5], [gate[0], gate[1]], world);
         expect(route.length).toBeGreaterThan(0);

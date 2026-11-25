@@ -8,6 +8,7 @@ import { sampleWeather } from "../core/weather";
 import { Weather } from "./Weather";
 import {
   ANIMALS,
+  HOME_ANIMALS,
   animalPose,
   birdPose,
   planePose,
@@ -329,6 +330,8 @@ function Plane() {
 
 export function Wildlife() {
   const quality = useGame((s) => s.quality);
+  const world = useGame((s) => s.world);
+  const animals = world === "home" ? HOME_ANIMALS : ANIMALS;
   useFrame((_, delta) => {
     if (runtime.active && !useGame.getState().paused && !document.hidden)
       wildlifeClock.seconds += Math.min(delta, 0.05);
@@ -336,14 +339,15 @@ export function Wildlife() {
   return (
     <group name="ambient-wildlife">
       <Weather />
-      {ANIMALS.filter((_, i) => quality === "high" || i % 2 === 0).map(
-        (animal, i) =>
+      {animals
+        .filter((_, i) => quality === "high" || i % 2 === 0)
+        .map((animal, i) =>
           animal.kind === "duck" ? (
             <Duck key={`${animal.kind}:${i}`} animal={animal} />
           ) : (
             <LandAnimal key={`${animal.kind}:${i}`} animal={animal} />
           ),
-      )}
+        )}
       {Array.from({ length: quality === "high" ? 7 : 3 }, (_, i) => (
         <Bird key={i} index={i} />
       ))}

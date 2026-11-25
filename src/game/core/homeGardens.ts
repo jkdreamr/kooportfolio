@@ -1,5 +1,4 @@
 import type { GroundFootprint } from "./scenery";
-import { forest } from "./scenery";
 import { villageGardenPlots } from "./villageGardens";
 
 // Full-size outdoor rooms between the real destinations, not extra buildings.
@@ -9,18 +8,12 @@ export const HOME_FLOWER_BEDS: readonly GroundFootprint[] = [
   [20, -25, 1.2, 8],
   [-30, -9, 1.2, 8],
   [11, -10, 1.2, 8],
-  [-15, 44, 1.2, 12], // Pond-side border.
-  [4.7, 44.5, 1.2, 12], // Allotment edges leave a gap for the cross-walk.
-  [4.7, 58, 1.2, 9],
-  [10.5, 64, 13, 2],
-  [31.5, 64, 16, 2],
 ];
 
 export const HOME_GARDEN_GROUNDS: readonly GroundFootprint[] = [
   [-6, -17, 52, 28], // One continuous village block, not separate landmark pads.
-  [-14, 41, 6, 17],
-  [21, 49, 36, 30],
-  [-4, 68, 26, 23],
+  [-13, 3.5, 24, 17], // Four working kitchen allotments, directly off the street.
+  [10, 2, 13, 11], // Reading pergola, beside the village square.
 ];
 
 export const HOME_GARDEN_WALKS: readonly GroundFootprint[] = [
@@ -29,38 +22,23 @@ export const HOME_GARDEN_WALKS: readonly GroundFootprint[] = [
   [-4.5, -11.5, 3, 13],
   [-32.5, -8, 3, 20],
   [18, -11.5, 2.8, 13],
-  [25, 10, 50, 3.4],
-  [50, 10, 3, 38],
-  [-3, 52, 3, 43],
-  [1, 52, 38, 3],
-  [-4, 73, 24, 3],
+  [-13, 3.5, 2.2, 17],
+  [-13, 3.5, 24, 1.6],
 ];
 
 const existing = villageGardenPlots("home");
 const treeSites: readonly (readonly [number, number])[] = [
-  [-35, -27],
-  [-48, -29],
-  [-49, -17],
-  [14, -36],
-  [23, -36],
-  [32, -36],
-  [53, -3],
-  [55, 5],
-  [54, 14],
-  [53, 22],
-  [-16, 53],
-  [-12, 68],
-  [-12, 76],
-  [-7, 59],
-  [3, 59],
-  [-7, 66],
-  [3, 66],
-  [-7, 79],
-  [3, 79],
+  [-34, -37],
+  [-29, -40],
+  [-9, -44],
+  [-1, -43],
+  [21, -34],
+  [-37, -4],
+  [-30, 4],
+  [22, 0],
 ];
 export const HOME_GARDEN_TREES = treeSites.filter(
   ([x, z]) =>
-    !forest.some((tree) => Math.hypot(tree.x - x, tree.z - z) < 4) &&
     !existing.some((plot) => Math.hypot(plot.x - x, plot.z - z) < 3.5) &&
     !HOME_FLOWER_BEDS.some(
       ([cx, cz, w, d]) =>

@@ -18,7 +18,7 @@ import { Box, Cylinder, Sign } from "./Models";
 import { PassengerJet } from "./TravelVehicles";
 import { IslandJourney, type IslandTrip } from "./IslandJourney";
 import "./world-travel.css";
-import { ISLAND_RAIL } from "../core/islandRail";
+import { railForWorld } from "../core/islandRail";
 
 export type { TravelWorld, TravelMode } from "../core/travel";
 
@@ -32,9 +32,16 @@ function clearTravelInput() {
   runtime.shoot = false;
 }
 
-function Airport({ traveling }: { traveling: boolean }) {
+function Airport({
+  traveling,
+  world,
+}: {
+  traveling: boolean;
+  world: TravelWorld;
+}) {
+  const gate = journeyGate("plane", world);
   return (
-    <group name="island-airport">
+    <group name="island-airport" position={[gate[0] - 58, 0, gate[1] - 61]}>
       <group position={[58, 0, 52]}>
         <Box p={[0, 0.14, 2]} s={[11, 0.28, 11]} c="#b4af98" />
         <Box p={[0, 1.8, 0]} s={[9, 3.2, 7]} c="#c5b493" />
@@ -136,13 +143,15 @@ export function WorldTravel({
   }, [traveling, cancel]);
   useFrame(() => {
     if (traveling) return;
+    const airport = journeyGate("plane", world);
+    const rail = railForWorld(world);
     const next =
-      Math.hypot(runtime.x - 58, runtime.z - 61) < 5
+      Math.hypot(runtime.x - airport[0], runtime.z - airport[1]) < 5
         ? "airport"
         : world !== "korea" &&
             Math.hypot(
-              runtime.x - ISLAND_RAIL.station[0],
-              runtime.z - ISLAND_RAIL.station[1],
+              runtime.x - rail.station[0],
+              runtime.z - rail.station[1],
             ) < 5
           ? "station"
           : null;
@@ -171,14 +180,14 @@ export function WorldTravel({
   }, [request, world, depart, hidden, traveling]);
   return (
     <group>
-      <Airport traveling={traveling} />
+      <Airport traveling={traveling} world={world} />
       {trip && (
         <IslandJourney
           trip={trip}
           reduced={reduced}
           onArrive={() => onArrive(trip.destination, trip.mode)}
           onComplete={() => {
-            [runtime.x, runtime.z] = journeyGate(trip.mode);
+            [runtime.x, runtime.z] = journeyGate(trip.mode, trip.destination);
             finish();
           }}
         />

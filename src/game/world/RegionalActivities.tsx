@@ -338,10 +338,10 @@ export function RegionalActivities({ world }: { world: WorldId }) {
       {world === "home" && (
         <>
           {[
-            [12, 42],
-            [12, 55],
-            [28, 42],
-            [28, 55],
+            [-19, 0],
+            [-19, 7],
+            [-7, 0],
+            [-7, 7],
           ].map(([x, z], i) => (
             <group key={i}>
               {now >= play.gardenReadyAt[i] && (
