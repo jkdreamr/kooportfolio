@@ -39,7 +39,7 @@ export const RHYME_FAMILIES: readonly (readonly string[])[] = [
   ],
   ["funk", "dunk", "trunk", "monk", "chunk", "debunk", "flunk", "skunk"],
   ["rock", "clock", "block", "shock", "stock", "unlock", "knock", "tick-tock"],
-  ["cold", "gold", "hold", "bold", "told", "sold", "unfold", "control"],
+  ["cold", "gold", "hold", "bold", "told", "sold", "unfold", "enrolled"],
 ];
 
 export type RhymeBar = { family: number; word: string };
