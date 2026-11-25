@@ -841,7 +841,7 @@ export const FILMS: readonly TheaterFilm[] = [
     ["E-LkaQgj0qM", "Masquerade", "Main trailer"],
     ["BBEDtovULHY", "Ode to My Father", "Main trailer"],
     ["4jc3uQErc7I", "Parasite", "Black & white edition trailer"],
-    ["Q38h5XD4RKE", "Parasite", "Official trailer 2"],
+    ["Q38h5XD4RKE", "Parasite", "Korean trailer"],
     ["ieCQ6wePGfM", "Snowpiercer", "International trailer"],
     ["q6GPCU-SkAU", "Tabloid Truth", "Main trailer"],
     ["spQtwggaCy4", "The Admiral: Roaring Currents", "Main trailer"],
