@@ -254,3 +254,15 @@ export function lightsHint(board: number): number | null {
   }
   return shortest?.[0] ?? null;
 }
+
+export function createLightsHintTracker() {
+  const hinted = new Set<number>();
+  return {
+    reveal(startingBoard: number, board: number) {
+      const tile = lightsHint(board);
+      if (tile !== null) hinted.add(startingBoard);
+      return tile;
+    },
+    wasUsed: (startingBoard: number) => hinted.has(startingBoard),
+  };
+}

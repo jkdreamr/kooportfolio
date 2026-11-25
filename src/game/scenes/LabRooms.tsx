@@ -25,10 +25,10 @@ import {
   beatPadLane,
   beatRewardCoins,
   beatRoundEnd,
+  createLightsHintTracker,
   flipLights,
   HIT_WINDOW,
   LIGHTS_TARGET,
-  lightsHint,
   newBeatGame,
   newLightsBoard,
   queueBeatPad,
@@ -725,6 +725,8 @@ function MathDressing() {
   );
 }
 
+const mathHints = createLightsHintTracker();
+
 export function MathLabInterior() {
   const active = useGameMode((s) => s.active?.id === "math");
   const size = useThree((s) => s.size);
@@ -735,17 +737,17 @@ export function MathLabInterior() {
     [hint, setHint] = useState<number | null>(null);
   const [practiceClear, setPracticeClear] = useState(false);
   const [near, setNear] = useState(false);
-  const usedHint = useRef(false),
+  const startingBoard = useRef(board),
     boardRef = useRef(board);
   const solved = board === LIGHTS_TARGET;
-  const cancelRound = useCallback(() => {
-    boardRef.current = newLightsBoard(0);
+  const resetPuzzle = useCallback((nextRound: number) => {
+    startingBoard.current = boardRef.current = newLightsBoard(nextRound);
     setBoard(boardRef.current);
-    setRound(0);
+    setRound(nextRound);
     setMoves(0);
     setHint(null);
-    usedHint.current = false;
   }, []);
+  const cancelRound = useCallback(() => resetPuzzle(0), [resetPuzzle]);
   const close = useLabClose("math", cancelRound);
   const toggle = useCallback((tile: number) => {
     if (
@@ -761,8 +763,9 @@ export function MathLabInterior() {
     setHint(null);
     labTone(tile % 4);
     if (next === LIGHTS_TARGET) {
-      setPracticeClear(usedHint.current);
-      if (!usedHint.current)
+      const practice = mathHints.wasUsed(startingBoard.current);
+      setPracticeClear(practice);
+      if (!practice)
         useGame.getState().award(`math-${newRunId()}`, 15, 10);
     }
   }, []);
@@ -785,12 +788,7 @@ export function MathLabInterior() {
   });
   const reset = (nextRound = round) => {
     if (!gameIsActive() || useGameMode.getState().active?.id !== "math") return;
-    if (nextRound !== round) usedHint.current = false;
-    setRound(nextRound);
-    setMoves(0);
-    setHint(null);
-    boardRef.current = newLightsBoard(nextRound);
-    setBoard(boardRef.current);
+    resetPuzzle(nextRound);
   };
   const start = () => {
     if (!near || !gameIsActive() || !startGameMode("math")) return;
@@ -891,10 +889,9 @@ export function MathLabInterior() {
                   <button
                     onClick={() => {
                       if (!gameIsActive()) return;
-                      const tile = lightsHint(boardRef.current);
-                      if (tile === null) return;
-                      usedHint.current = true;
-                      setHint(tile);
+                      setHint(
+                        mathHints.reveal(startingBoard.current, boardRef.current),
+                      );
                     }}
                   >
                     Hint
