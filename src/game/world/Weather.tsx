@@ -63,15 +63,17 @@ export function Weather() {
       mesh.visible = strength > 0.01 && !reduced;
       if (!mesh.visible) continue;
       mesh.count = Math.floor(count * strength);
+      // Offsets wrap around the player in a fixed 48-cell so each flake keeps a
+      // stable world position instead of translating with the player's motion.
+      const wrap = (v: number) => THREE.MathUtils.euclideanModulo(v, 48) - 24;
       for (let i = 0; i < mesh.count; i++) {
         const height = 21 - ((t * (isRain ? 13 : 1.1) + i * 0.83) % 21);
         dummy.position.set(
           runtime.x +
-            ((i * 13.371 + t * (isRain ? 1.4 : 0.3)) % 48) -
-            24 +
+            wrap(i * 13.371 + t * (isRain ? 1.4 : 0.3) - runtime.x) +
             (isRain ? 0 : Math.sin(t + i) * 0.6),
           height,
-          runtime.z + ((i * 7.919) % 48) - 24,
+          runtime.z + wrap(i * 7.919 - runtime.z),
         );
         dummy.rotation.set(
           isRain ? 0 : t * 0.2 + i,
