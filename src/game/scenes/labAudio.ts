@@ -138,13 +138,12 @@ export function scheduleLabBeat(
     const stepInterval = beatInterval / 4;
     const countInSteps = countInBars * stepsPerBar;
     const drums = LAB_BEAT_PATTERNS[pattern] ?? LAB_BEAT_PATTERNS.boombap;
-    const schedule = (node: AudioScheduledSourceNode, onEnded?: () => void) => {
+    const schedule = (node: AudioScheduledSourceNode) => {
       scheduled.add(node);
-      const done = onEnded;
-      node.onended = () => {
-        node.disconnect();
+      const cleanup = node.onended;
+      node.onended = (event) => {
+        cleanup?.call(node, event);
         scheduled.delete(node);
-        done?.();
       };
     };
     const queue = () => {
