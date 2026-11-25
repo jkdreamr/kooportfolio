@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { HOME_GARDEN_WALKS } from "../src/game/core/homeGardens";
 import { canWalk, doors, doorsInWorld, findPath } from "../src/game/core/world";
-import { AIRPORT_GATE, STATION_GATE } from "../src/game/core/journey";
+import { journeyGate } from "../src/game/core/journey";
 import {
   PARCEL_DOORS,
   freshActivities,
@@ -71,8 +71,8 @@ describe("Home planted districts", () => {
   it("keeps each named room and both transit gates reachable from the plaza", () => {
     for (const destination of [
       ...doorsInWorld("home").map((door) => [door.x, door.z] as const),
-      AIRPORT_GATE,
-      STATION_GATE,
+      journeyGate("plane", "home"),
+      journeyGate("train", "home"),
     ])
       expect(
         findPath([0, 5], [...destination], "home").length,

@@ -14,6 +14,7 @@ import {
   zoomWorld,
 } from "../src/game/core/worldView";
 import { WORLD_ELLIPSE } from "../src/shared/world-bounds";
+import { islandForWorld } from "../src/game/core/homeIsland";
 import { KOREA_SHORE } from "../src/game/core/koreaDistrict";
 import { KOREA_LANDMARKS } from "../src/game/core/koreaLandmarks";
 import { POND_SURFACE } from "../src/game/core/pond";
@@ -163,11 +164,12 @@ describe("stable, planted island", () => {
     "roots every %s garden inside the smaller coastline and keeps water clear",
     (world) => {
       const plots = villageGardenPlots(world);
-      expect(plots.length).toBeGreaterThan(world === "home" ? 100 : 0);
+      expect(plots.length).toBeGreaterThan(0);
+      const island = islandForWorld(world);
       for (const { x, z } of plots) {
         expect(
-          (x / WORLD_ELLIPSE.radiusX) ** 2 +
-            ((z - WORLD_ELLIPSE.centerZ) / WORLD_ELLIPSE.radiusZ) ** 2,
+          ((x - island.centerX) / island.radiusX) ** 2 +
+            ((z - island.centerZ) / island.radiusZ) ** 2,
         ).toBeLessThan(1);
         if (world === "korea")
           expect(x > -14 && x < 64 && z > 20 && z < 46).toBe(false);

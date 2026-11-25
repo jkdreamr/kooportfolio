@@ -102,7 +102,8 @@ describe("separate worlds", () => {
     expect(canWalk(45, 30.38, "korea")).toBe(false);
     for (let x = 26; x <= 64; x++)
       expect(canWalk(x, 34, "korea"), `bridge x=${x}`).toBe(true);
-    expect(canWalk(45, 26, "home")).toBe(true);
+    // That coordinate is now offshore at Home, not a shared regional lawn.
+    expect(canWalk(45, 26, "home")).toBe(false);
   });
   it("keeps Korea's south-bank walk open behind the airport terminal", () => {
     for (let x = 49; x <= 68; x++) {
@@ -193,7 +194,7 @@ describe("separate worlds", () => {
       }
     }
   });
-  it("reclaims the empty coastal apron without changing other worlds", () => {
+  it("reclaims Korea's empty coastal apron independently of Home", () => {
     for (const [x, z] of [
       [-69, 12],
       [51, -33],
@@ -201,7 +202,7 @@ describe("separate worlds", () => {
     ]) {
       expect(isOnKoreaLand(x, z)).toBe(false);
       expect(canWalk(x, z, "korea")).toBe(false);
-      expect(canWalk(x, z, "home")).toBe(true);
+      expect(canWalk(x, z, "home")).toBe(false);
     }
     for (const [x, z] of [
       [-48, 40],

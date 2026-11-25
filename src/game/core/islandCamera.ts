@@ -1,8 +1,8 @@
 import { Vector3 } from "three";
-import { WORLD_ELLIPSE } from "../../shared/world-bounds";
+import { islandForWorld } from "./homeIsland";
+import type { WorldId } from "./worlds";
 import { KOREA_SHORE } from "./koreaDistrict";
 import { KOREA_LANDMARKS } from "./koreaLandmarks";
-import type { WorldId } from "./worlds";
 
 // Stay behind the entire island; the old close camera clipped the foreground
 // when zoomed out because orthographic zoom does not change viewing distance.
@@ -40,14 +40,17 @@ const koreaExtent = {
       ) +
     8,
 };
-export const islandCenter = (world: WorldId): readonly [number, number] =>
-  world === "korea" ? koreaView : [0, WORLD_ELLIPSE.centerZ];
+export const islandCenter = (world: WorldId): readonly [number, number] => {
+  const island = islandForWorld(world);
+  return world === "korea" ? koreaView : [island.centerX, island.centerZ];
+};
 
 /** Project the island's ellipse, coastal rail, lake and tallest landmark.
  * Fit against the usable viewport, not a hard-coded desktop zoom. */
 export function islandZoom(width: number, height: number, world?: WorldId) {
-  const rx = WORLD_ELLIPSE.radiusX + 9;
-  const rz = WORLD_ELLIPSE.radiusZ + 16;
+  const island = islandForWorld(world);
+  const rx = island.radiusX + (world === "home" ? 6 : 9);
+  const rz = island.radiusZ + (world === "home" ? 8 : 16);
   const projectedWidth =
     world === "korea"
       ? koreaExtent.width

@@ -39,9 +39,9 @@ describe("physical neighborhood activities", () => {
     expect(step(s, "picnic", 32).mealsServed).toBe(2);
   });
   it("offers actions only near their own region and chooses the closest garden bed", () => {
-    expect(nearbyRegionalActivity("stanford", 16.5, 42)).toBeUndefined();
+    expect(nearbyRegionalActivity("stanford", -14.5, 0)).toBeUndefined();
     expect(nearbyRegionalActivity("home", 0, 5)).toBeUndefined();
-    expect(nearbyRegionalActivity("home", 16.5, 42)?.id).toBe("harvest-0");
+    expect(nearbyRegionalActivity("home", -14.5, 0)?.id).toBe("harvest-0");
     const ramen = activitySpots.find(({ id }) => id === "ramen")!;
     expect(nearbyRegionalActivity("korea", ...ramen.p)?.id).toBe("ramen");
     expect(nearbyRegionalActivity("home", ...ramen.p)).toBeUndefined();

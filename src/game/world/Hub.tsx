@@ -377,7 +377,12 @@ export function Hub() {
       )}
       <StargazingHill position={[-19, 0, -38]} />
       {world !== "korea" && (
-        <IslandTrain disabled={traveling} onRidingChange={setTrainRiding} />
+        <IslandTrain
+          key={world}
+          world={world}
+          disabled={traveling}
+          onRidingChange={setTrainRiding}
+        />
       )}
       <WorldTravel
         world={world}

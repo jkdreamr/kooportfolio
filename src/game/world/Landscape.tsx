@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { Box, Cylinder, Ball, Bench, Boat, Cone } from "./Models";
+import { Box, Cylinder, Ball, Bench, Boat } from "./Models";
+import { HOME_ISLAND } from "../core/homeIsland";
 import { NaturalTrees, type TreePlacement } from "./TreeArt";
 import { KoreaRiverGround } from "./KoreaRiverGround";
 import { GroundGrass, Scenery } from "./Scenery";
@@ -111,6 +112,7 @@ export function Landscape({ world = "stanford" }: { world?: WorldId }) {
     ],
     [],
   );
+  if (world === "home") return <HomeCoast />;
   return (
     <group>
       {world === "korea" ? (
@@ -216,7 +218,6 @@ export function Landscape({ world = "stanford" }: { world?: WorldId }) {
           ))}
         </>
       )}
-      {world === "home" && <Windmill />}
       <Bench p={[-2.7, 0.2, 3.4]} />
       <Bench p={[2.8, 0.2, -2.9]} rotation={Math.PI} />
       {[-1, 1].map((side) => (
@@ -231,22 +232,41 @@ export function Landscape({ world = "stanford" }: { world?: WorldId }) {
   );
 }
 
-function Windmill() {
+function HomeCoast() {
+  const { centerX: x, centerZ: z, radiusX: rx, radiusZ: rz } = HOME_ISLAND;
   return (
-    <group position={[-34, 0, -24]} scale={0.8}>
-      <Cylinder p={[0, 1.9, 0]} s={[1.5, 3.8, 1.5]} c="#c5b188" />
-      <Box p={[0, 4.2, 0]} s={[2.5, 1.6, 2.1]} c="#8d593b" />
-      <Cone p={[0, 5.6, 0]} s={[2, 1.5, 1.8]} c="#c25132" />
-      <group position={[0, 4.4, 1.3]} rotation={[0, 0, 0.7]}>
-        <Box s={[6, 0.25, 0.25]} c="#68492f" />
-        <Box s={[0.25, 6, 0.25]} c="#68492f" />
-        {[0, 1, 2, 3].map((i) => (
-          <group key={i} rotation={[0, 0, (i * Math.PI) / 2]}>
-            <Box p={[1.9, 0.4, 0]} s={[1.7, 0.8, 0.15]} c="#e9d59b" />
-          </group>
-        ))}
-        <Ball s={[0.35, 0.35, 0.25]} c="#c7984f" />
-      </group>
+    <group name="home-compact-coast">
+      <Cylinder p={[x, -2.1, z]} s={[rx + 2.3, 4.2, rz + 2.3]} c="#655e3e" />
+      <Cylinder p={[x, -0.5, z]} s={[rx + 2.5, 1, rz + 2.5]} c="#a49564" />
+      <Cylinder p={[x, -0.01, z]} s={[rx + 2, 0.3, rz + 2]} c="#639343" />
+      {Array.from({ length: 64 }, (_, i) => {
+        const angle = (i / 64) * Math.PI * 2;
+        const px = x + Math.cos(angle) * (rx + 1.1);
+        const pz = z + Math.sin(angle) * (rz + 1.1);
+        if (
+          (px < -40 && Math.abs(pz - z) < 4) ||
+          (px > 22 && pz > -27 && pz < 2)
+        )
+          return null;
+        return (
+          <Ball
+            key={i}
+            p={[px, 0.12, pz]}
+            s={[1.1, 0.55, 0.8]}
+            c={i % 3 ? "#9b9b7a" : "#b3ad88"}
+          />
+        );
+      })}
+      <Bench p={[-2.7, 0.2, 3.4]} />
+      <Bench p={[2.8, 0.2, -2.9]} rotation={Math.PI} />
+      {[-1, 1].map((side) => (
+        <NationalFlag
+          key={side}
+          nation={side === 1 ? "us" : "kr"}
+          p={[side * 2.4, 0, -4.3]}
+          height={4.5}
+        />
+      ))}
     </group>
   );
 }

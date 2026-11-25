@@ -341,13 +341,11 @@ export const villagers: Villager[] = [
   ...extraLocals,
   ...islandLocals,
 ].map((npc) => {
-  const homeWalk =
-    npc.id === "home-neighbor"
-      ? undefined
-      : (HOME_NPC_WALKS[npc.id] ?? HOME_NPC_WALKS[npc.place]);
+  const homeWalk = HOME_NPC_WALKS[npc.id] ?? HOME_NPC_WALKS[npc.place];
   if (homeWalk) {
-    const count = stanfordRouteCounts.get(npc.place) ?? 0;
-    stanfordRouteCounts.set(npc.place, count + 1);
+    const routeId = HOME_NPC_WALKS[npc.id] ? npc.id : npc.place;
+    const count = stanfordRouteCounts.get(routeId) ?? 0;
+    stanfordRouteCounts.set(routeId, count + 1);
     const offset = count % homeWalk.length;
     return {
       ...npc,
