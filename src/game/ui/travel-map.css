@@ -99,3 +99,18 @@
     height: 65px;
   }
 }
+/* The triangular layout needs more height than a phone in landscape has. */
+@media (max-height: 500px) and (min-width: 600px) {
+  .island-map {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+  }
+  .island-map-stop {
+    position: relative;
+    inset: auto;
+    width: 100%;
+  }
+}

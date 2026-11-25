@@ -1,5 +1,5 @@
 export type TravelWorld = "stanford" | "home" | "korea";
-export type TravelMode = "car" | "train" | "plane";
+export type TravelMode = "train" | "plane";
 export type TravelStop = "station" | "airport";
 export type TravelOption = { destination: TravelWorld; mode: TravelMode };
 
@@ -30,10 +30,7 @@ export function travelOptions(
     ).map((destination) => ({ destination, mode: "plane" }));
   if (world === "korea") return [];
   const destination = world === "home" ? "stanford" : "home";
-  return [
-    { destination, mode: "car" },
-    { destination, mode: "train" },
-  ];
+  return [{ destination, mode: "train" }];
 }
 
 export function canTravel(

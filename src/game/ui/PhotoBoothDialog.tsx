@@ -13,12 +13,13 @@ import {
   CAPTION_LIMIT,
   captureShot,
   drawStrip,
+  filters,
   SHOT_COUNT,
   stickers,
   stripBlob,
   wallJpeg,
 } from "../core/photoStrip";
-import type { Border, Mark, Point, Sticker } from "../core/photoStrip";
+import type { Border, Filter, Mark, Point, Sticker } from "../core/photoStrip";
 import { BOOTH_PATH, STRIP_HEIGHT, STRIP_WIDTH } from "../../shared/booth";
 import { apiUrl } from "../../shared/api";
 import type { WallStrip } from "../../shared/booth";
@@ -245,6 +246,7 @@ function Decorate({
   onPosted: () => void;
 }) {
   const [border, setBorder] = useState<Border>("slate");
+  const [filter, setFilter] = useState<Filter>("none");
   const [caption, setCaption] = useState("");
   const [tool, setTool] = useState<Sticker | "pen">("Star");
   const [marks, setMarks] = useState<Mark[]>([]);
@@ -266,8 +268,9 @@ function Decorate({
         shoot.date.toLocaleDateString(),
         caption,
         marks,
+        filter,
       );
-  }, [border, caption, marks, shoot]);
+  }, [border, caption, filter, marks, shoot]);
 
   function position(event: PointerEvent<HTMLCanvasElement>): Point {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -394,6 +397,19 @@ function Decorate({
               onClick={() => setBorder(choice)}
             >
               {choice[0].toUpperCase() + choice.slice(1)}
+            </button>
+          ))}
+        </fieldset>
+        <fieldset disabled={busy}>
+          <legend>Filter</legend>
+          {(Object.keys(filters) as Filter[]).map((choice) => (
+            <button
+              key={choice}
+              type="button"
+              aria-pressed={filter === choice}
+              onClick={() => setFilter(choice)}
+            >
+              {filters[choice].label}
             </button>
           ))}
         </fieldset>

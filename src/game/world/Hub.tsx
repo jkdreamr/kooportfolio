@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { GlazedPanel } from "./GlazedPanel";
 import { RegionalActivities } from "./RegionalActivities";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
@@ -14,6 +15,7 @@ import {
 } from "./Models";
 import { runtime, useGame, walkTo } from "../core/store";
 import { movement, movementSpeed } from "../core/input";
+import { footstep } from "../core/sound";
 import {
   canWalk,
   doorsInWorld,
@@ -132,7 +134,9 @@ export function Walker({
       state.panel === "none" &&
       Math.hypot(dx, dz) > 0.1;
     if (runtime.moving) {
-      const step = Math.min(dt * movementSpeed(interior ? 4 : 4.6), remaining);
+      const step = Math.min(dt * movementSpeed(interior ? 4 : 4.6), remaining),
+        px = runtime.x,
+        pz = runtime.z;
       if (interior) {
         [runtime.x, runtime.z] = moveInterior(
           state.scene,
@@ -149,6 +153,7 @@ export function Walker({
           dz * step,
           state.world,
         );
+      if (Math.hypot(runtime.x - px, runtime.z - pz) > 0.0001) footstep();
       runtime.heading = Math.atan2(dx, dz);
     }
     if (avatar.current) {
@@ -299,7 +304,13 @@ function CourtPavilion() {
         <Box key={x} p={[x, 1.3, 0]} s={[0.06, 1.4, 4.8]} c="#7e9a72" />
       ))}
       <Box p={[0, 1.9, -2.25]} s={[0.12, 3.6, 0.13]} c="#47644f" />
-      <Box p={[0, 3.15, -2.12]} s={[1.6, 1, 0.13]} c="#edddbb" />
+      <GlazedPanel position={[0, 3.15, -2.12]} size={[1.6, 1, 0.13]} />
+      {[-0.8, 0.8].map((x) => (
+        <Box key={x} p={[x, 3.15, -2.12]} s={[0.045, 1.04, 0.15]} c="#c3d2dc" />
+      ))}
+      {[-0.5, 0.5].map((y) => (
+        <Box key={y} p={[0, 3.15 + y, -2.12]} s={[1.64, 0.045, 0.15]} c="#c3d2dc" />
+      ))}
       <Box p={[0, 3.14, -2.03]} s={[0.65, 0.48, 0.03]} c="#bc6040" />
       <Ring p={[0, 2.8, -1.7]} radius={0.34} tube={0.04} c="#b65e35" />
       <Ball p={[1.6, 0.65, 0.8]} s={[0.3, 0.3, 0.3]} c="#d78532" />
@@ -332,6 +343,14 @@ function Garden({ level }: { level: number }) {
             <Box key={x} p={[x, 1.5, 0]} s={[0.15, 3, 0.15]} c="#aa874d" />
           ))}
           <Box p={[0, 3, 0]} s={[5.7, 0.2, 1]} c="#c3a56b" />
+          {[-2, -1, 0, 1, 2].map((x) => (
+            <GlazedPanel
+              key={`glass-${x}`}
+              position={[x, 3.14, 0.85]}
+              size={[0.95, 1.2, 0.045]}
+              rotation={[-Math.PI / 2, 0, 0]}
+            />
+          ))}
           {[-2, -1, 0, 1, 2].map((x) => (
             <Ball key={x} p={[x, 3.05, 0]} s={[0.6, 0.27, 0.8]} c="#4d813c" />
           ))}

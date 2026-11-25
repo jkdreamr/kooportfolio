@@ -8,8 +8,10 @@ import {
 } from "../src/game/core/daylight";
 
 describe("village daylight", () => {
-  it("uses actual regional time in Auto without a midnight discontinuity", () => {
-    expect(advanceHour(12, 0.1, "auto", 23.99)).toBeCloseTo(23.99);
+  it("glides to regional time in Auto without a midnight discontinuity", () => {
+    let hour = 12;
+    for (let i = 0; i < 100; i++) hour = advanceHour(hour, 0.1, "auto", 23.99);
+    expect(hour).toBeCloseTo(23.99, 6);
     expect(advanceHour(23.99, 0.1, "auto", 0)).toBe(0);
     const midnight = sampleDaylight(0);
     const before = sampleDaylight(24 - 1e-6);
@@ -20,12 +22,18 @@ describe("village daylight", () => {
   it("holds inactive frames and resynchronizes Auto without accelerating time", () => {
     expect(advanceHour(12, 0, "auto", 18)).toBe(12);
     expect(advanceHour(12, -1, "auto", 18)).toBe(12);
-    expect(advanceHour(12, 900, "auto", 18)).toBe(18);
-    expect(advanceHour(12, 900, "night")).toBe(advanceHour(12, 0.1, "night"));
+    // A long pause resumes with one eased step, not a fast-forward.
+    const resumed = advanceHour(12, 900, "auto", 18);
+    expect(resumed).toBeGreaterThan(12);
+    expect(resumed).toBeLessThan(13);
+    const resumedNight = advanceHour(12, 900, "night");
+    expect(resumedNight).toBeGreaterThan(12);
+    expect(resumedNight).toBeLessThan(13);
   });
 
   it("smoothly reaches every selected time, taking the short way over midnight", () => {
-    expect(advanceHour(23.5, 0.1, "dawn")).toBeLessThan(2);
+    const dawnStep = advanceHour(23.5, 0.1, "dawn");
+    expect(dawnStep).toBeGreaterThan(23.5);
     for (const [mode, preset] of Object.entries(TIME_PRESETS)) {
       let hour = 12;
       for (let i = 0; i < 100; i++)

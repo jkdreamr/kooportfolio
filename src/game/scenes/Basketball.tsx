@@ -18,7 +18,7 @@ import {
   type BallState,
   type ShotStyle,
 } from "../core/basketball";
-import { sound } from "../core/sound";
+import { footstep, sound } from "../core/sound";
 import { newRunId } from "../../shared/run-id";
 import { recordLeaderboardResult } from "../core/leaderboard";
 import { BasketballPlayer } from "./BasketballPlayer";
@@ -562,10 +562,15 @@ function BasketballCourt({ playing }: { playing: boolean }) {
       // Match the screen-relative court controls while keeping walking free of inertia.
       const vx = runtime.target ? x : x * rightX - z * rightZ;
       const vz = runtime.target ? z : x * rightZ + z * rightX;
+      const px = runtime.x,
+        pz = runtime.z;
       runtime.x = THREE.MathUtils.clamp(runtime.x + vx * dt * 4.8, -6, 6);
       runtime.z = THREE.MathUtils.clamp(runtime.z + vz * dt * 4.8, -3.8, 7.7);
       runtime.moving = Math.hypot(vx, vz) > 0.1;
-      if (runtime.moving) runtime.heading = Math.atan2(vx, vz);
+      if (runtime.moving) {
+        if (Math.hypot(runtime.x - px, runtime.z - pz) > 0.0001) footstep();
+        runtime.heading = Math.atan2(vx, vz);
+      }
       runtime.shoot = runtime.shooting = false;
       player.current?.position.set(runtime.x, 0, runtime.z);
       if (player.current) player.current.rotation.y = runtime.heading;

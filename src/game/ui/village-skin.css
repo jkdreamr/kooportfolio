@@ -371,7 +371,7 @@
 .game-shell .setting-row b {
   color: var(--hud-ink);
 }
-.game-shell :is(.memory-card, .places-list button) {
+.game-shell :is(.memory-card, :where(.places-list button)) {
   color: var(--hud-ink);
   background: #243a44;
   border-color: #566b72;

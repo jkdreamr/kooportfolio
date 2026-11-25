@@ -1,12 +1,28 @@
 import { describe, expect, it } from "vitest";
 import {
-  LANDING_TIME, RIM_AGE, TOSS_LIMIT, binPosition, canThrowPaper, chargePower, launchPaper, newTossRound, shotPosition,
-  stepToss, swipeToss, throwPaper, type TossRound,
+  LANDING_TIME,
+  RIM_AGE,
+  TOSS_LEVELS,
+  binPosition,
+  canThrowPaper,
+  chargePower,
+  launchPaper,
+  levelCleared,
+  newTossRound,
+  roundOver,
+  shotPosition,
+  stepToss,
+  swipeToss,
+  throwPaper,
+  type TossRound,
 } from "../src/game/core/paperToss";
+
+const ATTEMPTS = TOSS_LEVELS[0].attempts;
 
 function finishShot(round: TossRound, aim: number, power: number, dt = 1 / 60) {
   let current = throwPaper(round, aim, power);
-  for (let i = 0; i < 150 && (current.shot || current.landing); i++) current = stepToss(current, dt);
+  for (let i = 0; i < 150 && (current.shot || current.landing); i++)
+    current = stepToss(current, dt);
   return current;
 }
 
@@ -22,10 +38,26 @@ describe("paper toss", () => {
   it("requires both aim and power, independent of crossing frame size", () => {
     for (const dt of [1 / 60, 0.1]) {
       const round = newTossRound();
-      expect(finishShot(round, 0, 0.5, dt)).toMatchObject({ attempts: 1, score: 1, result: "hit" });
-      expect(finishShot(round, 1.6, 0.5, dt)).toMatchObject({ attempts: 1, score: 0, result: "miss" });
-      expect(finishShot(round, 0, 0.1, dt)).toMatchObject({ attempts: 1, score: 0, result: "miss" });
-      expect(finishShot(round, 0, 0.9, dt)).toMatchObject({ attempts: 1, score: 0, result: "miss" });
+      expect(finishShot(round, 0, 0.5, dt)).toMatchObject({
+        attempts: 1,
+        made: 1,
+        result: "hit",
+      });
+      expect(finishShot(round, 1.6, 0.5, dt)).toMatchObject({
+        attempts: 1,
+        made: 0,
+        result: "miss",
+      });
+      expect(finishShot(round, 0, 0.1, dt)).toMatchObject({
+        attempts: 1,
+        made: 0,
+        result: "miss",
+      });
+      expect(finishShot(round, 0, 0.9, dt)).toMatchObject({
+        attempts: 1,
+        made: 0,
+        result: "miss",
+      });
     }
   });
 
@@ -52,14 +84,24 @@ describe("paper toss", () => {
     expect(binPosition(landed.railAngle)).toBe(0);
     const round = stepToss(landed, LANDING_TIME);
     expect(finishShot(round, 0, 0.5).result).toBe("miss");
-    expect(finishShot(round, 1.3, 0.5)).toMatchObject({ attempts: 2, score: 2, result: "hit" });
-    expect(stepToss({ ...round, attempts: 4 }, 0.3).railAngle)
-      .toBeGreaterThan(stepToss(round, 0.3).railAngle);
+    expect(finishShot(round, 1.3, 0.5)).toMatchObject({
+      attempts: 2,
+      made: 2,
+      result: "hit",
+    });
+    expect(stepToss({ ...round, attempts: 4 }, 0.3).railAngle).toBeGreaterThan(
+      stepToss(round, 0.3).railAngle,
+    );
   });
 
   it("keeps the next throw unavailable until the landing animation ends", () => {
     const landed = stepToss(throwPaper(newTossRound(), 0, 0.5), RIM_AGE);
-    expect(landed).toMatchObject({ attempts: 1, score: 1, shot: null, landing: { age: 0 } });
+    expect(landed).toMatchObject({
+      attempts: 1,
+      made: 1,
+      shot: null,
+      landing: { age: 0 },
+    });
     const settling = stepToss(landed, LANDING_TIME / 2);
     expect(canThrowPaper(settling)).toBe(false);
     expect(throwPaper(settling, 0, 0.5)).toBe(settling);
@@ -69,14 +111,52 @@ describe("paper toss", () => {
     expect(throwPaper(ready, 0, 0.5).shot).not.toBeNull();
   });
 
-  it("blocks overlapping throws, ends after six shots, and starts a clean rematch", () => {
+  it("blocks overlapping throws, ends after the level's shots, and starts a clean rematch", () => {
     const shot = throwPaper(newTossRound(), 0, 0);
     expect(throwPaper(shot, 0, 0.5)).toBe(shot);
     let round = newTossRound();
-    for (let i = 0; i < TOSS_LIMIT; i++) round = finishShot(round, 0, 0);
-    expect(round).toMatchObject({ attempts: TOSS_LIMIT, score: 0, shot: null });
+    for (let i = 0; i < ATTEMPTS; i++) round = finishShot(round, 0, 0);
+    expect(round).toMatchObject({ attempts: ATTEMPTS, made: 0, shot: null });
+    expect(roundOver(round)).toBe(true);
     expect(throwPaper(round, 0, 0.5)).toBe(round);
     expect(stepToss(round, 1)).toBe(round);
-    expect(newTossRound()).toMatchObject({ attempts: 0, score: 0, shot: null, railAngle: 0 });
+    expect(newTossRound()).toMatchObject({
+      level: 0,
+      attempts: 0,
+      made: 0,
+      shot: null,
+      railAngle: 0,
+    });
+  });
+
+  it("clears a level when enough shots land, with later levels harder", () => {
+    expect(TOSS_LEVELS.length).toBeGreaterThan(1);
+    let round = newTossRound();
+    for (const aim of [0, 1.3, 1.7])
+      round = finishShot({ ...round, railAngle: 0 }, aim, 0.5);
+    expect(levelCleared(round)).toBe(true);
+    expect(roundOver(round)).toBe(false);
+    const next = newTossRound(round.level + 1);
+    expect(next.level).toBe(1);
+    expect(newTossRound(TOSS_LEVELS.length).level).toBe(TOSS_LEVELS.length - 1);
+    expect(
+      stepToss({ ...round, level: 4, attempts: 2 }, 0.3).railAngle,
+    ).toBeGreaterThan(stepToss({ ...round, attempts: 2 }, 0.3).railAngle);
+  });
+
+  it("drifts the paper with wind and lands it in the farther bin", () => {
+    const windy = TOSS_LEVELS.findIndex((l) => l.wind !== 0);
+    const calm = throwPaper(newTossRound(), 0, 0.5).shot!;
+    const blown = throwPaper(newTossRound(windy), 0, 0.5).shot!;
+    expect(shotPosition(blown, RIM_AGE).x).toBeGreaterThan(
+      shotPosition(calm, RIM_AGE).x,
+    );
+    expect(finishShot(newTossRound(windy), -0.6, 0.5).result).toBe("hit");
+
+    const far = TOSS_LEVELS.findIndex((l) => l.binZ < -4);
+    const longShot = throwPaper(newTossRound(far), 0, 0.5).shot!;
+    expect(shotPosition(longShot, RIM_AGE).z).toBeLessThan(-4);
+    expect(finishShot(newTossRound(far), 0, 0.5).result).toBe("hit");
+    expect(finishShot(newTossRound(far), 0, 0.5).made).toBe(1);
   });
 });

@@ -22,6 +22,7 @@ import {
   STADIUM_KICKS,
   STADIUM_STEER,
 } from "../core/stadiumChallenge";
+import { sound } from "../core/sound";
 import { GameControls, gameIsActive } from "./InteriorProps";
 import { StadiumArchitecture } from "./StadiumArchitecture";
 import { StadiumView } from "./StadiumView";
@@ -286,6 +287,7 @@ export function StadiumInterior() {
       sound("kick");
       timing.current = sample;
       if (cursor.current) cursor.current.style.left = `${sample * 100}%`;
+      sound("whoosh");
       moveTo("flight");
     } else if (phase === "result") {
       if (finished) reset();
