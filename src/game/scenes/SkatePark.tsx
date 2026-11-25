@@ -328,6 +328,7 @@ export function SkateParkInterior() {
         else if (g.bailTime > before.bail) sound("bounce");
         else if (g.score > before.score) sound("score");
         else if (!before.grounded && g.grounded) sound("land");
+        else if (before.grounded && !g.grounded) sound("whoosh");
         else if (g.trick && g.trick !== before.trick) sound("whoosh");
         input.current.jump = false;
         input.current.trick = null;
@@ -362,8 +363,9 @@ export function SkateParkInterior() {
           }
         }
         runtime.moving = Math.hypot(dx, dz) > 0.1;
-        if (runtime.moving) footstep();
         const walking = movementSpeed(5);
+        const px = runtime.x,
+          pz = runtime.z;
         runtime.x = THREE.MathUtils.clamp(
           runtime.x + dx * walking * dt,
           -20.5,
@@ -374,6 +376,7 @@ export function SkateParkInterior() {
           -24.5,
           25,
         );
+        if (Math.hypot(runtime.x - px, runtime.z - pz) > 0.0001) footstep();
         if (runtime.moving) runtime.heading = Math.atan2(dx, dz);
         if (walker.current) {
           walker.current.position.set(

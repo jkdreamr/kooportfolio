@@ -318,6 +318,8 @@ export function GoInterior() {
                     <div className="go-actions">
                       <button disabled={thinking || confirmNew} onClick={() => {
                         const next = passGo(game);
+                        sound("tap");
+                        if (next.phase === "scoring") sound("chime");
                         focusTarget.current = next.phase === "scoring" ? "resume" : "board";
                         commit(next); setMessage(next.phase === "scoring" ? "" : `${colorName(game.turn)} passed.`);
                       }}>Pass</button>
