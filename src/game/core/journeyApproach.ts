@@ -9,21 +9,40 @@ export function moveJourneyApproach(
   delta: number,
   world: WorldId,
 ): [number, number] {
-  const target = route[0];
-  if (!target) return [x, z];
-  // A diagonal first leg can approach an axis asymptotically while the other
-  // axis is blocked. Finish sub-pixel alignment instead of rounding to zero.
-  if (Math.abs(target[0] - x) < 1e-7 && canWalk(target[0], z, world))
-    x = target[0];
-  if (Math.abs(target[1] - z) < 1e-7 && canWalk(x, target[1], world))
-    z = target[1];
-  const dx = target[0] - x,
-    dz = target[1] - z;
-  const distance = Math.hypot(dx, dz);
-  if (distance < 0.0001) {
-    route.shift();
-    return [...target];
+  // Spend the frame's whole movement budget, continuing into the next
+  // waypoint in the same frame instead of pausing one frame per node.
+  let remaining = Math.max(0, Math.min(delta, 0.1)) * 10;
+  while (remaining > 0) {
+    const target = route[0];
+    if (!target) break;
+    // A diagonal first leg can approach an axis asymptotically while the
+    // other axis is blocked. Finish sub-pixel alignment instead of rounding
+    // to zero.
+    if (Math.abs(target[0] - x) < 1e-7 && canWalk(target[0], z, world))
+      x = target[0];
+    if (Math.abs(target[1] - z) < 1e-7 && canWalk(x, target[1], world))
+      z = target[1];
+    const dx = target[0] - x,
+      dz = target[1] - z;
+    const distance = Math.hypot(dx, dz);
+    if (distance < 0.0001) {
+      route.shift();
+      [x, z] = target;
+      continue;
+    }
+    const step = Math.min(distance, remaining);
+    const [nx, nz] = moveWorld(
+      x,
+      z,
+      (dx / distance) * step,
+      (dz / distance) * step,
+      world,
+    );
+    const moved = Math.hypot(nx - x, nz - z);
+    x = nx;
+    z = nz;
+    remaining -= moved;
+    if (moved < 0.0001) break;
   }
-  const step = Math.min(distance, Math.max(0, Math.min(delta, 0.1)) * 10);
-  return moveWorld(x, z, (dx / distance) * step, (dz / distance) * step, world);
+  return [x, z];
 }

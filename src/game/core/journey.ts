@@ -114,12 +114,8 @@ export function journeyPose(
     };
   }
   const rail = railForWorld(world);
-  const pose = railPose(
-    journeyDistance(p),
-    mode === "train" ? coach * rail.coachTurns : 0,
-    world,
-  );
-  return { ...pose, y: mode === "train" ? rail.height : 0.4, pitch: 0, roll: 0 };
+  const pose = railPose(p, mode === "train" ? coach * rail.coachTurns : 0, world);
+  return { ...pose, y: mode === "train" ? rail.height : 0.4, pitch: 0 };
 }
 
 /** Trains follow the mounted region's rails, never an interpolated coastline. */

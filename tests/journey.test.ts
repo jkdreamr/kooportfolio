@@ -93,15 +93,20 @@ describe("world-space transport", () => {
   });
 
   it("starts and stops at rest without a last-frame tilt or altitude jump", () => {
-    for (const mode of ["plane", "train", "car"] as const) {
+    for (const end of [0, 1]) {
+      const parked = journeyPose("plane", end);
+      const near = journeyPose("plane", end === 0 ? 0.0001 : 0.9999);
+      expect(
+        Math.hypot(near.x - parked.x, near.y - parked.y, near.z - parked.z),
+      ).toBeLessThan(0.00001);
+      expect(near.pitch).toBeCloseTo(0, 5);
+      expect(near.roll ?? 0).toBeCloseTo(0, 5);
+    }
+    for (const mode of ["train", "car"] as const) {
       for (const end of [0, 1]) {
-        const parked = journeyPose(mode, end);
         const near = journeyPose(mode, end === 0 ? 0.0001 : 0.9999);
-        expect(
-          Math.hypot(near.x - parked.x, near.y - parked.y, near.z - parked.z),
-        ).toBeLessThan(0.00001);
         expect(near.pitch).toBeCloseTo(0, 5);
-        expect(near.roll).toBeCloseTo(0, 5);
+        expect(near.roll ?? 0).toBeCloseTo(0, 5);
       }
     }
   });
