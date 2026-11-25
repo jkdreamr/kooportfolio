@@ -236,6 +236,7 @@ export function IslandJourney({
     }
   });
   const parked = journeyPose(trip.mode, 0, trip.from);
+  const landed = journeyPose(trip.mode, 0, trip.destination);
   return (
     <group name="in-world-journey">
       <group
@@ -245,11 +246,12 @@ export function IslandJourney({
       >
         <Character walking={walking} color={color} hat={hat} scale={0.65} />
       </group>
-      {trip.mode === "plane" && (
-        <group position={[parked.x, parked.y, parked.z]}>
-          <PassengerStairs />
-        </group>
-      )}
+      {trip.mode === "plane" &&
+        [parked, landed].map((p, i) => (
+          <group key={i} position={[p.x, p.y, p.z]}>
+            <PassengerStairs />
+          </group>
+        ))}
       <group
         ref={vehicle}
         position={[parked.x, parked.y, parked.z]}
