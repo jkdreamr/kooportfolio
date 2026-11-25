@@ -47,13 +47,14 @@ describe("world-space transport", () => {
       "korea",
     );
   });
-  it("can reach the airport through a western Korea gap that needs a turn", () => {
-    const position: [number, number] = [-57.47, 5];
-    expect(canWalk(...position, "korea")).toBe(true);
+  it("can reach the airport through a Stanford alley that needs a turn", () => {
+    // A wall beside this alley leaves no straight-connected grid seed.
+    const position: [number, number] = [28, 43.5];
+    expect(canWalk(...position, "stanford")).toBe(true);
     expectWalkableRoute(
       position,
-      findPath(position, [...journeyGate("plane")], "korea"),
-      "korea",
+      findPath(position, [...journeyGate("plane")], "stanford"),
+      "stanford",
     );
   });
   it("boards at reachable gates in each region", () => {
