@@ -110,8 +110,16 @@ export class AmbientAudio {
         }
       }),
     );
-    if (this.disposed || generation !== this.generation || !this.enabled())
+    if (this.disposed || generation !== this.generation || !this.enabled()) {
+      // A start superseded by stop() was already reset there; only a still-
+      // current start that ended disabled (e.g. muted mid-load) clears here,
+      // or `starting` would stay true and audio would never restart.
+      if (generation === this.generation) {
+        this.starting = false;
+        this.request = undefined;
+      }
       return;
+    }
     this.starting = false;
     this.request = undefined;
     for (const [layer, buffer] of this.buffers) {

@@ -354,7 +354,7 @@ export function House({
         />
       ))}
       <Box p={[0, 3.44, 2.2]} s={[6.3, 0.32, 0.32]} c="#775438" />
-      <NationalFlag nation={study ? "kr" : "us"} p={[2.5, 4.5, 0.5]} />
+      <NationalFlag nation={study ? "us" : "stanford"} p={[2.5, 4.5, 0.5]} />
       {study && (
         <group position={[-1.4, 5.1, -0.65]}>
           <Box p={[0, 0.65, 0]} s={[1.8, 2, 1.8]} c="#c5b79b" />

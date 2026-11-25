@@ -93,7 +93,7 @@ function Door({ z = 2.7, color = "#5f462f" }: { z?: number; color?: string }) {
 export function KappaShell() {
   return (
     <group>
-      <NationalFlag nation="us" p={[2.6, 5.5, -0.6]} height={2.6} />
+      <NationalFlag nation="stanford" p={[2.6, 5.5, -0.6]} height={2.6} />
       <StoneFooting width={6.9} depth={4.8} />
       <Box p={[0, 0.3, 0]} s={[7.5, 0.6, 5.5]} c="#8c6650" />
       <Box p={[0, 2.8, 0]} s={[6.7, 5, 4.6]} c="#f0dbb4" />
