@@ -239,7 +239,8 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
     const step = Math.min(dt, 0.1);
     const next = stepToss(before, step);
     if (next.attempts > before.attempts) {
-      if (next.attempts >= TOSS_LIMIT) sound(next.score > 0 ? "win" : "bounce");
+      if (next.attempts >= TOSS_LEVELS[next.level].attempts)
+        sound(levelCleared(next) ? "win" : "bounce");
       else sound(next.result === "hit" ? "score" : "bounce");
     }
     round.current = next;
