@@ -165,14 +165,11 @@ export function Landscape({ world = "stanford" }: { world?: WorldId }) {
         ))}
       <Bench p={[-2.7, 0.2, 3.4]} />
       <Bench p={[2.8, 0.2, -2.9]} rotation={Math.PI} />
-      {[-1, 1].map((side) => (
-        <NationalFlag
-          key={side}
-          nation={side === 1 ? "us" : "kr"}
-          p={[side * 2.4, 0, -4.3]}
-          height={4.5}
-        />
-      ))}
+      <NationalFlag
+        nation={world === "korea" ? "kr" : "stanford"}
+        p={[2.4, 0, -4.3]}
+        height={4.5}
+      />
     </group>
   );
 }
@@ -183,14 +180,7 @@ function HomeCoast() {
       <HomeCoastArt />
       <Bench p={[-2.7, 0.2, 3.4]} />
       <Bench p={[2.8, 0.2, -2.9]} rotation={Math.PI} />
-      {[-1, 1].map((side) => (
-        <NationalFlag
-          key={side}
-          nation={side === 1 ? "us" : "kr"}
-          p={[side * 2.4, 0, -4.3]}
-          height={4.5}
-        />
-      ))}
+      <NationalFlag nation="us" p={[2.4, 0, -4.3]} height={4.5} />
     </group>
   );
 }
