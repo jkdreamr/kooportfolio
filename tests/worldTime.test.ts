@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { advanceHour } from "../src/game/core/daylight";
 import { readWorldHour, WORLD_TIME_ZONES } from "../src/game/core/worldTime";
 import { daylightClock, useTimeOfDay } from "../src/game/core/timeOfDay";
 
@@ -45,20 +46,25 @@ describe("real regional daylight", () => {
     ).toBeCloseTo(30.5 / 3600, 8);
   });
 
-  it("switches Auto immediately between destination clocks and back", () => {
+  it("glides Auto between destination clocks instead of snapping", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-11-24T00:30:00Z"));
     const time = useTimeOfDay.getState();
     time.setMode("auto");
-    expect(useTimeOfDay.getState().hour).toBe(16.5);
+    const displayed = daylightClock.hour;
     time.setTimeZone(korea);
-    expect(useTimeOfDay.getState().hour).toBe(9.5);
-    expect(daylightClock.hour).toBe(9.5);
+    expect(useTimeOfDay.getState().timeZone).toBe(korea);
+    // The displayed hour stays continuous; advanceHour glides it to Seoul.
+    expect(daylightClock.hour).toBe(displayed);
+    let hour = displayed;
+    for (let i = 0; i < 100; i++)
+      hour = advanceHour(hour, 0.1, "auto", readWorldHour(korea));
+    expect(hour).toBeCloseTo(9.5, 6);
     time.setTimeZone(pacific);
-    expect(daylightClock.hour).toBe(16.5);
+    expect(useTimeOfDay.getState().timeZone).toBe(pacific);
   });
 
-  it("keeps manual presets on travel and resumes the destination's real clock", () => {
+  it("keeps manual presets on travel and glides back to the destination's real clock", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-11-24T00:30:00Z"));
     const time = useTimeOfDay.getState();
@@ -68,7 +74,11 @@ describe("real regional daylight", () => {
     expect(useTimeOfDay.getState().mode).toBe("night");
     expect(daylightClock.hour).toBe(23);
     time.setMode("auto");
-    expect(useTimeOfDay.getState().hour).toBe(9.5);
-    expect(daylightClock.hour).toBe(9.5);
+    // Auto resyncs by gliding, not snapping.
+    expect(daylightClock.hour).toBe(23);
+    let hour = daylightClock.hour;
+    for (let i = 0; i < 100; i++)
+      hour = advanceHour(hour, 0.1, "auto", readWorldHour(korea));
+    expect(hour).toBeCloseTo(9.5, 6);
   });
 });

@@ -9,11 +9,6 @@ import {
 const initialTimeZone = WORLD_TIME_ZONES.pacific;
 export const daylightClock = { hour: readWorldHour(initialTimeZone) };
 
-function regionalClock(timeZone: WorldTimeZone) {
-  daylightClock.hour = readWorldHour(timeZone);
-  return { hour: daylightClock.hour };
-}
-
 export const useTimeOfDay = create<{
   hour: number;
   mode: TimeMode;
@@ -24,17 +19,12 @@ export const useTimeOfDay = create<{
   hour: daylightClock.hour,
   mode: "auto",
   timeZone: initialTimeZone,
-  setMode: (mode) =>
-    set({
-      mode,
-      ...(mode === "auto" ? regionalClock(get().timeZone) : {}),
-    }),
+  // Mode and timezone changes never snap the displayed hour: advanceHour
+  // glides daylightClock toward the new target over a few seconds.
+  setMode: (mode) => set({ mode }),
   // Travel owns the destination; daylight never guesses from mutable map bounds.
   setTimeZone: (timeZone) => {
     if (timeZone === get().timeZone) return;
-    set({
-      timeZone,
-      ...(get().mode === "auto" ? regionalClock(timeZone) : {}),
-    });
+    set({ timeZone });
   },
 }));
