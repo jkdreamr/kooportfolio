@@ -5,10 +5,11 @@ import type { TheaterFilm } from "./types";
 export const CHANNELS: Record<string, string> = {
   "WB Kids": "UC9trsD1jCTXXtN3xIOIU8gg",
   "Boomerang UK": "UCmst562fALOY2cKb4IFgqEg",
+  "Cartoon Network Asia": "UC9hVEGaTpAYMVd-bRsOYKwA",
   Cartoonito: "UCrFslqncMIdjD2WfB6pAcEg",
   "Cartoon Network": "UCMsgXPD3wzzt8RxHJmXH7hQ",
-  "Adventure Time": "UCFuU-5B1eKAWaTeLUu3JuyA",
   "Cartoon Network UK": "UCGydrkfIhUDNCotYQI8TJhA",
+  "Adventure Time": "UCFuU-5B1eKAWaTeLUu3JuyA",
   "Disney Channel Animation": "UCw7SNYrYei7F5ttQO3o-rpA",
   "Disney Kids": "UC7Gf2tZ8coTX2ckTPgn62iQ",
   "Disney Channel": "UCktaw9L-f65LzUUdjmCFkbQ",
@@ -22,6 +23,105 @@ export const CHANNELS: Record<string, string> = {
 };
 
 export const FILMS: readonly TheaterFilm[] = [
+  ...[
+    ["U91AHkvkh-8", "Classic shorts marathon · Compilation"],
+    ["t0Q2otsqC4I", "Classic cartoons in full screen · Compilation"],
+    ["w3Wluvzoggg", "A Day with Tom & Jerry · Compilation"],
+    ["5oH9Nr3bKfw", "A Bit of Fresh Air! · Compilation"],
+    ["fe4Y-oF57wk", "Are You Hungry? · Compilation"],
+    ["fEhYqOEoU6s", "B-b-b-birds! · Compilation"],
+    ["Lb8H3bQvl5Y", "Be Good · Compilation"],
+    ["AGBjI0x9VbM", "Best of Little Quacker · Compilation"],
+    ["2bFLu-cZpIk", "Best of Spike and Tyke · Compilation"],
+    ["onofY_Ddr4M", "Best of Tom Cat · Compilation"],
+    ["qeeDhADAU4Q", "Buddies for Life · Compilation"],
+    ["m5IDhI-89ms", "Cat Concerto · Compilation"],
+    ["6bmZgzBu9pY", "Face the Music! · Compilation"],
+    ["wy2DgqL1P7s", "Home But Not Alone! · Compilation"],
+    ["CpvpZKO0Lmk", "Outdoor Fun · Compilation"],
+    ["rBd0h-g59dg", "Space Escapades · Compilation"],
+    ["7IDxXBAzD_M", "Spike Is the Coolest Pooch · Compilation"],
+    ["Myr2_jyscA4", "Summer Olympics · Compilation"],
+    ["qsbmjEQitmw", "The Best Babysitters?! · Compilation"],
+    ["7HWXUjlNsMk", "The Best Cat Tom! · Compilation"],
+    ["7zhw8h6bXgw", "The Evening Fun! · Compilation"],
+    ["TqYiwDRPBq4", "Tom & the Two Mouseketeers · Compilation"],
+    ["rilFfbm7j8k", "Triple Trouble · Compilation"],
+    ["X8Lg7k4bibA", "What a Cat-astrophe! · Compilation"],
+    ["oMjq1W7i3Tc", "What Sorcery Is This? · Compilation"],
+    ["-g0n9uSkXi4", "A Very Merry Christmas! · Compilation"],
+  ].map(
+    ([id, episode]): TheaterFilm => ({
+      id,
+      title: "Tom and Jerry",
+      episode,
+      channel: "WB Kids",
+      kind: "Full episode",
+    }),
+  ),
+  ...[
+    ["cKYndFwCs_g", "Classic episodes marathon · Compilation"],
+    ["4af7bItHkvI", "Catch, Tom! · Compilation"],
+    ["HtSnC8aIBd8", "Summer Holiday Chaos · Compilation"],
+  ].map(
+    ([id, episode]): TheaterFilm => ({
+      id,
+      title: "Tom and Jerry",
+      episode,
+      channel: "Boomerang UK",
+      kind: "Full episode",
+    }),
+  ),
+  {
+    id: "m1juNRRnU2o",
+    title: "The Tom and Jerry Show",
+    episode: "Marathon · Compilation",
+    channel: "WB Kids",
+    kind: "Full episode",
+  },
+  ...[
+    ["svGRv257dgY", "Hide and Seek Mayhem · Compilation"],
+    ["HNIt0Ougk0k", "1 hour of episodes · Compilation"],
+  ].map(
+    ([id, episode]): TheaterFilm => ({
+      id,
+      title: "The Tom and Jerry Show",
+      episode,
+      channel: "Boomerang UK",
+      kind: "Full episode",
+    }),
+  ),
+  ...[
+    ["mExEB5roJjQ", "Mega marathon · Compilation"],
+    ["e1vDzOMmv3U", "1 hour of episodes · Compilation"],
+  ].map(
+    ([id, episode]): TheaterFilm => ({
+      id,
+      title: "Tom and Jerry in New York",
+      episode,
+      channel: "Boomerang UK",
+      kind: "Full episode",
+    }),
+  ),
+  ...[
+    ["9dSnoF3QfT8", "Summer Vacation Marathon · Compilation"],
+    ["ugZMQUnfqss", "Terrifying Tales · Compilation"],
+  ].map(
+    ([id, episode]): TheaterFilm => ({
+      id,
+      title: "Tom and Jerry Tales",
+      episode,
+      channel: "WB Kids",
+      kind: "Full episode",
+    }),
+  ),
+  {
+    id: "J597pECDsfo",
+    title: "Tom and Jerry Tales",
+    episode: "Space Cats, Dinosaurs & Magical Mayhem · Compilation",
+    channel: "Cartoon Network Asia",
+    kind: "Full episode",
+  },
   ...[
     ["3YHO81QWQmU", "Full episodes · Compilation"],
     ["j3p1o4hKciU", "Episodes 5–7 · Compilation"],
@@ -37,6 +137,7 @@ export const FILMS: readonly TheaterFilm[] = [
   ...[
     ["NFPo9SRS5hI", "Pumpkin Spice · Compilation"],
     ["n4SMYwhgfQs", "Cozy Cottage Core · Compilation"],
+    ["MSoOk-fUCUE", "Seasons 1 & 2 · Compilation, Part 3"],
   ].map(
     ([id, episode]): TheaterFilm => ({
       id,
@@ -44,6 +145,19 @@ export const FILMS: readonly TheaterFilm[] = [
       episode,
       channel: "WB Kids",
       kind: "Full episode",
+    }),
+  ),
+  ...[
+    ["UUuxhuI4Ofw", "Full episodes · Compilation, Part 1"],
+    ["UiqMzvqa6Y8", "Full episodes · Compilation, Part 2"],
+    ["Zj5vG_BeaDM", "Season 3 · Compilation, Part 4"],
+  ].map(
+    ([id, episode]): TheaterFilm => ({
+      id,
+      title: "Tom and Jerry Gokko",
+      episode,
+      channel: "WB Kids",
+      kind: "Short film",
     }),
   ),
   ...[
@@ -60,12 +174,151 @@ export const FILMS: readonly TheaterFilm[] = [
     }),
   ),
   {
-    id: "HNIt0Ougk0k",
-    title: "The Tom and Jerry Show",
-    episode: "1 hour of episodes · Compilation",
+    id: "UzRW4WFnlFk",
+    title: "Looney Tunes",
+    episode: "Classic shorts marathon, Vol. 2 · Compilation",
+    channel: "WB Kids",
+    kind: "Full episode",
+  },
+  {
+    id: "CRWMX98twcY",
+    title: "Looney Tunes",
+    episode: "1 hour of cartoons · Compilation",
     channel: "Boomerang UK",
     kind: "Full episode",
   },
+  ...[
+    ["bgUwKZk1pqA", "Beep Beep! · Compilation"],
+    ["PkBu-mnXOAk", "Road Runner vs. Coyote · Compilation"],
+    ["2_A4XlYQUuc", "Wile E. Coyote & Road Runner · Compilation"],
+    ["GEUuZ_UzBQw", "Wile E. Coyote, Genius, vs. Bugs Bunny · Compilation"],
+    ["bNEydq6EoRs", "Was That Bugs Bunny? · Compilation"],
+    ["4IGynnluDKo", "Best of Tweety and Sylvester · Compilation"],
+    ["eyuRNlNtvq8", "Catching Tweety · Compilation"],
+    ["bqOIQE9KuSA", "Daffy Duck Has Had Enough! · Compilation"],
+    ["UAAiD-2J61c", "Infamous Daffy · Compilation"],
+    ["rGEHfhwklwE", "Best of Porky Pig & Daffy Duck · Compilation"],
+    ["jM1Faekyzj8", "Best of Yosemite Sam · Compilation"],
+    ["iJjMr7Y-SA8", "Happy Holidays Hare · Compilation"],
+  ].map(
+    ([id, episode]): TheaterFilm => ({
+      id,
+      title: "Looney Tunes",
+      episode,
+      channel: "WB Kids",
+      kind: "Full episode",
+    }),
+  ),
+  {
+    id: "5MPxJPPYjGc",
+    title: "Looney Tunes Cartoons",
+    episode: "Marathon · Compilation",
+    channel: "WB Kids",
+    kind: "Full episode",
+  },
+  {
+    id: "chmEjqS3VF8",
+    title: "Looney Tunes Cartoons",
+    episode: "Daffy & Elmer Fudd's Unlikely Alliance · Compilation",
+    channel: "Cartoon Network Asia",
+    kind: "Full episode",
+  },
+  {
+    id: "55vUaKiBMi8",
+    title: "New Looney Tunes",
+    episode: "Marathon · Compilation",
+    channel: "WB Kids",
+    kind: "Full episode",
+  },
+  {
+    id: "oJ-_QPV1GCs",
+    title: "The Looney Tunes Show",
+    episode: "Marathon · Compilation",
+    channel: "WB Kids",
+    kind: "Full episode",
+  },
+  {
+    id: "4ZsyjPGxrJs",
+    title: "The Looney Tunes Show",
+    episode: "Bugs and Daffy Try to Escape Prison · Compilation",
+    channel: "Boomerang UK",
+    kind: "Full episode",
+  },
+  {
+    id: "AIBw2V9lZRg",
+    title: "Tiny Toons Looniversity",
+    episode: "A Big Mess! · 1 hour · Compilation",
+    channel: "Boomerang UK",
+    kind: "Full episode",
+  },
+  ...[
+    ["qCasHt_G3Vc", "Best Songs · Compilation"],
+    ["iQuPiPbofhQ", "The Greatest Historical Figures · Compilation"],
+    ["Hps_NyqEyKk", "The Warners' Best Pranks · Compilation"],
+  ].map(
+    ([id, episode]): TheaterFilm => ({
+      id,
+      title: "Animaniacs",
+      episode,
+      channel: "WB Kids",
+      kind: "Full episode",
+    }),
+  ),
+  {
+    id: "15KRGkgHVuY",
+    title: "Pinky and the Brain",
+    episode: "Best of Pinky and the Brain · Compilation",
+    channel: "WB Kids",
+    kind: "Full episode",
+  },
+  ...[
+    ["C-upU-cb8CY", "Marathon · Compilation"],
+    ["H7U7qOseNeI", "Marathon, Vol. 2 · Compilation"],
+    ["rewtCsdnyzk", "Iconic Villains · Compilation"],
+    ["b4JLLv1lE7A", "Unmasking Classic Villains · Compilation"],
+    ["Edr6_-L3bi4", "Scaredy Cats Scooby & Shaggy · Compilation"],
+    ["ns7ln2u_aoM", "Outsmarting Villains · Compilation"],
+    ["TQW22nGm9Ew", "Wacky Witches · Compilation"],
+  ].map(
+    ([id, episode]): TheaterFilm => ({
+      id,
+      title: "Scooby-Doo, Where Are You!",
+      episode,
+      channel: "WB Kids",
+      kind: "Full episode",
+    }),
+  ),
+  {
+    id: "qCZjkFDCsuc",
+    title: "Scooby-Doo, Where Are You!",
+    episode: "Spooky Ghosts · 1 hour · Compilation",
+    channel: "Boomerang UK",
+    kind: "Full episode",
+  },
+  ...[
+    ["_t8hJ9j-zXA", "Marathon · Compilation"],
+    ["XPrF8zuLodw", "Marathon, Vol. 2 · Compilation"],
+  ].map(
+    ([id, episode]): TheaterFilm => ({
+      id,
+      title: "What's New, Scooby-Doo?",
+      episode,
+      channel: "WB Kids",
+      kind: "Full episode",
+    }),
+  ),
+  ...[
+    ["G2GhANSw9QY", "Tom & Jerry, Looney Tunes & Scooby-Doo · Compilation"],
+    ["6RukO1ljPuo", "Vol. 5 · Compilation"],
+  ].map(
+    ([id, episode]): TheaterFilm => ({
+      id,
+      title: "WB Classic Cartoon Marathon",
+      episode,
+      channel: "WB Kids",
+      kind: "Full episode",
+    }),
+  ),
   ...[
     ["elBe2cgtnS4", "Comfort Level / Like a Duck to Water"],
     ["qInQbJqDe68", "Takers Keepers / To Tell the Tooth"],
@@ -75,6 +328,18 @@ export const FILMS: readonly TheaterFilm[] = [
       title: "Baby Looney Tunes",
       episode,
       channel: "Cartoonito",
+      kind: "Full episode",
+    }),
+  ),
+  ...[
+    ["Vqlco7_yhCM", "Marathon, Vol. 1 · Compilation"],
+    ["4sbWYwUTjsc", "Marathon, Vol. 2 · Compilation"],
+  ].map(
+    ([id, episode]): TheaterFilm => ({
+      id,
+      title: "Scooby-Doo! Mystery Incorporated",
+      episode,
+      channel: "WB Kids",
       kind: "Full episode",
     }),
   ),
@@ -144,6 +409,7 @@ export const FILMS: readonly TheaterFilm[] = [
     ["H6WoWgNgTsI", "Grocery Store Friend"],
     ["pE-KeuTemt0", "Small Uncle's Big Bath"],
     ["KExsx-U17Vc", "Glow Toy"],
+    ["BGfMRr9lT9I", "The Big Kid Playground"],
   ].map(
     ([id, episode]): TheaterFilm => ({
       id,
@@ -153,6 +419,20 @@ export const FILMS: readonly TheaterFilm[] = [
       kind: "Full episode",
     }),
   ),
+  {
+    id: "a8RdSeerumY",
+    title: "Jessica's Big Little World",
+    episode: "Family Photo",
+    channel: "Cartoon Network",
+    kind: "Full episode",
+  },
+  {
+    id: "s8xc7ML4Dg4",
+    title: "Lucas the Spider",
+    episode: "All the shorts · Compilation",
+    channel: "Cartoonito",
+    kind: "Short film",
+  },
   {
     id: "3bLNQgRn-Wg",
     title: "Dexter's Laboratory",
@@ -176,6 +456,20 @@ export const FILMS: readonly TheaterFilm[] = [
     id: "pyEKOY1TIbU",
     title: "Courage the Cowardly Dog",
     episode: "Shadow of Courage / Dr. Le Quack",
+    channel: "Cartoon Network",
+    kind: "Full episode",
+  },
+  {
+    id: "wJ2RpbLgs-U",
+    title: "Foster's Home for Imaginary Friends",
+    episode: "Halloween Hijinks · Compilation",
+    channel: "Cartoon Network",
+    kind: "Full episode",
+  },
+  {
+    id: "wCL9LnsHct8",
+    title: "Chowder",
+    episode: "Panini for President / Chowder's Babysitter",
     channel: "Cartoon Network",
     kind: "Full episode",
   },
@@ -214,6 +508,13 @@ export const FILMS: readonly TheaterFilm[] = [
     channel: "Cartoon Network",
     kind: "Full episode",
   },
+  {
+    id: "YE-pFTEgsjI",
+    title: "Ben 10",
+    episode: "Season 1 marathon · Compilation",
+    channel: "Cartoon Network UK",
+    kind: "Full episode",
+  },
   ...[
     ["FE3gnqyxrmE", "S1 E25 · His Hero"],
     ["vtfkWKGzvww", "S2 E3 · Loyalty to the King"],
@@ -239,6 +540,7 @@ export const FILMS: readonly TheaterFilm[] = [
   },
   ...[
     ["MngI0m2WbbU", "S4 E26 · The Lich"],
+    ["fiXkapA84V0", "S5 E1 · Finn the Human"],
     ["baJuThktd2I", "Bonnie and Neddy"],
   ].map(
     ([id, episode]): TheaterFilm => ({
@@ -257,9 +559,24 @@ export const FILMS: readonly TheaterFilm[] = [
     kind: "Full episode",
   },
   ...[
+    ["IF4wFIg_Uw8", "S5 E49 · Bad Timing"],
     ["PrQ0wewUYUo", "S6 E43 · The Comet"],
+    ["l81ovRlUuIs", "S8 E1 · Broke His Crown"],
+    ["IDGu2UhaGAE", "S8 E27 · The Light Cloud"],
     ["IDA-mDdgTZM", "S9 E1 · Orb"],
     ["Vl0_qR9L7eg", "S10 E1 · The Wild Hunt"],
+    ["Wi8QGu28HlU", "S10 E12 · Gumbaldia"],
+    ["A8DCX5bIdt8", "Season 1 · Every episode (compilation)"],
+    ["-r27JLFcsC4", "Season 2 · Every episode (compilation)"],
+    ["tfWisPiM8gU", "Season 3 · Every episode (compilation)"],
+    ["MKwSQGAuQnI", "Season 4 · Every episode (compilation)"],
+    ["-auXTxGXHSw", "Season 5 · Every episode (compilation)"],
+    ["pDLKXolD-4s", "Season 6 · Every episode (compilation)"],
+    ["O7GWaBfpsOU", "Season 7 · Every episode (compilation)"],
+    ["A6KU2NRBan8", "Season 8 · Every episode (compilation)"],
+    ["qpSQJbX6Pvc", "Season 9 · Every episode (compilation)"],
+    ["ayxgQBCItx0", "Season 10 · Every episode (compilation)"],
+    ["4jiA9kGyBU8", "Stakes, Islands & Elements · Miniseries (compilation)"],
   ].map(
     ([id, episode]): TheaterFilm => ({
       id,
@@ -317,6 +634,7 @@ export const FILMS: readonly TheaterFilm[] = [
     ["t4r0PH6d7iQ", "Pure Protein"],
     ["UmOi48maseY", "How 'Bout Some Effort"],
     ["GMBi2GWjJFU", "Teen Titans Go to the Repair Shop, Part 1"],
+    ["2FY5ArF4REY", "Girls' Night Out"],
   ].map(
     ([id, episode]): TheaterFilm => ({
       id,
@@ -398,9 +716,21 @@ export const FILMS: readonly TheaterFilm[] = [
     }),
   ),
   ...[
+    ["rPE3AqcNNi4", "S1 E2 · Friend, in Deed / Donkey for a Day"],
     ["0TLz8bYh4mA", "S1 E7 · The Great Honey Pot Robbery"],
     ["65XsK6MWmWY", "S1 E23 · Me and My Shadow / To Catch a Hiccup"],
+    ["oKEv2v5zn24", "S3 E5 · Pooh Skies"],
     ["Ndl27STt_as", "S4 E1 · Sorry, Wrong Slusher"],
+    ["RhXpL0TpYHg", "S4 E2 · Grown, But Not Forgotten"],
+    ["jcbcYJkRZsM", "S4 E3 · A Pooh Day Afternoon"],
+    [
+      "WplBFVk017Y",
+      "S4 E6 · Shovel, Shovel, Toil and Trouble / The Wise Have It",
+    ],
+    [
+      "3cSld6GHcpc",
+      "S4 E7 · Cloud, Cloud, Go Away / To Dream the Impossible Scheme",
+    ],
   ].map(
     ([id, episode]): TheaterFilm => ({
       id,
@@ -410,6 +740,20 @@ export const FILMS: readonly TheaterFilm[] = [
       kind: "Full episode",
     }),
   ),
+  {
+    id: "bKurfUtstTI",
+    title: "Chip 'n Dale: Rescue Rangers",
+    episode: "S1 E63 · A Fly in the Ointment",
+    channel: "Disney Kids",
+    kind: "Full episode",
+  },
+  {
+    id: "R_dGiHasJac",
+    title: "Timon & Pumbaa",
+    episode: "S1 E2 · Kenya Be My Friend? / Good Mousekeeping",
+    channel: "Disney Kids",
+    kind: "Full episode",
+  },
   {
     id: "-UtUuT8AJjQ",
     title: "Recess",
@@ -471,6 +815,13 @@ export const FILMS: readonly TheaterFilm[] = [
     }),
   ),
   {
+    id: "83sdwFOL1r8",
+    title: "Mickey Mouse",
+    episode: "Our Floating Dreams",
+    channel: "Disney Kids",
+    kind: "Short film",
+  },
+  {
     id: "dTM-eT5HICI",
     title: "Mickey's Christmas Carol",
     episode: "Full featurette",
@@ -487,6 +838,8 @@ export const FILMS: readonly TheaterFilm[] = [
   ...[
     ["REHJ1lz_HLQ", "The Little Whirlwind"],
     ["EQStOPu7KCA", "Chef Donald"],
+    ["V5DTgieoOdI", "Lonesome Ghosts"],
+    ["JT0dXnzZ1AI", "Mickey and the Seal"],
   ].map(
     ([id, episode]): TheaterFilm => ({
       id,
@@ -504,13 +857,16 @@ export const FILMS: readonly TheaterFilm[] = [
     kind: "Full episode",
   },
   ...[
-    ["Tl5khXAhFds", "Episode 1 · X"],
-    ["wftHaSjs_58", "Episode 5 · To the X"],
-    ["3fJkCEpe54o", "Episode 8 · The Mask and the King"],
-    ["AkEDCXn1RI8", "Episode 9 · Beycrafter"],
-    ["PjSU8aI4Zn4", "Episode 10 · The Pro Realm"],
-    ["ulgd7K6tj-o", "Episode 11 · Warden's Exam"],
-    ["MT91W3eIPfA", "Episode 12 · The Final Battle"],
+    ["Tl5khXAhFds", "S1 E1 · X"],
+    ["zAfnYrebsyo", "S1 E2 · Multi-Colored Ambush"],
+    ["LJEwgL2grnc", "S1 E4 · Bey Sponsor"],
+    ["wftHaSjs_58", "S1 E5 · To the X"],
+    ["3fJkCEpe54o", "S1 E8 · The Mask and the King"],
+    ["AkEDCXn1RI8", "S1 E9 · Beycrafter"],
+    ["PjSU8aI4Zn4", "S1 E10 · The Pro Realm"],
+    ["ulgd7K6tj-o", "S1 E11 · Warden's Exam"],
+    ["MT91W3eIPfA", "S1 E12 · The Final Battle"],
+    ["kH6celWbLiM", "S3 E1 · Annihilation"],
   ].map(
     ([id, episode]): TheaterFilm => ({
       id,
@@ -617,18 +973,47 @@ export const FILMS: readonly TheaterFilm[] = [
     channel: "Disney Jr.",
     kind: "Full episode",
   },
+  ...[
+    ["jejbMQE6YqI", "Episode 1 · Dino Park"],
+    ["FQC0q-JaLNo", "Episode 3 · Salt Fever"],
+    ["aMxYV454W7Q", "Episode 4 · The Legend"],
+    ["Ke5i_zEHhK4", "Episode 7 · B-Movie"],
+    ["6gn4vGAODvg", "Episode 9 · Getting Hitched"],
+    ["w5w6o2QEDvg", "Every episode · Compilation"],
+  ].map(
+    ([id, episode]): TheaterFilm => ({
+      id,
+      title: "Cars on the Road",
+      episode,
+      channel: "Disney Jr.",
+      kind: "Full episode",
+    }),
+  ),
   {
-    id: "L3gOf2XDp8Y",
-    title: "Cars on the Road",
-    episode: "Episodes 1–5",
+    id: "I4NA3yqHDNs",
+    title: "Mater's Tall Tales",
+    episode: "Every Tall Tale · Compilation",
     channel: "Disney Jr.",
     kind: "Full episode",
   },
+  ...[
+    ["aE1ZT2_NrKo", "S1 E1 · Big Jon, Big Trouble"],
+    ["eM50mYYOQlY", "S1 E4 · Spookasaurus"],
+  ].map(
+    ([id, episode]): TheaterFilm => ({
+      id,
+      title: "Dino Ranch",
+      episode,
+      channel: "Disney Jr.",
+      kind: "Full episode",
+    }),
+  ),
   ...[
     ["OkLZN0ziLuI", "SparkShorts · Out"],
     ["gYhYZi02DEo", "Love on a Plate"],
     ["dxfWeZr1C4Q", "Driving Lesson"],
     ["1an6_gb03zQ", "Fruit & Nut"],
+    ["MCf0EWKNhK8", "Mother's Nature"],
     ["dmrK1OoafXU", "One Shot Productions"],
     ["kJ7BgI98Xco", "Storyboard short · Tuck & Roll Change a Lightbulb"],
     ["_q879EiVz-c", "Storyboard short · The Incredible Nightcrawler"],
@@ -658,6 +1043,7 @@ export const FILMS: readonly TheaterFilm[] = [
   ...[
     ["clgyncrbyDg", "The Boy & The Octopus"],
     ["9TJXo63g6JA", "The Invisible Horse"],
+    ["9GlTylX4S7Y", "Best Christmas Ever"],
   ].map(
     ([id, episode]): TheaterFilm => ({
       id,
@@ -676,7 +1062,11 @@ export const FILMS: readonly TheaterFilm[] = [
   },
   ...[
     ["ry8e5ldzLDQ", "Episode 1"],
+    ["xGTw6pfKayg", "Episode 2"],
+    ["RCVvSh4TWuI", "Episode 3"],
+    ["l94hF9wu_pk", "Episode 4"],
     ["yCoKcttSdL8", "Episode 5"],
+    ["KrtAxKZopkw", "Episode 6"],
   ].map(
     ([id, episode]): TheaterFilm => ({
       id,
