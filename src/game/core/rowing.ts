@@ -34,8 +34,6 @@ export type RaceInput = {
   catchPressed?: boolean;
 };
 export const CATCH_WINDOW_START = 0.73;
-// Cover the 100 ms HUD refresh plus a fixed step at the fastest cadence.
-const CATCH_WINDOW_GRACE = 0.075;
 export const catchReady = (race: RaceState) =>
   race.time > 0 &&
   !race.finished &&
@@ -89,15 +87,8 @@ export function stepRace(
     splits: [...old.splits],
   };
   if (s.time <= 0) return s;
-  if (input.catchPressed && old.time > 0) {
-    if (catchReady(old)) s.boostedStroke = old.strokes + 1;
-    else if (
-      old.strokes > 0 &&
-      old.stroke <= CATCH_WINDOW_GRACE &&
-      old.boostedStroke !== old.strokes
-    )
-      s.boostedStroke = old.strokes;
-  }
+  if (input.catchPressed && catchReady(old))
+    s.boostedStroke = old.strokes + 1;
   const cadence = Math.max(24, Math.min(36, input.cadence)),
     steer = Math.max(-1, Math.min(1, input.steer));
   // Hysteresis prevents a held burst from flickering on/off at exhaustion.

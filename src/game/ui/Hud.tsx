@@ -8,7 +8,7 @@ import {
   dailySeed,
   raceTime,
 } from "../core/rowing";
-import { useRaceHud } from "../scenes/Rowing";
+import { useRaceCatch, useRaceHud } from "../scenes/Rowing";
 import { CourtControls, useBasketHud } from "../scenes/Basketball";
 import { Icon } from "./Icon";
 import { destinationsInWorld, doors, isInterior } from "../core/world";
@@ -58,10 +58,38 @@ export function Joystick() {
     </div>
   );
 }
-export function RaceHud() {
-  const { race, place } = useRaceHud();
+function RaceCatch() {
+  const race = useRaceCatch();
   const ready = catchReady(race);
   const boosted = catchBoosted(race);
+  return (
+    <div className="race-catch">
+      <div className="race-catch-track" aria-hidden="true">
+        <i style={{ left: `${CATCH_WINDOW_START * 100}%` }} />
+        <b style={{ left: `${race.stroke * 100}%` }} />
+      </div>
+      <button
+        type="button"
+        data-ready={ready}
+        data-boosted={boosted}
+        disabled={race.time <= 0 || race.finished}
+        onPointerDown={(event) => {
+          if (event.button !== 0) return;
+          event.preventDefault();
+          runtime.raceCatch = true;
+        }}
+        onClick={(event) => {
+          if (event.detail === 0) runtime.raceCatch = true;
+        }}
+      >
+        {ready ? "Catch now" : boosted ? "Good catch" : "Catch"}
+      </button>
+    </div>
+  );
+}
+
+export function RaceHud() {
+  const { race, place } = useRaceHud();
   const pointers = useRef(new Map<number, "left" | "right" | "burst">());
   const [held, setHeld] = useState<string[]>([]);
   const updateTouch = () => {
@@ -172,28 +200,7 @@ export function RaceHud() {
             </button>
           ))}
         </div>
-        <div className="race-catch">
-          <div className="race-catch-track" aria-hidden="true">
-            <i style={{ left: `${CATCH_WINDOW_START * 100}%` }} />
-            <b style={{ left: `${race.stroke * 100}%` }} />
-          </div>
-          <button
-            type="button"
-            data-ready={ready}
-            data-boosted={boosted}
-            disabled={race.time <= 0 || race.finished}
-            onPointerDown={(event) => {
-              if (event.button !== 0) return;
-              event.preventDefault();
-              runtime.raceCatch = true;
-            }}
-            onClick={(event) => {
-              if (event.detail === 0) runtime.raceCatch = true;
-            }}
-          >
-            {ready ? "Catch now" : boosted ? "Good catch" : "Catch"}
-          </button>
-        </div>
+        <RaceCatch />
         <p>
           {race.bank
             ? "Stay inside the buoys."

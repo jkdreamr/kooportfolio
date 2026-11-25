@@ -100,21 +100,16 @@ describe("rowing strokes and race timing", () => {
     expect(catchBoosted({ ...caught, stroke: 0.4 })).toBe(false);
     expect(catchReady({ ...caught, stroke: 0.9 })).toBe(true);
   });
-  it("honors the green cue through a HUD refresh after rollover", () => {
-    const displayed = { ...newRace(), time: 10, stroke: 0.999, strokes: 3 };
+  it("closes the catch window at stroke rollover", () => {
+    const before = { ...newRace(), time: 10, stroke: 0.999, strokes: 3 };
     const input = { cadence: 36, burst: false, steer: 0 };
-    expect(catchReady(displayed)).toBe(true);
-    let live = displayed;
-    for (let i = 0; i < 6; i++) live = stepRace(live, input, 360);
-    expect(live.strokes).toBe(4);
-    expect(catchReady(live)).toBe(false);
     const pressed = { ...input, catchPressed: true };
-    const caught = stepRace(live, pressed, 360);
-    expect(caught.boostedStroke).toBe(4);
-    expect(catchBoosted(caught)).toBe(true);
-    expect(stepRace(caught, pressed, 360).boostedStroke).toBe(4);
-    expect(stepRace({ ...live, stroke: 0.08 }, pressed, 360).boostedStroke).toBeNull();
-    expect(stepRace({ ...live, strokes: 0 }, pressed, 360).boostedStroke).toBeNull();
+    expect(catchReady(before)).toBe(true);
+    expect(stepRace(before, pressed, 360).boostedStroke).toBe(4);
+    const after = stepRace(before, input, 360);
+    expect(after.strokes).toBe(4);
+    expect(catchReady(after)).toBe(false);
+    expect(stepRace(after, pressed, 360).boostedStroke).toBeNull();
   });
   it("makes cadence and sprinting a tradeoff rather than free speed", () => {
     const settle = drive(24),

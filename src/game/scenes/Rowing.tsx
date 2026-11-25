@@ -44,6 +44,8 @@ export const useRaceHud = create<{
   record: null,
   splitDelta: null,
 }));
+export const useRaceCatch = create<RaceState>(newRace);
+
 function CurrentFlow({
   state,
   seed,
@@ -247,6 +249,7 @@ export function Rowing() {
       accumulator.current -= TICK;
     }
     const s = state.current;
+    if (useRaceCatch.getState() !== s) useRaceCatch.setState(s, true);
     const place = racePlace(s, rivals.current);
     desired.set(s.x * 0.65 + 1.5, 10.5, -s.distance + 19);
     camera.position.lerp(desired, 1 - Math.exp(-delta * 4));
