@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 
-type Nation = "us" | "kr";
+type Nation = "us" | "kr" | "stanford";
 
 function star(
   ctx: CanvasRenderingContext2D,
@@ -28,7 +28,31 @@ function drawFlag(nation: Nation) {
   const { width, height } = canvas;
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, width, height);
-  if (nation === "us") {
+  if (nation === "stanford") {
+    // Cardinal field with a white block S and the campus evergreen.
+    ctx.fillStyle = "#8c1515";
+    ctx.fillRect(0, 0, width, height);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 270px Georgia, 'Times New Roman', serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("S", width / 2, height / 2 + 12);
+    const tx = width / 2,
+      ty = height / 2;
+    ctx.fillStyle = "#175e54";
+    ctx.fillRect(tx - 9, ty + 40, 18, 62);
+    for (let layer = 0; layer < 4; layer++) {
+      const spread = 78 - layer * 14,
+        top = ty - 130 + layer * 42,
+        base = top + 62;
+      ctx.beginPath();
+      ctx.moveTo(tx, top);
+      ctx.lineTo(tx - spread, base);
+      ctx.lineTo(tx + spread, base);
+      ctx.closePath();
+      ctx.fill();
+    }
+  } else if (nation === "us") {
     // 13 stripes, and nine alternating rows of six/five stars: exactly 50.
     ctx.fillStyle = "#b31942";
     for (let stripe = 0; stripe < 13; stripe += 2)
@@ -129,7 +153,13 @@ export function NationalFlag({
   return (
     <group
       position={p}
-      name={`${nation === "us" ? "United States" : "South Korea"} flag`}
+      name={`${
+        nation === "us"
+          ? "United States"
+          : nation === "kr"
+            ? "South Korea"
+            : "Stanford"
+      } flag`}
     >
       <mesh position={[0, height / 2, 0]} castShadow>
         <cylinderGeometry args={[0.035, 0.045, height, 10]} />

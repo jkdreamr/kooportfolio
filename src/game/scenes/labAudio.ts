@@ -1,4 +1,3 @@
-import { BEAT_INTERVAL } from "../core/labGames";
 import { useGame } from "../core/store";
 
 let context: AudioContext | undefined;
@@ -48,7 +47,12 @@ export function labTone(lane: number) {
   }
 }
 
-export function scheduleLabBeatClicks(readTime: () => number, end: number) {
+export function scheduleLabBeatClicks(
+  readTime: () => number,
+  end: number,
+  beatInterval = 0.6,
+  beatsPerBar = 4,
+) {
   const scheduled = new Set<OscillatorNode>();
   let cancelled = false;
   const cancel = () => {
@@ -63,11 +67,19 @@ export function scheduleLabBeatClicks(readTime: () => number, end: number) {
       if (cancelled || useGame.getState().muted) return;
       const now = audio.currentTime;
       const time = readTime();
-      const first = Math.max(0, Math.ceil((time - 0.03) / BEAT_INTERVAL));
-      for (let beat = first; beat < Math.round(end / BEAT_INTERVAL); beat++) {
-        const when = Math.max(now, now + beat * BEAT_INTERVAL - time);
-        const click = playTone(audio, when, 740, "sine", 0.031, 0.045, () =>
-          scheduled.delete(click),
+      const first = Math.max(0, Math.ceil((time - 0.03) / beatInterval));
+      for (let beat = first; beat < Math.round(end / beatInterval); beat++) {
+        const when = Math.max(now, now + beat * beatInterval - time);
+        const downbeat = beat % beatsPerBar === 0;
+        const barEnd = beat % beatsPerBar === beatsPerBar - 1;
+        const click = playTone(
+          audio,
+          when,
+          downbeat ? 190 : barEnd ? 980 : 740,
+          downbeat ? "triangle" : "sine",
+          downbeat ? 0.05 : 0.031,
+          downbeat ? 0.09 : 0.045,
+          () => scheduled.delete(click),
         );
         scheduled.add(click);
       }
