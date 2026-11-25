@@ -550,6 +550,10 @@ export function Hud({ interact }: { interact: () => void }) {
         <>
           <BasketHud />
           <CourtControls />
+          <RoomStory
+            scene="basketball"
+            hidden={g.paused || g.panel !== "none"}
+          />
         </>
       )}
       {(hub || interior) &&
@@ -976,10 +980,12 @@ export function Hud({ interact }: { interact: () => void }) {
             <b>Row</b>
             <p>
               <span className="keyboard-hint">
-                A/D to steer. 1/2/3 for pace. R to catch. Space for a burst.{" "}
+                A/D to steer. 1/2/3 for pace. R to catch. Space for a
+                burst.{" "}
               </span>
               <span className="touch-hint">
-                Hold arrows to steer and Burst to sprint. Tap a pace or Catch.{" "}
+                Hold arrows to steer and Burst to sprint. Tap a pace or
+                Catch.{" "}
               </span>
               Catch in the green for a boost. Sprinting drains energy.
             </p>
