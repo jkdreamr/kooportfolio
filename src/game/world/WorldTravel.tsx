@@ -10,7 +10,6 @@ import {
   WORLD_NAMES,
   type TravelMode,
   type TravelOption,
-  type TravelStop,
   type TravelWorld,
 } from "../core/travel";
 import { journeyGate } from "../core/journey";
@@ -18,7 +17,6 @@ import { Box, Cylinder, Sign } from "./Models";
 import { PassengerJet } from "./TravelVehicles";
 import { IslandJourney, type IslandTrip } from "./IslandJourney";
 import "./world-travel.css";
-import { railForWorld } from "../core/islandRail";
 import { screenOverlayPosition, screenOverlayStyle } from "./screenOverlay";
 
 export type { TravelWorld, TravelMode } from "../core/travel";
@@ -86,7 +84,7 @@ export function WorldTravel({
   onTravelChange?: (active: boolean) => void;
   disabled?: boolean;
 }) {
-  const [stop, setStop] = useState<TravelStop | null>(null);
+  const [nearAirport, setNearAirport] = useState(false);
   const [trip, setTrip] = useState<IslandTrip | null>(null);
   const request = useGame((s) => s.travelRequest);
   const paused = useGame((s) => s.paused);
@@ -145,18 +143,8 @@ export function WorldTravel({
   useFrame(() => {
     if (traveling) return;
     const airport = journeyGate("plane", world);
-    const rail = railForWorld(world);
-    const next =
-      Math.hypot(runtime.x - airport[0], runtime.z - airport[1]) < 5
-        ? "airport"
-        : world !== "korea" &&
-            Math.hypot(
-              runtime.x - rail.station[0],
-              runtime.z - rail.station[1],
-            ) < 5
-          ? "station"
-          : null;
-    if (next !== stop) setStop(next);
+    const next = Math.hypot(runtime.x - airport[0], runtime.z - airport[1]) < 5;
+    if (next !== nearAirport) setNearAirport(next);
   });
   const depart = useCallback(
     (option: TravelOption) => {
@@ -176,7 +164,8 @@ export function WorldTravel({
     // Keep the booking until the local loop has let the passenger off.
     if (!request || hidden || traveling) return;
     useGame.setState({ travelRequest: null });
-    const option = directJourney(world, request);
+    const option =
+      typeof request === "string" ? directJourney(world, request) : request;
     if (option) depart(option);
   }, [request, world, depart, hidden, traveling]);
   return (
@@ -185,6 +174,7 @@ export function WorldTravel({
       {trip && (
         <IslandJourney
           trip={trip}
+          world={world}
           reduced={reduced}
           onArrive={() => onArrive(trip.destination, trip.mode)}
           onComplete={() => {
@@ -193,7 +183,7 @@ export function WorldTravel({
           }}
         />
       )}
-      {!hidden && !trip && stop && (
+      {!hidden && !trip && nearAirport && (
         <Html
           fullscreen
           calculatePosition={screenOverlayPosition}
@@ -202,16 +192,14 @@ export function WorldTravel({
           style={screenOverlayStyle}
         >
           <section
-            className={`world-travel-stop world-travel-stop--${stop}`}
-            aria-label={stop === "airport" ? "Flights" : "Domestic travel"}
+            className="world-travel-stop world-travel-stop--airport"
+            aria-label="Flights"
             onPointerDown={(event) => event.stopPropagation()}
             onKeyDown={(event) => event.stopPropagation()}
           >
-            <strong>
-              {stop === "airport" ? "Departures" : "Home ↔ Stanford"}
-            </strong>
+            <strong>Departures</strong>
             <div>
-              {travelOptions(world, stop).map((option) => (
+              {travelOptions(world, "airport").map((option) => (
                 <button
                   key={`${option.mode}:${option.destination}`}
                   onClick={() => depart(option)}

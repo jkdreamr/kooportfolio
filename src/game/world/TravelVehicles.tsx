@@ -1,4 +1,5 @@
-import { useRef } from "react";
+import { useRef, type RefObject } from "react";
+import type { Group } from "three";
 import { useFrame } from "@react-three/fiber";
 import { Ball, Box, Cylinder } from "./Models";
 import { RailCar } from "./IslandTrain";
@@ -49,13 +50,17 @@ export function RoadCar() {
   );
 }
 
-export function JourneyTrain() {
+export function JourneyTrain({
+  carsRef,
+}: {
+  carsRef: RefObject<Group | null>;
+}) {
   const phase = useRef(0);
   useFrame((_, delta) => {
     phase.current -= Math.min(delta, 0.05) * 12;
   });
   return (
-    <group>
+    <group ref={carsRef}>
       {[0, 1, 2].map((i) => (
         <group key={i} position={[0, 0, -i * 4.6]}>
           <RailCar engine={i === 0} phase={phase} />

@@ -15,6 +15,7 @@ import { runtime, useGame } from "../core/store";
 import { keys, touch } from "../core/input";
 import { railForWorld, railPose } from "../core/islandRail";
 import type { WorldId } from "../core/worlds";
+import { travelOptions, WORLD_NAMES } from "../core/travel";
 import "./island-train.css";
 
 const TIES = 320;
@@ -358,15 +359,39 @@ export function IslandTrain({
             onPointerDown={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
           >
-            <strong>Island rail</strong>
+            <strong>{riding ? "Island rail" : "Station"}</strong>
             {riding ? (
               <button ref={exitRef} onClick={leave}>
                 Return to station
               </button>
             ) : (
-              <button ref={boardRef} onClick={board}>
-                Ride island loop
-              </button>
+              <div className="island-rail-actions">
+                {travelOptions(world, "station")
+                  .sort(
+                    (a, b) =>
+                      Number(b.mode === "train") - Number(a.mode === "train"),
+                  )
+                  .map((option) => (
+                    <button
+                      key={option.mode}
+                      aria-label={`${option.mode === "train" ? "Train" : "Drive"} to ${WORLD_NAMES[option.destination]}`}
+                      onClick={() =>
+                        useGame.setState({ travelRequest: option })
+                      }
+                    >
+                      {option.mode === "train"
+                        ? `Train to ${WORLD_NAMES[option.destination]}`
+                        : "Drive"}
+                    </button>
+                  ))}
+                <button
+                  ref={boardRef}
+                  onClick={board}
+                  aria-label="Ride island loop"
+                >
+                  Island loop
+                </button>
+              </div>
             )}
           </section>
         </Html>

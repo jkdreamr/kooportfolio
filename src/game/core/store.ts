@@ -19,6 +19,7 @@ import {
 } from "./worlds";
 import { keys, touch } from "./input";
 import { journeyGate } from "./journey";
+import type { TravelOption } from "./travel";
 export type Scene = "hub" | "rowing" | "secret" | PlaceId;
 let storageIssue = "";
 let savedRaw: string | null = null;
@@ -75,7 +76,7 @@ type State = {
   paused: boolean;
   overlayLocked: boolean;
   traveling: boolean;
-  travelRequest: WorldId | null;
+  travelRequest: WorldId | TravelOption | null;
   build: boolean;
   panel:
     | "none"
