@@ -148,7 +148,7 @@ const LAB_VOICES: Record<
     ],
     filter: ["lowpass", 3200],
     attack: 0.003,
-    decay: 0.3,
+    decay: 0.14,
     volume: 0.05,
   },
   pad: {
