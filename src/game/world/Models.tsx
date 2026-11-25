@@ -7,6 +7,7 @@ import { GableRoof, StoneFooting, WindowDetail } from "./ArchitectureDetail";
 import { sculptedMaterial } from "./Surface";
 import { NationalFlag } from "./NationalFlag";
 import { TreeArt } from "./TreeArt";
+import { GlazedPanel } from "./GlazedPanel";
 import { PlayerMarker } from "./PlayerMarker";
 
 const rounded = new Map<string, RoundedBoxGeometry>();
@@ -295,10 +296,12 @@ export function Window({
 export function Lamp({ p }: { p: [number, number, number] }) {
   return (
     <group position={p}>
-      <Cylinder p={[0, 1.15, 0]} s={[0.075, 2.3, 0.075]} c="#4d5d51" />
-      <Box p={[0, 2.5, 0]} s={[0.4, 0.55, 0.4]} c="#efd296" />
-      <Cone p={[0, 2.87, 0]} s={[0.37, 0.25, 0.37]} c="#536456" />
-      <Cylinder p={[0, 0.05, 0]} s={[0.25, 0.1, 0.25]} c="#697360" />
+      <Cylinder p={[0, 1.15, 0]} s={[0.075, 2.3, 0.075]} c="#627580" />
+      <Box p={[0, 2.5, 0]} s={[0.3, 0.48, 0.3]} c="#dce7e9" />
+      <GlazedPanel position={[0, 2.5, 0]} size={[0.43, 0.58, 0.43]} />
+      <Box p={[0, 2.21, 0]} s={[0.48, 0.055, 0.48]} c="#aabac5" />
+      <Cone p={[0, 2.87, 0]} s={[0.37, 0.25, 0.37]} c="#647784" />
+      <Cylinder p={[0, 0.05, 0]} s={[0.25, 0.1, 0.25]} c="#697c86" />
     </group>
   );
 }
