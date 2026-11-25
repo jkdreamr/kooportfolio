@@ -46,6 +46,9 @@ const coast = new THREE.Shape(
   KOREA_COAST.map(([x, z]) => new THREE.Vector2(x, z)),
 );
 coast.closePath();
+// The apron lies under the whole district: cut the Han's channel through it
+// as well, or its top (above the water line) hides the river.
+coast.holes.push(hole);
 const apron = new THREE.ExtrudeGeometry(coast, {
   depth: 4.34 + KOREA_APRON_Y - 0.14,
   bevelEnabled: false,

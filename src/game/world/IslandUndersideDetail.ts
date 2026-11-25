@@ -594,7 +594,7 @@ function quartz(model: UndersideModel, world: WorldId): Crystal[] {
     model.rings[k].points.forEach((point, i) => {
       if (facing(model, point) < 0.3) return;
       const h = hash01(model.spec.seed, k, i, 140);
-      if (h > 0.085) return;
+      if (h > 0.06) return;
       const [nx, nz] = outward(model, point);
       const yaw = Math.atan2(nx, nz);
       for (let n = 0; n < 4; n++) {

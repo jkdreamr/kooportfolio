@@ -328,10 +328,10 @@ export function crystalMaterial(
       .replace(
         "#include <emissivemap_fragment>",
         `#include <emissivemap_fragment>
-        totalEmissiveRadiance += diffuseColor.rgb * (0.04 + 0.5 * uGlossNight);`,
+        totalEmissiveRadiance += diffuseColor.rgb * (0.04 + 0.26 * uGlossNight);`,
       );
   };
-  material.customProgramCacheKey = () => "gloss-crystal-v2";
+  material.customProgramCacheKey = () => "gloss-crystal-v3";
   return material;
 }
 
