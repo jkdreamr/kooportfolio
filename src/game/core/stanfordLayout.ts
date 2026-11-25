@@ -1,3 +1,6 @@
+import { onStanfordLand } from "../../shared/stanford-ground";
+import { STANFORD_TELESCOPE } from "../../shared/stanford-transport";
+
 /** Full-size destinations share the campus frontage, rather than a village-wide grid. */
 export const STANFORD_BUILDINGS = {
   gym: [5, 14.5],
@@ -26,17 +29,18 @@ export const STANFORD_WALKS: readonly (readonly [
   [17, 20.5, 2.7, 3],
   [28.5, 20.3, 2.7, 3.4],
   [41, 20.5, 2.7, 3],
-  // Existing transport and shared landmarks retain their coordinates.
-  [-40, 21.7, 73, 2.8],
+  // Station and telescope share the campus frontage, without long land arms.
+  [-12, 21.7, 23, 2.8],
   [45, 41, 2.5, 39],
   [51.5, 61, 15.5, 2.5],
-  [-1.5, -18, 2.5, 44],
-  [-10, -30, 20, 2.5],
+  [-12, 17.5, 2.5, 8],
 ];
 
 /** Clear the actual town and its walks, not a second layer of filler planting. */
 export function isStanfordTownSpace(x: number, z: number, margin = 0) {
   return (
+    Math.hypot(x - STANFORD_TELESCOPE[0], z - STANFORD_TELESCOPE[1]) <
+      9 + margin ||
     (x > -44 - margin &&
       x < 49 + margin &&
       z > 8 - margin &&
@@ -48,6 +52,10 @@ export function isStanfordTownSpace(x: number, z: number, margin = 0) {
     )
   );
 }
+
+/** Rendering and trunk collision must agree when clearing trees off the shore. */
+export const isStanfordTreeSite = (x: number, z: number) =>
+  !isStanfordTownSpace(x, z, 3) && onStanfordLand(x, z, 5);
 
 // Residents stay by the moved destinations; other islands keep their authored routines.
 export const STANFORD_NPC_WALKS: Record<string, [number, number][]> = {

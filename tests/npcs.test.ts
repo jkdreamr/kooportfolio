@@ -142,14 +142,17 @@ describe("wandering village crowd", () => {
     ).toBeGreaterThan(2);
   });
   it("uses the active world's collision for conversations instead of phantom buildings", () => {
-    const [x, z] = doorsInWorld("home").find(
-      (door) => door.id === "music",
+    const [cx, cz, hx, hz] = doorsInWorld("stanford").find(
+      (door) => door.id === "gym",
     )!.footprint;
+    // This corner is solid in Stanford but still lies on Home's smaller land.
+    const x = cx - hx + 0.5,
+      z = cz - hz + 0.5;
     const actor = { ...createNpcActors()[0], x, z };
-    expect(canWalk(x, z, "stanford")).toBe(true);
-    expect(canWalk(x, z, "home")).toBe(false);
-    expect(canTalkToNpc(actor, x + 1, z, "stanford")).toBe(true);
-    expect(canTalkToNpc(actor, x + 1, z, "home")).toBe(false);
+    expect(canWalk(x, z, "home")).toBe(true);
+    expect(canWalk(x, z, "stanford")).toBe(false);
+    expect(canTalkToNpc(actor, x + 1, z, "home")).toBe(true);
+    expect(canTalkToNpc(actor, x + 1, z, "stanford")).toBe(false);
   });
   it("does not offer a conversation through a collision corner", () => {
     const actor = { ...createNpcActors()[0], x: 1.9, z: 1.5 };

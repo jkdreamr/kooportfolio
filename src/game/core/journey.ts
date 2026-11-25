@@ -13,9 +13,7 @@ export const journeyGate = (
     ? world === "home"
       ? HOME_AIRPORT_GATE
       : AIRPORT_GATE
-    : world === "home"
-      ? [railForWorld(world).station[0] + 3, railForWorld(world).centerZ]
-      : STATION_GATE;
+    : [railForWorld(world).station[0] + 3, railForWorld(world).station[1]];
 
 /** Same-world camera/vehicle path. The region changes offshore at the midpoint. */
 export function journeyPose(

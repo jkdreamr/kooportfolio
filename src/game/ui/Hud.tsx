@@ -481,7 +481,7 @@ export function Hud({ interact }: { interact: () => void }) {
           <RoomStory
             key={g.scene}
             scene={g.scene as PlaceId}
-            hidden={g.paused || g.panel !== "none"}
+            hidden={g.paused || g.panel !== "none" || g.near === "exit"}
           />
         </div>
       )}
@@ -499,6 +499,7 @@ export function Hud({ interact }: { interact: () => void }) {
           <>
             <div
               className={`context-action ${g.scene === "stadium" ? "context-action--stadium" : ""} ${g.near ? "visible" : ""}`}
+              data-action={g.near ?? undefined}
               style={{ zIndex: 20 }}
             >
               <div>

@@ -15,6 +15,7 @@ import {
 } from "../src/game/core/worldView";
 import { WORLD_ELLIPSE } from "../src/shared/world-bounds";
 import { islandForWorld } from "../src/game/core/homeIsland";
+import { STANFORD_RAIL_POINTS } from "../src/shared/stanford-transport";
 import { KOREA_SHORE } from "../src/game/core/koreaDistrict";
 import { KOREA_LANDMARKS } from "../src/game/core/koreaLandmarks";
 import { POND_SURFACE } from "../src/game/core/pond";
@@ -71,6 +72,43 @@ describe("whole-island camera", () => {
       }
       expect(islandFollow(1)).toBe(0);
       expect(islandFollow(5)).toBe(1);
+    },
+  );
+
+  it.each([
+    [800, 600],
+    [400, 300],
+  ])(
+    "fits Stanford's actual compact rail and tower at %s × %s",
+    (width, height) => {
+      const [x, z] = islandCenter("stanford");
+      const camera = new OrthographicCamera(
+        -width / 2,
+        width / 2,
+        height / 2,
+        -height / 2,
+        0.1,
+        350,
+      );
+      camera.position.set(
+        x + ISLAND_CAMERA_OFFSET[0],
+        ISLAND_CAMERA_OFFSET[1],
+        z + ISLAND_CAMERA_OFFSET[2],
+      );
+      camera.lookAt(x, 0.7, z);
+      camera.zoom = islandZoom(width, height, "stanford");
+      camera.updateProjectionMatrix();
+      camera.updateMatrixWorld();
+      const points: readonly (readonly [number, number, number])[] = [
+        ...STANFORD_RAIL_POINTS.map(([px, pz]) => [px, 0, pz] as const),
+        [4.82, 30, 54.6125],
+      ];
+      for (const [px, py, pz] of points) {
+        const projected = new Vector3(px, py, pz).project(camera);
+        expect(Math.abs(projected.x)).toBeLessThan(0.95);
+        expect(Math.abs(projected.y)).toBeLessThan(0.9);
+        expect(Math.abs(projected.z)).toBeLessThan(1);
+      }
     },
   );
 
@@ -164,6 +202,10 @@ describe("stable, planted island", () => {
     "roots every %s garden inside the smaller coastline and keeps water clear",
     (world) => {
       const plots = villageGardenPlots(world);
+      if (world === "stanford") {
+        expect(plots).toEqual([]);
+        return;
+      }
       expect(plots.length).toBeGreaterThan(0);
       const island = islandForWorld(world);
       for (const { x, z } of plots) {

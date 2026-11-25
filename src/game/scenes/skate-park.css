@@ -219,6 +219,24 @@
 .scene-skate .joystick {
   display: none;
 }
+/* Keep the real gate action left of the mode picker, including touch layouts. */
+.game-shell .scene-skate .context-action[data-action="exit"] {
+  left: max(22px, env(safe-area-inset-left));
+  right: auto;
+  bottom: max(92px, calc(env(safe-area-inset-bottom) + 84px));
+  transform: none;
+  min-width: 0;
+  width: max-content;
+  padding: 8px;
+}
+.scene-skate .context-action[data-action="exit"] > div {
+  display: none;
+}
+.game-shell:has(.scene-skate .context-action.visible[data-action="exit"])
+  .skate-ui:not(.is-riding)
+  .skate-card {
+  max-width: calc(100vw - 154px);
+}
 @media (max-width: 700px) {
   .skate-view-controls {
     top: 150px;
@@ -280,6 +298,9 @@
   }
 }
 @media (max-height: 520px) {
+  .skate-ui:not(.is-riding) .skate-card > :is(.skate-eyebrow, h2, p) {
+    display: none;
+  }
   .skate-card {
     bottom: 72px;
     padding: 10px;

@@ -24,7 +24,7 @@ export function LabelProjection() {
     if (shell) {
       const origin = shell.getBoundingClientRect();
       for (const control of shell.querySelectorAll(
-        ".context-action.visible, .time-of-day-control, .world-zoom",
+        ".context-action.visible, .time-of-day-control, .world-zoom, .island-rail-controls, .world-toolbar, .joystick",
       )) {
         if (getComputedStyle(control).visibility === "hidden") continue;
         const bounds = control.getBoundingClientRect();

@@ -14,7 +14,12 @@ import {
 } from "./Models";
 import { runtime, useGame, walkTo } from "../core/store";
 import { movement, movementSpeed } from "../core/input";
-import { canWalk, doorsInWorld, moveWorld } from "../core/world";
+import {
+  canWalk,
+  doorsInWorld,
+  landmarkActionAt,
+  moveWorld,
+} from "../core/world";
 import { LabelProjection } from "./Labels";
 import { Landscape } from "./Landscape";
 import { VillageGardens } from "./VillageGardens";
@@ -45,6 +50,10 @@ import { PhotoBooth } from "./PhotoBooth";
 import { PhotoBoothView } from "./PhotoBoothView";
 import { isNearPhotoBooth } from "../core/photoBoothLayout";
 import { StargazingHill } from "./StargazingHill";
+import {
+  STANFORD_BULLETIN,
+  STANFORD_TELESCOPE,
+} from "../../shared/stanford-transport";
 import { SkateParkBuilding } from "../scenes/SkatePark";
 import { BeatLabShell, MathLabShell } from "./LabBuildings";
 import { GoShell } from "./GoShell";
@@ -168,15 +177,13 @@ export function Walker({
         doorsInWorld(state.world).find(
           (d) => Math.hypot(d.x - runtime.x, d.z - runtime.z) < 1.9,
         )?.id ?? "";
-      if (!near && Math.hypot(runtime.x, runtime.z + 4.6) < 1.9) near = "read";
+      if (!near) near = landmarkActionAt(runtime.x, runtime.z, state.world);
       if (
         !near &&
         state.world === "korea" &&
         isNearPhotoBooth(runtime.x, runtime.z)
       )
         near = "photo";
-      if (!near && Math.hypot(runtime.x + 19, runtime.z + 30) < 1.9)
-        near = "stargazing";
       if (
         !near &&
         state.world === "stanford" &&
@@ -347,7 +354,9 @@ export function Hub() {
           }}
         />
       )}
-      <Bulletin />
+      <Bulletin
+        position={world === "stanford" ? STANFORD_BULLETIN : undefined}
+      />
       <Wildlife />
       {world === "stanford" && !save.memories.includes(HOOVER_KEY) && (
         <group position={[HOOVER.key[0], 0.2, HOOVER.key[1]]}>
@@ -376,7 +385,13 @@ export function Hub() {
           <PhotoBoothView />
         </>
       )}
-      <StargazingHill position={[-19, 0, -38]} />
+      <StargazingHill
+        position={
+          world === "stanford"
+            ? [STANFORD_TELESCOPE[0], 0, STANFORD_TELESCOPE[1]]
+            : [-19, 0, -38]
+        }
+      />
       {world !== "korea" && (
         <IslandTrain
           key={world}

@@ -7,8 +7,7 @@ import { sampleDaylight } from "../core/daylight";
 import { sampleWeather } from "../core/weather";
 import { Weather } from "./Weather";
 import {
-  ANIMALS,
-  HOME_ANIMALS,
+  animalsInWorld,
   animalPose,
   birdPose,
   planePose,
@@ -331,7 +330,6 @@ function Plane() {
 export function Wildlife() {
   const quality = useGame((s) => s.quality);
   const world = useGame((s) => s.world);
-  const animals = world === "home" ? HOME_ANIMALS : ANIMALS;
   useFrame((_, delta) => {
     if (runtime.active && !useGame.getState().paused && !document.hidden)
       wildlifeClock.seconds += Math.min(delta, 0.05);
@@ -339,7 +337,7 @@ export function Wildlife() {
   return (
     <group name="ambient-wildlife">
       <Weather />
-      {animals
+      {animalsInWorld(world)
         .filter((_, i) => quality === "high" || i % 2 === 0)
         .map((animal, i) =>
           animal.kind === "duck" ? (
