@@ -21,6 +21,8 @@ import {
   createLightsHintTracker,
   flipLights,
   LIGHTS_TARGET,
+  lightsPar,
+  lightsReach,
   newLightsBoard,
   newRhymeGame,
   RHYME_BARS,
@@ -46,7 +48,7 @@ const laneX = Array.from(
 
 function labZoom(id: "music" | "math", width: number, height: number) {
   return id === "math"
-    ? Math.max(6, Math.min(82, (width - 36) / 8.8, (height - 180) / 8.8))
+    ? Math.max(6, Math.min(76, (width - 28) / 9.1, (height - 196) / 9.1))
     : Math.max(6, Math.min(65, (width - 36) / 11.8, (height - 220) / 12.8));
 }
 
@@ -105,7 +107,7 @@ function LabControls({
 }: {
   name: string;
   active?: boolean;
-  tone?: "beat";
+  tone?: "beat" | "math";
   children: ReactNode;
 }) {
   const gl = useThree((s) => s.gl);
@@ -131,7 +133,7 @@ function LabControls({
     >
       <section
         key={active ? "game" : "room"}
-        className={`lab-controls${active ? " lab-game" : ""}${tone ? ` lab-${tone}` : ""}`}
+        className={`lab-controls${active ? " lab-game" : ""}${tone ? ` lab-slate lab-${tone}` : ""}`}
         aria-label={name}
         tabIndex={-1}
         ref={focusGame}
@@ -294,7 +296,9 @@ function BeatVisuals({ game }: { game: RefObject<RhymeGame> }) {
         ? (g.time - rhymeCountIn(g)) % barInterval
         : 0;
     const beat = Math.min(BEATS_PER_BAR - 1, Math.floor(inBar / beatInterval));
-    const bounce = playing ? Math.abs(Math.sin((inBar / beatInterval) * Math.PI)) : 0;
+    const bounce = playing
+      ? Math.abs(Math.sin((inBar / beatInterval) * Math.PI))
+      : 0;
     pads.current?.children.forEach((pad, i) => {
       const lit = playing && i === beat;
       const cap = pad.children[1];
@@ -323,7 +327,11 @@ function BeatVisuals({ game }: { game: RefObject<RhymeGame> }) {
         {laneX.map((x, beatIndex) => (
           <group key={x} position={[x, 0.4, -2]}>
             <Cylinder p={[0, 0.14, 0]} s={[0.95, 0.28, 0.95]} c="#25303d" />
-            <Cylinder p={[0, 0.33, 0]} s={[0.79, 0.2, 0.79]} c={colors[beatIndex]} />
+            <Cylinder
+              p={[0, 0.33, 0]}
+              s={[0.79, 0.2, 0.79]}
+              c={colors[beatIndex]}
+            />
             <Ring p={[0, 0.46, 0]} radius={0.61} tube={0.025} c="#d7e0e9" />
             <mesh
               position={[0, 0.445, 0]}
@@ -536,11 +544,7 @@ export function BeatLabInterior() {
                       : "Rhyme words to the beat"}
                 </p>
                 {view.phase !== "playing" && (
-                  <div
-                    className="rhyme-tempos"
-                    role="group"
-                    aria-label="Tempo"
-                  >
+                  <div className="rhyme-tempos" role="group" aria-label="Tempo">
                     {RHYME_TEMPOS.map((tempo, i) => (
                       <button
                         key={tempo.name}
@@ -614,8 +618,8 @@ function MathDressing() {
   });
   return (
     <>
-      <Box p={[0, 0.19, -2]} s={[9, 0.28, 9]} c="#455b4e" />
-      <Box p={[0, 0.37, -2]} s={[8.6, 0.12, 8.6]} c="#233e38" />
+      <Box p={[0, 0.19, -2]} s={[9, 0.28, 9]} c="#3b4654" />
+      <Box p={[0, 0.37, -2]} s={[8.6, 0.12, 8.6]} c="#222b37" />
       {[-room.width / 2 + 3, room.width / 2 - 3].map((x) => (
         <group key={x} position={[x, 0, back + 3]}>
           <Box p={[0, 0.25, 0]} s={[3.5, 0.5, 3.2]} c="#716b56" />
@@ -669,147 +673,308 @@ function MathDressing() {
   );
 }
 
+const MATH_KEYS: Record<string, "undo" | "hint" | "reset"> = {
+  backspace: "undo",
+  z: "undo",
+  h: "hint",
+  r: "reset",
+};
+const FLIP_MS = 220;
 const mathHints = createLightsHintTracker();
+
+function LightsBoard({
+  board,
+  hint,
+  flips,
+  onPress,
+}: {
+  board: number;
+  hint: number | null;
+  flips: RefObject<number[]>;
+  onPress: (tile: number) => void;
+}) {
+  const tiles = useRef<(Group | null)[]>([]);
+  useFrame(() => {
+    const now = performance.now();
+    tiles.current.forEach((tile, i) => {
+      if (!tile) return;
+      const t = (now - (flips.current[i] ?? -Infinity)) / FLIP_MS;
+      tile.position.y = t >= 0 && t < 1 ? Math.sin(t * Math.PI) * 0.22 : 0;
+    });
+  });
+  return Array.from({ length: 9 }, (_, tile) => {
+    const lit = !!(board & (1 << tile));
+    return (
+      <group
+        key={tile}
+        position={[
+          ((tile % 3) - 1) * 2.5,
+          0.42,
+          (Math.floor(tile / 3) - 1) * 2.5 - 2,
+        ]}
+        onPointerDown={(e) => {
+          if (
+            !gameIsActive() ||
+            useGameMode.getState().active?.id !== "math" ||
+            board === LIGHTS_TARGET
+          )
+            return;
+          e.stopPropagation();
+          onPress(tile);
+        }}
+      >
+        <Box p={[0, 0.06, 0]} s={[2.2, 0.15, 2.2]} c="#1a212b" />
+        <group ref={(node) => void (tiles.current[tile] = node)}>
+          <Box
+            p={[0, 0.2, 0]}
+            s={[1.95, 0.2, 1.95]}
+            c={lit ? "#dfe6ee" : "#3e4a5a"}
+          />
+          <Cylinder
+            p={[0, 0.37, 0]}
+            s={[0.45, 0.1, 0.45]}
+            c={lit ? "#ffffff" : "#2a3442"}
+          />
+          <Ring
+            p={[0, 0.44, 0]}
+            radius={hint === tile ? 0.84 : 0.62}
+            tube={hint === tile ? 0.08 : 0.03}
+            c={hint === tile ? "#f8fafc" : lit ? "#9aa8b8" : "#6b7889"}
+          />
+        </group>
+      </group>
+    );
+  });
+}
 
 export function MathLabInterior() {
   const active = useGameMode((s) => s.active?.id === "math");
   const size = useThree((s) => s.size);
   const zoom = labZoom("math", size.width, size.height);
   const [round, setRound] = useState(0),
+    [seed, setSeed] = useState(0),
     [board, setBoard] = useState(() => newLightsBoard(0));
-  const [moves, setMoves] = useState(0),
-    [hint, setHint] = useState<number | null>(null);
-  const [practiceClear, setPracticeClear] = useState(false);
+  const [history, setHistory] = useState<number[]>([]),
+    [hint, setHint] = useState<number | null>(null),
+    [preview, setPreview] = useState<number | null>(null),
+    [practiceClear, setPracticeClear] = useState(false);
   const [near, setNear] = useState(false);
-  const startingBoard = useRef(board),
-    boardRef = useRef(board);
+  const rewarded = useRef(false),
+    boardRef = useRef(board),
+    startingBoard = useRef(board),
+    roundRef = useRef(0),
+    seedRef = useRef(0),
+    historyRef = useRef<number[]>([]),
+    flips = useRef<number[]>([]),
+    tileButtons = useRef<(HTMLButtonElement | null)[]>([]),
+    focusedTile = useRef(4);
   const solved = board === LIGHTS_TARGET;
-  const resetPuzzle = useCallback((nextRound: number) => {
-    startingBoard.current = boardRef.current = newLightsBoard(nextRound);
-    setBoard(boardRef.current);
+  const moves = history.length;
+  const par = lightsPar(round);
+  const coins = moves <= par ? 15 : 10;
+  const playing = () =>
+    gameIsActive() && useGameMode.getState().active?.id === "math";
+  const load = useCallback((nextRound: number, nextSeed: number) => {
+    roundRef.current = nextRound;
+    seedRef.current = nextSeed;
+    startingBoard.current = boardRef.current = newLightsBoard(
+      nextRound,
+      nextSeed,
+    );
+    historyRef.current = [];
+    rewarded.current = false;
+    flips.current = [];
     setRound(nextRound);
-    setMoves(0);
+    setSeed(nextSeed);
+    setBoard(boardRef.current);
+    setHistory([]);
     setHint(null);
   }, []);
-  const cancelRound = useCallback(() => resetPuzzle(0), [resetPuzzle]);
+  const cancelRound = useCallback(() => load(0, 0), [load]);
   const close = useLabClose("math", cancelRound);
   const toggle = useCallback((tile: number) => {
-    if (
-      !gameIsActive() ||
-      useGameMode.getState().active?.id !== "math" ||
-      boardRef.current === LIGHTS_TARGET
-    )
-      return;
+    if (!playing() || boardRef.current === LIGHTS_TARGET) return;
     const next = flipLights(boardRef.current, tile);
+    const reach = lightsReach(tile),
+      now = performance.now();
+    for (let i = 0; i < 9; i++) if (reach & (1 << i)) flips.current[i] = now;
+    historyRef.current = [...historyRef.current, boardRef.current];
     boardRef.current = next;
     setBoard(next);
-    setMoves((v) => v + 1);
+    setHistory(historyRef.current);
     setHint(null);
     labTone(tile % 4);
-    if (next === LIGHTS_TARGET) {
+    if (next === LIGHTS_TARGET && !rewarded.current) {
+      rewarded.current = true;
+      const moves = historyRef.current.length;
+      // Settle ripple from the centre once the last flip lands.
+      for (let i = 0; i < 9; i++)
+        flips.current[i] =
+          now +
+          FLIP_MS +
+          (Math.abs((i % 3) - 1) + Math.abs(Math.floor(i / 3) - 1)) * 90;
       const practice = mathHints.wasUsed(startingBoard.current);
       setPracticeClear(practice);
       if (!practice)
-        useGame.getState().award(`math-${newRunId()}`, 15, 10);
+        useGame
+          .getState()
+          .award(
+            `math-${newRunId()}`,
+            moves <= lightsPar(roundRef.current) ? 15 : 10,
+            10,
+          );
     }
   }, []);
+  const undo = useCallback(() => {
+    if (!playing() || boardRef.current === LIGHTS_TARGET) return;
+    const previous = historyRef.current.at(-1);
+    if (previous === undefined) return;
+    historyRef.current = historyRef.current.slice(0, -1);
+    const reach = lightsReach(
+      Array.from({ length: 9 }, (_, t) => t).find(
+        (t) => (previous ^ boardRef.current) === lightsReach(t),
+      ) ?? -1,
+    );
+    const now = performance.now();
+    for (let i = 0; i < 9; i++) if (reach & (1 << i)) flips.current[i] = now;
+    boardRef.current = previous;
+    setBoard(previous);
+    setHistory(historyRef.current);
+    setHint(null);
+    labTone(0);
+  }, []);
+  const showHint = useCallback(() => {
+    if (playing())
+      setHint(mathHints.reveal(startingBoard.current, boardRef.current));
+  }, []);
+  const reset = useCallback(() => {
+    if (playing() && boardRef.current !== LIGHTS_TARGET)
+      load(roundRef.current, seedRef.current);
+  }, [load]);
+  const next = useCallback(() => {
+    if (playing()) load(roundRef.current + 1, seedRef.current);
+  }, [load]);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (
         e.repeat ||
-        (e.target as HTMLElement).closest("input,textarea,select")
+        e.altKey ||
+        e.metaKey ||
+        e.isComposing ||
+        useGameMode.getState().active?.id !== "math"
       )
         return;
-      if (/^[1-9]$/.test(e.key)) toggle(Number(e.key) - 1);
+      const target = e.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable || target.closest("input,textarea,select"))
+      )
+        return;
+      const k = e.key.toLowerCase();
+      if (e.ctrlKey && k !== "z") return;
+      if (/^[1-9]$/.test(k)) {
+        toggle(Number(k) - 1);
+        return;
+      }
+      const action = MATH_KEYS[k];
+      if (!action) {
+        if (k === "n" && boardRef.current === LIGHTS_TARGET) next();
+        return;
+      }
+      e.preventDefault();
+      if (action === "undo") undo();
+      else if (action === "hint") showHint();
+      else reset();
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
-  }, [toggle]);
+  }, [toggle, undo, showHint, reset, next]);
   useFrame(() => {
     if (!gameIsActive() || active) return;
     const nearby = Math.hypot(runtime.x, runtime.z + 2) <= 8;
     if (nearby !== near) setNear(nearby);
   });
-  const reset = (nextRound = round) => {
-    if (!gameIsActive() || useGameMode.getState().active?.id !== "math") return;
-    resetPuzzle(nextRound);
-  };
   const start = () => {
     if (!near || !gameIsActive() || !startGameMode("math")) return;
-    cancelRound();
+    load(0, (Math.random() * 2 ** 31) | 0);
   };
+  const focusNext = useCallback((node: HTMLButtonElement | null) => {
+    node?.focus({ preventScroll: true });
+  }, []);
+  const reach = preview === null || solved ? 0 : lightsReach(preview);
   return (
     <>
       {active && <LabCamera id="math" />}
       <WalkFloor />
       <MathDressing />
-      {Array.from({ length: 9 }, (_, tile) => {
-        const lit = !!(board & (1 << tile));
-        return (
-          <group
-            key={tile}
-            position={[
-              ((tile % 3) - 1) * 2.5,
-              0.42,
-              (Math.floor(tile / 3) - 1) * 2.5 - 2,
-            ]}
-            onPointerDown={(e) => {
-              if (
-                !gameIsActive() ||
-                useGameMode.getState().active?.id !== "math" ||
-                solved
-              )
-                return;
-              e.stopPropagation();
-              toggle(tile);
-            }}
-          >
-            <Box p={[0, 0.06, 0]} s={[2.2, 0.15, 2.2]} c="#152e29" />
-            <Box
-              p={[0, 0.2, 0]}
-              s={[1.95, 0.2, 1.95]}
-              c={lit ? "#b98c3d" : "#466458"}
-            />
-            <Cylinder
-              p={[0, 0.37, 0]}
-              s={[0.45, 0.1, 0.45]}
-              c={lit ? "#f6d875" : "#283e35"}
-            />
-            <Ring
-              p={[0, 0.44, 0]}
-              radius={hint === tile ? 0.84 : 0.62}
-              tube={hint === tile ? 0.09 : 0.035}
-              c={hint === tile ? "#ffffff" : "#c2a265"}
-            />
-          </group>
-        );
-      })}
-      <LabControls name="Math Lab controls" active={active}>
+      <LightsBoard
+        key={`${round}-${seed}`}
+        board={board}
+        hint={hint}
+        flips={flips}
+        onPress={toggle}
+      />
+      <LabControls name="Math Lab controls" active={active} tone="math">
         {active ? (
           <>
             <header className="lab-game-topbar">
               <div>
                 <strong>Math Lab</strong>
-                <span>{moves} moves</span>
+                <span>
+                  Puzzle {round + 1} · {moves} {moves === 1 ? "move" : "moves"}{" "}
+                  · par {par}
+                </span>
               </div>
               <LabGameActions onClose={close} />
             </header>
             <div
               className="lights-buttons"
+              role="group"
               aria-label="Light switches"
               style={{ width: zoom * 7.5, height: zoom * 7.5 }}
+              onKeyDown={(e) => {
+                const step = {
+                  ArrowLeft: -1,
+                  ArrowRight: 1,
+                  ArrowUp: -3,
+                  ArrowDown: 3,
+                }[e.key];
+                if (step === undefined) return;
+                e.preventDefault();
+                e.stopPropagation();
+                const from = focusedTile.current;
+                const to =
+                  Math.abs(step) === 1
+                    ? Math.floor(from / 3) * 3 + (((from % 3) + step + 3) % 3)
+                    : (from + step + 9) % 9;
+                tileButtons.current[to]?.focus({ preventScroll: true });
+              }}
             >
               {Array.from({ length: 9 }, (_, tile) => (
                 <button
                   key={tile}
-                  aria-label={`Toggle tile ${tile + 1}`}
+                  ref={(node) => void (tileButtons.current[tile] = node)}
+                  tabIndex={tile === focusedTile.current ? 0 : -1}
+                  aria-label={`Tile ${tile + 1}`}
                   aria-pressed={!!(board & (1 << tile))}
-                  data-hint={hint === tile}
+                  aria-keyshortcuts={String(tile + 1)}
+                  data-hint={hint === tile || undefined}
+                  data-reach={!!(reach & (1 << tile)) || undefined}
                   disabled={solved}
                   style={{ margin: zoom * 0.15 }}
+                  onPointerEnter={(e) => {
+                    if (e.pointerType === "mouse") setPreview(tile);
+                  }}
+                  onPointerLeave={() => setPreview(null)}
+                  onFocus={(e) => {
+                    focusedTile.current = tile;
+                    if (e.currentTarget.matches(":focus-visible"))
+                      setPreview(tile);
+                  }}
+                  onBlur={() => setPreview(null)}
                   onClick={() => toggle(tile)}
                 >
-                  {tile + 1}
+                  <kbd>{tile + 1}</kbd>
                 </button>
               ))}
             </div>
@@ -817,30 +982,40 @@ export function MathLabInterior() {
               <p role="status">
                 {solved
                   ? practiceClear
-                    ? "All lit · practice"
-                    : "All lit · +15 coins"
-                  : "Light all nine · 1–9"}
+                    ? "Solved · practice"
+                    : moves <= par
+                      ? `Solved at par · +${coins}`
+                      : `Solved in ${moves} · +${coins}`
+                  : "Light all nine"}
               </p>
               {solved ? (
                 <button
                   className="lab-primary"
-                  onClick={() => reset(round + 1)}
+                  ref={focusNext}
+                  aria-keyshortcuts="N Enter"
+                  onClick={next}
                 >
                   Next puzzle
                 </button>
               ) : (
                 <div className="lab-game-actions">
                   <button
-                    onClick={() => {
-                      if (!gameIsActive()) return;
-                      setHint(
-                        mathHints.reveal(startingBoard.current, boardRef.current),
-                      );
-                    }}
+                    onClick={undo}
+                    disabled={!moves}
+                    aria-keyshortcuts="Z Backspace"
                   >
-                    Hint · no reward
+                    Undo <kbd>Z</kbd>
                   </button>
-                  <button onClick={() => reset()}>Reset</button>
+                  <button onClick={showHint} aria-keyshortcuts="H">
+                    Hint · no reward <kbd>H</kbd>
+                  </button>
+                  <button
+                    onClick={reset}
+                    disabled={!moves}
+                    aria-keyshortcuts="R"
+                  >
+                    Reset <kbd>R</kbd>
+                  </button>
                 </div>
               )}
             </footer>
@@ -852,7 +1027,7 @@ export function MathLabInterior() {
             </header>
             {near ? (
               <>
-                <p>Light all nine. A tile flips its neighbours too.</p>
+                <p>Light all nine. Each tile flips its neighbours too.</p>
                 <button className="lab-primary" onClick={start}>
                   Play
                 </button>

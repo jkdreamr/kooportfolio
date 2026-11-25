@@ -6,6 +6,9 @@ import {
   newLightsBoard,
   newRhymeGame,
   LIGHTS_TARGET,
+  lightsPar,
+  lightsReach,
+  lightsSolution,
   lightsHint,
   RHYME_BARS,
   RHYME_FAMILIES,
@@ -115,19 +118,28 @@ describe("Math Lab", () => {
     }
     expect(lightsHint(LIGHTS_TARGET)).toBeNull();
   });
-  it("uses every non-solved board once before repeating", () => {
-    let solvable = [LIGHTS_TARGET];
-    for (let tile = 0; tile < 9; tile++) {
-      solvable = [
-        ...solvable,
-        ...solvable.map((board) => flipLights(board, tile)),
-      ];
+  it("ramps puzzles so the shortest solution always equals par", () => {
+    for (const seed of [0, 7, 123456]) {
+      for (let round = 0; round < 8; round++) {
+        const board = newLightsBoard(round, seed);
+        const solution = lightsSolution(board);
+        let solved = board;
+        for (let tile = 0; tile < 9; tile++)
+          if (solution & (1 << tile)) solved = flipLights(solved, tile);
+        expect(solved).toBe(LIGHTS_TARGET);
+        let presses = 0;
+        for (let m = solution; m; m &= m - 1) presses++;
+        expect(presses).toBe(lightsPar(round));
+        expect(newLightsBoard(round, seed)).toBe(board);
+      }
     }
-    const rounds = Array.from({ length: LIGHTS_TARGET }, (_, round) =>
-      newLightsBoard(round),
-    );
-    expect(new Set(rounds)).toEqual(new Set(solvable.slice(1)));
-    expect(newLightsBoard(LIGHTS_TARGET)).toBe(rounds[0]);
+    expect(lightsPar(0)).toBe(2);
+    expect(lightsPar(99)).toBe(6);
+    expect(newLightsBoard(3, 1)).not.toBe(newLightsBoard(3, 2));
+  });
+  it("reports which tiles a press flips", () => {
+    expect(lightsReach(4)).toBe(flipLights(0, 4));
+    expect(lightsReach(9)).toBe(0);
   });
   it("keeps hint usage with the starting board rather than the attempt", () => {
     const hints = createLightsHintTracker();
