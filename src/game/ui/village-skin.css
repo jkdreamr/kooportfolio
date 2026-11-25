@@ -516,7 +516,11 @@
   }
 }
 @media (max-height: 500px), (max-width: 700px) and (max-height: 600px) {
-  .game-shell:has(.context-action.visible, .world-travel-stop, .island-rail-controls):has(.world-zoom)
+  .game-shell:has(
+      .context-action.visible,
+      .world-travel-stop,
+      .island-rail-controls
+    ):has(.world-zoom)
     :is(.time-of-day-control, .world-zoom) {
     visibility: hidden;
   }
@@ -793,7 +797,10 @@
     display: grid;
     gap: 10px;
   }
-  .game-shell .interior-intro:has(.room-story:not([hidden])):has(~ .context-action.visible) {
+  .game-shell
+    .interior-intro:has(.room-story:not([hidden])):has(
+      ~ .context-action.visible
+    ) {
     bottom: calc(var(--interior-action-bottom) + 80px);
     grid-template-rows: auto minmax(0, 1fr);
   }
@@ -818,7 +825,10 @@
 }
 @media (max-width: 700px) and (max-height: 650px) and (orientation: portrait) {
   .game-shell .game-ui {
-    --interior-action-bottom: max(96px, calc(env(safe-area-inset-bottom) + 88px));
+    --interior-action-bottom: max(
+      96px,
+      calc(env(safe-area-inset-bottom) + 88px)
+    );
   }
 }
 @media (max-height: 650px) and (orientation: landscape) {
@@ -843,11 +853,71 @@
     overflow: auto;
   }
   .game-shell:has(.room-story:not([hidden])) .interior-heading {
-    max-width: min(220px, calc(100vw - 340px));
+    max-width: min(220px, calc(100vw - 180px));
+  }
+  .game-shell .room-story.is-reading {
+    top: 148px;
+    width: min(280px, calc(100vw - 180px));
+    max-height: calc(100vh - 204px - env(safe-area-inset-bottom));
+    max-height: calc(100dvh - 204px - env(safe-area-inset-bottom));
+  }
+  .game-shell .room-story::after {
+    display: none;
+  }
+  /* The passive story hint is one button, not a scrollable reading panel. */
+  .game-shell .room-story:not(.is-reading) {
+    width: auto;
+    max-height: none;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;
+  }
+  .game-shell .room-story:not(.is-reading) > p,
+  .game-shell .room-story:not(.is-reading) .story-close,
+  .game-shell .room-story .story-read-default {
+    display: none;
+  }
+  .game-shell .room-story .story-read-compact {
+    display: inline;
   }
   .game-shell .joystick {
     bottom: max(32px, calc(env(safe-area-inset-bottom) + 16px));
     left: max(24px, calc(env(safe-area-inset-left) + 16px));
+  }
+}
+/* Keep the joystick lane clear; all tools remain swipe/keyboard reachable. */
+@media (max-width: 700px) and (max-height: 650px) and (orientation: landscape) {
+  .game-shell .world-toolbar {
+    left: max(140px, calc(env(safe-area-inset-left) + 126px));
+    right: max(16px, env(safe-area-inset-right));
+    bottom: max(52px, calc(env(safe-area-inset-bottom) + 44px));
+    transform: none;
+    width: auto;
+    max-width: none;
+    box-sizing: border-box;
+    overflow-x: auto;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x;
+  }
+  .game-shell .world-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+  .game-shell .world-toolbar > :is(button, a) {
+    flex: 0 0 44px;
+    min-width: 44px;
+    height: 44px;
+    padding: 4px;
+  }
+  .game-shell .world-toolbar > :is(button, a) > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 }
 /* A short viewport cannot stack the hub prompt above the joystick and toolbar. */
@@ -864,8 +934,7 @@
 /* At the door, the working Exit action takes priority over passive lab help. */
 @media (max-height: 650px) {
   .game-shell:has(
-      :is(.scene-math, .scene-music)
-        .context-action.visible[data-action="exit"]
+      :is(.scene-math, .scene-music) .context-action.visible[data-action="exit"]
     )
     .lab-controls:not(.lab-game) {
     display: none;

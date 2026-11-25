@@ -386,9 +386,16 @@ export function IslandTrain({
                         useGame.setState({ travelRequest: option })
                       }
                     >
-                      {option.mode === "train"
-                        ? `Train to ${WORLD_NAMES[option.destination]}`
-                        : "Drive"}
+                      {option.mode === "train" ? (
+                        <>
+                          <span className="rail-full-label">
+                            Train to {WORLD_NAMES[option.destination]}
+                          </span>
+                          <span className="rail-compact-label">Train</span>
+                        </>
+                      ) : (
+                        "Drive"
+                      )}
                     </button>
                   ))}
                 <button
@@ -396,7 +403,8 @@ export function IslandTrain({
                   onClick={board}
                   aria-label="Ride island loop"
                 >
-                  Island loop
+                  <span className="rail-full-label">Island loop</span>
+                  <span className="rail-compact-label">Loop</span>
                 </button>
               </div>
             )}

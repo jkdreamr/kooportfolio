@@ -82,6 +82,9 @@ body:has(.game-shell),
   font-size: 12px;
   font-weight: 650;
 }
+.story-read-compact {
+  display: none;
+}
 .story-close {
   position: absolute;
   top: 2px;

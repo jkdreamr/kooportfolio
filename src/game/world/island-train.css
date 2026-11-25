@@ -45,6 +45,9 @@
   outline: 2px solid #fff;
   outline-offset: 3px;
 }
+.rail-compact-label {
+  display: none;
+}
 @media (min-width: 701px) and (pointer: fine) {
   .island-rail-controls {
     bottom: max(110px, calc(env(safe-area-inset-bottom) + 100px));
@@ -59,13 +62,20 @@
     visibility: hidden;
   }
   .island-rail-controls {
+    --station-left: max(140px, calc(env(safe-area-inset-left) + 126px));
     left: auto;
     right: max(16px, env(safe-area-inset-right));
-    bottom: max(112px, calc(env(safe-area-inset-bottom) + 104px));
+    top: max(64px, calc(env(safe-area-inset-top) + 56px));
+    bottom: auto;
     transform: none;
-    max-width: calc(100vw - 160px);
+    width: min(
+      248px,
+      calc(100vw - var(--station-left) - max(16px, env(safe-area-inset-right)))
+    );
+    max-width: none;
+    padding: 6px;
     max-height: calc(
-      100% - max(112px, calc(env(safe-area-inset-bottom) + 104px)) -
+      100% - max(120px, calc(env(safe-area-inset-bottom) + 112px)) -
         max(64px, calc(env(safe-area-inset-top) + 56px))
     );
     overflow-y: auto;
@@ -73,5 +83,22 @@
   }
   .island-rail-controls > strong {
     display: none;
+  }
+  .island-rail-actions {
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+  .island-rail-controls button {
+    flex: 1;
+    min-width: 44px;
+    padding: 6px 4px;
+    white-space: nowrap;
+    font-size: 12px;
+  }
+  .rail-full-label {
+    display: none;
+  }
+  .rail-compact-label {
+    display: inline;
   }
 }
