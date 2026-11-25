@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { onStanfordLand } from "../../shared/stanford-ground";
 import {
   forest,
   grassSites,
@@ -11,7 +12,10 @@ import { isOnKoreaLand } from "../core/koreaDistrict";
 import type { WorldId } from "../core/worlds";
 import { NaturalTrees } from "./TreeArt";
 import { sculptedMaterial } from "./Surface";
-import { isStanfordTownSpace } from "../core/stanfordLayout";
+import {
+  isStanfordTownSpace,
+  isStanfordTreeSite,
+} from "../core/stanfordLayout";
 import { isHomeLand } from "../core/homeIsland";
 
 type Part = {
@@ -83,6 +87,7 @@ export function GroundGrass({
     () =>
       grassSites(avoid)
         .filter(({ x, z }) => world !== "home" || isHomeLand(x, z, 1))
+        .filter(({ x, z }) => world !== "stanford" || onStanfordLand(x, z, 0.3))
         .map<Part>(({ x, z, variant }) => ({
           p: [x, 0.32, z],
           s: [0.12, 0.35 + (variant % 4) * 0.1, 0.12],
@@ -92,11 +97,10 @@ export function GroundGrass({
   );
   return <Instances parts={parts} geometry={reed} />;
 }
-const stanfordTrees = trees.filter(
-  ({ p }) => !isStanfordTownSpace(p[0], p[2], 3),
-);
+const stanfordTrees = trees.filter(({ p }) => isStanfordTreeSite(p[0], p[2]));
 const stanfordRocks = rocks.filter(
-  ({ p }) => !isStanfordTownSpace(p[0], p[2], 3),
+  ({ p }) =>
+    !isStanfordTownSpace(p[0], p[2], 3) && onStanfordLand(p[0], p[2], 2),
 );
 const outsideLandmarks = ({ p: [x, , z] }: Part) =>
   isOnKoreaLand(x, z, 2.5) &&

@@ -24,6 +24,7 @@ import {
 import { activitySpots } from "../src/game/core/regionalActivities";
 import { HOME_ANIMALS, animalPose } from "../src/game/core/wildlife";
 import { villagers } from "../src/game/core/npcs";
+import { STANFORD_STATION_GATE } from "../src/shared/stanford-transport";
 
 describe("Home’s actual compact island", () => {
   it("keeps the seated Reader on the relocated bench beside the talking approach", () => {
@@ -85,10 +86,11 @@ describe("Home’s actual compact island", () => {
     expect(z).toBeLessThan(14);
   });
 
-  it("moves only Home’s gates and closes its compact coastal train loop", () => {
+  it("keeps regional gates independent and closes Home's compact coastal train loop", () => {
     expect(journeyGate("plane", "stanford")).toEqual(AIRPORT_GATE);
     expect(journeyGate("plane", "korea")).toEqual(AIRPORT_GATE);
-    expect(journeyGate("train", "stanford")).toEqual(STATION_GATE);
+    expect(journeyGate("train", "stanford")).toEqual(STANFORD_STATION_GATE);
+    expect(journeyGate("train", "korea")).toEqual(STATION_GATE);
     const rail = railForWorld("home");
     expect(rail.station[1]).toBe(HOME_ISLAND.centerZ);
     for (const mode of ["train", "plane"] as const) {

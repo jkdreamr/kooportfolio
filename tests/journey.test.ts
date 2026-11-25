@@ -6,7 +6,7 @@ import {
   journeyPose,
   journeyRidePose,
 } from "../src/game/core/journey";
-import { railForWorld } from "../src/game/core/islandRail";
+import { railForWorld, railPose } from "../src/game/core/islandRail";
 import { canWalk, findPath } from "../src/game/core/world";
 import type { WorldId } from "../src/game/core/worlds";
 import { WORLD_ELLIPSE } from "../src/shared/world-bounds";
@@ -170,10 +170,9 @@ describe("world-space transport", () => {
               world,
               coach,
             );
-            expect(
-              ((p.x - rail.centerX) / rail.radiusX) ** 2 +
-                ((p.z - rail.centerZ) / rail.radiusZ) ** 2,
-            ).toBeCloseTo(1, 8);
+            expect(p).toMatchObject(
+              railPose(progress, coach * rail.coachTurns, world),
+            );
             expect(p.y).toBe(rail.height);
             // The Stanford airport is centered at (58, 52), with its apron
             // extending to z=61; no car may pass through that footprint.

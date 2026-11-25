@@ -1,6 +1,10 @@
 import { WORLD_ELLIPSE } from "../../shared/world-bounds";
 import { HOME_ISLAND } from "./homeIsland";
 import type { WorldId } from "./worlds";
+import {
+  STANFORD_RAIL_PROFILE,
+  stanfordRailPose,
+} from "../../shared/stanford-transport";
 
 export const ISLAND_RAIL = {
   centerX: 0,
@@ -24,11 +28,17 @@ const homeRail = {
     HOME_ISLAND.centerZ,
   ] as const,
 };
+const stanfordRail = { ...ISLAND_RAIL, ...STANFORD_RAIL_PROFILE };
 export const railForWorld = (world?: WorldId) =>
-  world === "home" ? homeRail : ISLAND_RAIL;
+  world === "stanford"
+    ? stanfordRail
+    : world === "home"
+      ? homeRail
+      : ISLAND_RAIL;
 
 /** Distance-like phase, in turns. Locomotive and coaches share this route. */
 export function railPose(turns: number, offset = 0, world?: WorldId) {
+  if (world === "stanford") return stanfordRailPose(turns, offset);
   const rail = railForWorld(world);
   const angle = (turns - offset) * Math.PI * 2 + Math.PI;
   return {

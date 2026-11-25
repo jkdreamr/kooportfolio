@@ -1,3 +1,53 @@
+.race-catch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.race-catch-track {
+  flex: 1;
+  position: relative;
+  height: 10px;
+  background: #dce0cd;
+  border-radius: 5px;
+}
+
+.race-catch-track i {
+  position: absolute;
+  inset: 0 0 0 auto;
+  background: #77a273;
+  border-radius: 0 5px 5px 0;
+}
+
+.race-catch-track b {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 3px;
+  border-radius: 2px;
+  background: #243b31;
+  transform: translateX(-50%);
+}
+
+.race-catch button {
+  min-width: 90px;
+  min-height: 44px;
+  padding: 0 7px;
+  border: 1px solid #869483;
+  border-radius: 9px;
+  background: #f7f4e6;
+  color: #243b31;
+  font: 600 12px system-ui, sans-serif;
+  touch-action: manipulation;
+}
+
+.race-catch button[data-ready="true"],
+.race-catch button[data-boosted="true"] {
+  background: #315b3c;
+  color: #fff;
+}
+
 /* Keep the lower river clear for the shell and thumb controls. */
 @media (max-width: 700px) and (orientation: portrait) {
   .game-shell .game-ui.scene-rowing .race-control-panel {
@@ -18,7 +68,7 @@
   }
 
   .game-shell .game-ui.scene-rowing .last-split {
-    top: 320px;
+    top: 372px;
     right: 16px;
     bottom: auto;
     display: flex;
@@ -86,6 +136,7 @@
     grid-row: 1 / span 2;
   }
 
+  .game-shell .game-ui.scene-rowing .race-catch,
   .game-shell .game-ui.scene-rowing .race-control-panel p {
     grid-column: 1 / -1;
   }

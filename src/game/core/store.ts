@@ -47,6 +47,7 @@ export const runtime = {
   path: [] as [number, number][],
   near: "",
   raceCadence: 30,
+  raceCatch: false,
   raceLength: 360,
   raceSeed: 1,
   raceMode: "sprint" as "sprint" | "regatta" | "daily",
@@ -147,6 +148,7 @@ export const useGame = create<State>((set, get) => ({
     runtime.aim = 0;
     runtime.steer = 0;
     runtime.burst = false;
+    runtime.raceCatch = false;
     set({
       scene,
       near: "",

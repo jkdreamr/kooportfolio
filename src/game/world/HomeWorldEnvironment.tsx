@@ -5,6 +5,7 @@ import type { GroundFootprint } from "../core/scenery";
 import { HOME_GARDEN_FOOTPRINTS } from "../core/homeGardens";
 import { HomeGardens } from "./HomeGardens";
 import { HOME_DESTINATION_CENTERS } from "../core/homeLayout";
+import { HomeWindowLighting } from "./HomeBuildingArt";
 
 const paths: SceneryPart[] = [];
 function path(x: number, z: number, width: number, depth: number) {
@@ -75,6 +76,7 @@ export const HOME_PATH_FOOTPRINTS: GroundFootprint[] = [
 export function HomeWorldEnvironment() {
   return (
     <group name="home-environment">
+      <HomeWindowLighting />
       <HomeGardens />
       <WorldSceneryParts parts={paths} />
       <GroundGrass avoid={HOME_PATH_FOOTPRINTS} world="home" />

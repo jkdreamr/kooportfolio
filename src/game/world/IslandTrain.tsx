@@ -43,13 +43,20 @@ function CoastalTrack({ world }: { world: WorldId }) {
         world === "home" ? Math.hypot(next.x - p.x, next.z - p.z) * 0.98 : 1.65;
       for (let side = 0; side < 2; side++) {
         const offset = side === 0 ? -0.77 : 0.77;
-        object.position.set(
-          p.x + Math.cos(p.heading) * offset,
-          rail.height,
-          p.z - Math.sin(p.heading) * offset,
-        );
-        object.rotation.set(0, p.heading, 0);
-        object.scale.set(0.13, 0.16, length);
+        const ax = p.x + Math.cos(p.heading) * offset;
+        const az = p.z - Math.sin(p.heading) * offset;
+        if (world === "stanford") {
+          const bx = next.x + Math.cos(next.heading) * offset;
+          const bz = next.z - Math.sin(next.heading) * offset;
+          // Join each actual side rail around the tighter coastal bends.
+          object.position.set((ax + bx) / 2, rail.height, (az + bz) / 2);
+          object.rotation.set(0, Math.atan2(bx - ax, bz - az), 0);
+          object.scale.set(0.13, 0.16, Math.hypot(bx - ax, bz - az) * 1.02);
+        } else {
+          object.position.set(ax, rail.height, az);
+          object.rotation.set(0, p.heading, 0);
+          object.scale.set(0.13, 0.16, length);
+        }
         object.updateMatrix();
         rails.current!.setMatrixAt(i * 2 + side, object.matrix);
       }
@@ -324,7 +331,7 @@ export function IslandTrain({
           );
         })}
       </group>
-      <group position={[rail.centerX - rail.radiusX + 6.3, 0, rail.centerZ]}>
+      <group position={[rail.station[0] - 4.2, 0, rail.station[1]]}>
         <Box p={[-0.5, 0.6, 0]} s={[12.4, 0.5, 4.5]} c="#9c7952" />
         <Box p={[4.6, 0.2, 0]} s={[2.2, 0.3, 4]} c="#b39a72" />
         {[-5, -1, 3].flatMap((x) =>
@@ -379,9 +386,16 @@ export function IslandTrain({
                         useGame.setState({ travelRequest: option })
                       }
                     >
-                      {option.mode === "train"
-                        ? `Train to ${WORLD_NAMES[option.destination]}`
-                        : "Drive"}
+                      {option.mode === "train" ? (
+                        <>
+                          <span className="rail-full-label">
+                            Train to {WORLD_NAMES[option.destination]}
+                          </span>
+                          <span className="rail-compact-label">Train</span>
+                        </>
+                      ) : (
+                        "Drive"
+                      )}
                     </button>
                   ))}
                 <button
@@ -389,7 +403,8 @@ export function IslandTrain({
                   onClick={board}
                   aria-label="Ride island loop"
                 >
-                  Island loop
+                  <span className="rail-full-label">Island loop</span>
+                  <span className="rail-compact-label">Loop</span>
                 </button>
               </div>
             )}

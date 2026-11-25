@@ -14,9 +14,7 @@ export const journeyGate = (
     ? world === "home"
       ? HOME_AIRPORT_GATE
       : AIRPORT_GATE
-    : world === "home"
-      ? [railForWorld(world).station[0] + 3, railForWorld(world).centerZ]
-      : STATION_GATE;
+    : [railForWorld(world).station[0] + 3, railForWorld(world).station[1]];
 
 /** Zero velocity and acceleration at either end of a movement. */
 export function journeyEase(progress: number) {
