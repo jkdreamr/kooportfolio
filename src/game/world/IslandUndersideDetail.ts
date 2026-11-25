@@ -421,43 +421,52 @@ function koreaDetail(model: UndersideModel): UndersideDetail {
   const pavilion = model.islets.find((islet) => islet.prop === "jeongja");
   if (pavilion) {
     const [cx, cy, cz] = pavilion.top;
+    const k = 1.3;
     const red = "#a8392b",
       green = "#2f7a62",
       tile = "#3b4246";
-    parts.push({ p: [cx, cy + 0.25, cz], s: [3.6, 0.5, 3.6], c: "#bdb9ab", shape: "block" });
-    parts.push({ p: [cx, cy + 0.06, cz + 2.0], s: [1.2, 0.2, 0.6], c: "#b0ad9f", shape: "block" });
+    const add = (
+      x: number,
+      y: number,
+      z: number,
+      s: V3,
+      c: string,
+      shape: DetailShape,
+      r?: V3,
+    ) =>
+      parts.push({
+        p: [cx + x * k, cy + y * k, cz + z * k],
+        s: [s[0] * k, s[1] * k, s[2] * k],
+        c,
+        shape,
+        r,
+      });
+    add(0, 0.25, 0, [3.6, 0.5, 3.6], "#bdb9ab", "block");
+    add(0, 0.06, 2.0, [1.2, 0.2, 0.6], "#b0ad9f", "block");
     for (const x of [-1.25, 1.25])
-      for (const z of [-1.25, 1.25])
-        parts.push({ p: [cx + x, cy + 1.35, cz + z], s: [0.16, 1.7, 0.16], c: red, shape: "column" });
+      for (const z of [-1.25, 1.25]) add(x, 1.35, z, [0.16, 1.7, 0.16], red, "column");
     // Dancheong: a green beam band with a red under-trim, then the dark eaves.
-    parts.push({ p: [cx, cy + 2.32, cz], s: [2.85, 0.26, 2.85], c: green, shape: "block" });
-    parts.push({ p: [cx, cy + 2.15, cz], s: [2.7, 0.1, 2.7], c: "#c0473a", shape: "block" });
-    parts.push({ p: [cx, cy + 2.55, cz], s: [4.1, 0.16, 4.1], c: tile, shape: "block" });
-    parts.push({ p: [cx, cy + 3.3, cz], s: [2.75, 1.45, 2.75], c: tile, shape: "pyramid" });
-    parts.push({ p: [cx, cy + 4.08, cz], s: [0.14, 0.32, 0.14], c: "#c9a54e", shape: "column" });
+    add(0, 2.32, 0, [2.85, 0.26, 2.85], green, "block");
+    add(0, 2.15, 0, [2.7, 0.1, 2.7], "#c0473a", "block");
+    add(0, 2.55, 0, [4.1, 0.16, 4.1], tile, "block");
+    add(0, 3.3, 0, [2.75, 1.45, 2.75], tile, "pyramid");
+    add(0, 4.08, 0, [0.14, 0.32, 0.14], "#c9a54e", "column");
     // Upswept corner eaves.
     for (const [x, z] of [
       [1, 1],
       [1, -1],
       [-1, 1],
       [-1, -1],
-    ] as const) {
-      parts.push({
-        p: [cx + x * 2.05, cy + 2.72, cz + z * 2.05],
-        s: [0.24, 0.14, 0.95],
-        r: [-0.55, Math.atan2(x, z), 0],
-        c: tile,
-        shape: "block",
-      });
-    }
+    ] as const)
+      add(x * 2.05, 2.72, z * 2.05, [0.24, 0.14, 0.95], tile, "block", [-0.55, Math.atan2(x, z), 0]);
     const colors = ["#d8483c", "#3f9a6c", "#3f6ec2", "#d8483c"];
     [
       [1, 1],
       [1, -1],
       [-1, 1],
       [-1, -1],
-    ].forEach(([x, z], k) =>
-      lanterns.push({ p: [cx + x * 1.6, cy + 1.95, cz + z * 1.6], c: colors[k] }),
+    ].forEach(([x, z], n) =>
+      lanterns.push({ p: [cx + x * 1.6 * k, cy + 1.95 * k, cz + z * 1.6 * k], c: colors[n] }),
     );
   }
   const cairnIslet = model.islets.find((islet) => islet.prop === "cairns");

@@ -364,7 +364,6 @@ const SPECS: Record<WorldId, UndersideSpec> = {
     falls: [
       { at: [25, 6], springY: -1.4, length: 22, width: 2 },
       { at: [-1, 15.5], springY: -1.4, length: 26, width: 2.4 },
-      { at: [-31, 10], springY: -1.4, length: 18, width: 1.7 },
     ],
     seed: 11,
   },
@@ -490,8 +489,8 @@ const SPECS: Record<WorldId, UndersideSpec> = {
         depth: 7,
         cap: "#639343",
         trees: [
-          { species: "redwood", size: 0.55, at: [-0.25, -0.2] },
-          { species: "redwood", size: 0.42, at: [0.4, 0.3] },
+          { species: "redwood", size: 0.78, at: [-0.25, -0.2] },
+          { species: "redwood", size: 0.6, at: [0.4, 0.3] },
         ],
         prop: "none",
       },
@@ -872,7 +871,15 @@ export function undersideModel(world: WorldId): UndersideModel {
         ? shade(capHex, 0.94 + hash01(spec.seed, n, level, i, 64) * 0.1)
         : band === -1
           ? shade(capHex, 0.78 + hash01(spec.seed, n, level, i, 65) * 0.08)
-          : strataColor(band + n, 0.15 + band * 0.18, n, level, i, 66);
+          : // Mesa islets keep bold bands; bowls and spires stay one rock.
+            strataColor(
+              spec.isletShape === "mesa" ? band + n : n + (band % 2) * 2,
+              0.15 + band * 0.18,
+              n,
+              level,
+              i,
+              66,
+            );
     pushFan(rock, rings3[0], [cx, cy + (spec.isletShape === "mesa" ? 0.04 : 0.22), cz], false, colorFor(-2, 0));
     for (let level = 0; level + 1 < rings3.length; level++)
       pushStrip(rock, rings3[level], rings3[level + 1], colorFor(shapeRings[level].band, level));
