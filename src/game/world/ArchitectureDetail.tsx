@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { sculptedMaterial } from "./Surface";
+import { GlazedPanel } from "./GlazedPanel";
 
 type Piece = {
   p: [number, number, number];
@@ -236,7 +237,7 @@ export function StoneFooting({
   return <Pieces pieces={pieces} masonry />;
 }
 
-/** Deep stone reveals and separate glazed panes, batched into one draw call. */
+/** Warm interiors behind cool, reflective glazing and the existing timber. */
 export function WindowDetail({ width }: { width: number }) {
   const pieces = useMemo(() => {
     const out: Piece[] = [
@@ -270,7 +271,12 @@ export function WindowDetail({ width }: { width: number }) {
     }
     return out;
   }, [width]);
-  return <Pieces pieces={pieces} />;
+  return (
+    <group>
+      <Pieces pieces={pieces} />
+      <GlazedPanel position={[0, 0, 0.175]} size={[width - 0.06, 0.98, 0.02]} />
+    </group>
+  );
 }
 
 export function GableRoof({
