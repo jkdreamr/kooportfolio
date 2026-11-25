@@ -20,9 +20,9 @@ describe("regional transport", () => {
         }
       }
   });
-  it("allows cars and trains only between home and Stanford, with no domestic station in Korea", () => {
+  it("allows trains only between home and Stanford, with no domestic station in Korea", () => {
     expect(travelOptions("korea", "station")).toEqual([]);
-    for (const mode of ["car", "train"] as const) {
+    for (const mode of ["train"] as const) {
       expect(canTravel("home", "stanford", mode)).toBe(true);
       expect(canTravel("stanford", "home", mode)).toBe(true);
       expect(canTravel("korea", "home", mode)).toBe(false);
@@ -37,7 +37,7 @@ describe("regional transport", () => {
           from !== to && (from === "korea" || to === "korea"),
         );
         if (from === to)
-          for (const mode of ["car", "train", "plane"] as TravelMode[])
+          for (const mode of ["train", "plane"] as TravelMode[])
             expect(canTravel(from, to, mode)).toBe(false);
       }
   });

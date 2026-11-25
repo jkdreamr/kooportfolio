@@ -205,12 +205,8 @@ export function WorldTravel({
                   key={`${option.mode}:${option.destination}`}
                   onClick={() => depart(option)}
                 >
-                  {option.mode === "plane"
-                    ? "Fly"
-                    : option.mode === "car"
-                      ? "Drive"
-                      : "Train"}{" "}
-                  to {WORLD_NAMES[option.destination]}
+                  {option.mode === "plane" ? "Fly" : "Train"} to{" "}
+                  {WORLD_NAMES[option.destination]}
                 </button>
               ))}
             </div>

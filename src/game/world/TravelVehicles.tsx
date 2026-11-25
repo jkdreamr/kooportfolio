@@ -4,52 +4,6 @@ import { useFrame } from "@react-three/fiber";
 import { Ball, Box, Cylinder } from "./Models";
 import { RailCar } from "./IslandTrain";
 
-export function RoadCar() {
-  return (
-    <group>
-      <Box p={[0, 0.78, 0]} s={[2.25, 0.65, 4.3]} c="#356a67" />
-      <Box p={[0, 1.4, -0.25]} s={[1.85, 0.85, 2.1]} c="#356a67" />
-      <Box
-        p={[0, 1.55, 0.82]}
-        s={[1.6, 0.52, 0.08]}
-        c="#b6d4cf"
-        r={[-0.2, 0, 0]}
-      />
-      <Box p={[0, 1.55, -1.32]} s={[1.6, 0.5, 0.08]} c="#b6d4cf" />
-      {[-1, 1].flatMap((side) => [
-        <Box
-          key={`window:${side}`}
-          p={[side * 0.94, 1.55, -0.2]}
-          s={[0.06, 0.5, 1.65]}
-          c="#b6d4cf"
-        />,
-        ...[-1.35, 1.35].map((z) => (
-          <Cylinder
-            key={`${side}:${z}`}
-            p={[side * 1.05, 0.48, z]}
-            s={[0.48, 0.3, 0.48]}
-            r={[0, 0, Math.PI / 2]}
-            c="#29373b"
-          />
-        )),
-        <Box
-          key={`lamp:${side}`}
-          p={[side * 0.75, 0.85, 2.18]}
-          s={[0.48, 0.26, 0.06]}
-          c="#ffe8a9"
-        />,
-        <Box
-          key={`tail:${side}`}
-          p={[side * 0.75, 0.86, -2.18]}
-          s={[0.38, 0.22, 0.06]}
-          c="#b95743"
-        />,
-      ])}
-      <Box p={[0, 0.56, 2.2]} s={[2, 0.16, 0.2]} c="#c1b28a" />
-    </group>
-  );
-}
-
 export function JourneyTrain({
   carsRef,
 }: {

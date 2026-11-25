@@ -20,6 +20,7 @@ import {
   stadiumTimingStart,
   STADIUM_KICKS,
 } from "../core/stadiumChallenge";
+import { sound } from "../core/sound";
 import { GameControls, gameIsActive } from "./InteriorProps";
 import { StadiumArchitecture } from "./StadiumArchitecture";
 import { StadiumView } from "./StadiumView";
@@ -172,6 +173,7 @@ export function StadiumInterior() {
       };
       timing.current = sample;
       if (cursor.current) cursor.current.style.left = `${sample * 100}%`;
+      sound("whoosh");
       moveTo("flight");
     } else if (phase === "result") {
       if (finished) reset();
@@ -269,6 +271,7 @@ export function StadiumInterior() {
             ? "Short"
             : judgeKick(current.kick);
         setResults((previous) => [...previous, outcome]);
+        sound(outcome === "Good" ? "score" : "bounce");
         moveTo("result");
         flight.current = null;
       }

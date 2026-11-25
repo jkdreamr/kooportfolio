@@ -11,7 +11,13 @@ export function wrapHour(hour: number) {
   return ((hour % 24) + 24) % 24;
 }
 
-/** Auto follows regional civil time; fixed presets ease along the shortest arc. */
+const TRANSITION_SECONDS = 4.5;
+// ~3 minutes of clock time: real-time drift in Auto never restarts an arc,
+// while a preset pick, Auto resync or timezone jump always glides there.
+const RETRIGGER_HOURS = 0.05;
+const arc = { from: 0, to: Number.NaN, t: 1 };
+
+/** Auto follows regional civil time; every target change glides the shortest arc. */
 export function advanceHour(
   hour: number,
   seconds: number,
@@ -19,10 +25,25 @@ export function advanceHour(
   automaticHour = hour,
 ) {
   const dt = Math.min(Math.max(seconds, 0), 0.1);
-  if (mode === "auto") return dt > 0 ? wrapHour(automaticHour) : hour;
-  const distance = wrapHour(TIME_PRESETS[mode].hour - hour + 12) - 12;
-  if (Math.abs(distance) < 0.0001 && dt > 0) return TIME_PRESETS[mode].hour;
-  return wrapHour(hour + distance * (1 - Math.exp(-dt * 2.5)));
+  if (dt <= 0) return hour;
+  const target =
+    mode === "auto" ? wrapHour(automaticHour) : TIME_PRESETS[mode].hour;
+  const distance = (from: number) => wrapHour(target - from + 12) - 12;
+  if (Math.abs(distance(hour)) <= RETRIGGER_HOURS) {
+    arc.t = 1;
+    return target;
+  }
+  // Restart only on a real retarget: Auto's target drifts with the clock,
+  // and a microscopic shift must not pin the arc at its first frame.
+  const retarget = wrapHour(target - arc.to + 12) - 12;
+  if (arc.t >= 1 || Math.abs(retarget) > RETRIGGER_HOURS) {
+    arc.from = hour;
+    arc.to = target;
+    arc.t = 0;
+  }
+  arc.t = Math.min(1, arc.t + dt / TRANSITION_SECONDS);
+  const ease = arc.t * arc.t * (3 - 2 * arc.t);
+  return wrapHour(arc.from + distance(arc.from) * ease);
 }
 
 export function clockText(hour: number) {

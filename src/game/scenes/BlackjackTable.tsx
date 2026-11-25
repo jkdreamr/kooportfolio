@@ -13,6 +13,7 @@ import {
 import { Box, Cylinder } from "../world/Models";
 import { BrassStud, CraftedBox } from "./CraftedDetails";
 import { startGameMode, useGameMode } from "../core/gameMode";
+import { sound } from "../core/sound";
 import { GAME_STAGE_Y, InteriorGameStage } from "./InteriorGameStage";
 import {
   GameControls,
@@ -136,9 +137,20 @@ export function BlackjackTable() {
     timer.current += dt;
     if (timer.current >= 0.65) {
       timer.current = 0;
+      sound("tap");
       dispatch({ type: "dealer" });
     }
   });
+  useEffect(() => {
+    if (game.phase === "over" && game.result)
+      sound(
+        game.result === "win" || game.result === "blackjack"
+          ? "score"
+          : game.result === "lose"
+            ? "bounce"
+            : "tap",
+      );
+  }, [game.phase, game.result]);
   useEffect(() => {
     if (!active) return;
     const onKey = (event: KeyboardEvent) => {
@@ -165,6 +177,7 @@ export function BlackjackTable() {
       if (!action) return;
       event.preventDefault();
       event.stopPropagation();
+      sound("tap");
       dispatch(action);
     };
     window.addEventListener("keydown", onKey, true);
@@ -306,7 +319,10 @@ export function BlackjackTable() {
                 ref={dealRef}
                 className="blackjack-deal"
                 disabled={game.bank < game.bet}
-                onClick={() => dispatch({ type: "deal", deck: shuffledDeck() })}
+                onClick={() => {
+                  sound("tap");
+                  dispatch({ type: "deal", deck: shuffledDeck() });
+                }}
               >
                 Deal
               </button>
@@ -316,19 +332,28 @@ export function BlackjackTable() {
           <div className="interior-actions">
             <button
               disabled={game.phase !== "player"}
-              onClick={() => dispatch({ type: "hit" })}
+              onClick={() => {
+                sound("tap");
+                dispatch({ type: "hit" });
+              }}
             >
               Hit
             </button>
             <button
               disabled={game.phase !== "player"}
-              onClick={() => dispatch({ type: "stand" })}
+              onClick={() => {
+                sound("tap");
+                dispatch({ type: "stand" });
+              }}
             >
               Stand
             </button>
             <button
               disabled={!canDouble(game)}
-              onClick={() => dispatch({ type: "double" })}
+              onClick={() => {
+                sound("tap");
+                dispatch({ type: "double" });
+              }}
             >
               Double
             </button>
