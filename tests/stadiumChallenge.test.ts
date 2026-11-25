@@ -7,9 +7,11 @@ import {
 import {
   scoreStadiumKick,
   stadiumAimTarget,
+  stadiumAimWindow,
   stadiumKick,
   stadiumPowerTarget,
   stadiumTiming,
+  stadiumTimingStart,
   STADIUM_KICKS,
   STADIUM_TARGET,
 } from "../src/game/core/stadiumChallenge";
@@ -52,6 +54,20 @@ describe("stadium challenge", () => {
     );
     expect(stadiumTiming(1 / 0.58, 0, true)).toBeCloseTo(1);
     expect(stadiumTiming(2 / 0.58, 0, true)).toBeCloseTo(0);
+  });
+
+  it("starts the first kick in the green on both meters without helping later kicks", () => {
+    const spot = STADIUM_KICKS[0];
+    const powerWindow = [stadiumPowerTarget(spot), 1] as const;
+    const power = stadiumTimingStart(0, powerWindow);
+    const aimWindow = stadiumAimWindow(spot, power);
+    const aim = stadiumTimingStart(0, aimWindow);
+    expect(power).toBeGreaterThan(powerWindow[0]);
+    expect(aim).toBeGreaterThan(aimWindow[0]);
+    expect(aim).toBeLessThan(aimWindow[1]);
+    expect(stadiumTiming(0, 0, true, aim)).toBe(aim);
+    expect(judgeKick(stadiumKick(spot, power, aim))).toBe("Good");
+    expect(stadiumTimingStart(1, aimWindow)).toBe(0);
   });
 
   it("rewards consecutive makes and clears the streak on a miss", () => {

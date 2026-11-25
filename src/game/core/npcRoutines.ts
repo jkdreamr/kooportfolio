@@ -33,7 +33,7 @@ export const routines: Record<string, Pick<Villager, "route" | "stops">> = {
     route: [
       [-31, -8],
       [-27, -8],
-      [-25, -21],
+      [-25, -19],
       [-14, -9],
       [-24, -5],
     ],
@@ -43,7 +43,7 @@ export const routines: Record<string, Pick<Villager, "route" | "stops">> = {
     route: [
       [-33, -8],
       [-29, -4],
-      [-20, -29],
+      [-17, -30],
       [-13, -30],
       [-7, -20],
     ],
@@ -79,8 +79,8 @@ export const routines: Record<string, Pick<Villager, "route" | "stops">> = {
   },
   maker: {
     route: [
-      [14, -8],
-      [8, -8],
+      [3.5, -12.6],
+      [0, -9],
       [11, -2],
       [27, 13],
       [23, 15],
@@ -93,10 +93,10 @@ export const routines: Record<string, Pick<Villager, "route" | "stops">> = {
   researcher: {
     route: [
       [28, -12],
-      [30, -17],
+      [33, -13.5],
       [26, -23],
       [22, -26],
-      [19, -21],
+      [17, -24],
     ],
     stops: {
       0: { duration: 6, heading: -Math.PI / 2 },
@@ -152,7 +152,7 @@ export const extraLocals: Villager[] = [
     place: "photo",
     lines: ["Worth the wait.", "I'm getting the same thing as yesterday."],
     route: [
-      [27, 10.6],
+      [23, -13.7],
       [23, 15],
       [14, 10],
       [10, 3],
@@ -169,8 +169,8 @@ export const extraLocals: Villager[] = [
     place: "photo",
     lines: ["Found a spot in the shade.", "Saving the last bite for later."],
     route: [
-      [33, 2.3],
-      [29, 1.5],
+      [31, -3.9],
+      [31, -1.5],
       [23, -2],
       [18, 1],
       [21, 2],
@@ -179,7 +179,7 @@ export const extraLocals: Villager[] = [
       0: {
         duration: 23,
         heading: Math.PI,
-        seat: { position: [33, 0.9], height: 0.865 },
+        seat: { position: [31, -5.3], height: 0.865 },
       },
     },
   },
@@ -216,11 +216,11 @@ export const extraLocals: Villager[] = [
       "The booth's good for a less blurry one.",
     ],
     route: [
-      [-6, -3.3],
-      [-3, 3],
-      [9, 3],
+      [11, -13.15],
+      [16, -13.15],
+      [21, -7],
       [18, 1],
-      [4, -3],
+      [21, -11],
     ],
     stops: {
       0: { duration: 10, heading: Math.PI },
@@ -270,11 +270,11 @@ export const extraLocals: Villager[] = [
     place: "go",
     lines: ["I've been staring at the same corner for ten minutes."],
     route: [
-      [-40, 23.5],
-      [-36, 24],
-      [-31, 24],
-      [-29, 19],
-      [-36, 19],
+      [-20, 16.5],
+      [-17, 18],
+      [-23, 18],
+      [-27, 16],
+      [-27, 11],
     ],
     stops: { 0: { duration: 12, heading: 0 } },
   },

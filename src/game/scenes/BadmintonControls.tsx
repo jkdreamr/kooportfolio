@@ -70,11 +70,13 @@ export function HitPad({
   input,
   disabled,
   serve,
+  ready,
   onShot,
 }: {
   input: RefObject<BadmintonInput>;
   disabled: boolean;
   serve: boolean;
+  ready: boolean;
   onShot: (selection: Pick<BadmintonInput, "aim" | "shot">) => void;
 }) {
   const drag = useRef<{
@@ -88,7 +90,13 @@ export function HitPad({
   const select = (e: PointerEvent<HTMLButtonElement>) => {
     const start = drag.current;
     if (!start || start.id !== e.pointerId) return null;
-    return badmintonGesture(e.clientX - start.x, e.clientY - start.y, start.selection, start.pointerType, start.presetsVisible);
+    return badmintonGesture(
+      e.clientX - start.x,
+      e.clientY - start.y,
+      start.selection,
+      start.pointerType,
+      start.presetsVisible,
+    );
   };
   const cancel = () => {
     const start = drag.current;
@@ -104,11 +112,11 @@ export function HitPad({
   }, []);
   return (
     <button
-      className="badminton-hit"
+      className={`badminton-hit${ready ? " is-ready" : ""}`}
       aria-label={
         serve
-          ? "Serve. Tap or swipe"
-          : "Hit. Tap to use the selected shot, or drop in touch gesture mode. Swipe up for clear, down for smash, left or right to aim"
+          ? "High serve. Tap or swipe left or right to aim. Shot types apply to returns"
+          : `${ready ? "Hit now" : "Hit"}. Tap to use the selected shot, or drop in touch gesture mode. Swipe up for clear, down for smash, left or right to aim`
       }
       disabled={disabled}
       onContextMenu={(e) => e.preventDefault()}
@@ -119,7 +127,9 @@ export function HitPad({
           x: e.clientX,
           y: e.clientY,
           pointerType: e.pointerType,
-          presetsVisible: !!e.currentTarget.parentElement?.querySelector(".badminton-shots")?.getClientRects().length,
+          presetsVisible: !!e.currentTarget.parentElement
+            ?.querySelector(".badminton-shots")
+            ?.getClientRects().length,
           selection: { aim: input.current.aim, shot: input.current.shot },
         };
         e.currentTarget.setPointerCapture(e.pointerId);
@@ -151,7 +161,7 @@ export function HitPad({
         <ellipse cx="28" cy="18" rx="10" ry="13" transform="rotate(35 28 18)" />
         <path d="m21 28-12 15m5-9 4 3m3-23 13 8m-15-2 12 8m-7-17 11 7m-1-9-13 19m7-22L16 23" />
       </svg>
-      <span>{serve ? "Serve" : "Hit"}</span>
+      <span>{serve ? "Serve" : ready ? "Hit now" : "Hit"}</span>
     </button>
   );
 }
