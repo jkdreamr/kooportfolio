@@ -22,6 +22,7 @@ import {
 } from "../core/world";
 import { LabelProjection } from "./Labels";
 import { Landscape } from "./Landscape";
+import { IslandUnderside } from "./IslandUnderside";
 import { VillageGardens } from "./VillageGardens";
 import { HomeWorldEnvironment } from "./HomeWorldEnvironment";
 import { HomeBuildingArt } from "./HomeBuildingArt";
@@ -34,6 +35,7 @@ import {
   islandCenter,
   islandZoom,
   islandFollow,
+  islandViewShift,
   ISLAND_CAMERA_OFFSET,
 } from "../core/islandCamera";
 import { NpcCrowd } from "./VillageNpcs";
@@ -227,6 +229,14 @@ export function Walker({
         ? runtime.z * 0.9 - 2
         : THREE.MathUtils.lerp(centerZ, runtime.z * 0.92, playerFollow),
     );
+    if (!interior) {
+      // The overview also frames the rock hanging beneath the island.
+      const [shiftX, shiftY, shiftZ] = islandViewShift(state.world);
+      const overview = 1 - playerFollow;
+      desired.current.x += shiftX * overview;
+      desired.current.y += shiftY * overview;
+      desired.current.z += shiftZ * overview;
+    }
     const cameraKey = `${state.scene}:${state.world}`;
     const changedScene = cameraScene.current !== cameraKey;
     const wholeIsland = !interior && worldZoom === 1 && !state.build;
@@ -355,11 +365,13 @@ export function Hub() {
   const save = useGame((s) => s.save),
     build = useGame((s) => s.build),
     world = useGame((s) => s.world),
-    traveling = useGame((s) => s.traveling);
+    traveling = useGame((s) => s.traveling),
+    quality = useGame((s) => s.quality);
   const skate = doorsInWorld(world).find((door) => door.id === "skate");
   return (
     <group>
       <Landscape world={world} />
+      <IslandUnderside world={world} detail={quality === "high"} />
       <VillageGardens world={world} />
       <RegionalActivities world={world} />
       {world === "home" && <HomeWorldEnvironment />}

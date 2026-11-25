@@ -223,7 +223,9 @@ function World() {
       <TimeOfDayLighting dimmed={scene === "theater" && filmPlaying} />
       <WorldAmbience />
       <WorldZoomInput />
-      {scene !== "rowing" && (
+      {/* Islands float in open sky: a mid-air catcher would print shadows on
+          nothing and clip transparent falls beneath it. */}
+      {scene !== "rowing" && scene !== "hub" && (
         <mesh
           rotation={[-Math.PI / 2, 0, 0]}
           position={[0, -2.2, 0]}

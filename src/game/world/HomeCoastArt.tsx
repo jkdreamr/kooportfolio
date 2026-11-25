@@ -58,47 +58,7 @@ function cliffGeometry() {
   return geometry;
 }
 
-function seaGeometry() {
-  const positions: number[] = [],
-    colors: number[] = [],
-    indices: number[] = [];
-  const color = new THREE.Color();
-  const rings = [
-    [0, "#558c91"],
-    [5, "#427b87"],
-    [24, "#376573"],
-    [200, "#324f63"],
-  ] as const;
-  rings.forEach(([distance, shade], row) => {
-    for (let i = 0; i <= segments; i++) {
-      const a = (i / segments) * Math.PI * 2;
-      positions.push(
-        centerX + Math.cos(a) * (radiusX + 1.8 + distance),
-        -3.48,
-        centerZ + Math.sin(a) * (radiusZ + 1.8 + distance),
-      );
-      color.set(shade);
-      colors.push(color.r, color.g, color.b);
-      if (row < rings.length - 1 && i < segments) {
-        const n = row * (segments + 1) + i,
-          next = n + segments + 1;
-        indices.push(n, n + 1, next, n + 1, next + 1, next);
-      }
-    }
-  });
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute(positions, 3),
-  );
-  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-  geometry.setIndex(indices);
-  geometry.computeVertexNormals();
-  return geometry;
-}
-
-const cliff = cliffGeometry(),
-  sea = seaGeometry();
+const cliff = cliffGeometry();
 const lawn = new THREE.CylinderGeometry(1, 1, 1, segments);
 const lawnMaterial = new THREE.MeshStandardMaterial({
   color: "#6c8653",
@@ -107,11 +67,6 @@ const lawnMaterial = new THREE.MeshStandardMaterial({
 const cliffMaterial = new THREE.MeshStandardMaterial({
   vertexColors: true,
   roughness: 0.94,
-});
-const seaMaterial = new THREE.MeshStandardMaterial({
-  vertexColors: true,
-  roughness: 0.4,
-  metalness: 0.12,
 });
 const details: SceneryPart[] = [];
 for (let i = 0; i < 96; i++) {
@@ -137,27 +92,9 @@ for (let i = 0; i < 96; i++) {
       shape: "rock",
     });
   }
-  if (i % 4 === 0) {
-    details.push({
-      p: [x + Math.cos(a) * 0.9, -3.28, z + Math.sin(a) * 0.9],
-      s: [1.5, 0.45, 0.86],
-      r: [0.12, -a, 0.18],
-      c: "#667e81",
-      shape: "rock",
-    });
-  }
-  // Broken surf, not a bright continuous outline or coplanar transparent decal.
-  if (i % 3 !== 0)
-    details.push({
-      p: [x + Math.cos(a) * 2, -3.455, z + Math.sin(a) * 2],
-      s: [1 + (i % 4) * 0.5, 0.018, 0.09],
-      r: [0, Math.PI / 2 - a, 0],
-      c: i % 2 ? "#83b2ad" : "#619b9e",
-      shape: "block",
-    });
 }
 
-/** Stratified coast and cool open water; no extra lights, textures or effects. */
+/** Stratified coast; the sky island's hanging rock lives in IslandUnderside. */
 export function HomeCoastArt() {
   return (
     <group name="home-stratified-coast">
@@ -166,12 +103,6 @@ export function HomeCoastArt() {
         scale={[radiusX + 2, 0.3, radiusZ + 2]}
         geometry={lawn}
         material={lawnMaterial}
-        receiveShadow
-        dispose={null}
-      />
-      <mesh
-        geometry={sea}
-        material={seaMaterial}
         receiveShadow
         dispose={null}
       />

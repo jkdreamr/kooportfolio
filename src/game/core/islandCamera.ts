@@ -1,4 +1,3 @@
-import { Vector3 } from "three";
 import { islandForWorld } from "./homeIsland";
 import type { WorldId } from "./worlds";
 import { KOREA_SHORE } from "./koreaDistrict";
@@ -8,14 +7,20 @@ import {
   STANFORD_RAIL_PROFILE,
 } from "../../shared/stanford-transport";
 
+import {
+  ISLAND_CAMERA_OFFSET,
+  ISLAND_SCREEN_RIGHT,
+  ISLAND_SCREEN_UP,
+} from "./islandView";
+import { undersideFrame } from "./islandUnderside";
+
 // Stay behind the entire island; the old close camera clipped the foreground
 // when zoomed out because orthographic zoom does not change viewing distance.
-export const ISLAND_CAMERA_OFFSET = [70, 85, 95] as const;
-const direction = new Vector3(...ISLAND_CAMERA_OFFSET).normalize();
-const right = new Vector3()
-  .crossVectors(new Vector3(0, 1, 0), direction)
-  .normalize();
-const up = new Vector3().crossVectors(direction, right);
+export { ISLAND_CAMERA_OFFSET };
+const [rightX, , rightZ] = ISLAND_SCREEN_RIGHT;
+const right = { x: rightX, z: rightZ };
+const [upX, upY, upZ] = ISLAND_SCREEN_UP;
+const up = { x: upX, y: upY, z: upZ };
 const koreaView: [number, number] = [7, 16];
 const stanfordView: [number, number] = [
   STANFORD_RAIL_PROFILE.centerX,
@@ -73,6 +78,23 @@ const koreaExtent = {
       ) +
     8,
 };
+const homeIsland = islandForWorld("home");
+const homeAbove =
+  Math.hypot((homeIsland.radiusX + 6) * up.x, (homeIsland.radiusZ + 8) * up.z) +
+  13 * up.y;
+
+/** Above and below the view centre, in screen units at zoom 1. The rock that
+ * hangs under each island may need more room below than its rooftops above. */
+function verticalExtent(world?: WorldId) {
+  if (world !== "home" && world !== "korea" && world !== "stanford") return null;
+  const above =
+    world === "home"
+      ? homeAbove
+      : (world === "korea" ? koreaExtent : stanfordExtent).height / 2;
+  const below = Math.max(above, undersideFrame(world, islandCenter(world)).bottom);
+  return { above, below };
+}
+
 export const islandCenter = (world: WorldId): readonly [number, number] => {
   const island = islandForWorld(world);
   return world === "stanford"
@@ -94,12 +116,10 @@ export function islandZoom(width: number, height: number, world?: WorldId) {
       : world === "korea"
         ? koreaExtent.width
         : 2 * Math.hypot(rx * right.x, rz * right.z);
-  const projectedHeight =
-    world === "stanford"
-      ? stanfordExtent.height
-      : world === "korea"
-        ? koreaExtent.height
-        : 2 * Math.hypot(rx * up.x, rz * up.z) + 26 * up.y;
+  const extent = verticalExtent(world);
+  const projectedHeight = extent
+    ? extent.above + extent.below
+    : 2 * Math.hypot(rx * up.x, rz * up.z) + 26 * up.y;
   const compact = height < 500;
   const verticalSpace = compact ? 125 : width < 700 ? 220 : 170;
   return Math.max(
@@ -109,6 +129,14 @@ export function islandZoom(width: number, height: number, world?: WorldId) {
       (height - verticalSpace) / projectedHeight,
     ),
   );
+}
+
+/** World-space pan of the overview target so the frame holds the hanging rock:
+ * a pure screen-down move, so depth and clipping stay unchanged. */
+export function islandViewShift(world?: WorldId): readonly [number, number, number] {
+  const extent = verticalExtent(world);
+  const s = extent ? (extent.below - extent.above) / 2 : 0;
+  return [-up.x * s, -up.y * s, -up.z * s];
 }
 
 /** Overview stays fixed; closer views smoothly resume ordinary player follow. */
