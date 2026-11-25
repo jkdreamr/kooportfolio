@@ -91,42 +91,6 @@
   outline: 3px solid #f0c56b;
   outline-offset: 3px;
 }
-/* Station actions share a right-hand stack between the header and toolbar. */
-@media (max-width: 700px) and (max-height: 500px) and (orientation: landscape) {
-  .world-travel-stop--station,
-  .island-rail-controls {
-    left: auto;
-    right: max(12px, env(safe-area-inset-right));
-    transform: none;
-    width: calc(100vw - 148px);
-    box-sizing: border-box;
-    padding: 6px;
-  }
-  .world-travel-stop--station {
-    bottom: calc(176px + env(safe-area-inset-bottom));
-  }
-  .island-rail-controls {
-    bottom: calc(110px + env(safe-area-inset-bottom));
-  }
-  .world-travel-stop--station > strong,
-  .island-rail-controls > strong {
-    display: none;
-  }
-  .world-travel-stop--station > div {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px;
-  }
-  .island-rail-controls button {
-    flex: 1;
-  }
-  .world-travel-stop--station button,
-  .island-rail-controls button {
-    min-width: 0;
-    padding: 6px;
-    font-size: 12px;
-  }
-}
 .world-journey {
   position: absolute;
   inset: 0;
