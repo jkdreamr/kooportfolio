@@ -102,7 +102,7 @@ export type UndersideSpec = {
   seed: number;
 };
 
-/** Deterministic integer hash in [0, 1). No Math.random anywhere in the art. */
+/** Deterministic integer hash in [0, 1): the art never draws random numbers. */
 export function hash01(...values: number[]) {
   let h = 2166136261;
   for (const value of values) h = Math.imul(h ^ (value | 0), 16777619);
@@ -330,8 +330,8 @@ const SPECS: Record<WorldId, UndersideSpec> = {
         prop: "shed",
       },
       {
-        screen: [-27, -38],
-        topY: -15,
+        screen: [-29, -33],
+        topY: -14,
         radius: 4,
         depth: 8,
         cap: "#6c8653",
@@ -339,8 +339,8 @@ const SPECS: Record<WorldId, UndersideSpec> = {
         prop: "none",
       },
       {
-        screen: [39, -25],
-        topY: -9,
+        screen: [40, -30],
+        topY: -6.5,
         radius: 5.2,
         depth: 10,
         cap: "#6f8a55",
@@ -351,8 +351,8 @@ const SPECS: Record<WorldId, UndersideSpec> = {
         prop: "none",
       },
       {
-        screen: [22, -46],
-        topY: -24,
+        screen: [24, -42],
+        topY: -12.5,
         radius: 3.2,
         depth: 7,
         cap: "#6c8653",
@@ -414,8 +414,8 @@ const SPECS: Record<WorldId, UndersideSpec> = {
         prop: "jeongja",
       },
       {
-        screen: [57, -30],
-        topY: -12,
+        screen: [60, -40],
+        topY: -18,
         radius: 5,
         depth: 14,
         cap: "#748a62",
@@ -435,8 +435,8 @@ const SPECS: Record<WorldId, UndersideSpec> = {
         prop: "cairns",
       },
       {
-        screen: [40, -60],
-        topY: -35,
+        screen: [52, -55],
+        topY: -24,
         radius: 3,
         depth: 10,
         cap: "#7d9068",
@@ -446,8 +446,8 @@ const SPECS: Record<WorldId, UndersideSpec> = {
     ],
     springOffset: 1.15,
     falls: [
-      { at: [71.5, 33], springY: -1.4, length: 40, width: 1.1 },
-      { at: [-23, 53.5], springY: -1.4, length: 22, width: 0.9 },
+      { at: [71.5, 33], springY: -1.4, length: 46, width: 1.45 },
+      { at: [-23, 53.5], springY: -1.4, length: 24, width: 1.15 },
     ],
     seed: 23,
   },
@@ -484,8 +484,8 @@ const SPECS: Record<WorldId, UndersideSpec> = {
     isletShape: "mesa",
     islets: [
       {
-        screen: [-50, -36],
-        topY: -8,
+        screen: [-60, -29],
+        topY: -6,
         radius: 5.2,
         depth: 7,
         cap: "#639343",
@@ -496,8 +496,8 @@ const SPECS: Record<WorldId, UndersideSpec> = {
         prop: "none",
       },
       {
-        screen: [44, -40],
-        topY: -14,
+        screen: [52, -41],
+        topY: -8,
         radius: 4.6,
         depth: 6,
         cap: "#6a9446",
@@ -508,8 +508,8 @@ const SPECS: Record<WorldId, UndersideSpec> = {
         prop: "none",
       },
       {
-        screen: [64, -14],
-        topY: -3,
+        screen: [-73, -18],
+        topY: -4,
         radius: 4.2,
         depth: 5.5,
         cap: "#c9a65a",
@@ -517,8 +517,8 @@ const SPECS: Record<WorldId, UndersideSpec> = {
         prop: "none",
       },
       {
-        screen: [-22, -52],
-        topY: -18,
+        screen: [-34, -42],
+        topY: -14,
         radius: 5,
         depth: 6.5,
         cap: "#7c9a52",
@@ -553,6 +553,8 @@ export type UndersideModel = {
   islets: IsletPlacement[];
   isletRings: V3[][][];
   rock: RockMesh;
+  /** Triangles of the cap and hanging body; spires and islets follow. */
+  bodyTriangles: number;
 };
 
 function shade(hex: string, factor: number): V3 {
@@ -781,6 +783,7 @@ export function undersideModel(world: WorldId): UndersideModel {
     else pushFan(rock, upper, apex, true, color);
   }
 
+  const bodyTriangles = rock.positions.length / 9;
   // Korea: craggy spires buried in the body and hanging well below it,
   // spread across the bottom rim the camera faces, ordered left to right.
   const facingRim = rings[rings.length - 1].points
@@ -888,6 +891,7 @@ export function undersideModel(world: WorldId): UndersideModel {
     islets,
     isletRings: isletMeshes,
     rock,
+    bodyTriangles,
   };
   models.set(world, model);
   return model;
@@ -1053,15 +1057,16 @@ export function undersideClouds(world: WorldId): { p: V3; s: V3 }[] {
   const model = undersideModel(world);
   let lowest = 0;
   for (const [, y] of undersidePoints(world)) lowest = Math.min(lowest, y);
+  // Lower corners of the landscape frame, and below the island in portrait.
   const clusters: readonly (readonly [number, number])[] = [
-    [-82, -18],
-    [84, -30],
-    [-58, -52],
-    [62, -60],
-    [-18, -78],
-    [26, -92],
-    [-112, -44],
-    [118, -8],
+    [-70, -46],
+    [74, -50],
+    [-96, -24],
+    [100, -30],
+    [-24, -80],
+    [30, -96],
+    [-112, -52],
+    [116, -6],
   ];
   return clusters.flatMap(([sx, sy], c) => {
     const y = lowest - 9 - hash01(model.spec.seed, c, 80) * 10;
