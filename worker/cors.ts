@@ -1,7 +1,8 @@
 // Cross-origin access for the API when the frontend is hosted statically
 // (e.g. Vercel) and calls the Worker on another origin. ALLOWED_ORIGINS is a
 // comma-separated list of exact origins ("https://kooportfolio.vercel.app")
-// and suffix entries (".vercel.app" matches any subdomain, for preview URLs).
+// and host-suffix entries (anything not starting with a scheme, e.g.
+// "-jkdreamrs-projects.vercel.app" for that team's preview URLs).
 export type CorsEnv = { ALLOWED_ORIGINS?: string };
 
 export function isAllowedOrigin(
@@ -22,7 +23,7 @@ export function isAllowedOrigin(
     .map((entry) => entry.trim())
     .filter(Boolean)
     .some((entry) =>
-      entry.startsWith(".") ? host.endsWith(entry) : origin === entry,
+      /^https?:\/\//.test(entry) ? origin === entry : host.endsWith(entry),
     );
 }
 
