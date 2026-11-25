@@ -9,7 +9,7 @@ import {
   lightsHint,
   RHYME_BARS,
   RHYME_FAMILIES,
-  RHYME_TEMPOS,
+  RHYME_BEATS,
   rhymeBarIndex,
   rhymeBarInterval,
   rhymeBeatInterval,
@@ -64,11 +64,11 @@ describe("Beat Lab", () => {
     game = advanceRhyme(game, rhymeCountIn(game) + 4 * rhymeBarInterval(game));
     expect(rhymeRewardCoins(game)).toBe(0);
   });
-  it("runs the count-in and honours each tempo", () => {
-    for (let tempo = 0; tempo < RHYME_TEMPOS.length; tempo++) {
-      const game = newRhymeGame(3, tempo);
+  it("runs the count-in and honours each beat", () => {
+    for (let beat = 0; beat < RHYME_BEATS.length; beat++) {
+      const game = newRhymeGame(3, beat);
       expect(rhymeBeatInterval(game)).toBeCloseTo(
-        60 / RHYME_TEMPOS[tempo].bpm,
+        60 / RHYME_BEATS[beat].bpm,
       );
       expect(rhymeRoundEnd(game)).toBeCloseTo(
         rhymeBarInterval(game) * (RHYME_BARS + 1),

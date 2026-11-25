@@ -24,7 +24,7 @@ import {
   newLightsBoard,
   newRhymeGame,
   RHYME_BARS,
-  RHYME_TEMPOS,
+  RHYME_BEATS,
   rhymeBarIndex,
   rhymeBarInterval,
   rhymeBeatInterval,
@@ -34,7 +34,7 @@ import {
   type RhymeGame,
 } from "../core/labGames";
 import { newRunId } from "../../shared/run-id";
-import { labTone, scheduleLabBeatClicks } from "./labAudio";
+import { labTone, scheduleLabBeat } from "./labAudio";
 import "./lab-rooms.css";
 
 const colors = ["#7699bb", "#75a59a", "#bf8791", "#aa9cc0"];
@@ -388,7 +388,7 @@ export function BeatLabInterior() {
     ) {
       stopBeatTrack();
     } else if (!beatTrack.current) {
-      beatTrack.current = scheduleLabBeatClicks(
+      beatTrack.current = scheduleLabBeat(
         () => {
           const tick = lastTick.current;
           return (
@@ -398,13 +398,14 @@ export function BeatLabInterior() {
         },
         rhymeRoundEnd(game.current),
         rhymeBeatInterval(game.current),
+        RHYME_BEATS[game.current.beat].pattern,
         BEATS_PER_BAR,
       );
     }
   }, [stopBeatTrack]);
   const cancelRound = useCallback(() => {
     stopBeatTrack();
-    game.current = newRhymeGame(Date.now(), game.current.tempo);
+    game.current = newRhymeGame(Date.now(), game.current.beat);
     rewarded.current = false;
     lastTick.current = null;
     setView(game.current);
@@ -484,9 +485,9 @@ export function BeatLabInterior() {
       syncBeatTrack();
     }
   };
-  const setTempo = (tempo: number) => {
+  const setBeat = (beat: number) => {
     if (game.current.phase === "playing") return;
-    game.current = newRhymeGame(game.current.seed, tempo);
+    game.current = newRhymeGame(game.current.seed, beat);
     setView(game.current);
   };
   const beatInterval = rhymeBeatInterval(view);
@@ -513,7 +514,7 @@ export function BeatLabInterior() {
                 <span>
                   {view.phase === "playing"
                     ? `Bar ${Math.min(RHYME_BARS, Math.max(1, bar + 1))}/${RHYME_BARS} · ${view.points}`
-                    : `${RHYME_TEMPOS[view.tempo].name} · ${RHYME_TEMPOS[view.tempo].bpm} BPM`}
+                    : `${RHYME_BEATS[view.beat].name} · ${RHYME_BEATS[view.beat].bpm} BPM`}
                 </span>
               </div>
               <LabGameActions onClose={close} />
@@ -537,17 +538,17 @@ export function BeatLabInterior() {
                 </p>
                 {view.phase !== "playing" && (
                   <div
-                    className="rhyme-tempos"
+                    className="rhyme-beats"
                     role="group"
-                    aria-label="Tempo"
+                    aria-label="Beat"
                   >
-                    {RHYME_TEMPOS.map((tempo, i) => (
+                    {RHYME_BEATS.map((beat, i) => (
                       <button
-                        key={tempo.name}
-                        aria-pressed={view.tempo === i}
-                        onClick={() => setTempo(i)}
+                        key={beat.name}
+                        aria-pressed={view.beat === i}
+                        onClick={() => setBeat(i)}
                       >
-                        {tempo.name}
+                        {beat.name}
                       </button>
                     ))}
                   </div>
@@ -578,7 +579,7 @@ export function BeatLabInterior() {
           <>
             <header>
               <strong>Beat Lab</strong>
-              <span>{RHYME_TEMPOS[view.tempo].bpm} BPM</span>
+              <span>{RHYME_BEATS[view.beat].bpm} BPM</span>
             </header>
             {near ? (
               <>
