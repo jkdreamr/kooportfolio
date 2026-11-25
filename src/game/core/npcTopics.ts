@@ -62,7 +62,7 @@ const topics: Record<string, readonly NpcTopic[]> = {
       id: "race",
       label: "Can I race?",
       reply:
-        "Yep. Head inside and look for the race prompt on the floor. Wait for the horn, then pull like you mean it.",
+        "Yep. Head inside and look for the race prompt on the floor. Watch the countdown, then pull like you mean it.",
     },
     {
       id: "cox",
