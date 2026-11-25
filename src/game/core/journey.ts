@@ -22,6 +22,7 @@ export function journeyPose(
   mode: TravelMode,
   progress: number,
   world?: WorldId,
+  coach = 0,
 ) {
   const p = Math.max(0, Math.min(1, progress));
   if (mode === "plane") {
@@ -35,6 +36,37 @@ export function journeyPose(
       pitch: Math.sin(a) * 0.18,
     };
   }
-  const pose = railPose(p, 0, world);
-  return { ...pose, y: mode === "train" ? ISLAND_RAIL.height : 0.4, pitch: 0 };
+  const rail = railForWorld(world);
+  const pose = railPose(
+    p,
+    mode === "train" ? coach * rail.coachTurns : 0,
+    world,
+  );
+  return { ...pose, y: mode === "train" ? rail.height : 0.4, pitch: 0 };
+}
+
+/** Trains follow the mounted region's rails, never an interpolated coastline. */
+export function journeyRidePose(
+  mode: TravelMode,
+  progress: number,
+  fromWorld: WorldId,
+  toWorld: WorldId,
+  visibleWorld: WorldId,
+  coach = 0,
+) {
+  if (mode === "train") return journeyPose(mode, progress, visibleWorld, coach);
+  const p = Math.max(0, Math.min(1, progress));
+  const from = journeyPose(mode, p, fromWorld);
+  const to = journeyPose(mode, p, toWorld);
+  const blend = p * p * (3 - 2 * p);
+  const mix = (a: number, b: number) => a + (b - a) * blend;
+  return {
+    ...from,
+    x: mix(from.x, to.x),
+    z: mix(from.z, to.z),
+    heading: Math.atan2(
+      mix(Math.sin(from.heading), Math.sin(to.heading)),
+      mix(Math.cos(from.heading), Math.cos(to.heading)),
+    ),
+  };
 }

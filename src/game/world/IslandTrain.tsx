@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import { Html } from "@react-three/drei";
+import { screenOverlayPosition, screenOverlayStyle } from "./screenOverlay";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { Box, Cylinder, Sign } from "./Models";
@@ -14,6 +15,7 @@ import { runtime, useGame } from "../core/store";
 import { keys, touch } from "../core/input";
 import { railForWorld, railPose } from "../core/islandRail";
 import type { WorldId } from "../core/worlds";
+import { travelOptions, WORLD_NAMES } from "../core/travel";
 import "./island-train.css";
 
 const TIES = 320;
@@ -345,14 +347,11 @@ export function IslandTrain({
       {!hidden && (near || riding) && (
         <Html
           fullscreen
-          calculatePosition={(_object, _camera, size) => [
-            size.width / 2,
-            size.height / 2,
-          ]}
+          calculatePosition={screenOverlayPosition}
           onOcclude={() => undefined}
           portal={portal}
           zIndexRange={[25, 0]}
-          style={{ pointerEvents: "none" }}
+          style={screenOverlayStyle}
         >
           <section
             className="island-rail-controls"
@@ -360,15 +359,39 @@ export function IslandTrain({
             onPointerDown={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
           >
-            <strong>Island rail</strong>
+            <strong>{riding ? "Island rail" : "Station"}</strong>
             {riding ? (
               <button ref={exitRef} onClick={leave}>
                 Return to station
               </button>
             ) : (
-              <button ref={boardRef} onClick={board}>
-                Ride island loop
-              </button>
+              <div className="island-rail-actions">
+                {travelOptions(world, "station")
+                  .sort(
+                    (a, b) =>
+                      Number(b.mode === "train") - Number(a.mode === "train"),
+                  )
+                  .map((option) => (
+                    <button
+                      key={option.mode}
+                      aria-label={`${option.mode === "train" ? "Train" : "Drive"} to ${WORLD_NAMES[option.destination]}`}
+                      onClick={() =>
+                        useGame.setState({ travelRequest: option })
+                      }
+                    >
+                      {option.mode === "train"
+                        ? `Train to ${WORLD_NAMES[option.destination]}`
+                        : "Drive"}
+                    </button>
+                  ))}
+                <button
+                  ref={boardRef}
+                  onClick={board}
+                  aria-label="Ride island loop"
+                >
+                  Island loop
+                </button>
+              </div>
             )}
           </section>
         </Html>
