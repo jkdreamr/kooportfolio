@@ -10,8 +10,20 @@ export const borders = {
   white: { background: "#fff", ink: "#334155" },
 };
 export const stickers = { Star: "★", Heart: "♥", Sparkle: "✦" };
+export const filters = {
+  none: { label: "Color", css: "" },
+  bw: { label: "B&W", css: "grayscale(1)" },
+  sepia: { label: "Sepia", css: "sepia(0.8)" },
+  warm: { label: "Warm", css: "sepia(0.35) saturate(1.25)" },
+  cool: { label: "Cool", css: "saturate(0.85) hue-rotate(12deg)" },
+  faded: {
+    label: "Faded",
+    css: "contrast(0.85) brightness(1.08) saturate(0.7)",
+  },
+};
 export type Border = keyof typeof borders;
 export type Sticker = keyof typeof stickers;
+export type Filter = keyof typeof filters;
 export type Point = { x: number; y: number };
 export type Mark =
   | { kind: Sticker; point: Point }
@@ -57,11 +69,14 @@ export function drawStrip(
   date: string,
   caption: string,
   marks: readonly Mark[],
+  filter: Filter = "none",
 ) {
   if (shots.length !== SHOT_COUNT) throw new Error("Four shots required.");
   const { background, ink } = borders[border];
   context.fillStyle = background;
   context.fillRect(0, 0, STRIP_WIDTH, STRIP_HEIGHT);
+  const css = filters[filter].css;
+  if (css) context.filter = css;
   shots.forEach((shot, index) => {
     context.drawImage(
       shot,
@@ -71,6 +86,7 @@ export function drawStrip(
       SHOT_HEIGHT,
     );
   });
+  if (css) context.filter = "none";
   context.strokeStyle = "#cbd5e1";
   context.lineWidth = 1;
   context.strokeRect(0.5, 0.5, STRIP_WIDTH - 1, STRIP_HEIGHT - 1);

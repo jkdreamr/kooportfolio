@@ -12,7 +12,9 @@ import {
 } from "../src/shared/booth";
 
 function context() {
-  return {
+  const ctx = {
+    filter: "none",
+    filtersSeen: [] as string[],
     drawImage: vi.fn(),
     translate: vi.fn(),
     scale: vi.fn(),
@@ -27,6 +29,10 @@ function context() {
     save: vi.fn(),
     restore: vi.fn(),
   };
+  ctx.drawImage.mockImplementation(() => {
+    ctx.filtersSeen.push(ctx.filter);
+  });
+  return ctx;
 }
 
 describe("photo strip", () => {
@@ -91,6 +97,21 @@ describe("photo strip", () => {
       ["★", 25, 40],
     ]);
     expect(ctx.lineTo).toHaveBeenCalledWith(35, 41);
+    expect(ctx.filter).toBe("none");
+  });
+
+  it("applies the chosen photo filter while drawing the shots", () => {
+    const ctx = context();
+    const shots = Array.from({ length: 4 }, () => ({}) as HTMLCanvasElement);
+    const draw = ctx as unknown as CanvasRenderingContext2D;
+    drawStrip(draw, shots, "slate", "", "", [], "bw");
+    expect(ctx.filtersSeen).toEqual([
+      "grayscale(1)",
+      "grayscale(1)",
+      "grayscale(1)",
+      "grayscale(1)",
+    ]);
+    expect(ctx.filter).toBe("none");
   });
 
   it("lowers JPEG quality until the upload fits and rejects if it never fits", async () => {
