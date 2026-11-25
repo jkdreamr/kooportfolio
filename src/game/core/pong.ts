@@ -35,6 +35,11 @@ const clamp = (v: number, min: number, max: number) =>
 export const pongDepth = (power: number) => -1.1 - clamp(power, 0, 1) * 1.6;
 export const pongPower = (z: number) => clamp((-z - 1.1) / 1.6, 0, 1);
 export const onFire = (game: Pong) => game.streak >= 2;
+// dx/dy are the pointer's travel in px; up is negative dy.
+export const pongSwipe = (dx: number, dy: number, size: number) => ({
+  aim: clamp((dx / size) * 1.8, -PONG_AIM, PONG_AIM),
+  power: clamp(-dy / size, 0, 1),
+});
 type Action =
   | { type: "throw"; aim: number; power: number }
   | { type: "settle" }
@@ -79,7 +84,9 @@ export function pongReducer(state: Pong, action: Action): Pong {
         PONG_CUPS[id].x - state.landing.x,
         PONG_CUPS[id].z - state.landing.z,
       );
-    const nearest = [...state.cups].sort((a, b) => distance(a) - distance(b))[0];
+    const nearest = [...state.cups].sort(
+      (a, b) => distance(a) - distance(b),
+    )[0];
     const gap = nearest === undefined ? Infinity : distance(nearest);
     const result: PongResult =
       gap <= (onFire(state) ? PONG_SINK_ON_FIRE : PONG_SINK)

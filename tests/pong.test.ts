@@ -4,6 +4,7 @@ import {
   PONG_CUPS,
   pongPower,
   pongReducer,
+  pongSwipe,
   readPongBest,
   savePongBest,
   type Pong,
@@ -32,7 +33,11 @@ describe("cup pong", () => {
   });
   it("separates sinks, rim outs and misses", () => {
     const rim = pongReducer(
-      pongReducer(newPong(), { type: "throw", aim: 0.26, power: pongPower(-1.5) }),
+      pongReducer(newPong(), {
+        type: "throw",
+        aim: 0.26,
+        power: pongPower(-1.5),
+      }),
       { type: "settle" },
     );
     expect(rim.last).toEqual({ result: "rim", cup: 0 });
@@ -81,7 +86,11 @@ describe("cup pong", () => {
     expect(pongReducer(game, { type: "reset" })).toEqual(newPong());
   });
   it("locks throws and reset while a ball is in flight", () => {
-    const flying = pongReducer(newPong(), { type: "throw", aim: 0, power: 0.5 });
+    const flying = pongReducer(newPong(), {
+      type: "throw",
+      aim: 0,
+      power: 0.5,
+    });
     expect(pongReducer(flying, { type: "throw", aim: 0, power: 0.5 })).toBe(
       flying,
     );
@@ -95,5 +104,10 @@ describe("cup pong", () => {
     expect(savePongBest(7, storage)).toBe(7);
     storage.setItem("joshua-exe-pong-best", "3");
     expect(readPongBest(storage)).toBeNull();
+  });
+  it("aims a swipe from where it was released", () => {
+    expect(pongSwipe(0, -29, 180)).toEqual({ aim: 0, power: 29 / 180 });
+    expect(pongSwipe(50, -90, 180)).toEqual({ aim: 0.5, power: 0.5 });
+    expect(pongSwipe(-900, 400, 180)).toEqual({ aim: -1.2, power: 0 });
   });
 });

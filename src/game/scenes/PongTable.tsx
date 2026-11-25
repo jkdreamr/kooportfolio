@@ -9,6 +9,7 @@ import {
   PONG_THROWS,
   pongDepth,
   pongReducer,
+  pongSwipe,
   readPongBest,
   savePongBest,
 } from "../core/pong";
@@ -67,7 +68,18 @@ export function PongTable() {
   const aim = useRef(0),
     power = useRef(0.25),
     drag = useRef<{ x: number; y: number; id: number } | null>(null),
-    clock = useRef(0);
+    clock = useRef(0),
+    focusPanel = useRef(true);
+  useEffect(() => {
+    if (!active) focusPanel.current = true;
+  }, [active]);
+  // Opening focuses Close; move focus to the panel once so Space throws.
+  const panelRef = (panel: HTMLDivElement | null) => {
+    if (panel && focusPanel.current) {
+      panel.focus({ preventScroll: true });
+      focusPanel.current = false;
+    }
+  };
   const fire = onFire(game);
 
   const toss = () => {
@@ -103,22 +115,22 @@ export function PongTable() {
       if (e.pointerType === "mouse" && e.button !== 0) return;
       drag.current = { x: e.clientX, y: e.clientY, id: e.pointerId };
     };
+    const aimAt = (start: { x: number; y: number }, e: PointerEvent) => {
+      const shot = pongSwipe(e.clientX - start.x, e.clientY - start.y, scale());
+      aim.current = shot.aim;
+      power.current = shot.power;
+    };
     const move = (e: PointerEvent) => {
       const start = drag.current;
-      if (!start || start.id !== e.pointerId) return;
-      const size = scale();
-      power.current = clamp((start.y - e.clientY) / size, 0, 1);
-      aim.current = clamp(
-        ((e.clientX - start.x) / size) * 1.8,
-        -PONG_AIM,
-        PONG_AIM,
-      );
+      if (start && start.id === e.pointerId) aimAt(start, e);
     };
     const up = (e: PointerEvent) => {
       const start = drag.current;
       if (!start || start.id !== e.pointerId) return;
       drag.current = null;
-      if (start.y - e.clientY > 24) toss();
+      if (start.y - e.clientY <= 24) return;
+      aimAt(start, e);
+      toss();
     };
     const cancel = () => (drag.current = null);
     surface.addEventListener("pointerdown", down);
@@ -139,6 +151,12 @@ export function PongTable() {
     if (!active) return;
     const key = (e: KeyboardEvent) => {
       if (!gameIsActive() || e.altKey || e.ctrlKey || e.metaKey) return;
+      if ((e.key === " " || e.key === "Enter") && e.repeat) {
+        // A held key throws once, including the press that opened the game.
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
       const control =
         e.target instanceof Element && !!e.target.closest("button, input");
       const step = e.shiftKey ? 0.02 : 0.06;
@@ -227,7 +245,8 @@ export function PongTable() {
         x + (x / 3) * a,
         off
           ? b.y - dt * 4
-          : TABLE_Y + (RIM_Y - TABLE_Y) * Math.abs(Math.cos(a * 7)) * Math.exp(-a * 3),
+          : TABLE_Y +
+              (RIM_Y - TABLE_Y) * Math.abs(Math.cos(a * 7)) * Math.exp(-a * 3),
         z - a * 1.4,
       );
     }
@@ -284,7 +303,10 @@ export function PongTable() {
             ),
         )}
         {sunk !== null && (
-          <group ref={sinking} position={[PONG_CUPS[sunk].x, 1.63, PONG_CUPS[sunk].z]}>
+          <group
+            ref={sinking}
+            position={[PONG_CUPS[sunk].x, 1.63, PONG_CUPS[sunk].z]}
+          >
             <Cup />
           </group>
         )}
@@ -319,25 +341,29 @@ export function PongTable() {
         launcherIndex={1}
         onClose={() => (drag.current = null)}
       >
-        <div className="house-game-header">
-          <h2>Cup pong</h2>
-          <div className="pong-score">
-            <b>{6 - game.cups.length}/6 cups</b>
-            <span>
-              {PONG_THROWS - game.shots} throws left
-              {best !== null && ` · best ${best}`}
-            </span>
+        <div className="pong-panel" tabIndex={-1} ref={panelRef}>
+          <div className="house-game-header">
+            <h2>Cup pong</h2>
+            <div className="pong-score">
+              <b>{6 - game.cups.length}/6 cups</b>
+              <span>
+                {PONG_THROWS - game.shots} throws left
+                {best !== null && ` · best ${best}`}
+              </span>
+            </div>
           </div>
+          {game.phase === "over" && (
+            <button className="pong-rack" onClick={restart}>
+              New rack
+            </button>
+          )}
+          <p role="status">
+            {game.message ||
+              (game.shots === 0
+                ? "Swipe up to throw. Arrows aim, Space throws."
+                : "")}
+          </p>
         </div>
-        {game.phase === "over" && (
-          <button className="pong-rack" onClick={restart}>
-            New rack
-          </button>
-        )}
-        <p role="status">
-          {game.message ||
-            (game.shots === 0 ? "Swipe up to throw. Arrows aim, Space throws." : "")}
-        </p>
       </GameControls>
     </>
   );

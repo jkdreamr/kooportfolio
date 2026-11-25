@@ -310,6 +310,9 @@
   font-size: 11px;
   line-height: 1.3;
 }
+.pong-panel:focus {
+  outline: none;
+}
 .pong-rack {
   width: 100%;
 }
