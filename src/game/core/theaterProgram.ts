@@ -4,6 +4,7 @@
 // No thumbnail, oEmbed or player requests run while browsing this catalog.
 import * as homeDisneyWb from "./theater/home-disney-wb";
 import * as homeFamilyTrailers from "./theater/home-family-trailers";
+import * as homeClassicToons from "./theater/home-classic-toons";
 import * as koreaIdolWeb from "./theater/korea-idol-web";
 import * as koreaTvDramaFilm from "./theater/korea-tv-drama-film";
 import type { TheaterFilm } from "./theater/types";
@@ -14,6 +15,7 @@ export type { TheaterFilm };
 export const THEATER_PROGRAM: readonly TheaterFilm[] = [
   ...homeDisneyWb.FILMS,
   ...homeFamilyTrailers.FILMS,
+  ...homeClassicToons.FILMS,
 ];
 
 /** The Korea island's 서울 극장. */
@@ -26,6 +28,7 @@ export const KOREA_THEATER_PROGRAM: readonly TheaterFilm[] = [
 export const OFFICIAL_CHANNELS: Readonly<Record<string, string>> = {
   ...homeDisneyWb.CHANNELS,
   ...homeFamilyTrailers.CHANNELS,
+  ...homeClassicToons.CHANNELS,
   ...koreaIdolWeb.CHANNELS,
   ...koreaTvDramaFilm.CHANNELS,
 };
@@ -34,6 +37,7 @@ export const OFFICIAL_CHANNELS: Readonly<Record<string, string>> = {
 export const SHARD_CHANNELS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   "home-disney-wb": homeDisneyWb.CHANNELS,
   "home-family-trailers": homeFamilyTrailers.CHANNELS,
+  "home-classic-toons": homeClassicToons.CHANNELS,
   "korea-idol-web": koreaIdolWeb.CHANNELS,
   "korea-tv-drama-film": koreaTvDramaFilm.CHANNELS,
 };
