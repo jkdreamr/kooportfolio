@@ -217,7 +217,10 @@ export class CameraRigRuntime {
   apply(camera: THREE.Camera, rawDelta: number) {
     this.sync();
     readPose(this.live, camera);
-    const delta = rawDelta * useCameraRig.getState().timeScale;
+    // A long frame (GC, first full-viewport render, a slow device) slows a
+    // cinematic down instead of skipping through it: never more than 1/24 s
+    // of rig time per rendered frame (before the skip time-warp).
+    const delta = Math.min(rawDelta, 1 / 24) * useCameraRig.getState().timeScale;
     let out: Pose = this.live;
     if (this.path) {
       this.samplePath(this.path, delta, this.scratch);

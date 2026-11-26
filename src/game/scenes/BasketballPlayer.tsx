@@ -1,11 +1,20 @@
-import { useRef, type RefObject } from "react";
+import { useMemo, useRef, type RefObject } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { Ball } from "../world/Models";
-import { CourtBlock as Box } from "./CourtDetails";
 import { runtime, useGame } from "../core/store";
+import { RigBatch, RigMeshes } from "../world/character/CharacterRig";
+import { createGait, stepGait } from "../world/character/locomotion";
+import { DEFAULT_PALETTE, type Palette } from "../world/character/rig";
 
-// Court-only rig: planted feet, a two-handed gather, then a short follow-through.
+// Court rig: the shared rounded character with a planted, two-handed gather,
+// a jump on release and a high follow-through (wrist snap over the head).
+const base = new THREE.Matrix4(),
+  at = new THREE.Vector3(),
+  world = new THREE.Vector3(),
+  quat = new THREE.Quaternion(),
+  euler = new THREE.Euler(),
+  one = new THREE.Vector3(1, 1, 1);
+
 export function BasketballPlayer({
   color,
   hat,
@@ -15,80 +24,77 @@ export function BasketballPlayer({
   hat: boolean;
   release: RefObject<number>;
 }) {
-  const body = useRef<THREE.Group>(null),
-    arms = useRef<THREE.Group>(null),
-    legs = useRef<THREE.Group>(null);
-  const phase = useRef(0);
-  useFrame((_, dt) => {
+  const root = useRef<THREE.Group>(null);
+  const batch = useMemo(() => new RigBatch(1), []);
+  const gait = useRef(createGait(11));
+  const last = useRef<THREE.Vector3 | null>(null);
+  const raise = useRef(0);
+  const palette = useMemo<Palette>(
+    () => ({
+      ...DEFAULT_PALETTE,
+      shirt: color,
+      pants: "#344e50",
+      shoe: "#fff1d8",
+      band: "#b65c3d",
+      hasHat: hat,
+    }),
+    [color, hat],
+  );
+  useFrame((_, delta) => {
     const g = useGame.getState();
-    if (g.paused || g.result || g.panel !== "none" || !runtime.active) return;
-    phase.current += Math.min(dt, 0.04) * (runtime.moving ? 11 : 2);
-    const follow = Math.max(0, 1 - release.current / 0.65);
-    const gather = runtime.shooting ? 0.8 : 0;
-    if (body.current)
-      body.current.position.y =
-        0.12 + Math.sin(Math.min(1, release.current / 0.5) * Math.PI) * 0.28;
-    if (arms.current) {
-      const target = -(gather + follow * 1.8);
-      arms.current.children.forEach((arm) => {
-        arm.rotation.x = THREE.MathUtils.damp(arm.rotation.x, target, 18, dt);
-      });
+    const dt = Math.min(delta, 0.05);
+    const frozen =
+      g.paused || !!g.result || g.panel !== "none" || !runtime.active;
+    const group = root.current;
+    if (!group) return;
+    group.getWorldPosition(world);
+    let vx = 0,
+      vz = 0;
+    if (last.current && dt > 0) {
+      const dx = world.x - last.current.x,
+        dz = world.z - last.current.z;
+      if (Math.hypot(dx, dz) < 1.5) {
+        vx = dx / dt / 0.9;
+        vz = dz / dt / 0.9;
+      }
     }
-    if (legs.current)
-      legs.current.children.forEach((leg, i) => {
-        leg.rotation.x = runtime.moving
-          ? Math.sin(phase.current + i * Math.PI) * 0.65
-          : 0;
-      });
+    (last.current ??= new THREE.Vector3()).copy(world);
+    const yaw = euler.setFromQuaternion(
+      group.getWorldQuaternion(quat),
+      "YXZ",
+    ).y;
+    const pose = stepGait(gait.current, frozen ? 0 : dt, vx, vz, yaw, {
+      forceWalk: runtime.moving && Math.hypot(vx, vz) < 0.5,
+      still: frozen,
+    });
+    const follow = Math.max(0, 1 - (release.current ?? 9) / 0.65);
+    const gather = runtime.shooting ? 1 : 0;
+    const target = Math.max(gather * 1.2, follow * 2.75);
+    raise.current = THREE.MathUtils.damp(raise.current, target, 18, dt);
+    const r = raise.current;
+    pose.armL = THREE.MathUtils.lerp(pose.armL, r, Math.min(1, r));
+    pose.armR = THREE.MathUtils.lerp(pose.armR, r, Math.min(1, r));
+    pose.elbowL = pose.elbowR = THREE.MathUtils.lerp(
+      pose.elbowL,
+      1.3 - follow * 0.9,
+      Math.min(1, r),
+    );
+    pose.spreadL = pose.spreadR = 0.1 - Math.min(1, r) * 0.05;
+    // Knees load during the gather, then the jump.
+    pose.kneeL += gather * 0.5;
+    pose.kneeR += gather * 0.5;
+    pose.bob -= gather * 0.06;
+    const jump =
+      Math.sin(Math.min(1, (release.current ?? 9) / 0.5) * Math.PI) * 0.31;
+    base.compose(at.set(0, 0.12 + jump, 0), quat.identity(), one);
+    batch.write(0, pose, base, palette);
+    batch.commit(1);
   });
   return (
-    <group ref={body} scale={0.9}>
-      <group ref={legs}>
-        {[-0.17, 0.17].map((x) => (
-          <group key={x} position={[x, 0.46, 0]}>
-            <Box p={[0, -0.12, 0]} s={[0.26, 0.35, 0.29]} c="#344e50" />
-            <Box p={[0, -0.33, 0.02]} s={[0.19, 0.25, 0.2]} c="#e6b48c" />
-            <Box p={[0, -0.4, 0.1]} s={[0.28, 0.17, 0.43]} c="#fff1d8" />
-            <Box p={[0, -0.45, 0.1]} s={[0.29, 0.05, 0.44]} c="#b65c3d" />
-          </group>
-        ))}
+    <group scale={0.9}>
+      <group ref={root}>
+        <RigMeshes batch={batch} />
       </group>
-      <Box p={[0, 0.83, 0]} s={[0.68, 0.64, 0.42]} c={color} />
-      {[-0.27, 0.27].map((x) => (
-        <Box key={x} p={[x, 0.85, 0.219]} s={[0.05, 0.55, 0.02]} c="#f5e4bf" />
-      ))}
-      <Box p={[0, 0.94, 0.22]} s={[0.17, 0.06, 0.03]} c="#f5e4bf" />
-      <group ref={arms}>
-        {[-0.43, 0.43].map((x) => (
-          <group key={x} position={[x, 1.02, 0]}>
-            <Box p={[0, -0.2, 0]} s={[0.2, 0.4, 0.24]} c="#efc5a0" />
-            <Box p={[0, -0.32, 0]} s={[0.215, 0.1, 0.255]} c="#f7e7c8" />
-            <Ball p={[0, -0.45, 0.02]} s={[0.13, 0.14, 0.13]} c="#efc5a0" />
-          </group>
-        ))}
-      </group>
-      <Box p={[0, 1.49, 0.02]} s={[0.76, 0.66, 0.65]} c="#efc5a0" />
-      {[-0.4, 0.4].map((x) => (
-        <Ball key={x} p={[x, 1.48, 0.02]} s={[0.1, 0.14, 0.13]} c="#e2ac82" />
-      ))}
-      <Box p={[0, 1.43, 0.37]} s={[0.13, 0.13, 0.13]} c="#e7b18a" />
-      <Box p={[0, 1.81, -0.02]} s={[0.8, 0.22, 0.7]} c="#3e3936" />
-      <Box p={[-0.34, 1.59, -0.1]} s={[0.15, 0.34, 0.59]} c="#3e3936" />
-      {[-0.16, 0.16].map((x) => (
-        <Ball
-          key={x}
-          p={[x, 1.5, 0.355]}
-          s={[0.044, 0.062, 0.025]}
-          c="#383330"
-        />
-      ))}
-      <Box p={[0, 1.31, 0.36]} s={[0.13, 0.025, 0.02]} c="#a47362" />
-      {hat && (
-        <>
-          <Box p={[0, 1.91, 0]} s={[0.88, 0.18, 0.76]} c="#c7754d" />
-          <Box p={[0, 1.84, 0.4]} s={[0.86, 0.06, 0.46]} c="#df9762" />
-        </>
-      )}
     </group>
   );
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
+import { StaticBatch } from "./StaticBatch";
 import { runtime, useGame } from "../core/store";
 import { keys, touch } from "../core/input";
 import {
@@ -41,35 +42,42 @@ function Airport({
   const gate = journeyGate("plane", world);
   return (
     <group name="island-airport" position={[gate[0] - 58, 0, gate[1] - 61]}>
-      <group position={[58, 0, 52]}>
-        <Box p={[0, 0.14, 2]} s={[11, 0.28, 11]} c="#b4af98" />
-        <Box p={[0, 1.8, 0]} s={[9, 3.2, 7]} c="#c5b493" />
-        <Box p={[0, 3.5, 0]} s={[9.8, 0.4, 7.8]} c="#385b62" />
-        <Box p={[0, 1.7, 3.55]} s={[3, 2.8, 0.12]} c="#385861" />
-        {[-3.1, 3.1].map((x) => (
-          <Box key={x} p={[x, 2.1, 3.56]} s={[1.9, 1.2, 0.14]} c="#a7c8c2" />
-        ))}
-        <Box p={[0, 3.2, 4.1]} s={[8, 0.2, 1.7]} c="#b49a64" />
-        <Sign text="AIRPORT" p={[0, 3.9, 3.8]} size={[4.7, 0.7]} />
-        <Cylinder p={[-3.4, 4.5, 0]} s={[0.08, 2.3, 0.08]} c="#b49a64" />
-        <Box
-          p={[-2.8, 5.3, 0]}
-          s={[1.3, 0.3, 0.35]}
-          c="#b95840"
-          r={[0, 0, -0.1]}
-        />
-        <Box p={[0, 0.36, 5]} s={[4, 0.2, 2]} c="#d1c29e" />
-      </group>
-      <Box p={[58, 0.12, 65]} s={[12, 0.16, 13]} c="#a6aa99" />
-      {[-4, 0, 4].map((z) => (
-        <Box key={z} p={[58, 0.21, 65 + z]} s={[0.15, 0.02, 1.4]} c="#f3e9d0" />
-      ))}
-      {!traveling && (
-        <group position={[58, 1.2, 65]}>
-          <PassengerJet />
-          <PassengerStairs />
+      <StaticBatch id={`island-airport-${world}`}>
+        <group position={[58, 0, 52]}>
+          <Box p={[0, 0.14, 2]} s={[11, 0.28, 11]} c="#b4af98" />
+          <Box p={[0, 1.8, 0]} s={[9, 3.2, 7]} c="#c5b493" />
+          <Box p={[0, 3.5, 0]} s={[9.8, 0.4, 7.8]} c="#385b62" />
+          <Box p={[0, 1.7, 3.55]} s={[3, 2.8, 0.12]} c="#385861" />
+          {[-3.1, 3.1].map((x) => (
+            <Box key={x} p={[x, 2.1, 3.56]} s={[1.9, 1.2, 0.14]} c="#a7c8c2" />
+          ))}
+          <Box p={[0, 3.2, 4.1]} s={[8, 0.2, 1.7]} c="#b49a64" />
+          <Sign text="AIRPORT" p={[0, 3.9, 3.8]} size={[4.7, 0.7]} />
+          <Cylinder p={[-3.4, 4.5, 0]} s={[0.08, 2.3, 0.08]} c="#b49a64" />
+          <Box
+            p={[-2.8, 5.3, 0]}
+            s={[1.3, 0.3, 0.35]}
+            c="#b95840"
+            r={[0, 0, -0.1]}
+          />
+          <Box p={[0, 0.36, 5]} s={[4, 0.2, 2]} c="#d1c29e" />
         </group>
-      )}
+        <Box p={[58, 0.12, 65]} s={[12, 0.16, 13]} c="#a6aa99" />
+        {[-4, 0, 4].map((z) => (
+          <Box
+            key={z}
+            p={[58, 0.21, 65 + z]}
+            s={[0.15, 0.02, 1.4]}
+            c="#f3e9d0"
+          />
+        ))}
+        {!traveling && (
+          <group position={[58, 1.2, 65]}>
+            <PassengerJet />
+            <PassengerStairs />
+          </group>
+        )}
+      </StaticBatch>
     </group>
   );
 }
@@ -89,8 +97,7 @@ export function WorldTravel({
   const [trip, setTrip] = useState<IslandTrip | null>(null);
   const request = useGame((s) => s.travelRequest);
   const paused = useGame((s) => s.paused);
-  const hidden =
-    useGame((s) => s.paused || s.panel !== "none") || disabled;
+  const hidden = useGame((s) => s.paused || s.panel !== "none") || disabled;
   const gl = useThree((s) => s.gl);
   const portal = useMemo(
     () => ({ current: gl.domElement.parentElement! }),

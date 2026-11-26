@@ -1,4 +1,10 @@
-import { useLayoutEffect, useRef, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useLayoutEffect,
+  useRef,
+  type ReactNode,
+} from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { sculptedMaterial } from "./Surface";
@@ -229,6 +235,7 @@ export class Baker {
   }
 
   bakes = 0;
+  liveCount = 0;
   stamps: number[] = [];
   gaveUp = false;
   bake() {
@@ -506,7 +513,10 @@ export class Baker {
       if (moved) {
         entry.changes++;
         // Animated: leave it live from now on.
-        if (entry.changes >= 1) this.live.add(object);
+        if (entry.changes >= 1) {
+          this.live.add(object);
+          this.liveCount++;
+        }
         changed = true;
       }
       if (changed) {
@@ -522,15 +532,38 @@ export class Baker {
   }
 }
 
-/** Wrap static architecture/props; see file comment. */
+const InBatch = createContext(false);
+
+/** Wrap static architecture/props; see file comment. `soft` batches only
+ * when not already inside another StaticBatch (small reusable props). */
 export function StaticBatch({
   id,
   children,
   enabled = true,
+  soft = false,
 }: {
   id: string;
   children?: ReactNode;
   enabled?: boolean;
+  soft?: boolean;
+}) {
+  const nested = useContext(InBatch);
+  if (soft && nested) return <>{children}</>;
+  return (
+    <BatchRoot id={id} enabled={enabled}>
+      {children}
+    </BatchRoot>
+  );
+}
+
+function BatchRoot({
+  id,
+  children,
+  enabled,
+}: {
+  id: string;
+  children?: ReactNode;
+  enabled: boolean;
 }) {
   const root = useRef<THREE.Group>(null);
   const baker = useRef<Baker | null>(null);
@@ -556,7 +589,11 @@ export function StaticBatch({
   useFrame(() => {
     if (active) baker.current?.tick();
   });
-  return <group ref={root}>{children}</group>;
+  return (
+    <InBatch.Provider value={true}>
+      <group ref={root}>{children}</group>
+    </InBatch.Provider>
+  );
 }
 
 /** A subtree the batcher must never bake (animated or interactive art). */

@@ -28,7 +28,7 @@ export function CourtBlock({
         ? new THREE.BoxGeometry(...s)
         : new RoundedBoxGeometry(
             ...s,
-            3,
+            2,
             Math.min(0.12, ...s.map((v) => v * 0.22)),
           ),
     );

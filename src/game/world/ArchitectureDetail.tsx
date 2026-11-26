@@ -10,7 +10,7 @@ type Piece = {
   r?: [number, number, number];
   c: string;
 };
-const clay = new RoundedBoxGeometry(1, 1, 1, 2, 0.1);
+const clay = new RoundedBoxGeometry(1, 1, 1, 1, 0.1);
 const ceramic = sculptedMaterial({
   roughness: 0.67,
   metalness: 0.02,

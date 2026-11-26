@@ -670,7 +670,11 @@ export function MovieTheaterInterior({
       )}
       <Sign text="EXIT ↓" p={[0, 3, 10.6]} size={[2, 0.55]} />
       {!seated && (
-        <GameControls name="Picture house seating" position={[0, 1, 7]}>
+        <GameControls
+          name="Picture house seating"
+          position={[0, 1, 7]}
+          mobileSheet
+        >
           <h2>{title}</h2>
           <button ref={seatButton} onClick={() => useTheater.getState().sit()}>
             Take a seat

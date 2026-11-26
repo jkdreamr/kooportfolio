@@ -157,7 +157,7 @@ function Wheels({ phase }: { phase: React.RefObject<number> }) {
     });
   });
   return (
-    <group ref={group}>
+    <group ref={group} userData={{ noBake: true }}>
       {[-1.25, 1.25].flatMap((z) =>
         [-1, 1].map((x) => (
           <group key={`${x}:${z}`} position={[x * 0.96, 0.45, z]}>

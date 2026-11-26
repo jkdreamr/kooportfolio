@@ -83,7 +83,7 @@ const VISUAL = 0.62; // radians: the natural down-right tug
 const AUTO_SECONDS = 1.2;
 /** World zoom the flight settles into: close behind the player (the game's
  * own default, 1, is the whole-island overview). */
-const ENTRY_ZOOM = 3.6;
+const ENTRY_ZOOM = 4.5;
 const ENTER_ANNOUNCE = "You are in the village. Use the arrow keys or W A S D to walk, E to interact.";
 
 function setThemeColor(color: string) {
@@ -365,6 +365,12 @@ export class PeepholeController {
   private onClick = (e: MouseEvent) => {
     // Pointer drags are handled by pointer events; keyboard by keydown. A
     // detail-0 click without a key is assistive tech "activate": open it.
+    // Reduced motion: any activation dissolves straight into the world.
+    if (this.policy && !this.policy.physical) {
+      e.preventDefault();
+      this.activate();
+      return;
+    }
     if (e.detail !== 0 || this.auto || now() - this.lastKey < 0.5) return;
     e.preventDefault();
     this.activate();
@@ -560,7 +566,7 @@ export class PeepholeController {
     if (location.pathname !== "/play") history.pushState({ stage: "play", from: this.originPath }, "", "/play");
     document.documentElement.classList.add("in-game");
     setThemeColor("#dce5c7");
-    usePeephole.setState({ phase: "game", announce: ENTER_ANNOUNCE });
+    usePeephole.setState({ phase: "game", announce: ENTER_ANNOUNCE, skippable: false });
   }
 
   skip() {
@@ -605,18 +611,15 @@ export class PeepholeController {
     const root = this.root;
     usePeephole.setState({ phase: "rest", skippable: false, announce: "" });
     if (!root) return;
-    root.classList.remove("pp-gone", "pp-paper");
-    root.classList.add("pp-dissolve", "pp-returning");
-    // Next frame: fade the page back in over the world.
-    requestAnimationFrame(() =>
-      requestAnimationFrame(() => {
-        root.classList.remove("pp-dissolve");
-        window.setTimeout(() => {
-          root.classList.remove("pp-returning");
-          if (this.phase === "rest") this.restStage();
-        }, 520);
-      }),
-    );
+    root.classList.remove("pp-gone", "pp-paper", "pp-dissolve", "pp-returning");
+    // Fade the page back in over the world (a dissolve, never a cut).
+    const fade = root.animate([{ opacity: 0 }, { opacity: 1 }], {
+      duration: 500,
+      easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
+    });
+    fade.onfinish = () => {
+      if (this.phase === "rest") this.restStage();
+    };
   }
 
   private onPopState = () => {
@@ -781,7 +784,8 @@ export class PeepholeController {
   }
 
   private tearTick(dt: number) {
-    this.tearT += dt * this.timeScale;
+    // Hitches slow the tear down rather than skip frames of it (as the rig).
+    this.tearT += Math.min(dt, 1 / 24) * this.timeScale;
     if (!this.flightStarted && this.tearT >= TIMELINE.cameraStart) this.startFlight();
     const t = this.tearT;
     const uPlus = clamp((t - TIMELINE.curlStart) / TIMELINE.curl, 0, 1);

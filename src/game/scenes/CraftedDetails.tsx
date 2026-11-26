@@ -1,6 +1,8 @@
+import { useMemo } from "react";
+import { Character } from "../world/character/CharacterRig";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
-import { Box, Ball, Cylinder, Ring } from "../world/Models";
+import { Ball, Cylinder, Ring } from "../world/Models";
 
 const shapes = new Map<string, RoundedBoxGeometry>();
 const materials = new Map<string, THREE.MeshStandardMaterial>();
@@ -21,7 +23,7 @@ export function CraftedBox({
   if (!shapes.has(shapeKey))
     shapes.set(
       shapeKey,
-      new RoundedBoxGeometry(...s, 3, Math.min(...s) * 0.28),
+      new RoundedBoxGeometry(...s, 2, Math.min(...s) * 0.28),
     );
   const key = `${c}/${metal}`;
   if (!materials.has(key))
@@ -107,60 +109,26 @@ export function Customer({
   color: string;
   index?: number;
 }) {
+  // The shared rounded rig, idling (breath, weight shift, look-around).
+  const palette = useMemo(
+    () => ({
+      hair: index % 2 ? "#70492b" : "#42352b",
+      pants: "#46382e",
+      shoe: "#3d3027",
+      skin: index % 3 === 2 ? "#c9906a" : "#e2b187",
+      hat: "#b9823a",
+    }),
+    [index],
+  );
   return (
     <group position={p} rotation={[0, Math.PI, 0]}>
-      {[-1, 1].map((side) => (
-        <group key={side}>
-          <CraftedBox
-            p={[side * 0.16, 0.18, 0]}
-            s={[0.24, 0.35, 0.28]}
-            c="#46382e"
-          />
-          <CraftedBox
-            p={[side * 0.16, 0.06, 0.08]}
-            s={[0.28, 0.18, 0.43]}
-            c="#3d3027"
-          />
-        </group>
-      ))}
-      <CraftedBox p={[0, 0.72, 0]} s={[0.74, 0.85, 0.45]} c={color} />
-      <Box p={[0, 0.65, 0.24]} s={[0.63, 0.1, 0.035]} c="#d6b572" />
-      {[-1, 1].map((side) => (
-        <group key={side}>
-          <CraftedBox
-            p={[side * 0.45, 0.79, 0]}
-            s={[0.24, 0.58, 0.32]}
-            c={color}
-            r={[0, 0, side * 0.12]}
-          />
-          <Ball
-            p={[side * 0.48, 0.49, 0.03]}
-            s={[0.15, 0.17, 0.14]}
-            c="#dba77c"
-          />
-        </group>
-      ))}
-      <Ball p={[0, 1.43, 0]} s={[0.35, 0.39, 0.32]} c="#e2b187" />
-      <Ball
-        p={[0, 1.66, -0.07]}
-        s={[0.36, 0.22, 0.31]}
-        c={index % 2 ? "#70492b" : "#42352b"}
+      <Character
+        color={color}
+        hat={index === 1}
+        scale={0.9}
+        seed={index * 13 + 5}
+        palette={palette}
       />
-      <Ball p={[0, 1.4, 0.31]} s={[0.09, 0.1, 0.1]} c="#cd946a" />
-      {[-0.13, 0.13].map((x) => (
-        <Ball
-          key={x}
-          p={[x, 1.48, 0.29]}
-          s={[0.035, 0.045, 0.025]}
-          c="#3b342a"
-        />
-      ))}
-      {index === 1 && (
-        <>
-          <Cylinder p={[0, 1.89, -0.02]} s={[0.42, 0.16, 0.42]} c="#b9823a" />
-          <Cylinder p={[0, 2, -0.02]} s={[0.28, 0.2, 0.28]} c="#987031" />
-        </>
-      )}
     </group>
   );
 }

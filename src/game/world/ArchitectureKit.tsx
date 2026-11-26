@@ -24,8 +24,8 @@ export type KitPiece = {
 };
 
 const geometries = {
-  box: new RoundedBoxGeometry(1, 1, 1, 2, 0.08),
-  cyl: new THREE.CylinderGeometry(0.5, 0.5, 1, 16),
+  box: new RoundedBoxGeometry(1, 1, 1, 1, 0.08),
+  cyl: new THREE.CylinderGeometry(0.5, 0.5, 1, 12),
   sphere: new THREE.SphereGeometry(0.5, 12, 8),
 };
 for (const g of Object.values(geometries)) g.deleteAttribute("uv");
@@ -617,7 +617,7 @@ export function crate(
 }
 
 /** Beached rowboat: elliptical plank hull, dark interior, thwarts, oars. */
-export function rowboat(p: V3, rotationY = 0, color = "#6e3d26"): KitPiece[] {
+export function rowboat(p: V3, rotationY = 0, color = "#9a5734"): KitPiece[] {
   const out: KitPiece[] = [];
   const L = 3.1,
     B = 1.25;
@@ -630,7 +630,7 @@ export function rowboat(p: V3, rotationY = 0, color = "#6e3d26"): KitPiece[] {
   out.push({
     p: [0, 0.34, 0],
     s: [B * 0.86, 0.3, L * 0.9],
-    c: "#3e2618",
+    c: "#7a5134",
     shape: "sphere",
   });
   // Gunwale rim: short boards around the ellipse.

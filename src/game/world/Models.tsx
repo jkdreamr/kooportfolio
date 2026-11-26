@@ -21,7 +21,9 @@ function roundedGeometry(size: [number, number, number]) {
       key,
       new RoundedBoxGeometry(
         ...size,
-        2,
+        // Small parts read as rounded with one bevel segment; tris matter at
+        // village scale (hundreds of boxes per building).
+        Math.min(...size) < 0.6 ? 1 : 2,
         Math.min(0.16, Math.min(...size) * 0.22),
       ),
     );
@@ -205,19 +207,21 @@ export function Flowers({
   color?: string;
 }) {
   return (
-    <group position={p}>
-      <Cylinder p={[0, 0.23, 0]} s={[0.35, 0.46, 0.35]} c="#be8666" />
-      {[0, 1, 2].map((i) => (
-        <group
-          key={i}
-          position={[Math.sin(i * 4) * 0.2, 0, Math.cos(i * 4) * 0.2]}
-        >
-          <Cylinder p={[0, 0.55, 0]} s={[0.025, 0.6, 0.025]} c="#6b8053" />
-          <Ball p={[0, 0.87, 0]} s={[0.16, 0.1, 0.16]} c={color} />
-          <Ball p={[0, 0.94, 0]} s={[0.06, 0.05, 0.06]} c="#e6c06d" />
-        </group>
-      ))}
-    </group>
+    <StaticBatch id="flowers" soft>
+      <group position={p}>
+        <Cylinder p={[0, 0.23, 0]} s={[0.35, 0.46, 0.35]} c="#be8666" />
+        {[0, 1, 2].map((i) => (
+          <group
+            key={i}
+            position={[Math.sin(i * 4) * 0.2, 0, Math.cos(i * 4) * 0.2]}
+          >
+            <Cylinder p={[0, 0.55, 0]} s={[0.025, 0.6, 0.025]} c="#6b8053" />
+            <Ball p={[0, 0.87, 0]} s={[0.16, 0.1, 0.16]} c={color} />
+            <Ball p={[0, 0.94, 0]} s={[0.06, 0.05, 0.06]} c="#e6c06d" />
+          </group>
+        ))}
+      </group>
+    </StaticBatch>
   );
 }
 export function Window({
@@ -253,20 +257,22 @@ export function Bench({
   rotation?: number;
 }) {
   return (
-    <group position={p} rotation={[0, rotation, 0]}>
-      {[-0.6, 0.6].map((x) => (
-        <Box key={x} p={[x, 0.32, 0]} s={[0.13, 0.65, 0.5]} c="#576454" />
-      ))}
-      {[0, 1, 2].map((i) => (
-        <Box
-          key={i}
-          p={[0, 0.65, i * 0.2 - 0.2]}
-          s={[1.7, 0.12, 0.16]}
-          c="#b58b5e"
-        />
-      ))}
-      <Box p={[0, 1.08, -0.34]} s={[1.7, 0.45, 0.12]} c="#bd976d" />
-    </group>
+    <StaticBatch id="bench" soft>
+      <group position={p} rotation={[0, rotation, 0]}>
+        {[-0.6, 0.6].map((x) => (
+          <Box key={x} p={[x, 0.32, 0]} s={[0.13, 0.65, 0.5]} c="#576454" />
+        ))}
+        {[0, 1, 2].map((i) => (
+          <Box
+            key={i}
+            p={[0, 0.65, i * 0.2 - 0.2]}
+            s={[1.7, 0.12, 0.16]}
+            c="#b58b5e"
+          />
+        ))}
+        <Box p={[0, 1.08, -0.34]} s={[1.7, 0.45, 0.12]} c="#bd976d" />
+      </group>
+    </StaticBatch>
   );
 }
 export function House({

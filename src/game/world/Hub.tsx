@@ -3,6 +3,7 @@ import { gameInputEnabled, useStage } from "../../stage/contract";
 import { aimCamera, viewZoom } from "../engine/camera";
 import { useWorldActive } from "../engine/active";
 import { Environment } from "./env";
+import { StaticBatch } from "./StaticBatch";
 import { GlazedPanel } from "./GlazedPanel";
 import { RegionalActivities } from "./RegionalActivities";
 import { useFrame, useThree } from "@react-three/fiber";
@@ -332,7 +333,12 @@ function CourtPavilion() {
         <Box key={x} p={[x, 3.15, -2.12]} s={[0.045, 1.04, 0.15]} c="#c3d2dc" />
       ))}
       {[-0.5, 0.5].map((y) => (
-        <Box key={y} p={[0, 3.15 + y, -2.12]} s={[1.64, 0.045, 0.15]} c="#c3d2dc" />
+        <Box
+          key={y}
+          p={[0, 3.15 + y, -2.12]}
+          s={[1.64, 0.045, 0.15]}
+          c="#c3d2dc"
+        />
       ))}
       <Box p={[0, 3.14, -2.03]} s={[0.65, 0.48, 0.03]} c="#bc6040" />
       <Ring p={[0, 2.8, -1.7]} radius={0.34} tube={0.04} c="#b65e35" />
@@ -493,9 +499,7 @@ export function Hub() {
           position={[door.footprint[0], 0, door.footprint[1]]}
           scale={door.scale}
         >
-          {door.id === "boathouse" && (
-            <House p={[0, 0, 0]} level={3} />
-          )}
+          {door.id === "boathouse" && <House p={[0, 0, 0]} level={3} />}
           {door.id === "office" && <House p={[0, 0, 0]} kind="study" />}
           {door.id === "go" && <GoShell />}
           {door.id === "theater" && (
@@ -506,7 +510,11 @@ export function Hub() {
           {door.id === "badminton" && <BadmintonPavilion />}
           {door.id === "music" && <BeatLabShell />}
           {door.id === "math" && <MathLabShell />}
-          {door.id === "basketball" && <CourtPavilion />}
+          {door.id === "basketball" && (
+            <StaticBatch id={`court-pavilion-${world}`}>
+              <CourtPavilion />
+            </StaticBatch>
+          )}
           {door.id === "kappa" && <KappaShell />}
           {door.id === "cognition" && <CognitionShell />}
           {door.id === "kitchen" && <KitchenShell />}
@@ -514,7 +522,11 @@ export function Hub() {
           {world === "home" && <HomeBuildingArt id={door.id} />}
         </group>
       ))}
-      {world === "home" && <Garden level={3} />}
+      {world === "home" && (
+        <StaticBatch id="home-garden">
+          <Garden level={3} />
+        </StaticBatch>
+      )}
       <NpcCrowd />
       <Walker locked={trainRiding || traveling} />
       <LabelProjection active={active} />
