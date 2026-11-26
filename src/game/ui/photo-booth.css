@@ -178,3 +178,22 @@
     width: clamp(5rem, 14dvh, 10rem);
   }
 }
+/* Ease the panel in so its first frame is not a hard cut over the canvas. */
+.photo-booth-dialog[open] {
+  animation: photo-booth-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.photo-booth-dialog[open]::backdrop {
+  animation: photo-booth-in 220ms ease-out both;
+}
+@keyframes photo-booth-in {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .photo-booth-dialog[open],
+  .photo-booth-dialog[open]::backdrop {
+    animation-duration: 1ms;
+  }
+}
