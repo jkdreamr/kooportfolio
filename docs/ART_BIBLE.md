@@ -67,3 +67,14 @@ Joshua asked for the design to be "a lot more detailed, 3d, premium, glassy feel
 - Contrast is computed for the worst backdrop (pure white behind dark glass with the sheen at full strength; pure black behind light glass), compositing the token values with the WCAG 2 formula; recompute when a fill, blur brightness or ink token changes. Dark: ink 6.9:1, muted 5.5:1, gold 5.1:1 on a pane; ink 4.8:1 on the active dock item; muted 4.7:1 on a well; plaques without blur 7.0:1. Light: ink 9.5:1, muted 5.5:1 on a pane; the coin gold `#e7c27e` measured 1.0:1 there and is `#644508` (5.3:1) in light. Primary buttons 5.5:1 (4.7:1 hovered).
 - Fallbacks: without `backdrop-filter` every pane uses its opaque fill. `prefers-reduced-transparency: reduce`, `prefers-contrast: more` and `forced-colors: active` give solid panes, no blur or sheen, and a plain 1px border; forced colours hands fills to the system palette.
 - Motion: 180ms ease-out on colour, shadow and transform; hover lifts 1px, press scales to 97%. `prefers-reduced-motion` removes the transforms. Touch targets stay 44px and every control keeps a 2px focus ring (gold on dark, ink on light).
+
+## Overhaul amendments (2026-11)
+
+The premium overhaul supersedes the following rules above; where they conflict, this section wins.
+
+- Camera: the hub and interiors use one persistent telephoto perspective camera (about 20° vertical field of view) along the same three-quarter direction, replacing the orthographic camera. Existing zoom levels map to viewing distance (d = (viewport height / zoom) / (2·tan(fov/2))), so the island fit, world zoom and label projection behave as before. Activities (rowing, basketball, paper toss) use the same camera at a 55° lens; every change of view is blended, never cut.
+- Post-processing: "no global postprocessing" is replaced by a tier-gated stack. High: half-resolution ambient occlusion, a lift/gamma/gain grade (warm highlights, cool shadows), a vignette near 0.25 and very restrained bloom only for emissive glints and lanterns. Medium: grade and vignette. Low: none. Readability first: no haze, no glow on ordinary surfaces.
+- Foliage: closed crowns remain the inner mass; an instanced, alpha-tested leaf-cluster shell (procedural canvas atlas, one draw for all trees) may sit over them. Alpha-tested clusters are allowed; translucent blended cards are still not.
+- Texture: "no texture" is relaxed to one generated noise texture (about 128², for triplanar roughness/albedo variation) and one baked shore map per world. Both are generated at runtime; nothing is downloaded.
+- Light: the sun's azimuth follows the time of day, defaulting to late afternoon with long warm shadows; 2048 soft shadow map with a tight follow frustum.
+- The portfolio stays white, with system fonts.

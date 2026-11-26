@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
+import { Vector3 } from "three";
 import { AmbientAudio } from "../core/ambientAudio";
 import { runtime, useGame } from "../core/store";
 import { daylightClock } from "../core/timeOfDay";
@@ -8,7 +9,10 @@ import { wildlifeClock } from "../core/wildlife";
 /** One mount in World, not one audio graph per animal or per scene. */
 export function WorldAmbience() {
   const audio = useRef<AmbientAudio | null>(null),
-    elapsed = useRef(0);
+    elapsed = useRef(0),
+    // Camera forward on the ground plane; the listener faces the screen.
+    facing = useRef<[number, number]>([-70, -95]),
+    scratch = useRef(new Vector3());
   useEffect(() => {
     const engine = new AmbientAudio(() => {
       const state = useGame.getState();
@@ -18,10 +22,12 @@ export function WorldAmbience() {
         active: runtime.active,
         hidden: document.hidden,
         scene: state.scene,
+        world: state.world,
         hour: daylightClock.hour,
         x: runtime.x,
         z: runtime.z,
         seconds: wildlifeClock.seconds,
+        facing: facing.current,
       };
     });
     audio.current = engine;
@@ -42,10 +48,13 @@ export function WorldAmbience() {
       engine.dispose();
     };
   }, []);
-  useFrame((_, delta) => {
+  useFrame(({ camera }, delta) => {
     elapsed.current += delta;
-    if (elapsed.current < 0.15) return;
+    if (elapsed.current < 0.1) return;
     elapsed.current = 0;
+    const forward = camera.getWorldDirection(scratch.current);
+    if (Math.hypot(forward.x, forward.z) > 0.05)
+      facing.current = [forward.x, forward.z];
     audio.current?.sync();
   });
   return null;

@@ -1,6 +1,9 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { sculptedMaterial } from "./Surface";
+import { useGame } from "../core/store";
+import type { WorldId } from "../core/worlds";
+import { registerCrowns, type Crown } from "./env/foliage";
 
 type V3 = [number, number, number];
 export type TreePlacement = {
@@ -10,6 +13,73 @@ export type TreePlacement = {
   species?: "oak" | "pine" | "redwood" | "palm";
 };
 type Part = { p: V3; s: V3; r: V3; c: string };
+
+/** Per-island species character. Crown colours are the inner mass; the leaf
+ * shell (env/foliage) is tinted from the same hue a touch lighter. */
+type Look = {
+  /** Broadleaf palettes; one is chosen per tree. */
+  broad: readonly (readonly string[])[];
+  /** Weight of each broadleaf palette (same length as broad). */
+  weights: readonly number[];
+  conifer: readonly string[];
+  oak: readonly string[];
+  bark: readonly string[];
+  /** Share of broadleaf trees with pale birch trunks (and the first palette
+   * that birches take). */
+  birch: number;
+  birchPalette: number;
+  /** Conifer bark: Korea's red pines glow orange in the upper trunk. */
+  pineBark: string;
+};
+const LOOKS: Record<WorldId, Look> = {
+  // Home: a cozy autumn village — orange, amber and gold over fresh greens,
+  // white birches with yellow crowns, deep green spruces for contrast.
+  home: {
+    broad: [
+      ["#5d8a46", "#6c9a4c", "#7fa955"],
+      ["#d47a2c", "#e08f36", "#c9662a"],
+      ["#e2ad3f", "#d99a33", "#ebc055"],
+      ["#4f7c45", "#5f8d4b", "#73a053"],
+    ],
+    weights: [0.34, 0.26, 0.2, 0.2],
+    conifer: ["#3b6048", "#476d4d", "#335640"],
+    oak: ["#5a8644", "#6b9649", "#7aa451"],
+    bark: ["#6f5a46", "#6c5744", "#5e4c3d"],
+    birch: 0.26,
+    birchPalette: 2,
+    pineBark: "#6a5240",
+  },
+  // Korea: red pines (sonamu) and zelkova greens, maple reds and ginkgo gold
+  // as accents around the palaces.
+  korea: {
+    broad: [
+      ["#4f7a48", "#5e8a4d", "#6f9852"],
+      ["#b8452e", "#c95a34", "#a83b2c"],
+      ["#dcae3c", "#e6bf4e", "#d29f33"],
+    ],
+    weights: [0.62, 0.22, 0.16],
+    conifer: ["#355c44", "#41684a", "#2f533e"],
+    oak: ["#557f4a", "#62904f", "#4a7444"],
+    bark: ["#76604c", "#6f5846", "#5f4c3e"],
+    birch: 0,
+    birchPalette: 0,
+    pineBark: "#a5583a",
+  },
+  // Stanford: dry-summer olive oaks, dark redwoods and palms on golden grass.
+  stanford: {
+    broad: [
+      ["#66784a", "#77894f", "#5a6d44"],
+      ["#6f8a4e", "#7e9a56", "#647c49"],
+    ],
+    weights: [0.6, 0.4],
+    conifer: ["#34573d", "#3f6445", "#2e4d38"],
+    oak: ["#62764a", "#718650", "#566b44"],
+    bark: ["#6e5a48", "#6a5644", "#5c4b3d"],
+    birch: 0,
+    birchPalette: 0,
+    pineBark: "#7a5040",
+  },
+};
 
 // Closed canopy mass and small ridged leaf edges share one baked geometry.
 function foliageBuilder() {
@@ -206,6 +276,7 @@ function randomGenerator(seed: number) {
 
 function makeTree(
   tree: TreePlacement,
+  look: Look,
   wood: Part[],
   broad: Part[],
   pine: Part[],
@@ -234,17 +305,29 @@ function makeTree(
     p[1] + v[1] * size,
     p[2] + v[2] * size,
   ];
+  // Palette and bark by island character; the pick is position-seeded.
+  const pick = rand();
+  const birch = kind !== 0 && rand() < look.birch;
+  let broadPalette = look.broad[0];
+  for (let i = 0, acc = 0; i < look.broad.length; i++) {
+    acc += look.weights[i];
+    if (pick < acc) {
+      broadPalette = look.broad[i];
+      break;
+    }
+  }
+  if (birch) broadPalette = look.broad[look.birchPalette];
   const woodColor = redwood
-    ? "#885b43"
+    ? "#8a5a40"
     : palm
       ? "#99754f"
-      : ["#79634c", "#78604b", "#655343"][kind];
+      : birch
+        ? "#e4dfd2"
+        : kind === 0
+          ? look.pineBark
+          : look.bark[kind];
   const palette =
-    kind === 0
-      ? ["#3f614c", "#526f50", "#607c56"]
-      : kind === 1
-        ? ["#697a4b", "#7c8c56", "#8a995f"]
-        : ["#456d4f", "#587d54", "#71915e"];
+    kind === 0 ? look.conifer : species === "oak" ? look.oak : broadPalette;
   const branch = (a: V3, b: V3, radius: number) => {
     const from = new THREE.Vector3(...a),
       to = new THREE.Vector3(...b);
@@ -434,14 +517,24 @@ function TreeInstances({
 
 /** Three opaque grove batches, plus one when palms are present. Placement stays external. */
 export function NaturalTrees({ trees }: { trees: readonly TreePlacement[] }) {
+  const world = useGame((s) => s.world);
   const { wood, broad, pine, palms } = useMemo(() => {
     const wood: Part[] = [],
       broad: Part[] = [],
       pine: Part[] = [],
       palms: Part[] = [];
-    trees.forEach((tree) => makeTree(tree, wood, broad, pine, palms));
+    const look = LOOKS[world] ?? LOOKS.home;
+    trees.forEach((tree) => makeTree(tree, look, wood, broad, pine, palms));
     return { wood, broad, pine, palms };
-  }, [trees]);
+  }, [trees, world]);
+  // The leaf-cluster shell (one draw for every grove) follows these crowns.
+  useLayoutEffect(() => {
+    const crowns: Crown[] = [
+      ...broad.map((part): Crown => ({ ...part, color: part.c, kind: "broad" })),
+      ...pine.map((part): Crown => ({ ...part, color: part.c, kind: "pine" })),
+    ];
+    return registerCrowns(crowns);
+  }, [broad, pine]);
   return (
     <>
       {wood.length > 0 && (

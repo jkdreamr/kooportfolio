@@ -1,8 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AmbientAudio,
+  bedMix,
+  emittersFor,
+  INTERIOR_CUTOFF,
   type AmbientEnvironment,
 } from "../src/game/core/ambientAudio";
+import { surfaceAt } from "../src/game/core/sound";
+
+// 4 bed loops + engine + wind, then one voice per emitter once in the hub.
+const BASE = 6;
+const HOME_VOICES = emittersFor("home").length;
 
 const param = () => ({ value: 0, setTargetAtTime: vi.fn() });
 function node() {
@@ -13,12 +21,20 @@ function node() {
     stop: vi.fn(),
     gain: param(),
     frequency: param(),
+    Q: param(),
+    playbackRate: param(),
+    positionX: param(),
+    positionY: param(),
+    positionZ: param(),
+    onended: null as null | (() => void),
     loop: false,
     buffer: null,
     type: "",
   };
 }
-let sources: ReturnType<typeof node>[], contexts: FakeContext[];
+let sources: ReturnType<typeof node>[],
+  filters: ReturnType<typeof node>[],
+  contexts: FakeContext[];
 class FakeContext {
   state = "running";
   currentTime = 1;
@@ -33,7 +49,23 @@ class FakeContext {
   };
   createOscillator = this.createBufferSource;
   createGain = node;
-  createBiquadFilter = node;
+  createBiquadFilter = () => {
+    const filter = node();
+    filters.push(filter);
+    return filter;
+  };
+  createPanner = node;
+  listener = {
+    positionX: param(),
+    positionY: param(),
+    positionZ: param(),
+    forwardX: param(),
+    forwardY: param(),
+    forwardZ: param(),
+    upX: param(),
+    upY: param(),
+    upZ: param(),
+  };
   createBuffer = (_channels: number, length: number) => ({
     getChannelData: () => new Float32Array(length),
   });
@@ -44,6 +76,7 @@ class FakeContext {
 let environment: AmbientEnvironment, audio: AmbientAudio;
 beforeEach(() => {
   sources = [];
+  filters = [];
   contexts = [];
   environment = {
     muted: true,
@@ -80,19 +113,23 @@ describe("ambient audio lifecycle", () => {
     expect(fetch).not.toHaveBeenCalled();
     environment.muted = false;
     audio.sync();
-    await vi.waitFor(() => expect(sources).toHaveLength(6));
+    await vi.waitFor(() =>
+      expect(sources).toHaveLength(BASE + HOME_VOICES),
+    );
     expect(fetch).toHaveBeenCalledTimes(4);
     expect(sources.every((s) => s.start.mock.calls.length === 1)).toBe(true);
   });
 
-  it.each(["muted", "paused", "hidden", "inactive", "interior"])(
+  it.each(["muted", "paused", "hidden", "inactive", "theater"])(
     "stops all sources for %s and reuses decoded audio on return",
     async (reason) => {
       environment.muted = false;
       audio.unlock();
-      await vi.waitFor(() => expect(sources).toHaveLength(6));
+      await vi.waitFor(() =>
+        expect(sources).toHaveLength(BASE + HOME_VOICES),
+      );
       if (reason === "inactive") environment.active = false;
-      else if (reason === "interior") environment.scene = "kappa";
+      else if (reason === "theater") environment.scene = "theater";
       else environment[reason as "muted" | "paused" | "hidden"] = true;
       audio.sync();
       expect(
@@ -110,7 +147,9 @@ describe("ambient audio lifecycle", () => {
         scene: "hub",
       });
       audio.sync();
-      await vi.waitFor(() => expect(sources).toHaveLength(12));
+      await vi.waitFor(() =>
+        expect(sources).toHaveLength(2 * (BASE + HOME_VOICES)),
+      );
       expect(fetch).toHaveBeenCalledTimes(4);
       audio.dispose();
       expect(contexts[0].close).toHaveBeenCalledTimes(1);
@@ -152,5 +191,66 @@ describe("ambient audio lifecycle", () => {
     audio.unlock();
     await vi.waitFor(() => expect(sources).toHaveLength(2));
     expect(sources[0].type).toBe("sawtooth");
+  });
+
+  it("muffles the outdoor bed behind walls instead of cutting it", async () => {
+    environment.muted = false;
+    audio.unlock();
+    await vi.waitFor(() =>
+      expect(sources).toHaveLength(BASE + HOME_VOICES),
+    );
+    environment.scene = "kappa";
+    audio.sync();
+    expect(sources.every((s) => s.stop.mock.calls.length === 0)).toBe(true);
+    const cutoffs = filters.flatMap((f) =>
+      f.frequency.setTargetAtTime.mock.calls.map((call) => call[0]),
+    );
+    expect(cutoffs).toContain(INTERIOR_CUTOFF);
+    const inside = bedMix({ ...environment, scene: "kappa" });
+    expect(inside.water).toBe(0);
+    expect(inside.birds).toBeGreaterThan(0);
+    expect(inside.birds).toBeLessThan(
+      bedMix({ ...environment, scene: "basketball" }).birds,
+    );
+  });
+
+  it("crossfades to the new island's emitters after travel", async () => {
+    environment.muted = false;
+    audio.unlock();
+    await vi.waitFor(() =>
+      expect(sources).toHaveLength(BASE + HOME_VOICES),
+    );
+    const homeVoices = sources.slice(BASE);
+    environment.world = "korea";
+    audio.sync();
+    expect(sources).toHaveLength(
+      BASE + HOME_VOICES + emittersFor("korea").length,
+    );
+    // Old voices are scheduled to stop after their fade, not cut.
+    for (const voice of homeVoices)
+      expect(voice.stop.mock.calls[0][0]).toBeGreaterThan(1);
+  });
+});
+
+describe("spatial layout", () => {
+  it.each(["home", "korea", "stanford"] as const)(
+    "places falls, groves and crickets on %s",
+    (world) => {
+      const list = emittersFor(world);
+      expect(list.some((e) => e.id.startsWith("falls"))).toBe(true);
+      expect(list.filter((e) => e.layer === "birds")).toHaveLength(3);
+      expect(list.filter((e) => e.layer === "crickets")).toHaveLength(2);
+      expect(list.some((e) => e.id === "pond")).toBe(world !== "home");
+      for (const e of list) expect(e.position.every(Number.isFinite)).toBe(true);
+      expect(new Set(list.map((e) => e.id)).size).toBe(list.length);
+    },
+  );
+
+  it("voices footsteps by what the avatar stands on", () => {
+    expect(surfaceAt("hub", "home", 999, 999)).toBe("grass");
+    expect(surfaceAt("hub", "stanford", 999, 999)).toBe("gravel");
+    expect(surfaceAt("kappa", "home", 0, 0)).toBe("wood");
+    expect(surfaceAt("kitchen", "home", 0, 0)).toBe("stone");
+    expect(surfaceAt("theater", "home", 0, 0)).toBe("soft");
   });
 });

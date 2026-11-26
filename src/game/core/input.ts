@@ -1,8 +1,18 @@
 import { useEffect } from "react";
 import { runtime, useGame } from "./store";
 import { escapeGameMode } from "./gameMode";
+import { gameInputEnabled, useStage } from "../../stage/contract";
 export const keys = new Set<string>();
 export const touch = { x: 0, z: 0 };
+
+/** `legacy` is set by the HUD when no stage engine drives modes (an old
+ * build of /play): the game then takes input as soon as it is shown. */
+export const stageGate = { legacy: false };
+/** Keyboard and HUD input belong to the game only once it is playable and the
+ * HUD has been revealed; during the portfolio, peek and fly-in they do not. */
+export function stageInputLive() {
+  return stageGate.legacy || gameInputEnabled(useStage.getState());
+}
 
 /** Held modifier, never a toggle: keyup and the shared blur reset stop sprint. */
 export function movementSpeed(base = 4.6) {
@@ -11,13 +21,19 @@ export function movementSpeed(base = 4.6) {
 export function useInput(interact: () => void) {
   useEffect(() => {
     const closeGame = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || e.isComposing || !escapeGameMode(e.repeat))
+      if (
+        e.key !== "Escape" ||
+        e.isComposing ||
+        !stageInputLive() ||
+        !escapeGameMode(e.repeat)
+      )
         return;
       e.preventDefault();
       e.stopImmediatePropagation();
     };
     const down = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement).matches("input,textarea,select")) return;
+      if (!stageInputLive()) return;
       const k = e.key.toLowerCase();
       if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k))
         e.preventDefault();

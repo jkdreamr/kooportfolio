@@ -8,7 +8,6 @@ import { sculptedMaterial } from "./Surface";
 import { NationalFlag } from "./NationalFlag";
 import { TreeArt } from "./TreeArt";
 import { GlazedPanel } from "./GlazedPanel";
-import { PlayerMarker } from "./PlayerMarker";
 
 const rounded = new Map<string, RoundedBoxGeometry>();
 function roundedGeometry(size: [number, number, number]) {
@@ -28,6 +27,13 @@ const box = new THREE.BoxGeometry(1, 1, 1);
 const sphere = new THREE.SphereGeometry(1, 12, 8);
 const cyl = new THREE.CylinderGeometry(1, 1, 1, 12);
 const cone = new THREE.ConeGeometry(1, 1, 8);
+const tori = new Map<string, THREE.TorusGeometry>();
+function torusGeometry(radius: number, tube: number) {
+  const key = `${radius}:${tube}`;
+  if (!tori.has(key))
+    tori.set(key, new THREE.TorusGeometry(radius, tube, 6, 48));
+  return tori.get(key)!;
+}
 const mats = new Map<string, THREE.MeshStandardMaterial>();
 function material(color: string) {
   if (!mats.has(color)) mats.set(color, sculptedMaterial({ color }));
@@ -68,6 +74,7 @@ export function Ball({ p = [0, 0, 0], s = [1, 1, 1], c = "#81956b" }: Props) {
       scale={s}
       castShadow
       receiveShadow
+      dispose={null}
     />
   );
 }
@@ -86,6 +93,7 @@ export function Cylinder({
       rotation={r}
       castShadow
       receiveShadow
+      dispose={null}
     />
   );
 }
@@ -98,6 +106,7 @@ export function Cone({ p = [0, 0, 0], s = [1, 1, 1], c = "#647958" }: Props) {
       scale={s}
       castShadow
       receiveShadow
+      dispose={null}
     />
   );
 }
@@ -115,9 +124,13 @@ export function Ring({
   r?: [number, number, number];
 }) {
   return (
-    <mesh position={p} rotation={r} material={material(c)}>
-      <torusGeometry args={[radius, tube, 6, 48]} />
-    </mesh>
+    <mesh
+      position={p}
+      rotation={r}
+      material={material(c)}
+      geometry={torusGeometry(radius, tube)}
+      dispose={null}
+    />
   );
 }
 export function Sign({
@@ -167,85 +180,8 @@ export function Sign({
     </group>
   );
 }
-export function Character({
-  npc = false,
-  player = false,
-  color = "#6f8670",
-  hat = true,
-  scale = 1,
-  walking,
-}: {
-  npc?: boolean;
-  player?: boolean;
-  color?: string;
-  hat?: boolean;
-  scale?: number;
-  walking?: React.RefObject<boolean>;
-}) {
-  const legs = useRef<THREE.Group>(null),
-    arms = useRef<THREE.Group>(null),
-    body = useRef<THREE.Group>(null);
-  useFrame(({ clock }) => {
-    if (walking && (document.hidden || useGame.getState().paused)) return;
-    const active = walking?.current ?? (npc || runtime.moving),
-      t = clock.elapsedTime * (active ? 9 : 2);
-    if (legs.current) {
-      legs.current.children[0].rotation.x = active ? Math.sin(t) * 0.65 : 0;
-      legs.current.children[1].rotation.x = active ? -Math.sin(t) * 0.65 : 0;
-    }
-    if (arms.current) {
-      arms.current.children[0].rotation.x = active ? -Math.sin(t) * 0.45 : 0.06;
-      arms.current.children[1].rotation.x = active ? Math.sin(t) * 0.45 : -0.06;
-    }
-    if (body.current)
-      body.current.position.y = active
-        ? Math.abs(Math.sin(t)) * 0.055
-        : Math.sin(t) * 0.015;
-  });
-  return (
-    <group scale={scale}>
-      <group ref={body}>
-        <group ref={legs}>
-          <group position={[-0.16, 0.42, 0]}>
-            <Box p={[0, -0.18, 0]} s={[0.23, 0.4, 0.24]} c="#384648" />
-            <Box p={[0, -0.36, 0.07]} s={[0.25, 0.14, 0.38]} c="#f5e9d3" />
-          </group>
-          <group position={[0.16, 0.42, 0]}>
-            <Box p={[0, -0.18, 0]} s={[0.23, 0.4, 0.24]} c="#384648" />
-            <Box p={[0, -0.36, 0.07]} s={[0.25, 0.14, 0.38]} c="#f5e9d3" />
-          </group>
-        </group>
-        <Box p={[0, 0.77, 0]} s={[0.65, 0.67, 0.4]} c={color} />
-        <Box p={[0, 0.91, 0.213]} s={[0.16, 0.1, 0.02]} c="#e7d3a7" />
-        <group ref={arms}>
-          <group position={[-0.4, 0.98, 0]}>
-            <Box p={[0, -0.15, 0]} s={[0.2, 0.4, 0.25]} c={color} />
-            <Ball p={[0, -0.38, 0]} s={[0.115, 0.13, 0.115]} c="#efc5a0" />
-          </group>
-          <group position={[0.4, 0.98, 0]}>
-            <Box p={[0, -0.15, 0]} s={[0.2, 0.4, 0.25]} c={color} />
-            <Ball p={[0, -0.38, 0]} s={[0.115, 0.13, 0.115]} c="#efc5a0" />
-          </group>
-        </group>
-        <Box p={[0, 1.47, 0.025]} s={[0.78, 0.68, 0.67]} c="#efc5a0" />
-        <Box p={[0, 1.8, 0]} s={[0.82, 0.24, 0.7]} c="#3e3936" />
-        <Box p={[-0.34, 1.58, -0.07]} s={[0.16, 0.36, 0.62]} c="#3e3936" />
-        <Box p={[0.34, 1.58, -0.07]} s={[0.16, 0.36, 0.62]} c="#3e3936" />
-        <Ball p={[-0.16, 1.47, 0.366]} s={[0.043, 0.065, 0.025]} c="#383330" />
-        <Ball p={[0.16, 1.47, 0.366]} s={[0.043, 0.065, 0.025]} c="#383330" />
-        <Box p={[0, 1.29, 0.37]} s={[0.13, 0.025, 0.02]} c="#a47362" />
-        {hat && (
-          <>
-            <Box p={[0, 1.93, 0]} s={[0.9, 0.2, 0.78]} c="#d88960" />
-            <Box p={[0, 1.86, 0.4]} s={[0.87, 0.065, 0.48]} c="#d88960" />
-            <Box p={[0, 2.03, 0]} s={[0.6, 0.07, 0.6]} c="#e4a275" />
-          </>
-        )}
-      </group>
-      {player && !npc && <PlayerMarker />}
-    </group>
-  );
-}
+/** Rounded, procedurally animated rig; see world/character. */
+export { Character } from "./character/CharacterRig";
 export function Tree({
   p,
   size = 1,
