@@ -31,6 +31,8 @@ import { roomFor } from "../core/room";
 import { useGameMode } from "../core/gameMode";
 import { SKATE_EXIT } from "../core/skate";
 import { RoomStory } from "./RoomStory";
+import { exitWalkStarted, requestExit, useExitIntent } from "../core/doorway";
+import { usePresented } from "../engine/presented";
 import type { PlaceId } from "../core/world";
 import { npcName } from "../core/npcState";
 import { TravelMap } from "./TravelMap";
@@ -496,6 +498,115 @@ function Toast({ notice }: { notice: string }) {
     </div>
   );
 }
+/** First focusable, visible control of the room's own UI (its "Play …"
+ * launcher). Room panels render through drei <Html> into the canvas
+ * container, which precedes the HUD in the DOM. */
+function roomPrimary(shell: Element) {
+  for (const button of shell.querySelectorAll<HTMLElement>(
+    ".stage-canvas button:not([disabled])",
+  ))
+    if (
+      button.getClientRects().length > 0 &&
+      !button.closest('[hidden], [inert], [aria-hidden="true"]')
+    )
+      return button;
+  return null;
+}
+/** The element the room Tab order last moved focus to (see useSceneFocus). */
+let tabSpine: Element | null = null;
+/**
+ * Keyboard-only reliability across scene changes:
+ * - `data-scene-ready="<scene>"` on `.game-shell` once the requested scene is
+ *   on screen and the HUD is interactive (tests wait on it, not on timers);
+ * - entering a room focuses its heading, returning outside focuses the shell,
+ *   so Tab never restarts from the top of the page after the HUD remounts;
+ * - inside a room, Tab runs Exit → the room's "Play …" → the story card.
+ *   Room panels live in the canvas container before the HUD, so that order
+ *   cannot come from the DOM alone.
+ */
+function useSceneFocus(hudShown: boolean) {
+  const presented = usePresented((s) => s.scene);
+  const scene = useGame((s) => s.scene);
+  const ready = hudShown && presented === scene;
+  useEffect(() => {
+    const shell = document.querySelector<HTMLElement>(".game-shell");
+    if (!shell) return;
+    if (ready) shell.dataset.sceneReady = presented;
+    else delete shell.dataset.sceneReady;
+  }, [ready, presented]);
+  useEffect(
+    () => () => {
+      const shell = document.querySelector<HTMLElement>(".game-shell");
+      if (shell) delete shell.dataset.sceneReady;
+    },
+    [],
+  );
+  const focused = useRef(presented);
+  useEffect(() => {
+    if (!ready || focused.current === presented) return;
+    focused.current = presented;
+    const frame = requestAnimationFrame(() => {
+      const shell = document.querySelector<HTMLElement>(".game-shell");
+      if (!shell) return;
+      const active = document.activeElement;
+      // Never steal focus a room's own UI or a text field took for itself.
+      if (
+        active &&
+        active !== document.body &&
+        active.isConnected &&
+        (!shell.contains(active) ||
+          active.closest(".stage-canvas, input, textarea, select, dialog, .modal-scrim"))
+      )
+        return;
+      tabSpine = null;
+      if (presented === "hub") {
+        if (!shell.hasAttribute("tabindex")) shell.tabIndex = -1;
+        shell.focus({ preventScroll: true });
+      } else
+        shell
+          .querySelector<HTMLElement>(".interior-title")
+          ?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [ready, presented]);
+  useEffect(() => {
+    const tab = (e: KeyboardEvent) => {
+      if (e.key !== "Tab" || e.altKey || e.ctrlKey || e.metaKey) return;
+      const g = useGame.getState();
+      if (
+        !isInterior(g.scene) ||
+        usePresented.getState().scene !== g.scene ||
+        g.overlayLocked ||
+        g.paused ||
+        g.panel !== "none"
+      )
+        return;
+      const shell = document.querySelector<HTMLElement>(".game-shell");
+      if (!shell) return;
+      const exit = shell.querySelector<HTMLElement>(".back-link");
+      const heading = shell.querySelector(".interior-title");
+      const play = roomPrimary(shell);
+      const story = shell.querySelector<HTMLElement>(
+        ".room-story:not([hidden]) button",
+      );
+      const active = document.activeElement;
+      let next: HTMLElement | null = null;
+      if (!e.shiftKey) {
+        if (!active || active === document.body || active === shell || active === heading)
+          next = exit;
+        else if (active === exit) next = play;
+        else if (active === play && tabSpine === play) next = story;
+      } else if (active === play && tabSpine === play) next = exit;
+      else if (active === story && tabSpine === story) next = play;
+      if (!next) return;
+      e.preventDefault();
+      tabSpine = next;
+      next.focus();
+    };
+    window.addEventListener("keydown", tab, true);
+    return () => window.removeEventListener("keydown", tab, true);
+  }, []);
+}
 export function Hud({ interact }: { interact: () => void }) {
   const pendingExit = useRef<Scene | null>(null);
   const gameMode = useGameMode((s) => s.active?.id);
@@ -549,6 +660,8 @@ export function Hud({ interact }: { interact: () => void }) {
     };
   }, []);
   const g = useGame();
+  const leaving = useExitIntent(g.scene);
+  useSceneFocus(hudMotion !== "hidden");
   useEffect(() => {
     if (pendingExit.current && pendingExit.current !== g.scene)
       pendingExit.current = null;
@@ -557,6 +670,7 @@ export function Hud({ interact }: { interact: () => void }) {
         const exit =
           g.scene === "skate" ? SKATE_EXIT : [0, roomFor(g.scene).doorZ];
         walkTo(exit[0], exit[1]);
+        exitWalkStarted();
         pendingExit.current = null;
       });
       return () => cancelAnimationFrame(frame);
@@ -627,12 +741,21 @@ export function Hud({ interact }: { interact: () => void }) {
       {interior && (
         <div className="interior-intro">
           <div className="interior-heading">
+            {/* The heading takes focus on entry (tabIndex -1); the Exit
+                button still reads first visually (CSS order). */}
+            <h1 tabIndex={-1} className="interior-title">
+              {g.scene === "secret"
+                ? "Hoover vault"
+                : doors.find((door) => door.id === g.scene)?.name}
+            </h1>
             <button
-              className={`back-link${!hints.exited ? " is-coached" : ""}`}
+              className={`back-link${!hints.exited ? " is-coached" : ""}${leaving ? " is-leaving" : ""}`}
               onClick={() => {
                 keys.clear();
                 touch.x = touch.z = 0;
                 pendingExit.current = g.scene;
+                // One step: walk to the mat and leave on arrival (no E).
+                requestExit(g.scene);
                 window.dispatchEvent(new Event("interior-game-close"));
                 if (!useGame.getState().overlayLocked) {
                   const exit =
@@ -640,17 +763,13 @@ export function Hud({ interact }: { interact: () => void }) {
                       ? SKATE_EXIT
                       : [0, roomFor(g.scene).doorZ];
                   walkTo(exit[0], exit[1]);
+                  exitWalkStarted();
                   pendingExit.current = null;
                 }
               }}
             >
-              ← Exit
+              <span aria-live="polite">{leaving ? "Leaving…" : "← Exit"}</span>
             </button>
-            <h1>
-              {g.scene === "secret"
-                ? "Hoover vault"
-                : doors.find((door) => door.id === g.scene)?.name}
-            </h1>
           </div>
           <RoomStory
             key={g.scene}
@@ -964,7 +1083,12 @@ export function Hud({ interact }: { interact: () => void }) {
               <span className="keyboard-hint">
                 press <kbd>E</kbd> or{" "}
               </span>
-              tap Enter. To leave, use Exit or walk back onto the door mat.
+              tap Enter. To leave, use Exit: you walk to the door and step
+              outside. Or walk back onto the door mat and{" "}
+              <span className="keyboard-hint">
+                press <kbd>E</kbd> or{" "}
+              </span>
+              tap Exit.
             </p>
             <b>Menus</b>
             <p>

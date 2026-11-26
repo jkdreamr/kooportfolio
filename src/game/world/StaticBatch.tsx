@@ -33,7 +33,6 @@ type Bucket = {
   key: string;
   side: THREE.Side;
   flat: boolean;
-  cast: boolean;
 };
 type Entry = {
   object: THREE.Mesh;
@@ -44,6 +43,26 @@ type Entry = {
   colorVersion: number;
   changes: number;
 };
+/** One baked piece: an ordinary mesh, or one instance of an instanced mesh. */
+type Item = {
+  entry: Entry;
+  /** Instance index, or -1 for a plain mesh. */
+  k: number;
+  /** Root-local transform of this piece. */
+  matrix: THREE.Matrix4;
+  /** Root-local bounds. */
+  box: THREE.Box3;
+  cast: boolean;
+  /** Loose bounds (rotated piece): not used as an AO occluder. */
+  loose: boolean;
+};
+
+/** Bakes wider than this (XZ, root-local units) split into CELL-sized
+ * chunks, so the main and shadow passes can frustum-cull them. */
+export const CHUNK_MIN_EXTENT = 48;
+export const CHUNK_CELL = 32;
+/** Pieces whose largest dimension is below this cast no shadow. */
+export const MIN_CASTER_SIZE = 0.25;
 
 const cache = new Map<
   string,
@@ -53,7 +72,13 @@ const materials = new Map<string, THREE.MeshStandardMaterial>();
 const noRaycast = () => {};
 const defaultOnBeforeCompile = THREE.Material.prototype.onBeforeCompile;
 
-function bakeMaterial(bucket: Bucket) {
+/** Surface kind byte per vertex (see Surface.ts); 0 = plain. */
+function kindIndex(material: THREE.Material) {
+  const kind = material.userData.surfaceKind as string | undefined;
+  return kind ? (SURFACE_KIND_INDEX[kind as SurfaceKind] ?? 0) : 0;
+}
+
+function bakeMaterial(bucket: { side: THREE.Side; flat: boolean }) {
   const key = `${bucket.side}:${bucket.flat}`;
   let material = materials.get(key);
   if (!material) {
@@ -64,15 +89,20 @@ function bakeMaterial(bucket: Bucket) {
     });
     const sculpt = material.onBeforeCompile;
     material.onBeforeCompile = (shader, renderer) => {
+      // Per-vertex surface kind (detail layer) instead of a uniform: the
+      // sculpted chunk reads it from a flat varying under this define.
+      shader.vertexShader = "#define SCULPT_KIND_VARYING\n" + shader.vertexShader;
+      shader.fragmentShader =
+        "#define SCULPT_KIND_VARYING\n" + shader.fragmentShader;
       sculpt(shader, renderer);
       shader.vertexShader = shader.vertexShader
         .replace(
           "#include <common>",
-          "#include <common>\nattribute vec2 bakeRM;\nvarying vec2 vBakeRM;",
+          "#include <common>\nattribute vec3 bakeRM;\nvarying vec2 vBakeRM;",
         )
         .replace(
           "#include <begin_vertex>",
-          "#include <begin_vertex>\nvBakeRM = bakeRM;",
+          `#include <begin_vertex>\nvBakeRM = bakeRM.xy;\n${SCULPT_KIND_VERTEX("bakeRM.z * 255.0")}`,
         )
         // Colours are stored sqrt-encoded in bytes; square back to linear.
         .replace(
@@ -93,7 +123,7 @@ function bakeMaterial(bucket: Bucket) {
           "float metalnessFactor = vBakeRM.y;",
         );
     };
-    material.customProgramCacheKey = () => "sculpted-bake-v1";
+    material.customProgramCacheKey = () => "sculpted-bake-v2";
     materials.set(key, material);
   }
   return material;
@@ -102,8 +132,7 @@ function bakeMaterial(bucket: Bucket) {
 /** Shared bake materials, for shader warmup. */
 export function staticBatchMaterials() {
   for (const side of [THREE.FrontSide, THREE.DoubleSide])
-    for (const flat of [false, true])
-      bakeMaterial({ key: "", side, flat, cast: true });
+    for (const flat of [false, true]) bakeMaterial({ side, flat });
   return [...materials.values()];
 }
 
@@ -158,6 +187,8 @@ const scratch = new THREE.Matrix4(),
   instance = new THREE.Matrix4(),
   v = new THREE.Vector3(),
   n = new THREE.Vector3(),
+  q = new THREE.Vector3(),
+  size = new THREE.Vector3(),
   color = new THREE.Color(),
   tint = new THREE.Color();
 
@@ -166,10 +197,100 @@ function hashMatrix(h: number, m: THREE.Matrix4) {
     h = Math.imul(h ^ Math.round(m.elements[i] * 1000), 16777619) >>> 0;
   return h;
 }
+const mix = (h: number, x: number) => Math.imul(h ^ x, 16777619) >>> 0;
+
+/** Draw only the shadow-casting prefix of a baked mesh in the shadow pass. */
+function castPrefix(mesh: THREE.Mesh, count: number) {
+  let saved = Infinity;
+  mesh.onBeforeShadow = (_r, _o, _c, _s, geometry) => {
+    saved = geometry.drawRange.count;
+    geometry.drawRange.count = count;
+  };
+  mesh.onAfterShadow = (_r, _o, _c, _s, geometry) => {
+    geometry.drawRange.count = saved;
+  };
+}
+
+/**
+ * Baked contact AO helpers. Ground: per 2 m XZ cell, the lowest piece bottom
+ * (a stand-in for "the building's base"). Occluders: the tight (axis-aligned)
+ * pieces, binned on the same grid.
+ */
+const AO_CELL = 2;
+class AoField {
+  ground = new Map<number, number>();
+  bins = new Map<number, number[]>();
+  boxes: THREE.Box3[] = [];
+  static key(x: number, z: number) {
+    return (Math.floor(x / AO_CELL) + 4096) * 8192 + Math.floor(z / AO_CELL) + 4096;
+  }
+  constructor(items: Item[]) {
+    items.forEach((item, i) => {
+      const { min, max } = item.box;
+      const x0 = Math.floor(min.x / AO_CELL),
+        x1 = Math.floor(max.x / AO_CELL),
+        z0 = Math.floor(min.z / AO_CELL),
+        z1 = Math.floor(max.z / AO_CELL);
+      if ((x1 - x0 + 1) * (z1 - z0 + 1) > 400) return;
+      this.boxes[i] = item.box;
+      for (let x = x0; x <= x1; x++)
+        for (let z = z0; z <= z1; z++) {
+          const key = (x + 4096) * 8192 + z + 4096;
+          const g = this.ground.get(key);
+          if (g === undefined || min.y < g) this.ground.set(key, min.y);
+          if (!item.loose) {
+            let bin = this.bins.get(key);
+            if (!bin) this.bins.set(key, (bin = []));
+            bin.push(i);
+          }
+        }
+    });
+  }
+  /** 0.78..1 (linear colour multiplier) for a vertex of piece `self`. */
+  sample(self: number, p: THREE.Vector3, nrm: THREE.Vector3) {
+    let ao = 1;
+    const ground = this.ground.get(AoField.key(p.x, p.z));
+    if (ground !== undefined) {
+      // Walls and undersides darken toward the base; open tops do not.
+      const t = THREE.MathUtils.clamp((p.y - ground) / 0.9, 0, 1);
+      const h = 0.78 + 0.22 * t * t * (3 - 2 * t);
+      ao *= 1 - (1 - h) * (1 - Math.max(0, nrm.y));
+    }
+    // Crease: the normal runs into another piece within 0.15 units.
+    q.copy(nrm).multiplyScalar(0.15).add(p);
+    const bin = this.bins.get(AoField.key(q.x, q.z));
+    if (bin)
+      for (const i of bin) {
+        if (i === self) continue;
+        const b = this.boxes[i];
+        if (
+          q.x >= b.min.x - 0.01 &&
+          q.x <= b.max.x + 0.01 &&
+          q.y >= b.min.y - 0.01 &&
+          q.y <= b.max.y + 0.01 &&
+          q.z >= b.min.z - 0.01 &&
+          q.z <= b.max.z + 0.01
+        ) {
+          ao *= 0.82;
+          break;
+        }
+      }
+    return ao;
+  }
+}
+
+export type BakerOptions = {
+  /** Split wide bakes into spatial cells (default true). */
+  chunk?: boolean;
+  /** Bake contact AO into vertex colours (default false; hub bakes on). */
+  ao?: boolean;
+};
 
 export class Baker {
   root: THREE.Group;
   id: string;
+  chunk: boolean;
+  ao: boolean;
   entries: Entry[] = [];
   meshes: THREE.Mesh[] = [];
   live = new WeakSet<THREE.Object3D>();
@@ -180,9 +301,11 @@ export class Baker {
   disposed = false;
   rootInverse = new THREE.Matrix4();
 
-  constructor(root: THREE.Group, id: string) {
+  constructor(root: THREE.Group, id: string, options: BakerOptions = {}) {
     this.root = root;
     this.id = id;
+    this.chunk = options.chunk ?? true;
+    this.ao = options.ao ?? false;
   }
 
   collect() {
@@ -255,7 +378,9 @@ export class Baker {
     this.root.updateWorldMatrix(true, true);
     this.rootInverse.copy(this.root.matrixWorld).invert();
     const found = this.collect();
-    const buckets = new Map<string, { bucket: Bucket; entries: Entry[] }>();
+    const entries: Entry[] = [];
+    const items: Item[] = [];
+    const bounds = new THREE.Box3();
     for (const object of found) {
       const material = object.material as THREE.MeshStandardMaterial;
       const relative = new THREE.Matrix4().multiplyMatrices(
@@ -275,167 +400,221 @@ export class Baker {
             : 0,
         changes: previous.get(object) ?? 0,
       };
+      entries.push(entry);
+      const geometry = object.geometry;
+      if (!geometry.boundingBox) geometry.computeBoundingBox();
+      const local = geometry.boundingBox!;
+      const localVolume =
+        Math.max(1e-6, local.max.x - local.min.x) *
+        Math.max(1e-6, local.max.y - local.min.y) *
+        Math.max(1e-6, local.max.z - local.min.z);
+      const count = inst.isInstancedMesh ? inst.count : 1;
+      for (let k = 0; k < count; k++) {
+        const matrix = new THREE.Matrix4();
+        if (inst.isInstancedMesh) {
+          inst.getMatrixAt(k, instance);
+          matrix.multiplyMatrices(relative, instance);
+        } else matrix.copy(relative);
+        const box = local.clone().applyMatrix4(matrix);
+        box.getSize(size);
+        bounds.union(box);
+        const volume = size.x * size.y * size.z;
+        const tight = Math.abs(matrix.determinant()) * localVolume;
+        items.push({
+          entry,
+          k: inst.isInstancedMesh ? k : -1,
+          matrix,
+          box,
+          cast:
+            object.castShadow && Math.max(size.x, size.y, size.z) >= MIN_CASTER_SIZE,
+          loose: volume > tight * 1.6 + 1e-4,
+        });
+      }
+    }
+    // Spatial chunks: only for wide bakes, by piece centre.
+    const wide =
+      this.chunk &&
+      !bounds.isEmpty() &&
+      Math.max(bounds.max.x - bounds.min.x, bounds.max.z - bounds.min.z) >
+        CHUNK_MIN_EXTENT;
+    const field = this.ao ? new AoField(items) : null;
+    const buckets = new Map<string, { bucket: Bucket; items: number[] }>();
+    items.forEach((item, i) => {
+      const material = item.entry.material;
       const side =
         material.side === THREE.DoubleSide ? THREE.DoubleSide : THREE.FrontSide;
-      const flat = !!material.flatShading;
-      const cast = object.castShadow;
-      const key = `${side}:${flat}:${cast}`;
-      if (!buckets.has(key))
-        buckets.set(key, { bucket: { key, side, flat, cast }, entries: [] });
-      buckets.get(key)!.entries.push(entry);
-    }
-    for (const { bucket, entries } of buckets.values()) {
-      const geometry = this.merge(bucket, entries);
-      if (!geometry) continue;
-      const mesh = new THREE.Mesh(geometry, bakeMaterial(bucket));
-      mesh.castShadow = bucket.cast;
+      const flat = !!(material as THREE.MeshStandardMaterial).flatShading;
+      let cell = "0:0";
+      if (wide) {
+        item.box.getCenter(v);
+        cell = `${Math.floor(v.x / CHUNK_CELL)}:${Math.floor(v.z / CHUNK_CELL)}`;
+      }
+      const key = `${side}:${flat}:${cell}`;
+      let group = buckets.get(key);
+      if (!group)
+        buckets.set(key, (group = { bucket: { key, side, flat }, items: [] }));
+      group.items.push(i);
+    });
+    for (const { bucket, items: members } of buckets.values()) {
+      // Casters first: the shadow pass draws only that prefix.
+      members.sort((a, b) => Number(items[b].cast) - Number(items[a].cast));
+      const merged = this.merge(bucket, items, members, field);
+      if (!merged) continue;
+      const mesh = new THREE.Mesh(merged.geometry, bakeMaterial(bucket));
+      mesh.castShadow = merged.castIndices > 0;
+      if (mesh.castShadow && merged.castIndices < merged.geometry.index!.count)
+        castPrefix(mesh, merged.castIndices);
       mesh.receiveShadow = true;
       mesh.raycast = noRaycast;
+      // Layer 1: the planar water reflection renders bakes (WS-B).
+      mesh.layers.enable(1);
       mesh.userData.bakeOutput = true;
       mesh.name = `${this.id}-baked`;
       this.root.add(mesh);
       this.meshes.push(mesh);
-      for (const entry of entries) {
-        entry.object.visible = false;
-        entry.object.userData.baked = this;
-        this.entries.push(entry);
-      }
+    }
+    for (const entry of entries) {
+      entry.object.visible = false;
+      entry.object.userData.baked = this;
+      this.entries.push(entry);
     }
     this.cursor = 0;
     this.dirty = 0;
   }
 
-  merge(bucket: Bucket, entries: Entry[]) {
+  merge(
+    bucket: Bucket,
+    items: Item[],
+    members: number[],
+    field: AoField | null,
+  ) {
     // Content hash: geometry shape + placement + colour, so a remount with the
     // same authored content reuses the cached bake.
     let hash = 2166136261;
     let vertices = 0,
-      indices = 0;
-    for (const { object, relative, material, geometry } of entries) {
-      const inst = object as unknown as THREE.InstancedMesh;
-      const count = inst.isInstancedMesh ? inst.count : 1;
+      indices = 0,
+      castIndices = 0;
+    for (const i of members) {
+      const { entry, k, matrix, cast } = items[i];
+      const { object, material, geometry } = entry;
       const vc = geometry.attributes.position.count;
       const ic = geometry.index ? geometry.index.count : vc;
-      vertices += vc * count;
-      indices += ic * count;
-      hash = Math.imul(hash ^ vc, 16777619) >>> 0;
-      hash = Math.imul(hash ^ ic, 16777619) >>> 0;
+      vertices += vc;
+      indices += ic;
+      if (cast) castIndices += ic;
+      hash = mix(hash, vc);
+      hash = mix(hash, ic);
       const pos = geometry.attributes.position.array as ArrayLike<number>;
-      hash =
-        Math.imul(
-          hash ^ Math.round((pos[0] ?? 0) * 997 + (pos[vc * 3 - 1] ?? 0) * 991),
-          16777619,
-        ) >>> 0;
-      hash = hashMatrix(hash, relative);
-      hash =
-        Math.imul(
-          hash ^ (material as THREE.MeshStandardMaterial).color.getHex(),
-          16777619,
-        ) >>> 0;
-      if (inst.isInstancedMesh) {
-        for (let i = 0; i < count; i += Math.max(1, count >> 3)) {
-          inst.getMatrixAt(i, instance);
-          hash = hashMatrix(hash, instance);
-        }
-        hash = Math.imul(hash ^ count, 16777619) >>> 0;
+      hash = mix(
+        hash,
+        Math.round((pos[0] ?? 0) * 997 + (pos[vc * 3 - 1] ?? 0) * 991),
+      );
+      hash = hashMatrix(hash, matrix);
+      hash = mix(hash, (material as THREE.MeshStandardMaterial).color.getHex());
+      hash = mix(hash, kindIndex(material) * 2 + Number(cast));
+      const inst = object as unknown as THREE.InstancedMesh;
+      if (k >= 0 && inst.instanceColor) {
+        inst.getColorAt(k, color);
+        hash = mix(hash, color.getHex());
       }
     }
     if (!vertices) return null;
-    const key = `${this.id}|${bucket.key}|${hash}|${vertices}|${indices}`;
+    const key = `${this.id}|${bucket.key}|${this.ao ? "ao" : ""}|${hash}|${vertices}|${indices}|${castIndices}`;
     const hit = cache.get(key);
     if (hit) {
       hit.users++;
       this.cacheKeys.push(key);
-      return hit.geometry;
+      return { geometry: hit.geometry, castIndices };
     }
     const position = new Float32Array(vertices * 3),
       normal = new Float32Array(vertices * 3),
       colors = new Uint8Array(vertices * 3),
-      rm = new Uint8Array(vertices * 2),
+      rmk = new Uint8Array(vertices * 3),
       index =
         vertices > 65535 ? new Uint32Array(indices) : new Uint16Array(indices);
     let vo = 0,
       io = 0;
-    for (const { object, relative, material, geometry } of entries) {
-      const m = material as THREE.MeshStandardMaterial;
+    for (const i of members) {
+      const { entry, k, matrix } = items[i];
+      const { object, geometry } = entry;
+      const m = entry.material as THREE.MeshStandardMaterial;
       const inst = object as unknown as THREE.InstancedMesh;
-      const count = inst.isInstancedMesh ? inst.count : 1;
       const pa = geometry.attributes.position,
         na = geometry.attributes.normal,
         ca = m.vertexColors ? geometry.attributes.color : undefined,
         gi = geometry.index;
       const rough = Math.round(THREE.MathUtils.clamp(m.roughness, 0, 1) * 255),
-        metal = Math.round(THREE.MathUtils.clamp(m.metalness, 0, 1) * 255);
-      for (let k = 0; k < count; k++) {
-        if (inst.isInstancedMesh) {
-          inst.getMatrixAt(k, instance);
-          scratch.multiplyMatrices(relative, instance);
-        } else scratch.copy(relative);
-        normalMatrix.getNormalMatrix(scratch);
-        const flip = scratch.determinant() < 0;
-        tint.copy(m.color);
-        if (inst.isInstancedMesh && inst.instanceColor) {
-          inst.getColorAt(k, color);
-          tint.multiply(color);
-        }
-        // Store sRGB-ish bytes of the linear working colour; normalized
-        // attribute is read back linear, so keep linear values directly.
-        const base = vo;
-        for (let i = 0; i < pa.count; i++) {
-          v.fromBufferAttribute(pa, i).applyMatrix4(scratch);
-          n.fromBufferAttribute(na, i).applyMatrix3(normalMatrix).normalize();
-          const o = (base + i) * 3;
-          position[o] = v.x;
-          position[o + 1] = v.y;
-          position[o + 2] = v.z;
-          normal[o] = n.x;
-          normal[o + 1] = n.y;
-          normal[o + 2] = n.z;
-          let r = tint.r,
-            g = tint.g,
-            b = tint.b;
-          if (ca) {
-            r *= ca.getX(i);
-            g *= ca.getY(i);
-            b *= ca.getZ(i);
-          }
-          colors[o] = Math.round(
-            Math.sqrt(THREE.MathUtils.clamp(r, 0, 1)) * 255,
-          );
-          colors[o + 1] = Math.round(
-            Math.sqrt(THREE.MathUtils.clamp(g, 0, 1)) * 255,
-          );
-          colors[o + 2] = Math.round(
-            Math.sqrt(THREE.MathUtils.clamp(b, 0, 1)) * 255,
-          );
-          rm[(base + i) * 2] = rough;
-          rm[(base + i) * 2 + 1] = metal;
-        }
-        const ic = gi ? gi.count : pa.count;
-        for (let t = 0; t < ic; t += 3) {
-          const a = gi ? gi.getX(t) : t,
-            b = gi ? gi.getX(t + 1) : t + 1,
-            c = gi ? gi.getX(t + 2) : t + 2;
-          index[io++] = base + a;
-          index[io++] = base + (flip ? c : b);
-          index[io++] = base + (flip ? b : c);
-        }
-        vo += pa.count;
+        metal = Math.round(THREE.MathUtils.clamp(m.metalness, 0, 1) * 255),
+        kind = kindIndex(m);
+      normalMatrix.getNormalMatrix(matrix);
+      const flip = matrix.determinant() < 0;
+      tint.copy(m.color);
+      if (k >= 0 && inst.instanceColor) {
+        inst.getColorAt(k, color);
+        tint.multiply(color);
       }
+      // Store sqrt-encoded bytes of the linear working colour (squared back
+      // in the vertex shader).
+      const base = vo;
+      for (let j = 0; j < pa.count; j++) {
+        v.fromBufferAttribute(pa, j).applyMatrix4(matrix);
+        n.fromBufferAttribute(na, j).applyMatrix3(normalMatrix).normalize();
+        const o = (base + j) * 3;
+        position[o] = v.x;
+        position[o + 1] = v.y;
+        position[o + 2] = v.z;
+        normal[o] = n.x;
+        normal[o + 1] = n.y;
+        normal[o + 2] = n.z;
+        let r = tint.r,
+          g = tint.g,
+          b = tint.b;
+        if (ca) {
+          r *= ca.getX(j);
+          g *= ca.getY(j);
+          b *= ca.getZ(j);
+        }
+        if (field) {
+          const ao = field.sample(i, v, n);
+          r *= ao;
+          g *= ao;
+          b *= ao;
+        }
+        colors[o] = Math.round(Math.sqrt(THREE.MathUtils.clamp(r, 0, 1)) * 255);
+        colors[o + 1] = Math.round(
+          Math.sqrt(THREE.MathUtils.clamp(g, 0, 1)) * 255,
+        );
+        colors[o + 2] = Math.round(
+          Math.sqrt(THREE.MathUtils.clamp(b, 0, 1)) * 255,
+        );
+        rmk[o] = rough;
+        rmk[o + 1] = metal;
+        rmk[o + 2] = kind;
+      }
+      const ic = gi ? gi.count : pa.count;
+      for (let t = 0; t < ic; t += 3) {
+        const a = gi ? gi.getX(t) : t,
+          b = gi ? gi.getX(t + 1) : t + 1,
+          c = gi ? gi.getX(t + 2) : t + 2;
+        index[io++] = base + a;
+        index[io++] = base + (flip ? c : b);
+        index[io++] = base + (flip ? b : c);
+      }
+      vo += pa.count;
     }
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.BufferAttribute(position, 3));
     geometry.setAttribute("normal", new THREE.BufferAttribute(normal, 3));
-    // sqrt-encoded colour (cheap gamma) is squared back in the shader chunk
-    // below via the normalized attribute; see bakeColor in onBeforeCompile.
+    // sqrt-encoded colour (cheap gamma), squared back in the vertex shader.
     geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3, true));
-    geometry.setAttribute("bakeRM", new THREE.BufferAttribute(rm, 2, true));
+    // Roughness, metalness and surface kind (kind is read back ×255).
+    geometry.setAttribute("bakeRM", new THREE.BufferAttribute(rmk, 3, true));
     geometry.setIndex(new THREE.BufferAttribute(index, 1));
     geometry.computeBoundingSphere();
     geometry.computeBoundingBox();
     cache.set(key, { geometry, users: 1 });
     this.cacheKeys.push(key);
-    return geometry;
+    return { geometry, castIndices };
   }
 
   tick() {

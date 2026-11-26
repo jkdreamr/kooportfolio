@@ -1,7 +1,6 @@
 import { StaticBatch } from "./StaticBatch";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import {
   campusDistrictOffsetZ,
@@ -12,6 +11,7 @@ import { NaturalTrees } from "./TreeArt";
 import { CampusDistrictParts } from "./CampusDistrictParts";
 import { HooverTowerDoor } from "./HooverTowerDoor";
 import { sculptedMaterial } from "./Surface";
+import { chamferBoxSized } from "./chamferBox";
 
 type CampusPlaque = {
   text: string;
@@ -57,11 +57,8 @@ const backingPieces = plaques.flatMap(({ p: [x, y, z], size }) =>
       ),
       new THREE.Vector3(1, 1, 1),
     );
-    return new RoundedBoxGeometry(
-      size[0] + 0.1,
-      size[1] + 0.1,
-      0.14,
-      2,
+    return chamferBoxSized(
+      [size[0] + 0.1, size[1] + 0.1, 0.14],
       0.14 * 0.22,
     ).applyMatrix4(transform);
   }),

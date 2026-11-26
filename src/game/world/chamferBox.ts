@@ -9,8 +9,34 @@ import * as THREE from "three";
  * screen and only its shading matters.
  */
 export function chamferBoxGeometry(radius = 0.1) {
-  const h = 0.5,
-    i = h - radius;
+  return chamferBoxSized([1, 1, 1], radius);
+}
+
+const sized = new Map<string, THREE.BufferGeometry>();
+/**
+ * The same 44-triangle chamfer box at a given size, with the bevel `radius`
+ * in absolute units (not scaled with the box, so a long beam keeps an even
+ * bevel). Cached per size/radius and shared: never dispose the result.
+ * Replaces `RoundedBoxGeometry(…, 1–2 segments)` (108–300 tris) for `<Box>`.
+ */
+export function chamferBoxSizedShared(
+  size: readonly [number, number, number],
+  radius: number,
+) {
+  const key = `${size[0]}:${size[1]}:${size[2]}:${radius}`;
+  let geometry = sized.get(key);
+  if (!geometry) sized.set(key, (geometry = chamferBoxSized(size, radius)));
+  return geometry;
+}
+
+export function chamferBoxSized(
+  size: readonly [number, number, number],
+  radius: number,
+) {
+  const half = [size[0] / 2, size[1] / 2, size[2] / 2];
+  // Never let the bevel eat a whole face (keeps the box closed and convex).
+  const r = Math.max(0, Math.min(radius, Math.min(...half) * 0.98));
+  const inset = half.map((h) => h - r);
   const positions: number[] = [],
     normals: number[] = [],
     uvs: number[] = [],
@@ -28,9 +54,9 @@ export function chamferBoxGeometry(radius = 0.1) {
         for (const sv of [-1, 1]) {
           const p = [0, 0, 0],
             n = [0, 0, 0];
-          p[axis] = sign * h;
-          p[u] = su * i;
-          p[v] = sv * i;
+          p[axis] = sign * half[axis];
+          p[u] = su * inset[u];
+          p[v] = sv * inset[v];
           n[axis] = sign;
           ids.set(`${axis}${sign}|${u}${su}|${v}${sv}`, positions.length / 3);
           positions.push(...p);

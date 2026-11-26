@@ -38,7 +38,7 @@ export async function createStagePost(
   camera: THREE.Camera,
   tier: Tier,
 ): Promise<StagePost | null> {
-  if (!TIER_BUDGETS[tier].ao) return null;
+  if (TIER_BUDGETS[tier].ao !== "full") return null;
   const [pp, n8] = await Promise.all([import("postprocessing"), import("n8ao")]);
   const { EffectComposer, RenderPass, EffectPass, Effect, BlendFunction } = pp;
   class GradeEffect extends Effect {

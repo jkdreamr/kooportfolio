@@ -2332,3 +2332,24 @@ body:has(.game-shell[data-stage-mode="game"]),
     sans-serif;
   color: #e2e8f0;
 }
+
+/* Room heading: the title comes first in the DOM (it takes focus on entry,
+   so Tab reaches Exit next) while Exit still reads first on screen. */
+.game-shell .interior-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.game-shell .interior-heading > .back-link {
+  order: -1;
+}
+.game-shell .interior-title:focus {
+  outline: none;
+}
+/* Keyboard focus on Exit and the room's launchers: a two-tone ring that
+   reads on light walls and dark glass alike. */
+.game-shell.game-shell :is(.back-link, .stage-canvas button):focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 6px #17324acc;
+}

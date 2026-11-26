@@ -3,6 +3,8 @@ import { runtime, useGame } from "./store";
 import { escapeGameMode } from "./gameMode";
 import { gameInputEnabled, useStage } from "../../stage/contract";
 export const keys = new Set<string>();
+/** Controls whose own Space/Enter activation must not be cancelled. */
+const ACTIVATABLE = "button, a, [role=button], summary";
 export const touch = { x: 0, z: 0 };
 
 /** `legacy` is set by the HUD when no stage engine drives modes (an old
@@ -35,7 +37,13 @@ export function useInput(interact: () => void) {
       if ((e.target as HTMLElement).matches("input,textarea,select")) return;
       if (!stageInputLive()) return;
       const k = e.key.toLowerCase();
-      if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k))
+      // Space activates a focused button on keyup; cancelling its keydown
+      // swallowed keyboard-only "Play"/"Exit" presses. Arrows and Space only
+      // lose their page-scroll default away from controls.
+      if (
+        ["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k) &&
+        !(e.target instanceof Element && e.target.closest(ACTIVATABLE))
+      )
         e.preventDefault();
       keys.add(k);
       if (e.repeat) return;

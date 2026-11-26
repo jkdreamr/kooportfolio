@@ -1,27 +1,19 @@
 /**
- * Measurement / QA handles for scripted browsers on production builds.
- * Always on in dev; on a production build only after `?qa=1` (remembered for
- * the tab session, so it survives the "/" → "/play" pushState). Exposes
- * stores and scene handles on `window.__qa`; renders and changes nothing.
+ * Measurement / QA handles for scripted browsers. On in dev, and in a build
+ * made with `VITE_QA=1 npm run build`; never in the normal production build.
+ * Both are build-time constants, so the handles (and every `window.__qa`
+ * write) tree-shake out of the shipped bundle. Exposes stores and scene
+ * handles on `window.__qa`; renders and changes nothing.
  */
-let on: boolean | null = null;
+const QA_BUILD: boolean = import.meta.env.DEV || import.meta.env.VITE_QA === "1";
 
 export function qaEnabled(): boolean {
-  if (on !== null) return on;
-  if (import.meta.env.DEV) return (on = true);
-  try {
-    if (new URLSearchParams(location.search).get("qa") === "1")
-      sessionStorage.setItem("stage-qa", "1");
-    on = sessionStorage.getItem("stage-qa") === "1";
-  } catch {
-    on = false;
-  }
-  return on;
+  return QA_BUILD;
 }
 
 /** Merge `handles` into `window.__qa` (no-op unless QA is enabled). */
 export function exposeQa(handles: Record<string, unknown>) {
-  if (typeof window === "undefined" || !qaEnabled()) return;
+  if (!QA_BUILD || typeof window === "undefined") return;
   const w = window as unknown as { __qa?: Record<string, unknown> };
   w.__qa = Object.assign(w.__qa ?? {}, handles);
 }

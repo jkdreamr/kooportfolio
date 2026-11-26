@@ -4,30 +4,19 @@ import { HouseCraft } from "./BuildingDressing";
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { useGame } from "../core/store";
 import { GableRoof, StoneFooting, WindowDetail } from "./ArchitectureDetail";
 import { sculptedMaterial } from "./Surface";
+import { chamferBoxSizedShared } from "./chamferBox";
 import { NationalFlag } from "./NationalFlag";
 import { TreeArt } from "./TreeArt";
 import { GlazedPanel } from "./GlazedPanel";
 import { Character } from "./character/CharacterRig";
 
-const rounded = new Map<string, RoundedBoxGeometry>();
+/** Rounded `<Box>` geometry: a sized 44-tri chamfer box (was a 1–2 segment
+ * RoundedBoxGeometry at 108–300 tris; boxes are the bulk of every bake). */
 function roundedGeometry(size: [number, number, number]) {
-  const key = size.join(":");
-  if (!rounded.has(key))
-    rounded.set(
-      key,
-      new RoundedBoxGeometry(
-        ...size,
-        // Small parts read as rounded with one bevel segment; tris matter at
-        // village scale (hundreds of boxes per building).
-        Math.min(...size) < 0.6 ? 1 : 2,
-        Math.min(0.16, Math.min(...size) * 0.22),
-      ),
-    );
-  return rounded.get(key)!;
+  return chamferBoxSizedShared(size, Math.min(0.16, Math.min(...size) * 0.22));
 }
 const box = new THREE.BoxGeometry(1, 1, 1);
 const sphere = new THREE.SphereGeometry(1, 12, 8);

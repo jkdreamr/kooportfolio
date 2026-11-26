@@ -15,12 +15,12 @@ import * as THREE from "three";
  */
 export const NOISE_SIZE = 128;
 
-function hash(x: number, y: number, seed: number) {
+export function hash(x: number, y: number, seed: number) {
   let h = (x * 374761393 + y * 668265263 + seed * 2147483647) | 0;
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
-const smooth = (t: number) => t * t * (3 - 2 * t);
+export const smooth = (t: number) => t * t * (3 - 2 * t);
 
 /** Periodic value noise: the lattice wraps every `period` cells. */
 function valueNoise(x: number, y: number, period: number, seed: number) {

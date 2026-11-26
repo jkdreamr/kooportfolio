@@ -36,7 +36,7 @@ import { Rowing } from "./scenes/Rowing";
 import { StudyPaperToss } from "./scenes/StudyPaperToss";
 import { Basketball } from "./scenes/Basketball";
 import { Hud } from "./ui/Hud";
-import { coverDoorway } from "./ui/DoorTransition";
+import { leaveRoom, throughDoorway } from "./core/doorway";
 import { TimeOfDayLighting } from "./world/TimeOfDayLighting";
 import { TimeOfDayControls } from "./ui/TimeOfDayControls";
 import { WorldZoomControls, WorldZoomInput } from "./ui/WorldZoom";
@@ -472,20 +472,6 @@ const webgl2 = () => {
 };
 const DEFAULT_SKY = "#dce5c7";
 
-/** Door and exit swaps happen under the doorway veil (W5's DoorTransition):
- * it darkens for MOTION.veilIn, the scene changes beneath it, and it clears
- * once the new scene is presented, so the room/street content swap is never
- * a bare cut. Reduced motion resolves at once (no veil). */
-let doorwayBusy = false;
-function throughDoorway(scene: Scene) {
-  if (doorwayBusy) return;
-  doorwayBusy = true;
-  void coverDoorway().then(() => {
-    doorwayBusy = false;
-    useGame.getState().go(scene);
-  });
-}
-
 export default function Game({ autoEnter = true }: { autoEnter?: boolean } = {}) {
   useEffect(
     () =>
@@ -523,7 +509,7 @@ export default function Game({ autoEnter = true }: { autoEnter?: boolean } = {})
       return;
     if (g.scene === "hub" && doors.some((door) => door.id === g.near))
       throughDoorway(g.near as Scene);
-    else if (g.near === "exit") throughDoorway("hub");
+    else if (g.near === "exit") leaveRoom();
     else if (g.near === "race") {
       runtime.raceCadence = 30;
       g.go("rowing");
@@ -612,7 +598,7 @@ export default function Game({ autoEnter = true }: { autoEnter?: boolean } = {})
               gl.clear();
               const chosen = useStage.getState().tier ?? pickTier(gl);
               gl.toneMapping =
-                TIER_BUDGETS[chosen].grade && !TIER_BUDGETS[chosen].ao
+                TIER_BUDGETS[chosen].grade && TIER_BUDGETS[chosen].ao !== "full"
                   ? THREE.CustomToneMapping
                   : THREE.ACESFilmicToneMapping;
               gl.toneMappingExposure = 0.98;

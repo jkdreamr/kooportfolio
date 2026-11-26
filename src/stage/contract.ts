@@ -43,12 +43,23 @@ export interface TierBudget {
   shadowMapSize: 0 | 1024 | 2048;
   /** Shadow map refresh: every frame, every other frame, or ~2 Hz. */
   shadowUpdate: "every" | "alternate" | "slow";
-  ao: boolean;
+  /** Screen-space AO: full N8AO (high), half-res "lite" N8AO (medium on a
+   * hardware, fine-pointer GPU only; see post.ts), or none (baked AO only). */
+  ao: "full" | "lite" | "none";
+  /** Planar water reflection (WS-B): full half-res, a 256 px "lite" pass, or
+   * the painted streaks only. */
+  reflection: "planar" | "planar-lite" | "none";
+  /** Shadow-caster triangle budget per shadow update (0 = no shadow map). */
+  maxShadowTriangles: number;
   grade: boolean;
   vignette: boolean;
   bloom: boolean;
   /** Upper bound for instanced grass blades (W3 scales mesh.count under it). */
   grassInstances: number;
+  /** Visible grass tuft cap in the explore view (diorama keeps grassInstances). */
+  grassVisible: number;
+  /** Visible understory clump cap (bushes, ferns, flowers), explore only. */
+  understory: number;
   /** Max simultaneous backdrop-filter panes (W5). */
   backdropPanes: number;
 }
@@ -60,11 +71,15 @@ export const TIER_BUDGETS: Record<Tier, TierBudget> = {
     dpr: [1, 1.5],
     shadowMapSize: 2048,
     shadowUpdate: "every",
-    ao: true,
+    ao: "full",
+    reflection: "planar",
+    maxShadowTriangles: 300_000,
     grade: true,
     vignette: true,
     bloom: true,
     grassInstances: 25_000,
+    grassVisible: 14_000,
+    understory: 1_800,
     backdropPanes: 8,
   },
   medium: {
@@ -73,11 +88,15 @@ export const TIER_BUDGETS: Record<Tier, TierBudget> = {
     dpr: [0.85, 1.25],
     shadowMapSize: 1024,
     shadowUpdate: "alternate",
-    ao: false,
+    ao: "lite",
+    reflection: "planar-lite",
+    maxShadowTriangles: 120_000,
     grade: true,
     vignette: true,
     bloom: false,
     grassInstances: 8_000,
+    grassVisible: 6_000,
+    understory: 800,
     backdropPanes: 2,
   },
   low: {
@@ -86,11 +105,15 @@ export const TIER_BUDGETS: Record<Tier, TierBudget> = {
     dpr: [0.75, 1],
     shadowMapSize: 0,
     shadowUpdate: "slow",
-    ao: false,
+    ao: "none",
+    reflection: "none",
+    maxShadowTriangles: 0,
     grade: false,
     vignette: false,
     bloom: false,
     grassInstances: 2_000,
+    grassVisible: 1_500,
+    understory: 0,
     backdropPanes: 0,
   },
 };

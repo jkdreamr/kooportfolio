@@ -1,7 +1,26 @@
 import { useRef, useState } from "react";
 import { gameInputEnabled, useStage } from "../../stage/contract";
 import { aimCamera, viewZoom } from "../engine/camera";
+import {
+  applyViewPose,
+  azimuthOf,
+  clearBoom,
+  dioramaPose,
+  easeView,
+  exploreLens,
+  explorePose,
+  makeViewPose,
+  mixView,
+  stepViewProgress,
+  EXPLORE_ELEVATION,
+  VIEW_BLEND_SECONDS,
+  VIEW_BLEND_SECONDS_REDUCED,
+} from "../engine/view";
+import { TELEPHOTO_FOV } from "../../stage/contract";
+import { terrainHeightAt } from "../core/terrain";
+import type { WorldId } from "../core/worlds";
 import { useWorldActive } from "../engine/active";
+import { rig } from "../engine/Engine";
 import { Environment } from "./env";
 import { StaticBatch } from "./StaticBatch";
 import { GlazedPanel } from "./GlazedPanel";
@@ -38,7 +57,7 @@ import { KoreaWorldEnvironment } from "./KoreaWorldEnvironment";
 import { Bulletin } from "./Bulletin";
 import { roomFor } from "../core/room";
 import { useGameMode } from "../core/gameMode";
-import { useWorldView } from "../core/worldView";
+import { useWorldView, viewRuntime } from "../core/worldView";
 import {
   islandCenter,
   islandZoom,
@@ -77,6 +96,38 @@ import {
   GymShell,
 } from "./VillageBuildings";
 
+const reducedMotion =
+  typeof matchMedia === "function"
+    ? matchMedia("(prefers-reduced-motion: reduce)")
+    : null;
+
+/** Solid boxes the explore boom must stay out of: building footprints,
+ * [cx, cz, halfX, halfZ, roofY]. Cached per world (doorsInWorld allocates). */
+const boomSolids = new Map<WorldId, readonly (readonly number[])[]>();
+function solidsFor(world: WorldId) {
+  let solids = boomSolids.get(world);
+  if (!solids) {
+    solids = doorsInWorld(world).map(({ footprint, anchor }) => [
+      footprint[0],
+      footprint[1],
+      footprint[2] + 0.4,
+      footprint[3] + 0.4,
+      anchor[1],
+    ]);
+    boomSolids.set(world, solids);
+  }
+  return solids;
+}
+let boomWorld: WorldId = "home";
+function boomBlocked(x: number, z: number, y: number) {
+  const solids = solidsFor(boomWorld);
+  for (let i = 0; i < solids.length; i++) {
+    const [cx, cz, hx, hz, top] = solids[i];
+    if (y < top && Math.abs(x - cx) < hx && Math.abs(z - cz) < hz) return true;
+  }
+  return terrainHeightAt(x, z, boomWorld) > y - 0.6;
+}
+
 export function Walker({
   interior = false,
   locked = false,
@@ -98,13 +149,36 @@ export function Walker({
     offset = useRef(new THREE.Vector3()),
     look = useRef(new THREE.Vector3()),
     cameraScene = useRef("");
+  // Second view (explore): poses, raw toggle progress, damped boom.
+  const views = useRef({
+    diorama: makeViewPose(),
+    explore: makeViewPose(),
+    mixed: makeViewPose(),
+    focus: new THREE.Vector3(),
+    feet: new THREE.Vector3(),
+    boom: { distance: 10, elevation: EXPLORE_ELEVATION },
+    safe: { distance: 10, elevation: EXPLORE_ELEVATION },
+    progress: 0,
+    dioramaZoom: 1,
+    ownsLens: false,
+    resumed: false,
+  });
   useFrame((_, delta) => {
-    if (!active) return;
+    if (!active) {
+      // Parked behind an interior: explore-only work elsewhere stops.
+      if (!interior) {
+        viewRuntime.blend = 0;
+        viewRuntime.effective = "diorama";
+        views.current.resumed = true;
+      }
+      return;
+    }
     const state = useGame.getState(),
       dt = Math.min(delta, 0.04);
     if (locked || useGameMode.getState().active) {
       runtime.moving = false;
       state.setNear("");
+      if (!interior) leaveExplore();
       if (locked && !interior) {
         // Travel owns the live view. Keep its last framing for a damped handoff,
         // including the new world key so landing cannot trigger a camera cut.
@@ -245,6 +319,14 @@ export function Walker({
     }
     state.setNear(state.overlayLocked || !enabled ? "" : near);
     if (!followCamera) return;
+    const perspective = camera as THREE.PerspectiveCamera;
+    if (interior) {
+      // Interiors keep their own telephoto lens.
+      if (perspective.isPerspectiveCamera && perspective.fov !== TELEPHOTO_FOV) {
+        perspective.fov = TELEPHOTO_FOV;
+        perspective.updateProjectionMatrix();
+      }
+    }
     const mobile = size.width < 700 || size.height < 500;
     const worldZoom = useWorldView.getState().zoom;
     const playerFollow = islandFollow(worldZoom);
@@ -283,18 +365,97 @@ export function Walker({
         : Math.max(26, Math.min(52, size.width / 23, (size.height - 100) / 14))
       : fitted;
     const zoom = !interior ? worldZoom : 1;
-    // The old orthographic zoom drives the telephoto camera's distance.
+    const v = views.current;
+    // The old orthographic zoom drives the telephoto camera's distance. While
+    // a view blend owns the camera, its viewZoom is the mixed one: damp the
+    // diorama's own zoom instead.
+    const fromZoom =
+      !interior && (v.progress > 0 || v.ownsLens) ? v.dioramaZoom : viewZoom(camera);
     const nextZoom =
       changedScene || wholeIsland
         ? targetZoom * zoom
-        : THREE.MathUtils.damp(viewZoom(camera), targetZoom * zoom, 5, dt);
+        : THREE.MathUtils.damp(fromZoom, targetZoom * zoom, 5, dt);
+    v.dioramaZoom = nextZoom;
     look.current.set(
       follow.current.x,
       interior ? 0.5 : follow.current.y + 0.7,
       follow.current.z,
     );
-    aimCamera(camera, look.current, offset.current, nextZoom, size.height);
+    if (interior || !perspective.isPerspectiveCamera) {
+      aimCamera(camera, look.current, offset.current, nextZoom, size.height);
+      return;
+    }
+    // --- hub: diorama, explore, or the parametric blend between them ---
+    const toward = useWorldView.getState().view === "explore" ? 1 : 0;
+    const wasIdle = v.progress === 0;
+    v.progress = changedScene
+      ? toward
+      : stepViewProgress(
+          v.progress,
+          toward,
+          dt,
+          reducedMotion?.matches ? VIEW_BLEND_SECONDS_REDUCED : VIEW_BLEND_SECONDS,
+        );
+    const blend = easeView(v.progress);
+    viewRuntime.blend = blend;
+    viewRuntime.effective = toward ? "explore" : "diorama";
+    if (blend === 0) {
+      // Exactly today's diorama camera.
+      if (perspective.fov !== TELEPHOTO_FOV) {
+        perspective.fov = TELEPHOTO_FOV;
+        perspective.updateProjectionMatrix();
+      }
+      v.ownsLens = false;
+      aimCamera(camera, look.current, offset.current, nextZoom, size.height);
+      return;
+    }
+    dioramaPose(v.diorama, look.current, offset.current, nextZoom, size.height);
+    const lens = exploreLens(size.width, size.height);
+    const reach =
+      useWorldView.getState().exploreDistance * lens.distanceScale;
+    v.feet.set(runtime.x, 0.18, runtime.z);
+    const snap = wasIdle || changedScene || v.resumed;
+    v.resumed = false;
+    if (snap) v.focus.copy(v.feet);
+    else v.focus.lerp(v.feet, 1 - Math.exp(-dt * 10));
+    boomWorld = state.world;
+    explorePose(v.explore, v.focus, offset.current, reach, lens.fov);
+    clearBoom(v.safe, v.explore.target, azimuthOf(offset.current), reach, boomBlocked);
+    if (snap) {
+      v.boom.distance = v.safe.distance;
+      v.boom.elevation = v.safe.elevation;
+    } else {
+      v.boom.distance = THREE.MathUtils.damp(v.boom.distance, v.safe.distance, 6, dt);
+      v.boom.elevation = THREE.MathUtils.damp(v.boom.elevation, v.safe.elevation, 6, dt);
+    }
+    explorePose(
+      v.explore,
+      v.focus,
+      offset.current,
+      v.boom.distance,
+      lens.fov,
+      v.boom.elevation,
+    );
+    mixView(v.mixed, v.diorama, v.explore, blend);
+    v.ownsLens = true;
+    applyViewPose(perspective, v.mixed, size.height);
   });
+  /** Another controller (travel, train, a game mode) takes the hub camera:
+   * drop the explore blend at once and let the rig smooth the cut. */
+  function leaveExplore() {
+    const v = views.current;
+    if (v.progress === 0 && !v.ownsLens) return;
+    v.progress = 0;
+    v.ownsLens = false;
+    viewRuntime.blend = 0;
+    viewRuntime.effective = "diorama";
+    const perspective = camera as THREE.PerspectiveCamera;
+    if (perspective.isPerspectiveCamera && perspective.fov !== TELEPHOTO_FOV) {
+      perspective.fov = TELEPHOTO_FOV;
+      perspective.updateProjectionMatrix();
+    }
+    rig.blend(0.6);
+  }
   return (
     <group ref={avatar} name="village-player" visible={!locked && !playing}>
       <Character player color={color} hat={hat} scale={0.65} />

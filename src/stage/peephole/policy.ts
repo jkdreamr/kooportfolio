@@ -56,15 +56,12 @@ export function visitPolicy(env: VisitEnvironment): VisitPolicy {
 
 type ConnectionLike = { saveData?: boolean; effectiveType?: string };
 
+/** API presence only, the same check the game makes. A throwaway probe
+ * context cost a second WebGL context (and a lost one) on every load; a real
+ * creation failure still reaches the game's fallback card. */
 function hasWebGL() {
   try {
-    const canvas = document.createElement("canvas");
-    const ok = !!canvas.getContext("webgl2");
-    // Give the probe context back immediately; browsers cap live contexts.
-    (canvas.getContext("webgl2") as WebGL2RenderingContext | null)
-      ?.getExtension("WEBGL_lose_context")
-      ?.loseContext();
-    return ok;
+    return typeof WebGL2RenderingContext !== "undefined";
   } catch {
     return false;
   }
