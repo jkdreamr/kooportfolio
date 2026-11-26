@@ -669,7 +669,8 @@ export class PeepholeController {
     this.lastTick = t;
     this.pump();
     // The engine's paper pass drives ticks while it renders (zero latency).
-    if (this.lastExternal > 0 && t - this.lastExternal < 0.1) return;
+    // Outside rest it is the only clock: long frames must not double-tick.
+    if (this.lastExternal > 0 && (this.phase !== "rest" || t - this.lastExternal < 0.1)) return;
     this.tick(dt);
   };
 
