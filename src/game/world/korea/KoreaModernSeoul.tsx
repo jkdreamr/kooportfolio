@@ -222,8 +222,8 @@ function ddpGeometry() {
   const n = 72,
     a = DDP.width / 2 - 0.2,
     b = DDP.depth / 2 - 0.2,
-    h = 2.5,
-    R = 1.15;
+    h = 2.2,
+    R = 0.8;
   const outline: [number, number][] = [];
   for (let i = 0; i < n; i++) {
     const th = (i / n) * Math.PI * 2;
@@ -243,27 +243,28 @@ function ddpGeometry() {
   // [height, inset]: a recessed glazed base, a wall leaning gently out, then
   // a big soft roll into the roof.
   const rows: [number, number][] = [
-    [0.18, 0.16],
-    [0.55, 0.16],
-    [0.6, 0],
-    [h - R, -0.14],
+    [0.02, 0.1],
+    [0.72, 0.1],
+    [0.78, 0],
+    [h - R, -0.08],
   ];
   for (let j = 1; j <= 7; j++) {
     const phi = (j / 7) * (Math.PI / 2);
-    rows.push([h - R + R * Math.sin(phi), -0.14 + R * (1 - Math.cos(phi))]);
+    rows.push([h - R + R * Math.sin(phi), -0.08 + R * (1 - Math.cos(phi))]);
   }
   const positions: number[] = [],
     colors: number[] = [],
     indices: number[] = [];
   const c = new THREE.Color();
-  const silver = ["#c8ccca", "#bcc1c0", "#d2d5d2"];
+  // Aluminium panel courses: bands of three panels, alternating tone.
+  const silver = ["#d3d6d3", "#c9cdcb", "#aab0b0", "#b4b9b9"];
   rows.forEach(([y, inset], r) => {
     for (let i = 0; i <= n; i++) {
       const k = i % n;
       const [ox, oz] = outline[k],
         [nx, nz] = normals[k];
       positions.push(ox - nx * inset, y, oz - nz * inset);
-      c.set(r < 2 ? "#44535b" : silver[(i + r * 2) % 3]);
+      c.set(r < 2 ? "#3c4a52" : silver[(Math.floor(i / 3) % 2) * 2 + (r % 2)]);
       colors.push(c.r, c.g, c.b);
       if (r === rows.length - 1 || i === n) continue;
       const v = r * (n + 1) + i;
@@ -315,13 +316,13 @@ const ddpParts = makeParts();
   ddp.outline.forEach(([ox, oz], i) => {
     if (i % 4 || oz < 0.5) return;
     const [nx, nz] = ddp.normals[i];
-    const inset = 0.16 - 0.012;
+    const inset = 0.1 - 0.012;
     signs.quad(
       DDP.x + ox - nx * inset,
-      0.57,
+      0.6,
       DDP.z + oz - nz * inset,
       0.88,
-      0.32,
+      0.5,
       Math.atan2(nx, nz),
       "white",
       "#3d4d55",

@@ -55,7 +55,7 @@ export const KOREA_SIGHTS = {
   pojangmacha: { x: 18.4, z: 5.8, width: 2.8, depth: 2.2 },
   subway: { x: -9.5, z: 7.5, width: 2.2, depth: 3.6 },
   busStops: [
-    [16, -12.1],
+    [25, -12.1],
     [-14, -12.1],
   ],
 } as const;

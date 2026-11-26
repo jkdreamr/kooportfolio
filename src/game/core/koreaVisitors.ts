@@ -26,7 +26,6 @@ export const KOREA_VISITORS: Villager[] = [
       [-18.5, -8.6],
       [-25.5, -8.6],
     ],
-    stops: { 0: { duration: 6, heading: Math.PI } },
   },
   {
     id: "hall-docent",
@@ -46,7 +45,6 @@ export const KOREA_VISITORS: Villager[] = [
       [-20.5, 31.8],
       [-27, 32],
     ],
-    stops: { 1: { duration: 5, heading: Math.PI } },
   },
   {
     id: "hanok-grandmother",
@@ -61,12 +59,11 @@ export const KOREA_VISITORS: Villager[] = [
       "Bukchon sits between Gyeongbokgung and Changdeokgung. Many of these homes are about a hundred years old.",
     ],
     route: [
-      [-46, -14.2],
-      [-35, -14.2],
-      [-35, -15.2],
-      [-44, -15.2],
+      [-48, -14.4],
+      [-33.6, -14.4],
+      [-33.6, -9.6],
+      [-38, -14.8],
     ],
-    stops: { 0: { duration: 6, heading: Math.PI / 2 } },
   },
   {
     id: "astronomy-student",
@@ -86,7 +83,6 @@ export const KOREA_VISITORS: Villager[] = [
       [-31.6, 32.8],
       [-29.8, 27.4],
     ],
-    stops: { 3: { duration: 5, heading: Math.PI } },
   },
   {
     id: "city-wall-walker",
@@ -106,7 +102,6 @@ export const KOREA_VISITORS: Villager[] = [
       [-33, 15.4],
       [-42, 15.2],
     ],
-    stops: { 1: { duration: 5, heading: -Math.PI / 2 } },
   },
   {
     id: "temple-visitor",
@@ -126,7 +121,6 @@ export const KOREA_VISITORS: Villager[] = [
       [-16, 24.5],
       [-20.8, 27.8],
     ],
-    stops: { 0: { duration: 5, heading: Math.PI / 2 } },
   },
   {
     id: "tower-fan",
@@ -146,7 +140,6 @@ export const KOREA_VISITORS: Villager[] = [
       [-27.5, -24.5],
       [-36, -24],
     ],
-    stops: { 1: { duration: 5, heading: Math.PI } },
   },
   {
     id: "architecture-student",
@@ -166,6 +159,5 @@ export const KOREA_VISITORS: Villager[] = [
       [19.3, -2.6],
       [8.8, -2.6],
     ],
-    stops: { 3: { duration: 5, heading: Math.PI / 2 } },
   },
 ];
