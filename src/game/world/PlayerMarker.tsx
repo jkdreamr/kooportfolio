@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { Billboard } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { viewZoom } from "../engine/camera";
 
 // A small, solid-cut arrow: the point stays anchored above the hat while the
 // rest grows upward at overview zoom. No texture or scene-transmission pass.
@@ -70,12 +71,12 @@ export function PlayerMarker() {
   const worldScale = useRef(new THREE.Vector3());
   useFrame(({ camera }) => {
     const group = marker.current;
-    if (!group?.parent || !(camera instanceof THREE.OrthographicCamera)) return;
+    if (!group?.parent) return;
     group.parent.getWorldScale(worldScale.current);
     // Remain legible on a whole-island/mobile view, without changing the
     // avatar, camera or collision size. Facing the camera prevents edge-on turns.
     group.scale.setScalar(
-      Math.max(1, 24 / (0.85 * camera.zoom * worldScale.current.y)),
+      Math.max(1, 24 / (0.85 * viewZoom(camera) * worldScale.current.y)),
     );
   });
   return (

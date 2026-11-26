@@ -7,7 +7,7 @@ import {
   project,
   toNdc,
 } from "../src/stage/peephole/flight";
-import { isPlayPath, visitPolicy } from "../src/stage/peephole/policy";
+import { isPlayPath, isReturning, visitPolicy } from "../src/stage/peephole/policy";
 
 const vp = { width: 1440, height: 900 };
 const scene = { subject: [-6, 0, -18] as const, approach: [70, 85, 95] as const };
@@ -72,5 +72,15 @@ describe("visit policy", () => {
     expect(isPlayPath("/play/")).toBe(true);
     expect(isPlayPath("/player")).toBe(false);
     expect(isPlayPath("/")).toBe(false);
+  });
+});
+
+describe("returning visitors", () => {
+  it("counts entering, or a save that predates the silent boot", () => {
+    expect(isReturning(false, false, false)).toBe(false);
+    expect(isReturning(true, false, false)).toBe(true); // legacy player
+    expect(isReturning(true, false, true)).toBe(false); // save written behind the page
+    expect(isReturning(true, true, true)).toBe(true);
+    expect(isReturning(false, true, false)).toBe(true);
   });
 });

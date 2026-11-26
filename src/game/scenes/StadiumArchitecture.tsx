@@ -1,3 +1,4 @@
+import { StaticBatch } from "../world/StaticBatch";
 import { useLayoutEffect, useMemo, useRef, useEffect } from "react";
 import * as THREE from "three";
 import { Box, Cylinder, Sign } from "../world/Models";
@@ -339,59 +340,61 @@ export function StadiumArchitecture({
 /** At origin; village placement and door registration belong to the world builder. */
 export function StadiumBuilding() {
   return (
-    <group>
-      <Box p={[0, 0.25, 0]} s={[8, 0.5, 7]} c="#81775e" />
-      <Box p={[0, 0.55, 0]} s={[7.7, 0.25, 6.7]} c="#c6b395" />
-      <Box p={[0, 0.72, -0.15]} s={[3.6, 0.14, 5.6]} c="#447d4b" />
-      {[-1.65, 1.65].map((z) => (
-        <Box key={z} p={[0, 0.8, z]} s={[3.4, 0.025, 0.8]} c={RED} sharp />
-      ))}
-      {[-1.2, -0.3, 0.6, 1.5].map((z) => (
-        <Box
-          key={z}
-          p={[0, 0.81, z]}
-          s={[3.4, 0.02, 0.035]}
-          c="#f4e7c5"
-          sharp
-        />
-      ))}
-      {[-1, 1].map((side) => (
-        <group key={side}>
-          {[0, 1, 2].map((row) => (
-            <group key={row}>
-              <Box
-                p={[side * (2.15 + row * 0.45), 0.88 + row * 0.34, 0]}
-                s={[0.55, 0.5 + row * 0.2, 5.6]}
-                c="#b1a185"
-              />
-              <Box
-                p={[side * (2.15 + row * 0.45), 1.18 + row * 0.44, 0]}
-                s={[0.4, 0.22, 5.45]}
-                c={row % 2 ? "#b72e3d" : RED}
-              />
-            </group>
-          ))}
-          <Box p={[side * 3.45, 1.55, 0]} s={[0.27, 2, 6.3]} c={RED} />
-          <Box p={[side * 3.45, 2.59, 0]} s={[0.38, 0.15, 6.5]} c={GOLD} />
-          <Box p={[side * 2.8, 1.05, 3.1]} s={[2, 1, 0.4]} c={RED} />
-          <Box p={[side * 1.55, 1.3, 3.15]} s={[0.5, 1.6, 0.7]} c="#c2ac7f" />
+    <StaticBatch id="StadiumBuilding">
+      <group>
+        <Box p={[0, 0.25, 0]} s={[8, 0.5, 7]} c="#81775e" />
+        <Box p={[0, 0.55, 0]} s={[7.7, 0.25, 6.7]} c="#c6b395" />
+        <Box p={[0, 0.72, -0.15]} s={[3.6, 0.14, 5.6]} c="#447d4b" />
+        {[-1.65, 1.65].map((z) => (
+          <Box key={z} p={[0, 0.8, z]} s={[3.4, 0.025, 0.8]} c={RED} sharp />
+        ))}
+        {[-1.2, -0.3, 0.6, 1.5].map((z) => (
+          <Box
+            key={z}
+            p={[0, 0.81, z]}
+            s={[3.4, 0.02, 0.035]}
+            c="#f4e7c5"
+            sharp
+          />
+        ))}
+        {[-1, 1].map((side) => (
+          <group key={side}>
+            {[0, 1, 2].map((row) => (
+              <group key={row}>
+                <Box
+                  p={[side * (2.15 + row * 0.45), 0.88 + row * 0.34, 0]}
+                  s={[0.55, 0.5 + row * 0.2, 5.6]}
+                  c="#b1a185"
+                />
+                <Box
+                  p={[side * (2.15 + row * 0.45), 1.18 + row * 0.44, 0]}
+                  s={[0.4, 0.22, 5.45]}
+                  c={row % 2 ? "#b72e3d" : RED}
+                />
+              </group>
+            ))}
+            <Box p={[side * 3.45, 1.55, 0]} s={[0.27, 2, 6.3]} c={RED} />
+            <Box p={[side * 3.45, 2.59, 0]} s={[0.38, 0.15, 6.5]} c={GOLD} />
+            <Box p={[side * 2.8, 1.05, 3.1]} s={[2, 1, 0.4]} c={RED} />
+            <Box p={[side * 1.55, 1.3, 3.15]} s={[0.5, 1.6, 0.7]} c="#c2ac7f" />
+          </group>
+        ))}
+        <Box p={[0, 1.2, -2.8]} s={[4.6, 1.1, 0.8]} c={RED} />
+        <Box p={[-3, 2.45, -0.4]} s={[1.5, 0.7, 5.8]} c="#3e5856" />
+        <Box p={[-3, 2.9, -0.4]} s={[1.7, 0.25, 6]} c={GOLD} />
+        <group position={[0, 0.8, -2.1]}>
+          <GoalPosts miniature />
         </group>
-      ))}
-      <Box p={[0, 1.2, -2.8]} s={[4.6, 1.1, 0.8]} c={RED} />
-      <Box p={[-3, 2.45, -0.4]} s={[1.5, 0.7, 5.8]} c="#3e5856" />
-      <Box p={[-3, 2.9, -0.4]} s={[1.7, 0.25, 6]} c={GOLD} />
-      <group position={[0, 0.8, -2.1]}>
-        <GoalPosts miniature />
+        <Box p={[0, 1.85, 3.15]} s={[3.7, 0.5, 0.65]} c={RED} />
+        <Sign
+          text="49ERS"
+          p={[0, 1.86, 3.51]}
+          size={[2.8, 0.44]}
+          color={RED}
+          ink="#f4d997"
+        />
+        <Box p={[0, 0.3, 3.65]} s={[2.3, 0.3, 1.1]} c="#b6a280" />
       </group>
-      <Box p={[0, 1.85, 3.15]} s={[3.7, 0.5, 0.65]} c={RED} />
-      <Sign
-        text="49ERS"
-        p={[0, 1.86, 3.51]}
-        size={[2.8, 0.44]}
-        color={RED}
-        ink="#f4d997"
-      />
-      <Box p={[0, 0.3, 3.65]} s={[2.3, 0.3, 1.1]} c="#b6a280" />
-    </group>
+    </StaticBatch>
   );
 }

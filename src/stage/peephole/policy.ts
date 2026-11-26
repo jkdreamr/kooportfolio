@@ -9,6 +9,10 @@
 export const SAVE_KEY = "joshua-exe-save-v1";
 /** Set once the visitor has opened the page into the world in this browser. */
 export const ENTERED_KEY = "joshua-koo-entered-v1";
+/** Set when the stage boots the game behind the portfolio. The game writes
+ * its save as soon as it boots, so from then on a save alone no longer means
+ * the visitor has played; without this flag a save is a legacy player's. */
+export const BOOTED_KEY = "joshua-koo-stage-booted-v1";
 
 export type VisitEnvironment = {
   reducedMotion: boolean;
@@ -70,9 +74,11 @@ export function readEnvironment(): VisitEnvironment {
   const nav = navigator as Navigator & { connection?: ConnectionLike };
   let returning = false;
   try {
-    returning =
-      localStorage.getItem(SAVE_KEY) !== null ||
-      localStorage.getItem(ENTERED_KEY) !== null;
+    returning = isReturning(
+      localStorage.getItem(SAVE_KEY) !== null,
+      localStorage.getItem(ENTERED_KEY) !== null,
+      localStorage.getItem(BOOTED_KEY) !== null,
+    );
   } catch {
     returning = false;
   }
@@ -83,6 +89,19 @@ export function readEnvironment(): VisitEnvironment {
     returning,
     webgl: hasWebGL(),
   };
+}
+
+/** Entered before, or holds a save from before the stage booted games silently. */
+export function isReturning(hasSave: boolean, entered: boolean, booted: boolean) {
+  return entered || (hasSave && !booted);
+}
+
+export function markBooted() {
+  try {
+    if (localStorage.getItem(SAVE_KEY) === null) localStorage.setItem(BOOTED_KEY, "1");
+  } catch {
+    /* storage denied */
+  }
 }
 
 export function markEntered() {

@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { STANFORD_COAST, STANFORD_SHORE } from "../../shared/stanford-ground";
 import { ccwLoop, offsetLoop, type P2 } from "../core/coast";
 import { STANFORD_VERGE_Y } from "../core/terrain";
+import { sculptedMaterial } from "./Surface";
 
 function slab(outline: readonly P2[], top: number, bottom: number) {
   const shape = new THREE.Shape(
@@ -35,14 +36,26 @@ const layers = [
   [slab(lawn, 0.14, -0.02), "#639343"],
 ] as const;
 
+const materials = new Map<string, THREE.Material>();
+const groundMaterial = (color: string) => {
+  let material = materials.get(color);
+  if (!material)
+    materials.set(color, (material = sculptedMaterial({ color, roughness: 0.97 })));
+  return material;
+};
+
 /** A compact Stanford-only coastline; no changes to other islands or landmark scale. */
 export function StanfordGround() {
   return (
     <group>
       {layers.map(([geometry, color]) => (
-        <mesh key={color} geometry={geometry} receiveShadow dispose={null}>
-          <meshStandardMaterial color={color} roughness={1} />
-        </mesh>
+        <mesh
+          key={color}
+          geometry={geometry}
+          material={groundMaterial(color)}
+          receiveShadow
+          dispose={null}
+        />
       ))}
     </group>
   );

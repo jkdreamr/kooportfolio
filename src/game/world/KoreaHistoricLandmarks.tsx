@@ -1,3 +1,4 @@
+import { StaticBatch } from "./StaticBatch";
 import * as THREE from "three";
 import { BUKCHON_HOMES, KOREA_LANDMARKS } from "../core/koreaLandmarks";
 import { sculptedMaterial } from "./Surface";
@@ -367,44 +368,46 @@ export function KoreaHistoricLandmarks({
 }) {
   const { palace, village } = KOREA_LANDMARKS;
   return (
-    <>
-      <group
-        name="gwanghwamun"
-        position={[palace.origin[0], 0, palace.origin[1]]}
-      >
-        <WorldSceneryParts parts={palacePaving} />
+    <StaticBatch id="KoreaHistoricLandmarks">
+      <>
         <group
-          onPointerDown={(event) => {
-            event.stopPropagation();
-            onVisit(...palace.approach);
-          }}
+          name="gwanghwamun"
+          position={[palace.origin[0], 0, palace.origin[1]]}
         >
-          <mesh
-            geometry={arcade}
-            material={granite}
-            castShadow
-            receiveShadow
-            dispose={null}
-          />
-          <WorldSceneryParts parts={palaceParts} />
-          <TiledRoofs roofs={palaceRoofs} />
+          <WorldSceneryParts parts={palacePaving} />
+          <group
+            onPointerDown={(event) => {
+              event.stopPropagation();
+              onVisit(...palace.approach);
+            }}
+          >
+            <mesh
+              geometry={arcade}
+              material={granite}
+              castShadow
+              receiveShadow
+              dispose={null}
+            />
+            <WorldSceneryParts parts={palaceParts} />
+            <TiledRoofs roofs={palaceRoofs} />
+          </group>
         </group>
-      </group>
-      <group
-        name="bukchon-hanok-village"
-        position={[village.origin[0], 0, village.origin[1]]}
-      >
-        <WorldSceneryParts parts={villagePaving} />
         <group
-          onPointerDown={(event) => {
-            event.stopPropagation();
-            onVisit(...village.approach);
-          }}
+          name="bukchon-hanok-village"
+          position={[village.origin[0], 0, village.origin[1]]}
         >
-          <WorldSceneryParts parts={villageParts} />
-          <TiledRoofs roofs={villageRoofs} />
+          <WorldSceneryParts parts={villagePaving} />
+          <group
+            onPointerDown={(event) => {
+              event.stopPropagation();
+              onVisit(...village.approach);
+            }}
+          >
+            <WorldSceneryParts parts={villageParts} />
+            <TiledRoofs roofs={villageRoofs} />
+          </group>
         </group>
-      </group>
-    </>
+      </>
+    </StaticBatch>
   );
 }

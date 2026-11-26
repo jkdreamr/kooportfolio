@@ -92,6 +92,16 @@ for (let x = -6; x < 7; x += 1.6)
     });
 for (const z of [21.55, 44.45]) slab(25, z, 74.8, 0.55, "#cbc7b7");
 
+/** Paved ground (x, z, width, depth): the environment keeps grass off it. */
+export const KOREA_PAVING_FOOTPRINTS: readonly (readonly [
+  number,
+  number,
+  number,
+  number,
+])[] = paving
+  .filter(({ s }) => s[0] * s[2] > 0.5)
+  .map(({ p, s }) => [p[0], p[2], s[0], s[2]] as const);
+
 const benchFootprints: readonly (readonly [number, number, number, number])[] =
   [
     [-5, 53.5, 1.7, 0.55],
@@ -152,8 +162,10 @@ for (let i = 0; i < 8; i++) {
 // the bridge's rainbow lights smeared across the near bank.
 const riverGeometry = new THREE.PlaneGeometry(74, 22);
 const riverMaterial = waterMaterial({
-  color: "#47828a",
-  deep: "#2c5a66",
+  color: "#4a8e9c",
+  deep: "#24566a",
+  shallow: "#7db3ac",
+  bank: "#6f7a68",
   shore: "band",
   scale: 1.7,
   flow: [0.42, 0.12],

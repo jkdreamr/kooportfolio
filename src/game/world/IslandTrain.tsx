@@ -1,3 +1,4 @@
+import { StaticBatch } from "./StaticBatch";
 import {
   useCallback,
   useEffect,
@@ -10,6 +11,7 @@ import { Html } from "@react-three/drei";
 import { screenOverlayPosition, screenOverlayStyle } from "./screenOverlay";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
+import { setViewZoom, viewZoom, zoomedOffset } from "../engine/camera";
 import { Box, Cylinder, Sign } from "./Models";
 import { runtime, useGame } from "../core/store";
 import { keys, touch } from "../core/input";
@@ -181,69 +183,71 @@ export function RailCar({
   phase: React.RefObject<number>;
 }) {
   return (
-    <group>
-      <Wheels phase={phase} />
-      <Box p={[0, 0.75, 0]} s={[2.1, 0.3, 3.9]} c="#263c44" />
-      {engine ? (
-        <>
-          <Cylinder
-            p={[0, 1.45, 0.65]}
-            s={[0.75, 2.4, 0.75]}
-            r={[Math.PI / 2, 0, 0]}
-            c="#31586a"
-          />
-          {[-0.2, 1.4].map((z) => (
+    <StaticBatch id={engine ? "rail-engine" : "rail-coach"}>
+      <group>
+        <Wheels phase={phase} />
+        <Box p={[0, 0.75, 0]} s={[2.1, 0.3, 3.9]} c="#263c44" />
+        {engine ? (
+          <>
             <Cylinder
-              key={z}
-              p={[0, 1.45, z]}
-              s={[0.79, 0.12, 0.79]}
+              p={[0, 1.45, 0.65]}
+              s={[0.75, 2.4, 0.75]}
               r={[Math.PI / 2, 0, 0]}
-              c="#c5a05a"
+              c="#31586a"
             />
-          ))}
-          <Cylinder p={[0, 2.3, 1.25]} s={[0.24, 0.9, 0.24]} c="#293b42" />
-          <Cylinder p={[0, 2.77, 1.25]} s={[0.36, 0.15, 0.36]} c="#b8964d" />
-          <Box p={[0, 1.55, -1.15]} s={[2, 1.6, 1.3]} c="#31586a" />
-          <Box p={[0, 2.1, -0.47]} s={[1.5, 0.62, 0.04]} c="#b6d4c7" />
-          {[-1, 1].map((side) => (
-            <Box
-              key={side}
-              p={[side * 1.02, 2.03, -1.12]}
-              s={[0.04, 0.72, 0.8]}
-              c="#bdd5cc"
-            />
-          ))}
-          <Box p={[0, 2.5, -1.15]} s={[2.45, 0.28, 1.8]} c="#b65b3f" />
-          <Cylinder
-            p={[0, 1.6, 1.9]}
-            s={[0.23, 0.12, 0.23]}
-            r={[Math.PI / 2, 0, 0]}
-            c="#ffe3a0"
-          />
-          <Box p={[0, 0.73, 2.1]} s={[2.3, 0.24, 0.55]} c="#af593e" />
-        </>
-      ) : (
-        <>
-          <Box p={[0, 1.05, 0]} s={[1.9, 0.55, 3.5]} c="#31586a" />
-          {[-1, 1].flatMap((side) =>
-            [-1.4, 1.4].map((z) => (
-              <Box
-                key={`${side}:${z}`}
-                p={[side * 0.88, 1.95, z]}
-                s={[0.13, 1.5, 0.13]}
-                c="#c4a465"
+            {[-0.2, 1.4].map((z) => (
+              <Cylinder
+                key={z}
+                p={[0, 1.45, z]}
+                s={[0.79, 0.12, 0.79]}
+                r={[Math.PI / 2, 0, 0]}
+                c="#c5a05a"
               />
-            )),
-          )}
-          {[-0.85, 0.85].map((z) => (
-            <Box key={z} p={[0, 1.44, z]} s={[1.6, 0.24, 0.62]} c="#bc693e" />
-          ))}
-          <Box p={[0, 2.75, 0]} s={[2.35, 0.32, 4.05]} c="#b65b3f" />
-          <Box p={[0, 2.94, 0]} s={[1.6, 0.15, 3.9]} c="#c9734c" />
-        </>
-      )}
-      <Box p={[0, 0.66, -2.15]} s={[0.18, 0.14, 0.65]} c="#59645c" />
-    </group>
+            ))}
+            <Cylinder p={[0, 2.3, 1.25]} s={[0.24, 0.9, 0.24]} c="#293b42" />
+            <Cylinder p={[0, 2.77, 1.25]} s={[0.36, 0.15, 0.36]} c="#b8964d" />
+            <Box p={[0, 1.55, -1.15]} s={[2, 1.6, 1.3]} c="#31586a" />
+            <Box p={[0, 2.1, -0.47]} s={[1.5, 0.62, 0.04]} c="#b6d4c7" />
+            {[-1, 1].map((side) => (
+              <Box
+                key={side}
+                p={[side * 1.02, 2.03, -1.12]}
+                s={[0.04, 0.72, 0.8]}
+                c="#bdd5cc"
+              />
+            ))}
+            <Box p={[0, 2.5, -1.15]} s={[2.45, 0.28, 1.8]} c="#b65b3f" />
+            <Cylinder
+              p={[0, 1.6, 1.9]}
+              s={[0.23, 0.12, 0.23]}
+              r={[Math.PI / 2, 0, 0]}
+              c="#ffe3a0"
+            />
+            <Box p={[0, 0.73, 2.1]} s={[2.3, 0.24, 0.55]} c="#af593e" />
+          </>
+        ) : (
+          <>
+            <Box p={[0, 1.05, 0]} s={[1.9, 0.55, 3.5]} c="#31586a" />
+            {[-1, 1].flatMap((side) =>
+              [-1.4, 1.4].map((z) => (
+                <Box
+                  key={`${side}:${z}`}
+                  p={[side * 0.88, 1.95, z]}
+                  s={[0.13, 1.5, 0.13]}
+                  c="#c4a465"
+                />
+              )),
+            )}
+            {[-0.85, 0.85].map((z) => (
+              <Box key={z} p={[0, 1.44, z]} s={[1.6, 0.24, 0.62]} c="#bc693e" />
+            ))}
+            <Box p={[0, 2.75, 0]} s={[2.35, 0.32, 4.05]} c="#b65b3f" />
+            <Box p={[0, 2.94, 0]} s={[1.6, 0.15, 3.9]} c="#c9734c" />
+          </>
+        )}
+        <Box p={[0, 0.66, -2.15]} s={[0.18, 0.14, 0.65]} c="#59645c" />
+      </group>
+    </StaticBatch>
   );
 }
 
@@ -263,8 +267,7 @@ export function IslandTrain({
   const [reducedMotion, setReducedMotion] = useState(
     () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
-  const hidden =
-    useGame((s) => s.paused || s.panel !== "none") || disabled;
+  const hidden = useGame((s) => s.paused || s.panel !== "none") || disabled;
   const coaches = useRef<THREE.Group>(null);
   const phase = useRef(0);
   const turns = useRef(0);
@@ -314,7 +317,7 @@ export function IslandTrain({
     window.addEventListener("keydown", escape, true);
     return () => window.removeEventListener("keydown", escape, true);
   }, [riding, leave]);
-  useFrame(({ camera }, delta) => {
+  useFrame(({ camera, size }, delta) => {
     if (hidden || !runtime.active) return;
     const dt = Math.min(delta, 0.05);
     if (!reducedMotion || riding) {
@@ -332,13 +335,12 @@ export function IslandTrain({
     if (riding) {
       const p = railPose(turns.current, rail.coachTurns, world);
       look.set(p.x, 1.5, p.z);
-      cameraTarget.set(p.x + 20, 26, p.z + 28);
+      const zoom = THREE.MathUtils.damp(viewZoom(camera), 21, 4, dt);
+      cameraTarget.set(20, 24.5, 28);
+      zoomedOffset(camera, cameraTarget, zoom, size.height).add(look);
       camera.position.lerp(cameraTarget, 1 - Math.exp(-dt * 3));
       camera.lookAt(look);
-      if (camera instanceof THREE.OrthographicCamera) {
-        camera.zoom = THREE.MathUtils.damp(camera.zoom, 21, 4, dt);
-        camera.updateProjectionMatrix();
-      }
+      setViewZoom(camera, zoom, size.height);
     }
   });
   const board = () => {
@@ -351,7 +353,9 @@ export function IslandTrain({
   };
   return (
     <group>
-      <CoastalTrack world={world} />
+      <StaticBatch id={`rail-track-${world}`}>
+        <CoastalTrack world={world} />
+      </StaticBatch>
       <group ref={coaches} visible={!disabled}>
         {[0, 1, 2].map((i) => {
           const pose = railPose(0, i * rail.coachTurns, world);
@@ -366,26 +370,28 @@ export function IslandTrain({
           );
         })}
       </group>
-      <group position={[rail.station[0] - 4.2, 0, rail.station[1]]}>
-        <Box p={[-0.5, 0.6, 0]} s={[12.4, 0.5, 4.5]} c="#9c7952" />
-        <Box p={[4.6, 0.2, 0]} s={[2.2, 0.3, 4]} c="#b39a72" />
-        {[-5, -1, 3].flatMap((x) =>
-          [-1.6, 1.6].map((z) => (
-            <Box
-              key={`${x}:${z}`}
-              p={[x, -0.7, z]}
-              s={[0.3, 2.2, 0.3]}
-              c="#6b543e"
-            />
-          )),
-        )}
-        {[-3.4, 1.8].map((x) => (
-          <Box key={x} p={[x, 2, -1.7]} s={[0.22, 3, 0.22]} c="#674f39" />
-        ))}
-        <Sign text="ISLAND RAIL" p={[-0.8, 3.3, -1.7]} size={[4.9, 0.8]} />
-        <Box p={[-0.8, 3.85, -1.7]} s={[5.9, 0.2, 1.3]} c="#b75a3e" />
-        <Box p={[-0.8, 1.05, -1.2]} s={[3.8, 0.16, 0.65]} c="#76513a" />
-      </group>
+      <StaticBatch id={`rail-station-${world}`}>
+        <group position={[rail.station[0] - 4.2, 0, rail.station[1]]}>
+          <Box p={[-0.5, 0.6, 0]} s={[12.4, 0.5, 4.5]} c="#9c7952" />
+          <Box p={[4.6, 0.2, 0]} s={[2.2, 0.3, 4]} c="#b39a72" />
+          {[-5, -1, 3].flatMap((x) =>
+            [-1.6, 1.6].map((z) => (
+              <Box
+                key={`${x}:${z}`}
+                p={[x, -0.7, z]}
+                s={[0.3, 2.2, 0.3]}
+                c="#6b543e"
+              />
+            )),
+          )}
+          {[-3.4, 1.8].map((x) => (
+            <Box key={x} p={[x, 2, -1.7]} s={[0.22, 3, 0.22]} c="#674f39" />
+          ))}
+          <Sign text="ISLAND RAIL" p={[-0.8, 3.3, -1.7]} size={[4.9, 0.8]} />
+          <Box p={[-0.8, 3.85, -1.7]} s={[5.9, 0.2, 1.3]} c="#b75a3e" />
+          <Box p={[-0.8, 1.05, -1.2]} s={[3.8, 0.16, 0.65]} c="#76513a" />
+        </group>
+      </StaticBatch>
       {!hidden && (near || riding) && (
         <Html
           fullscreen

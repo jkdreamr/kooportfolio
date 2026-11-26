@@ -1,3 +1,4 @@
+import { StaticBatch } from "./StaticBatch";
 import { useLayoutEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
@@ -181,9 +182,11 @@ function RainbowFountains() {
 /** Banpo-inspired crossing: x-18..68 / z30.3..37.7, lower walk deck y=.24. */
 export function HanRiverBridge() {
   return (
-    <group name="han-river-banpo-bridge">
-      <WorldSceneryParts parts={parts} />
-      <RainbowFountains />
-    </group>
+    <StaticBatch id="HanRiverBridge">
+      <group name="han-river-banpo-bridge">
+        <WorldSceneryParts parts={parts} />
+        <RainbowFountains />
+      </group>
+    </StaticBatch>
   );
 }

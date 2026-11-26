@@ -1,3 +1,4 @@
+import { StaticBatch } from "./StaticBatch";
 import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import type { MeshStandardMaterial } from "three";
@@ -90,16 +91,18 @@ export function NamsanTower({
     approach,
   } = KOREA_LANDMARKS.namsan;
   return (
-    <group
-      name="namsan-seoul-tower"
-      position={[x, 0, z]}
-      onPointerDown={(event) => {
-        event.stopPropagation();
-        onVisit(...approach);
-      }}
-    >
-      <WorldSceneryParts parts={tower} />
-      <TowerLights />
-    </group>
+    <StaticBatch id="NamsanTower">
+      <group
+        name="namsan-seoul-tower"
+        position={[x, 0, z]}
+        onPointerDown={(event) => {
+          event.stopPropagation();
+          onVisit(...approach);
+        }}
+      >
+        <WorldSceneryParts parts={tower} />
+        <TowerLights />
+      </group>
+    </StaticBatch>
   );
 }

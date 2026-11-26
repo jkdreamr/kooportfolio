@@ -178,7 +178,12 @@ export function stepGait(
   if (walk > 0.02) gait.phase += dt * cadence * Math.PI * 2;
   else
     // Settle the legs to a neutral phase when stopping.
-    gait.phase = damp(gait.phase, Math.round(gait.phase / Math.PI) * Math.PI, 4, dt);
+    gait.phase = damp(
+      gait.phase,
+      Math.round(gait.phase / Math.PI) * Math.PI,
+      4,
+      dt,
+    );
   const ph = gait.phase;
   const s = Math.sin(ph),
     c = Math.cos(ph);
@@ -191,7 +196,9 @@ export function stepGait(
     const swing = Math.max(0, cs);
     const knee = walk * (0.08 + 1.05 * swing * swing) + 0.04;
     // Heel strike toes up, push-off toes down.
-    const ankle = walk * (-0.45 * sn * Math.max(0, -cs) + 0.35 * swing * 0.6) - thigh * 0.35;
+    const ankle =
+      walk * (-0.45 * sn * Math.max(0, -cs) + 0.35 * swing * 0.6) -
+      thigh * 0.35;
     return [thigh, knee, ankle] as const;
   };
   const [tl, kl, al] = leg(s, c);
@@ -224,7 +231,10 @@ export function stepGait(
   const lean = clamp(0.07 * walk + gait.accel * 0.018, -0.12, 0.3);
   const bank = clamp(-gait.turn * gait.speed * 0.022, -0.28, 0.28);
 
-  p.bob = walk * 0.055 * (Math.cos(2 * ph) * 0.5 + 0.5) - walk * 0.03 + idle * breathe * 0.006;
+  p.bob =
+    walk * 0.055 * (Math.cos(2 * ph) * 0.5 + 0.5) -
+    walk * 0.03 +
+    idle * breathe * 0.006;
   p.sway = walk * 0.035 * s + idle * weight * 0.035;
   p.lean = damp(p.lean, lean, 10, dt);
   p.bank = damp(p.bank, bank, 8, dt);
@@ -235,7 +245,8 @@ export function stepGait(
   p.chestPitch = idle * breathe * 0.012 + walk * 0.04;
   p.breath = 1 + idle * breathe * 0.025 + walk * 0.01 * Math.cos(2 * ph);
 
-  const lookYaw = idle * gait.lookYaw + walk * clamp(gait.turn * 0.12, -0.5, 0.5);
+  const lookYaw =
+    idle * gait.lookYaw + walk * clamp(gait.turn * 0.12, -0.5, 0.5);
   p.headYaw = damp(p.headYaw, lookYaw - p.chestYaw * 0.6, 5, dt);
   p.headPitch = damp(
     p.headPitch,

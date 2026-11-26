@@ -1,6 +1,18 @@
-import { useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { runtime, useGame, walkTo, type Scene } from "../core/store";
 import { keys, touch } from "../core/input";
+import { sound } from "../core/sound";
+import { usePresence, type PresenceState } from "./motion";
+import { useGlassMode, useHudReveal } from "./hudStage";
+import { FirstSteps, useHintLearning, useHints } from "./FirstSteps";
+import { DoorTransition } from "./DoorTransition";
 import {
   catchBoosted,
   catchReady,
@@ -22,37 +34,66 @@ import type { PlaceId } from "../core/world";
 import { npcName } from "../core/npcState";
 import { TravelMap } from "./TravelMap";
 
+/** Knob travel in px from the centre of the 100px pad. */
+const STICK_TRAVEL = 30;
+/** Fraction of travel ignored around the centre so a resting thumb is still. */
+const STICK_DEAD_ZONE = 0.12;
 export function Joystick() {
   const pad = useRef<HTMLDivElement>(null),
-    [pos, setPos] = useState([0, 0]);
+    knob = useRef<HTMLSpanElement>(null),
+    [active, setActive] = useState(false);
+  // Written straight to the DOM: a React render per pointermove made the
+  // knob trail the thumb on slower phones.
+  const place = (x: number, z: number, magnitude: number) => {
+    knob.current?.style.setProperty(
+      "transform",
+      `translate(${x * STICK_TRAVEL}px,${z * STICK_TRAVEL}px)`,
+    );
+    pad.current?.style.setProperty("--stick-angle", `${Math.atan2(x, -z)}rad`);
+    pad.current?.style.setProperty("--stick-push", magnitude.toFixed(3));
+  };
   const reset = () => {
     touch.x = 0;
     touch.z = 0;
-    setPos([0, 0]);
+    place(0, 0, 0);
+    setActive(false);
+  };
+  const steer = (e: React.PointerEvent<HTMLDivElement>) => {
+    const r = pad.current!.getBoundingClientRect(),
+      x = (e.clientX - r.left - r.width / 2) / (STICK_TRAVEL + 5),
+      z = (e.clientY - r.top - r.height / 2) / (STICK_TRAVEL + 5),
+      length = Math.hypot(x, z),
+      m = Math.max(1, length),
+      ux = x / m,
+      uz = z / m,
+      reach = Math.min(1, length),
+      // Re-scale past the dead zone so output still spans 0..1 smoothly.
+      push = reach < STICK_DEAD_ZONE ? 0 : (reach - STICK_DEAD_ZONE) / (1 - STICK_DEAD_ZONE),
+      scale = reach > 0 ? push / reach : 0;
+    touch.x = ux * scale;
+    touch.z = uz * scale;
+    place(ux, uz, push);
   };
   return (
     <div
-      className="joystick"
+      className={`joystick${active ? " is-active" : ""}`}
       ref={pad}
       aria-label="Touch movement joystick"
       onPointerDown={(e) => {
         e.currentTarget.setPointerCapture(e.pointerId);
+        setActive(true);
+        steer(e);
       }}
       onPointerMove={(e) => {
         if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
-        const r = pad.current!.getBoundingClientRect(),
-          x = (e.clientX - r.left - r.width / 2) / 35,
-          z = (e.clientY - r.top - r.height / 2) / 35,
-          m = Math.max(1, Math.hypot(x, z));
-        touch.x = x / m;
-        touch.z = z / m;
-        setPos([touch.x * 30, touch.z * 30]);
+        steer(e);
       }}
       onPointerUp={reset}
       onPointerCancel={reset}
       onLostPointerCapture={reset}
     >
-      <span style={{ transform: `translate(${pos[0]}px,${pos[1]}px)` }} />
+      <b aria-hidden="true" />
+      <span ref={knob} />
     </div>
   );
 }
@@ -296,6 +337,19 @@ export function BasketHud() {
     </>
   );
 }
+const PresencePhase = createContext<PresenceState>("enter");
+/** Keeps a panel mounted for its exit, replaying its last content. */
+function Presence({ show, children }: { show: boolean; children: ReactNode }) {
+  const { mounted, phase } = usePresence(show);
+  const latched = useRef<ReactNode>(null);
+  if (show) latched.current = children;
+  if (!mounted) return null;
+  return (
+    <PresencePhase.Provider value={phase}>
+      {show ? children : latched.current}
+    </PresencePhase.Provider>
+  );
+}
 function Modal({
   title,
   eyebrow,
@@ -308,6 +362,7 @@ function Modal({
   close: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const phase = useContext(PresencePhase);
   useEffect(() => {
     const old = document.activeElement as HTMLElement;
     ref.current?.focus();
@@ -334,7 +389,7 @@ function Modal({
     };
   }, []);
   return (
-    <div className="modal-scrim">
+    <div className="modal-scrim" data-phase={phase} inert={phase === "exit"}>
       <div
         className="game-modal"
         role="dialog"
@@ -360,9 +415,44 @@ function Modal({
     </div>
   );
 }
+function Toast({ notice }: { notice: string }) {
+  const phase = useContext(PresencePhase);
+  return (
+    <div className="game-toast" role="status" data-phase={phase}>
+      {notice}
+      <button
+        aria-label="Dismiss notification"
+        onClick={() => useGame.setState({ notice: "" })}
+      >
+        ×
+      </button>
+    </div>
+  );
+}
 export function Hud({ interact }: { interact: () => void }) {
   const pendingExit = useRef<Scene | null>(null);
   const gameMode = useGameMode((s) => s.active?.id);
+  const hudMotion = useHudReveal();
+  const glass = useGlassMode();
+  const hints = useHints();
+  useHintLearning();
+  // The shell carries the HUD's motion and glass state so siblings outside
+  // .game-ui (zoom + time card, NPC dialog, scene panes) follow it too.
+  useEffect(() => {
+    const shell = document.querySelector<HTMLElement>(".game-shell");
+    if (!shell) return;
+    shell.dataset.hudMotion = hudMotion;
+    shell.dataset.glass = glass;
+  }, [hudMotion, glass]);
+  useEffect(
+    () => () => {
+      const shell = document.querySelector<HTMLElement>(".game-shell");
+      if (!shell) return;
+      delete shell.dataset.hudMotion;
+      delete shell.dataset.glass;
+    },
+    [],
+  );
   useEffect(() => {
     const shell = document.querySelector(".game-shell");
     if (!shell) return;
@@ -409,6 +499,17 @@ export function Hud({ interact }: { interact: () => void }) {
     interior = isInterior(g.scene),
     game = g.scene === "rowing" || g.scene === "basketball";
   const closePanel = () => useGame.setState({ panel: "none" });
+  // A quiet glass tick when a panel opens or closes (silent while muted).
+  const lastPanel = useRef(g.panel);
+  useEffect(() => {
+    const from = lastPanel.current;
+    lastPanel.current = g.panel;
+    if (from === g.panel || g.panel === "npc" || from === "npc") return;
+    if (from === "none") sound("open");
+    else if (g.panel === "none") sound("close");
+  }, [g.panel]);
+  const nearDoor =
+    hub && !!g.near && doors.some((door) => door.id === g.near);
   useEffect(() => {
     if (
       !g.notice ||
@@ -424,7 +525,11 @@ export function Hud({ interact }: { interact: () => void }) {
     <div
       className={`game-ui scene-${g.scene} world-${g.world}${g.traveling ? " is-traveling" : ""}${g.paused ? " is-paused" : ""}`}
       data-game-mode={gameMode}
+      data-hud-motion={hudMotion}
+      inert={hudMotion === "hidden"}
+      aria-hidden={hudMotion === "hidden" || undefined}
     >
+      <DoorTransition />
       <header className="game-header">
         <a className="game-brand" href="/">
           <div>
@@ -456,7 +561,7 @@ export function Hud({ interact }: { interact: () => void }) {
         <div className="interior-intro">
           <div className="interior-heading">
             <button
-              className="back-link"
+              className={`back-link${!hints.exited ? " is-coached" : ""}`}
               onClick={() => {
                 keys.clear();
                 touch.x = touch.z = 0;
@@ -503,7 +608,7 @@ export function Hud({ interact }: { interact: () => void }) {
         !g.overlayLocked && (
           <>
             <div
-              className={`context-action ${g.scene === "stadium" ? "context-action--stadium" : ""} ${g.near ? "visible" : ""}`}
+              className={`context-action ${g.scene === "stadium" ? "context-action--stadium" : ""} ${g.near ? "visible" : ""}${nearDoor ? " is-door" : ""}${nearDoor && !hints.entered ? " is-coached" : ""}`}
               data-action={g.near ?? undefined}
               style={{ zIndex: 20 }}
             >
@@ -536,6 +641,7 @@ export function Hud({ interact }: { interact: () => void }) {
                 </strong>
               </div>
               <button
+                key={g.near ?? "none"}
                 onClick={interact}
                 onPointerDown={(event) => {
                   if (g.near === "photo") event.stopPropagation();
@@ -577,6 +683,18 @@ export function Hud({ interact }: { interact: () => void }) {
             </div>
             {g.panel === "none" && !g.overlayLocked && !g.traveling && (
               <Joystick />
+            )}
+            {hub && (
+              <FirstSteps
+                active={
+                  hudMotion === "shown" &&
+                  g.panel === "none" &&
+                  !g.paused &&
+                  !g.traveling &&
+                  !g.notice &&
+                  !g.near
+                }
+              />
             )}
           </>
         )}
@@ -665,18 +783,10 @@ export function Hud({ interact }: { interact: () => void }) {
           <span className="touch-hint">Controls</span>
         </button>
       </div>
-      {g.notice && (
-        <div className="game-toast" role="status">
-          {g.notice}
-          <button
-            aria-label="Dismiss notification"
-            onClick={() => useGame.setState({ notice: "" })}
-          >
-            ×
-          </button>
-        </div>
-      )}
-      {g.panel === "avatar" && (
+      <Presence show={!!g.notice}>
+        <Toast notice={g.notice} />
+      </Presence>
+      <Presence show={g.panel === "avatar"}>
         <Modal eyebrow="" title="Your character" close={closePanel}>
           <div className="color-swatches">
             {[
@@ -709,8 +819,8 @@ export function Hud({ interact }: { interact: () => void }) {
             Done
           </button>
         </Modal>
-      )}
-      {g.panel === "memories" && (
+      </Presence>
+      <Presence show={g.panel === "memories"}>
         <Modal eyebrow="" title="Joshua" close={closePanel}>
           <div className="memory-card">
             <Icon name="oar" size={28} />
@@ -725,8 +835,8 @@ export function Hud({ interact }: { interact: () => void }) {
             </div>
           </div>
         </Modal>
-      )}
-      {g.panel === "settings" && (
+      </Presence>
+      <Presence show={g.panel === "settings"}>
         <Modal eyebrow="" title="Settings" close={closePanel}>
           <button
             className="setting-row"
@@ -770,30 +880,48 @@ export function Hud({ interact }: { interact: () => void }) {
             Replay the portfolio intro <span>↗</span>
           </a>
         </Modal>
-      )}
-      {g.panel === "help" && (
+      </Presence>
+      <Presence show={g.panel === "help"}>
         <Modal eyebrow="" title="Controls" close={closePanel}>
           <div className="help-grid">
-            <b>Wander</b>
+            <b>Walk</b>
             <p>
               <span className="keyboard-hint">
-                WASD / arrows or click the ground. Hold Shift to sprint.
+                <span className="keycaps">
+                  <kbd>W</kbd>
+                  <kbd>A</kbd>
+                  <kbd>S</kbd>
+                  <kbd>D</kbd>
+                </span>{" "}
+                or arrows, or click the ground. Hold <kbd>Shift</kbd> to
+                sprint.
               </span>
               <span className="touch-hint">
-                Drag the round joystick or tap the ground.
+                Drag the round stick or tap the ground.
               </span>{" "}
               Choose a building label to walk there.
             </p>
             <b>Doors</b>
             <p>
-              Walk to the door and{" "}
-              <span className="keyboard-hint">press E or </span>tap Enter.
-              Inside, walk back to the exit mat.
+              Walk up to a door and{" "}
+              <span className="keyboard-hint">
+                press <kbd>E</kbd> or{" "}
+              </span>
+              tap Enter. To leave, use Exit or walk back onto the door mat.
+            </p>
+            <b>Menus</b>
+            <p>
+              <span className="keyboard-hint">
+                <kbd>Esc</kbd> closes a panel or pauses.{" "}
+              </span>
+              The bar at the bottom holds travel, places and settings.
             </p>
             <b>Row</b>
             <p>
               <span className="keyboard-hint">
-                A/D to steer. 1/2/3 for pace. R to catch. Space for a
+                <kbd>A</kbd>/<kbd>D</kbd> steer, <kbd>1</kbd>
+                <kbd>2</kbd>
+                <kbd>3</kbd> pace, <kbd>R</kbd> catch, <kbd>Space</kbd>{" "}
                 burst.{" "}
               </span>
               <span className="touch-hint">
@@ -805,10 +933,14 @@ export function Hud({ interact }: { interact: () => void }) {
             <b>Shoot</b>
             <p>
               <span className="keyboard-hint">
-                WASD to move. Hold Space or Shoot. Q/E to aim.{" "}
+                <kbd>W</kbd>
+                <kbd>A</kbd>
+                <kbd>S</kbd>
+                <kbd>D</kbd> move, hold <kbd>Space</kbd> to charge,{" "}
+                <kbd>Q</kbd>/<kbd>E</kbd> aim.{" "}
               </span>
               <span className="touch-hint">
-                Drag the joystick. Hold Shoot; slide to aim.{" "}
+                Drag the stick. Hold Shoot; slide to aim.{" "}
               </span>
               Release in the gold. Chase rebounds or wait for a new ball.
             </p>
@@ -819,8 +951,8 @@ export function Hud({ interact }: { interact: () => void }) {
             </p>
           </div>
         </Modal>
-      )}
-      {g.panel === "travel" && (
+      </Presence>
+      <Presence show={g.panel === "travel"}>
         <Modal title="Travel" close={closePanel}>
           <TravelMap
             world={g.world}
@@ -833,8 +965,8 @@ export function Hud({ interact }: { interact: () => void }) {
             }}
           />
         </Modal>
-      )}
-      {g.panel === "places" && (
+      </Presence>
+      <Presence show={g.panel === "places"}>
         <Modal title="Places" close={closePanel}>
           <nav className="places-list" aria-label="Walk to a place">
             {destinationsInWorld(g.world).map((door) => (
@@ -852,8 +984,8 @@ export function Hud({ interact }: { interact: () => void }) {
             ))}
           </nav>
         </Modal>
-      )}
-      {g.panel === "desk" && (
+      </Presence>
+      <Presence show={g.panel === "desk"}>
         <Modal title="Desk" close={closePanel}>
           <div className="study-links">
             <a
@@ -868,8 +1000,8 @@ export function Hud({ interact }: { interact: () => void }) {
             </a>
           </div>
         </Modal>
-      )}
-      {g.panel === "profile" && (
+      </Presence>
+      <Presence show={g.panel === "profile"}>
         <Modal eyebrow="" title="Joshua Koo" close={closePanel}>
           <p>{profile.bio}</p>
           <div className="study-links">
@@ -885,8 +1017,8 @@ export function Hud({ interact }: { interact: () => void }) {
             </a>
           </div>
         </Modal>
-      )}
-      {g.paused && (
+      </Presence>
+      <Presence show={g.paused}>
         <Modal
           eyebrow=""
           title="Paused"
@@ -907,13 +1039,13 @@ export function Hud({ interact }: { interact: () => void }) {
             Back to portfolio
           </a>
         </Modal>
-      )}
-      {g.result && (
+      </Presence>
+      <Presence show={!!g.result}>
         <Modal
-          title={g.result.title}
+          title={g.result?.title ?? ""}
           close={() => g.go(g.scene === "rowing" ? "boathouse" : "hub")}
         >
-          <p className="result-detail">{g.result.detail}</p>
+          <p className="result-detail">{g.result?.detail}</p>
           <button
             className="primary-button"
             onClick={() => {
@@ -933,7 +1065,7 @@ export function Hud({ interact }: { interact: () => void }) {
               : "Back to the village"}
           </button>
         </Modal>
-      )}
+      </Presence>
     </div>
   );
 }

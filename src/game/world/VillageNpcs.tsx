@@ -1,5 +1,9 @@
-import { useEffect, useMemo, useRef } from "react";
-import { useFrame, type ThreeEvent } from "@react-three/fiber";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useFrame } from "@react-three/fiber";
+import { useWorldActive } from "../engine/active";
+import { RigBatch, RigMeshes } from "./character/CharacterRig";
+import { createGait, seatPose, stepGait } from "./character/locomotion";
+import { DEFAULT_PALETTE, type Palette } from "./character/rig";
 import * as THREE from "three";
 import { movement } from "../core/input";
 import { runtime, useGame } from "../core/store";
@@ -15,184 +19,107 @@ import {
 } from "../core/npcState";
 import type { WorldId } from "../core/worlds";
 
-type Part = {
-  p: [number, number, number];
-  s: [number, number, number];
-  c: string;
-  swing?: number;
-  hat?: boolean;
-  limb?: "thigh" | "shin" | "foot" | "arm" | "hand";
-};
-const parts: Part[] = [
-  { p: [0, 0.78, 0], s: [0.66, 0.64, 0.42], c: "shirt" },
-  { p: [0, 1.47, 0.02], s: [0.72, 0.65, 0.62], c: "skin" },
-  { p: [0, 1.79, 0], s: [0.76, 0.2, 0.68], c: "#423a32" },
-  { p: [0, 1.65, -0.27], s: [0.74, 0.35, 0.15], c: "#423a32" },
-  { p: [-0.15, 1.48, 0.337], s: [0.065, 0.085, 0.025], c: "#302e29" },
-  { p: [0.15, 1.48, 0.337], s: [0.065, 0.085, 0.025], c: "#302e29" },
-  { p: [0, 1.3, 0.34], s: [0.12, 0.025, 0.02], c: "#895e4f" },
-  {
-    p: [-0.17, 0.27, 0],
-    s: [0.24, 0.44, 0.25],
-    c: "#39464a",
-    swing: 1,
-    limb: "thigh",
-  },
-  {
-    p: [0.17, 0.27, 0],
-    s: [0.24, 0.44, 0.25],
-    c: "#39464a",
-    swing: -1,
-    limb: "thigh",
-  },
-  { p: [-0.17, 0.24, 0.4], s: [0.24, 0.38, 0.25], c: "#39464a", limb: "shin" },
-  { p: [0.17, 0.24, 0.4], s: [0.24, 0.38, 0.25], c: "#39464a", limb: "shin" },
-  {
-    p: [-0.17, 0.07, 0.06],
-    s: [0.26, 0.14, 0.37],
-    c: "#e9ddc4",
-    swing: 1,
-    limb: "foot",
-  },
-  {
-    p: [0.17, 0.07, 0.06],
-    s: [0.26, 0.14, 0.37],
-    c: "#e9ddc4",
-    swing: -1,
-    limb: "foot",
-  },
-  {
-    p: [-0.43, 0.78, 0],
-    s: [0.2, 0.47, 0.25],
-    c: "shirt",
-    swing: -1,
-    limb: "arm",
-  },
-  {
-    p: [0.43, 0.78, 0],
-    s: [0.2, 0.47, 0.25],
-    c: "shirt",
-    swing: 1,
-    limb: "arm",
-  },
-  {
-    p: [-0.43, 0.5, 0],
-    s: [0.19, 0.18, 0.22],
-    c: "skin",
-    swing: -1,
-    limb: "hand",
-  },
-  {
-    p: [0.43, 0.5, 0],
-    s: [0.19, 0.18, 0.22],
-    c: "skin",
-    swing: 1,
-    limb: "hand",
-  },
-  { p: [0, 1.94, 0], s: [0.84, 0.16, 0.75], c: "shirt", hat: true },
-  { p: [0, 1.87, 0.35], s: [0.81, 0.065, 0.46], c: "shirt", hat: true },
-];
-const limbAxis = new THREE.Vector3(1, 0, 0);
-
-/** One draw call per body part for the entire crowd, not per person. */
-function CrowdPart({ part, crowd }: { part: Part; crowd: NpcEntry[] }) {
-  const mesh = useRef<THREE.InstancedMesh>(null);
-  const transform = useMemo(() => new THREE.Object3D(), []);
-  const local = useMemo(() => new THREE.Vector3(), []);
-  useEffect(() => {
-    if (!mesh.current) return;
-    crowd.forEach(({ npc }, index) => {
-      mesh.current!.setColorAt(
-        index,
-        new THREE.Color(
-          part.c === "shirt"
-            ? npc.color
-            : part.c === "skin"
-              ? npc.skin
-              : part.c,
-        ),
-      );
-    });
-    if (mesh.current.instanceColor)
-      mesh.current.instanceColor.needsUpdate = true;
-    mesh.current.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  }, [part, crowd]);
-  useFrame(() => {
-    if (!mesh.current) return;
-    const game = useGame.getState();
-    crowd.forEach(({ actor, npc }, i) => {
-      const active =
-        actor.moving && !game.paused && game.panel === "none";
-      const swing = active ? Math.sin(actor.stride) : 0;
-      const seated = actor.seat ? actor.posture : 0;
-      let tilt = part.swing ? swing * part.swing * 0.5 : 0;
-      local.set(...part.p);
-      if (part.limb === "thigh") {
-        local.y += 0.19 * seated;
-        local.z += 0.2 * seated;
-        tilt -= (Math.PI / 2) * seated;
-      } else if (part.limb === "foot") {
-        local.z += 0.37 * seated;
-      } else if (part.limb === "arm" || part.limb === "hand") {
-        tilt -= 0.7 * seated;
-        local.z += (part.limb === "hand" ? 0.3 : 0.12) * seated;
-        local.y += (part.limb === "hand" ? 0.12 : 0.02) * seated;
-      }
-      if (part.swing && active) {
-        const pivot = part.p[1] < 0.45 ? 0.46 : 1.01;
-        local.y -= pivot;
-        local.applyAxisAngle(limbAxis, swing * part.swing * 0.5);
-        local.y += pivot;
-      }
-      local
-        .multiplyScalar(0.67)
-        .applyAxisAngle(THREE.Object3D.DEFAULT_UP, actor.heading);
-      transform.position.set(
-        actor.x +
-          ((actor.seat?.position[0] ?? actor.x) - actor.x) * seated +
-          local.x,
-        0.2 +
-          local.y +
-          ((actor.seat?.height ?? 0.508) + 0.04 - 0.508) * seated +
-          Math.abs(swing) * 0.025,
-        actor.z +
-          ((actor.seat?.position[1] ?? actor.z) - actor.z) * seated +
-          local.z,
-      );
-      transform.rotation.set(tilt, actor.heading, 0, "YXZ");
-      transform.scale
-        .set(...part.s)
-        .multiplyScalar(
-          part.hat && !npc.hat
-            ? 0
-            : part.limb === "shin"
-              ? 0.67 * seated
-              : 0.67,
-        );
-      transform.updateMatrix();
-      mesh.current!.setMatrixAt(i, transform.matrix);
-    });
-    mesh.current.instanceMatrix.needsUpdate = true;
-    // Raycasting must use today's crowd bounds, not its initial arrangement.
-    mesh.current.boundingSphere = null;
-  });
-  const selectNpc = (event: ThreeEvent<PointerEvent>) => {
-    event.stopPropagation();
-    if (event.instanceId !== undefined)
-      talkToNpc(crowd[event.instanceId].actor.id);
+const HAIR = ["#3e3632", "#5b4030", "#2d2a2a", "#8a5a3a", "#c49a62", "#6b6460"];
+const PANTS = ["#3a4547", "#4b4a5e", "#6b5844", "#36485a", "#5f6b55"];
+const HATS = ["#e0b86d", "#d9c08a", "#c98f5a", "#e7d2a2"];
+const SHOES = ["#efe2c8", "#7b5a43", "#3f3a36", "#c9b9a0"];
+function hashId(id: string) {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++)
+    h = Math.imul(h ^ id.charCodeAt(i), 16777619);
+  return h >>> 0;
+}
+function npcPalette(npc: NpcEntry["npc"]): Palette {
+  const h = hashId(npc.id);
+  return {
+    ...DEFAULT_PALETTE,
+    shirt: npc.color,
+    skin: npc.skin,
+    hasHat: npc.hat,
+    hair: HAIR[h % HAIR.length],
+    pants: PANTS[(h >>> 3) % PANTS.length],
+    hat: HATS[(h >>> 6) % HATS.length],
+    shoe: SHOES[(h >>> 9) % SHOES.length],
+    band: npc.color,
   };
+}
+const NPC_SCALE = 0.67;
+const base = new THREE.Matrix4(),
+  turn = new THREE.Quaternion(),
+  at = new THREE.Vector3(),
+  size = new THREE.Vector3(NPC_SCALE, NPC_SCALE, NPC_SCALE);
+const up = new THREE.Vector3(0, 1, 0);
+
+/** The whole crowd as one instanced rig: ≈7 draws for every villager. */
+function CrowdRig({ crowd }: { crowd: NpcEntry[] }) {
+  const batch = useMemo(() => new RigBatch(Math.max(1, crowd.length)), [crowd]);
+  const gaits = useMemo(
+    () => crowd.map((entry) => createGait(hashId(entry.npc.id) % 997)),
+    [crowd],
+  );
+  const palettes = useMemo(
+    () => crowd.map(({ npc }) => npcPalette(npc)),
+    [crowd],
+  );
+  const last = useRef<Float32Array | null>(null);
+  const active = useWorldActive();
+  const write = (dt: number) => {
+    const game = useGame.getState();
+    const prev = (last.current ??= new Float32Array(crowd.length * 2).fill(
+      NaN,
+    ));
+    crowd.forEach(({ actor }, i) => {
+      const seated = actor.seat ? actor.posture : 0;
+      const x =
+        actor.x + ((actor.seat?.position[0] ?? actor.x) - actor.x) * seated;
+      const z =
+        actor.z + ((actor.seat?.position[1] ?? actor.z) - actor.z) * seated;
+      let vx = 0,
+        vz = 0;
+      if (dt > 0 && !Number.isNaN(prev[i * 2])) {
+        const dx = x - prev[i * 2],
+          dz = z - prev[i * 2 + 1];
+        if (Math.hypot(dx, dz) < 1.5) {
+          vx = dx / dt / NPC_SCALE;
+          vz = dz / dt / NPC_SCALE;
+        }
+      }
+      prev[i * 2] = x;
+      prev[i * 2 + 1] = z;
+      const frozen = game.paused || game.panel !== "none";
+      const pose = stepGait(gaits[i], dt, vx, vz, actor.heading, {
+        forceWalk:
+          actor.moving && !frozen && Math.hypot(vx, vz) < 0.5 && seated < 0.1,
+        still: frozen || seated > 0.5,
+      });
+      seatPose(pose, seated);
+      if (seated <= 0) pose.seat = 0;
+      at.set(
+        x,
+        0.2 + ((actor.seat?.height ?? 0.508) + 0.04 - 0.508) * seated,
+        z,
+      );
+      turn.setFromAxisAngle(up, actor.heading);
+      base.compose(at, turn, size);
+      batch.write(i, pose, base, palettes[i]);
+    });
+    batch.commit(crowd.length);
+  };
+  useLayoutEffect(() => write(0));
+  useFrame((_, delta) => {
+    if (!active) return;
+    write(Math.min(delta, 0.05));
+  });
   return (
-    <instancedMesh
-      ref={mesh}
-      args={[undefined, undefined, crowd.length]}
-      frustumCulled={false}
-      castShadow
-      receiveShadow
-      onPointerDown={selectNpc}
-    >
-      <boxGeometry />
-      <meshStandardMaterial roughness={0.9} />
-    </instancedMesh>
+    <RigMeshes
+      batch={batch}
+      onPointerDown={(kind, event) => {
+        event.stopPropagation();
+        if (event.instanceId === undefined) return;
+        const entry = crowd[batch.characterAt(kind, event.instanceId)];
+        if (entry) talkToNpc(entry.actor.id);
+      }}
+    />
   );
 }
 
@@ -244,8 +171,7 @@ export function NpcCrowd() {
     const game = useGame.getState(),
       state = useNpcs.getState();
     if (state.talking && game.panel !== "npc") closeConversation();
-    const frozen =
-      game.paused || !runtime.active || game.panel !== "none";
+    const frozen = game.paused || !runtime.active || game.panel !== "none";
     const crowd = activeNpcCrowd(game.world);
     for (const { actor, npc } of crowd) {
       stepNpc(
@@ -265,9 +191,7 @@ export function NpcCrowd() {
   });
   return (
     <group key={world} name="village-npcs">
-      {parts.map((part, index) => (
-        <CrowdPart key={index} part={part} crowd={activeNpcCrowd(world)} />
-      ))}
+      <CrowdRig crowd={activeNpcCrowd(world)} />
       <TalkRings world={world} />
     </group>
   );

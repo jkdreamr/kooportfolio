@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { HOME_ISLAND, HOME_SHORE } from "../core/homeIsland";
 import { loopNormals, resampleLoop, type P2 } from "../core/coast";
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
+import { sculptedMaterial } from "./Surface";
 
 // Art only. The playable shore, ground level, rail and gates remain owned by
 // homeIsland/world. Keep this module store-free: Landscape is in world's graph.
@@ -82,14 +83,9 @@ function lawnGeometry() {
 
 const cliff = cliffGeometry();
 const lawn = lawnGeometry();
-const lawnMaterial = new THREE.MeshStandardMaterial({
-  color: "#6c8653",
-  roughness: 1,
-});
-const cliffMaterial = new THREE.MeshStandardMaterial({
-  vertexColors: true,
-  roughness: 0.94,
-});
+// Painted variation (shared noise) on the lawn and the strata.
+const lawnMaterial = sculptedMaterial({ color: "#6f8c52", roughness: 0.96 });
+const cliffMaterial = sculptedMaterial({ vertexColors: true, roughness: 0.92 });
 const details: SceneryPart[] = [];
 for (let i = 0; i < segments; i += 2) {
   const [x, z] = beyond(i, 0.12);

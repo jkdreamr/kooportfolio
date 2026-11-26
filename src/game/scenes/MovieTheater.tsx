@@ -1,3 +1,4 @@
+import { StaticBatch } from "../world/StaticBatch";
 import {
   useCallback,
   useEffect,
@@ -56,50 +57,52 @@ export function MovieTheaterBuilding({
   korean?: boolean;
 }) {
   return (
-    <group position={p}>
-      <Box p={[0, 0.35, 0]} s={[10.4, 0.7, 8.4]} c="#afa184" />
-      <Box p={[0, 2.8, 0]} s={[9.4, 5, 7.5]} c="#bca888" />
-      <Box p={[0, 5.2, 0]} s={[10.2, 0.6, 8.1]} c="#77443d" />
-      <Box p={[0, 5.75, -0.6]} s={[8, 0.7, 5.5]} c="#974a3e" />
-      <Box p={[0, 6.3, -0.6]} s={[5.7, 0.45, 4.7]} c="#b26045" />
-      {[-4.35, 4.35].map((x) => (
-        <group key={x}>
-          <Box p={[x, 2.8, 3.8]} s={[0.72, 5.2, 0.6]} c="#d8c5a1" />
-          <Box p={[x, 5.5, 3.8]} s={[1, 0.35, 0.85]} c="#ead8ae" />
-        </group>
-      ))}
-      <Box p={[0, 1.8, 3.8]} s={[2.8, 3, 0.16]} c="#3c3540" />
-      {[-0.72, 0.72].map((x) => (
-        <Box key={x} p={[x, 1.9, 3.91]} s={[1.2, 2.4, 0.08]} c="#71443c" />
-      ))}
-      <Box p={[0, 1.9, 4]} s={[0.12, 2.6, 0.1]} c="#d6af5e" />
-      <Box p={[0, 3.8, 4.15]} s={[7.8, 0.8, 1.8]} c="#985441" />
-      <Box p={[0, 4.22, 4.15]} s={[8.2, 0.16, 2]} c="#d1ac62" />
-      <Sign
-        text={korean ? "서울 극장" : "THE PICTURE HOUSE"}
-        p={[0, 3.85, 5.08]}
-        size={[6.8, 0.6]}
-      />
-      {[-3.4, -2.55, -1.7, -0.85, 0, 0.85, 1.7, 2.55, 3.4].map((x) => (
-        <mesh key={x} position={[x, 3.32, 4.75]}>
-          <sphereGeometry args={[0.1, 6, 4]} />
-          <meshBasicMaterial color="#ffe9a0" />
-        </mesh>
-      ))}
-      {[-3.1, 3.1].map((x) => (
-        <group key={x}>
-          <Box p={[x, 1.9, 3.88]} s={[1.3, 2.1, 0.15]} c="#b89959" />
-          <Box p={[x, 1.9, 3.98]} s={[1.1, 1.85, 0.08]} c="#314b55" />
-          <Cylinder
-            p={[x, 2.1, 4.05]}
-            s={[0.35, 0.04, 0.35]}
-            r={[Math.PI / 2, 0, 0]}
-            c="#d4b879"
-          />
-        </group>
-      ))}
-      <Box p={[0, 0.35, 4.7]} s={[3.6, 0.36, 1.4]} c="#cbbb9a" />
-    </group>
+    <StaticBatch id="MovieTheaterBuilding">
+      <group position={p}>
+        <Box p={[0, 0.35, 0]} s={[10.4, 0.7, 8.4]} c="#afa184" />
+        <Box p={[0, 2.8, 0]} s={[9.4, 5, 7.5]} c="#bca888" />
+        <Box p={[0, 5.2, 0]} s={[10.2, 0.6, 8.1]} c="#77443d" />
+        <Box p={[0, 5.75, -0.6]} s={[8, 0.7, 5.5]} c="#974a3e" />
+        <Box p={[0, 6.3, -0.6]} s={[5.7, 0.45, 4.7]} c="#b26045" />
+        {[-4.35, 4.35].map((x) => (
+          <group key={x}>
+            <Box p={[x, 2.8, 3.8]} s={[0.72, 5.2, 0.6]} c="#d8c5a1" />
+            <Box p={[x, 5.5, 3.8]} s={[1, 0.35, 0.85]} c="#ead8ae" />
+          </group>
+        ))}
+        <Box p={[0, 1.8, 3.8]} s={[2.8, 3, 0.16]} c="#3c3540" />
+        {[-0.72, 0.72].map((x) => (
+          <Box key={x} p={[x, 1.9, 3.91]} s={[1.2, 2.4, 0.08]} c="#71443c" />
+        ))}
+        <Box p={[0, 1.9, 4]} s={[0.12, 2.6, 0.1]} c="#d6af5e" />
+        <Box p={[0, 3.8, 4.15]} s={[7.8, 0.8, 1.8]} c="#985441" />
+        <Box p={[0, 4.22, 4.15]} s={[8.2, 0.16, 2]} c="#d1ac62" />
+        <Sign
+          text={korean ? "서울 극장" : "THE PICTURE HOUSE"}
+          p={[0, 3.85, 5.08]}
+          size={[6.8, 0.6]}
+        />
+        {[-3.4, -2.55, -1.7, -0.85, 0, 0.85, 1.7, 2.55, 3.4].map((x) => (
+          <mesh key={x} position={[x, 3.32, 4.75]}>
+            <sphereGeometry args={[0.1, 6, 4]} />
+            <meshBasicMaterial color="#ffe9a0" />
+          </mesh>
+        ))}
+        {[-3.1, 3.1].map((x) => (
+          <group key={x}>
+            <Box p={[x, 1.9, 3.88]} s={[1.3, 2.1, 0.15]} c="#b89959" />
+            <Box p={[x, 1.9, 3.98]} s={[1.1, 1.85, 0.08]} c="#314b55" />
+            <Cylinder
+              p={[x, 2.1, 4.05]}
+              s={[0.35, 0.04, 0.35]}
+              r={[Math.PI / 2, 0, 0]}
+              c="#d4b879"
+            />
+          </group>
+        ))}
+        <Box p={[0, 0.35, 4.7]} s={[3.6, 0.36, 1.4]} c="#cbbb9a" />
+      </group>
+    </StaticBatch>
   );
 }
 
@@ -410,9 +413,10 @@ function TheaterViewer({
   }, []);
   const dialog = useRef<HTMLElement>(null);
   const getControls = useCallback(
-    () => dialog.current?.querySelectorAll<HTMLElement>(
-      ".cinema-controls button, .cinema-controls a[href], #cinema-program:not([hidden]) :is(button, input)",
-    ),
+    () =>
+      dialog.current?.querySelectorAll<HTMLElement>(
+        ".cinema-controls button, .cinema-controls a[href], #cinema-program:not([hidden]) :is(button, input)",
+      ),
     [],
   );
   const gl = useThree((s) => s.gl);
@@ -436,8 +440,10 @@ function TheaterViewer({
         if (!controls?.length) return;
         const first = player.current ?? controls[0],
           last = controls[controls.length - 1];
-        if (document.activeElement !== player.current &&
-            !dialog.current?.contains(document.activeElement)) {
+        if (
+          document.activeElement !== player.current &&
+          !dialog.current?.contains(document.activeElement)
+        ) {
           (event.shiftKey ? last : first).focus();
           event.preventDefault();
           return;
@@ -467,7 +473,7 @@ function TheaterViewer({
           transform
           prepend
           position={THEATER_SCREEN}
-          distanceFactor={THEATER_SCREEN_WIDTH * 400 / THEATER_PLAYER_WIDTH}
+          distanceFactor={(THEATER_SCREEN_WIDTH * 400) / THEATER_PLAYER_WIDTH}
           portal={portal}
           zIndexRange={[20, 0]}
         >
@@ -644,7 +650,11 @@ export function MovieTheaterInterior({
           />
         )),
       )}
-      <Sign text={title.toUpperCase()} p={[0, 7.02, -10.3]} size={[6.5, 0.45]} />
+      <Sign
+        text={title.toUpperCase()}
+        p={[0, 7.02, -10.3]}
+        size={[6.5, 0.45]}
+      />
       {[-5.2, -1.6, 2, THEATER_SEAT_Z].flatMap((z) =>
         [-7.5, -5.8, -THEATER_SEAT_X, THEATER_SEAT_X, 5.8, 7.5].map((x) => (
           <TheaterSeat key={`${x}:${z}`} x={x} z={z} />

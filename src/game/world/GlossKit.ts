@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { surfaceSky } from "./Surface";
+import { noiseUniform } from "./env/noise";
 
 /** Shared gloss rig. One frame driver (Game's Sun) feeds every glossy
  * material; nothing here adds a light, a post pass or a scene environment. */
@@ -201,24 +202,104 @@ export function glassMaterial({
   return material;
 }
 
-export type WaterShore = "disc" | "band" | "none";
+export type WaterShore = "disc" | "band" | "none" | "map";
+/** A baked shore distance map for an arbitrary water outline: R is the
+ * distance to the shore (0 at the edge, 1 at `reach` or more), covering the
+ * world-space rectangle `bounds` = [minX, minZ, width, depth]. */
+export type ShoreMap = {
+  texture: THREE.Texture;
+  bounds: readonly [number, number, number, number];
+};
+
+/** Bake a shore map once per water body (CPU, 128², linear, no download). */
+export function bakeShoreMap(
+  outline: readonly (readonly [number, number])[],
+  reach = 4,
+  size = 128,
+): ShoreMap {
+  let minX = Infinity,
+    minZ = Infinity,
+    maxX = -Infinity,
+    maxZ = -Infinity;
+  for (const [x, z] of outline) {
+    minX = Math.min(minX, x);
+    maxX = Math.max(maxX, x);
+    minZ = Math.min(minZ, z);
+    maxZ = Math.max(maxZ, z);
+  }
+  const pad = 0.5;
+  minX -= pad;
+  minZ -= pad;
+  const width = maxX - minX + pad,
+    depth = maxZ - minZ + pad;
+  const data = new Uint8Array(size * size * 4);
+  const n = outline.length;
+  for (let j = 0; j < size; j++)
+    for (let i = 0; i < size; i++) {
+      const x = minX + ((i + 0.5) / size) * width,
+        z = minZ + ((j + 0.5) / size) * depth;
+      let best = Infinity,
+        inside = false;
+      for (let a = 0, b = n - 1; a < n; b = a++) {
+        const [ax, az] = outline[b],
+          [bx, bz] = outline[a];
+        if (az > z !== bz > z && x < ax + ((bx - ax) * (z - az)) / (bz - az))
+          inside = !inside;
+        const dx = bx - ax,
+          dz = bz - az;
+        const l = dx * dx + dz * dz;
+        const t = l ? Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l)) : 0;
+        const ex = x - ax - dx * t,
+          ez = z - az - dz * t;
+        best = Math.min(best, ex * ex + ez * ez);
+      }
+      const d = inside ? Math.sqrt(best) / reach : 0;
+      const k = (j * size + i) * 4;
+      data[k] = Math.round(Math.min(1, d) * 255);
+      data[k + 1] = Math.round(Math.min(1, inside ? Math.sqrt(best) / (reach * 3) : 0) * 255);
+      data[k + 2] = 0;
+      data[k + 3] = 255;
+    }
+  const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+  texture.magFilter = THREE.LinearFilter;
+  texture.minFilter = THREE.LinearFilter;
+  texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.colorSpace = THREE.NoColorSpace;
+  texture.needsUpdate = true;
+  return { texture, bounds: [minX, minZ, width, depth] };
+}
+
+
 /** Stylised water on the standard lighting model: it receives shadows, fog and
- * tone mapping like everything else. Two travelling sines bend the normal so
- * the baked sky slides over the surface; crests catch the sky by day and the
- * warm village light by night. `shore` paints foam from the mesh UVs:
- * "disc" for circle/ellipse pools, "band" for a channel whose banks are v=0/1.
+ * tone mapping like everything else. Travelling sines bend the normal so the
+ * baked sky slides over the surface; crests catch the sky by day and the warm
+ * village light by night. The shore term (`edge`, 0 open water → 1 at the
+ * bank) comes from the mesh UVs ("disc" pools, "band" channels with banks at
+ * v=0/1) or a baked shore map ("map"). It drives:
+ *  - depth tint: deep → body → a pale, sandy shallow rim;
+ *  - lapping foam: a breathing edge line plus contour bands drifting in;
+ *  - streaked pseudo-reflections: the bank colour near the shore and the sky
+ *    in open water, smeared along the view direction and broken by ripples.
  */
 export function waterMaterial({
   color = "#3f8f97",
   deep = "#2a6672",
+  shallow = "#8fcfc4",
+  bank = "#4f6b45",
   shore = "none",
+  shoreMap,
   scale = 1,
   flow = [0.35, 0.2],
   foam = 1,
 }: {
   color?: string;
   deep?: string;
+  /** Pale shallow rim (sand/pebbles seen through the water). */
+  shallow?: string;
+  /** What the banks reflect: foliage/cliff colour. */
+  bank?: string;
   shore?: WaterShore;
+  shoreMap?: ShoreMap;
   /** Ripple wavelength multiplier: larger for wide rivers. */
   scale?: number;
   flow?: [number, number];
@@ -227,17 +308,28 @@ export function waterMaterial({
   const material = register(
     new THREE.MeshStandardMaterial({
       color,
-      roughness: 0.16,
+      roughness: 0.12,
       metalness: 0.1,
     }),
-    0.5,
+    0.55,
     0.12,
   );
-  const deepColor = new THREE.Color(deep);
+  const deepColor = new THREE.Color(deep),
+    shallowColor = new THREE.Color(shallow),
+    bankColor = new THREE.Color(bank);
+  const mapUniform = { value: shoreMap?.texture ?? null };
+  const boundsUniform = {
+    value: new THREE.Vector4(...(shoreMap?.bounds ?? [0, 0, 1, 1])),
+  };
   material.onBeforeCompile = (shader) => {
     shared(shader);
     worldVarying(shader);
     shader.uniforms.uWaterDeep = { value: deepColor };
+    shader.uniforms.uWaterShallow = { value: shallowColor };
+    shader.uniforms.uWaterBank = { value: bankColor };
+    shader.uniforms.uWaterShore = mapUniform;
+    shader.uniforms.uWaterBounds = boundsUniform;
+    shader.uniforms.uWaterNoise = noiseUniform;
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", "#include <common>\nvarying vec2 vWaterUv;")
       .replace("#include <begin_vertex>", "#include <begin_vertex>\nvWaterUv = uv;");
@@ -245,8 +337,9 @@ export function waterMaterial({
       .replace(
         "#include <common>",
         `#include <common>\n${sharedHeader}
-        varying vec2 vWaterUv; uniform vec3 uWaterDeep;
-        float waterCrest; float waterFoam;`,
+        varying vec2 vWaterUv; uniform vec3 uWaterDeep; uniform vec3 uWaterShallow; uniform vec3 uWaterBank;
+        uniform sampler2D uWaterShore; uniform vec4 uWaterBounds; uniform sampler2D uWaterNoise;
+        float waterCrest; float waterFoam; float waterEdge; vec2 waterSlope; float waterShallow;`,
       )
       .replace(
         "#include <color_fragment>",
@@ -257,28 +350,41 @@ export function waterMaterial({
           + sin(waterP.y * 0.9 + waterT * 0.31) * 1.3;
         float waterB = waterP.x * -1.2 + waterP.y * 2.3 - waterT * ${flow[1].toFixed(3)} * 3.0
           + sin(waterP.x * 0.7 - waterT * 0.23) * 1.1;
-        vec2 waterSlope = (vec2(1.7, 1.1) * cos(waterA) + vec2(-1.2, 2.3) * cos(waterB)) * uGlossRipple;
+        float waterC = waterP.x * 3.9 - waterP.y * 3.1 + waterT * 1.3;
+        waterSlope = (vec2(1.7, 1.1) * cos(waterA) + vec2(-1.2, 2.3) * cos(waterB)
+          + vec2(3.9, -3.1) * cos(waterC) * 0.18) * uGlossRipple;
         waterCrest = (sin(waterA) + sin(waterB)) * 0.5 * uGlossRipple;
         ${
           shore === "disc"
-            ? `float waterEdge = length(vWaterUv - 0.5) * 2.0;
+            ? `waterEdge = length(vWaterUv - 0.5) * 2.0;
         float waterAngle = atan(vWaterUv.y - 0.5, vWaterUv.x - 0.5);
         float waterLap = 0.045 * sin(waterAngle * 9.0 + waterT * 0.9) * uGlossRipple;`
             : shore === "band"
-              ? `float waterEdge = abs(vWaterUv.y - 0.5) * 2.0;
+              ? `waterEdge = abs(vWaterUv.y - 0.5) * 2.0;
         float waterLap = 0.012 * sin(vWaterUv.x * 140.0 + waterT * 0.9) * uGlossRipple;`
-              : `float waterEdge = 0.0; float waterLap = 0.0;`
+              : shore === "map"
+                ? `vec2 waterMapUv = (vGlossWorld.xz - uWaterBounds.xy) / uWaterBounds.zw;
+        vec4 waterMap = texture2D(uWaterShore, waterMapUv);
+        waterEdge = 1.0 - waterMap.r * 0.92;
+        float waterLap = 0.025 * sin(vGlossWorld.x * 2.1 + vGlossWorld.z * 1.7 + waterT * 0.9) * uGlossRipple;`
+                : `waterEdge = 0.0; float waterLap = 0.0;`
         }
-        float waterShallow = smoothstep(0.35, 0.95, waterEdge);
-        diffuseColor.rgb = mix(uWaterDeep, diffuseColor.rgb, 0.45 + 0.55 * waterShallow);
+        waterShallow = smoothstep(0.35, 0.95, waterEdge);
+        diffuseColor.rgb = mix(uWaterDeep, diffuseColor.rgb, 0.4 + 0.6 * waterShallow);
+        diffuseColor.rgb = mix(diffuseColor.rgb, uWaterShallow, smoothstep(0.84, 0.985, waterEdge) * 0.5);
         diffuseColor.rgb *= 1.0 + waterCrest * 0.06;
-        waterFoam = ${foam.toFixed(2)} * smoothstep(${shore === "band" ? "0.962" : "0.9"} + waterLap, ${shore === "band" ? "0.988" : "0.955"} + waterLap, waterEdge);
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.80, 0.90, 0.89), waterFoam * 0.6);`,
+        float waterBreath = 0.5 + 0.5 * sin(waterT * 1.1 + vGlossWorld.x * 0.4 + vGlossWorld.z * 0.3);
+        float waterLine = smoothstep(${shore === "band" ? "0.962" : "0.915"} + waterLap - waterBreath * 0.02, ${shore === "band" ? "0.988" : "0.965"} + waterLap, waterEdge);
+        float waterBand = fract(waterEdge * 7.0 + waterT * 0.12 + waterLap * 4.0);
+        float waterContour = smoothstep(0.0, 0.08, waterBand) * (1.0 - smoothstep(0.12, 0.28, waterBand))
+          * smoothstep(0.72, 0.92, waterEdge) * (1.0 - waterLine);
+        waterFoam = ${foam.toFixed(2)} * clamp(waterLine + waterContour * 0.45 * uGlossRipple, 0.0, 1.0);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.84, 0.93, 0.92), waterFoam * 0.7);`,
       )
       .replace(
         "#include <normal_fragment_maps>",
         `#include <normal_fragment_maps>
-        normal = normalize(normal + (viewMatrix * vec4(-waterSlope.x, 0.0, -waterSlope.y, 0.0)).xyz * 0.04);`,
+        normal = normalize(normal + (viewMatrix * vec4(-waterSlope.x, 0.0, -waterSlope.y, 0.0)).xyz * 0.045);`,
       )
       .replace(
         "#include <roughnessmap_fragment>",
@@ -290,15 +396,25 @@ export function waterMaterial({
         `#include <emissivemap_fragment>
         float waterFresnel = 1.0 - saturate(dot(normal, vec3(0.0, 0.0, 1.0)));
         waterFresnel = waterFresnel * waterFresnel;
-        float waterGlint = smoothstep(0.90, 0.985, waterCrest) * (1.0 - waterFoam);
-        vec3 waterSky = uGlossSky * (0.03 + 0.34 * waterFresnel) * (1.0 - 0.85 * uGlossNight);
+        // Streaks along the view direction on the ground plane, broken by
+        // the ripple slope: a painted reflection, no extra pass.
+        vec2 waterToEye = normalize(cameraPosition.xz - vGlossWorld.xz + 1e-4);
+        vec2 waterAcross = vec2(-waterToEye.y, waterToEye.x);
+        vec2 waterStreakUv = vec2(dot(vGlossWorld.xz, waterAcross) * 0.11 + waterSlope.x * 0.025,
+          dot(vGlossWorld.xz, waterToEye) * 0.012 + waterSlope.y * 0.01);
+        vec4 waterStreak = texture2D(uWaterNoise, waterStreakUv);
+        float waterNearBank = smoothstep(0.55, 0.97, waterEdge);
+        vec3 waterReflect = mix(uGlossSky, uWaterBank * (0.75 + 0.5 * waterStreak.g), waterNearBank * (0.55 + 0.45 * waterStreak.b));
+        waterReflect *= 0.75 + 0.5 * waterStreak.r;
+        float waterGlint = smoothstep(0.88, 0.985, waterCrest) * (1.0 - waterFoam);
+        vec3 waterSky = waterReflect * (0.05 + 0.36 * waterFresnel) * (1.0 - 0.85 * uGlossNight);
         totalEmissiveRadiance += waterSky * (1.0 - waterFoam * 0.6);
-        totalEmissiveRadiance += mix(uGlossSky * 0.34, uGlossWarm * 0.22, uGlossNight) * waterGlint;
+        totalEmissiveRadiance += mix(uGlossSky * 0.4, uGlossWarm * 0.22, uGlossNight) * waterGlint;
         totalEmissiveRadiance += uGlossWarm * uGlossNight * (0.02 + 0.05 * waterShallow * (0.6 + 0.4 * waterCrest));`,
       );
   };
   material.customProgramCacheKey = () =>
-    `gloss-water-v2:${shore}:${scale}:${flow.join(",")}:${foam}`;
+    `gloss-water-v3:${shore}:${scale}:${flow.join(",")}:${foam}`;
   return material;
 }
 

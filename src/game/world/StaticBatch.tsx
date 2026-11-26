@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, type ReactNode } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { sculptedMaterial } from "./Surface";
+import { useWorldActive } from "../engine/active";
 
 /**
  * Self-correcting static batcher.
@@ -38,7 +39,10 @@ type Entry = {
   changes: number;
 };
 
-const cache = new Map<string, { geometry: THREE.BufferGeometry; users: number }>();
+const cache = new Map<
+  string,
+  { geometry: THREE.BufferGeometry; users: number }
+>();
 const materials = new Map<string, THREE.MeshStandardMaterial>();
 const noRaycast = () => {};
 const defaultOnBeforeCompile = THREE.Material.prototype.onBeforeCompile;
@@ -65,9 +69,15 @@ function bakeMaterial(bucket: Bucket) {
           "#include <begin_vertex>\nvBakeRM = bakeRM;",
         )
         // Colours are stored sqrt-encoded in bytes; square back to linear.
-        .replace("#include <color_vertex>", "#include <color_vertex>\nvColor.rgb *= vColor.rgb;");
+        .replace(
+          "#include <color_vertex>",
+          "#include <color_vertex>\nvColor.rgb *= vColor.rgb;",
+        );
       shader.fragmentShader = shader.fragmentShader
-        .replace("#include <common>", "#include <common>\nvarying vec2 vBakeRM;")
+        .replace(
+          "#include <common>",
+          "#include <common>\nvarying vec2 vBakeRM;",
+        )
         .replace(
           "#include <roughnessmap_fragment>",
           "float roughnessFactor = vBakeRM.x;",
@@ -94,17 +104,36 @@ export function staticBatchMaterials() {
 function bakeable(material: THREE.Material | THREE.Material[]) {
   if (Array.isArray(material)) return false;
   const m = material as THREE.MeshStandardMaterial;
-  if (!m.isMeshStandardMaterial || (m as THREE.MeshPhysicalMaterial).isMeshPhysicalMaterial)
+  if (
+    !m.isMeshStandardMaterial ||
+    (m as THREE.MeshPhysicalMaterial).isMeshPhysicalMaterial
+  )
     return false;
-  if (m.transparent || m.opacity < 1 || m.alphaTest > 0 || m.wireframe) return false;
-  if (m.map || m.normalMap || m.alphaMap || m.emissiveMap || m.roughnessMap || m.aoMap || m.envMap || m.bumpMap || m.displacementMap || m.lightMap || m.metalnessMap)
+  if (m.transparent || m.opacity < 1 || m.alphaTest > 0 || m.wireframe)
     return false;
-  if (m.emissiveIntensity > 0 && (m.emissive.r > 0.004 || m.emissive.g > 0.004 || m.emissive.b > 0.004))
+  if (
+    m.map ||
+    m.normalMap ||
+    m.alphaMap ||
+    m.emissiveMap ||
+    m.roughnessMap ||
+    m.aoMap ||
+    m.envMap ||
+    m.bumpMap ||
+    m.displacementMap ||
+    m.lightMap ||
+    m.metalnessMap
+  )
+    return false;
+  if (
+    m.emissiveIntensity > 0 &&
+    (m.emissive.r > 0.004 || m.emissive.g > 0.004 || m.emissive.b > 0.004)
+  )
     return false;
   if (m.side === THREE.BackSide) return false;
   if (m.onBeforeCompile !== defaultOnBeforeCompile) {
     const key = m.customProgramCacheKey?.();
-    if (key !== "sculpted-surface-v2") return false;
+    if (!key?.startsWith("sculpted-surface")) return false;
   }
   return true;
 }
@@ -127,7 +156,8 @@ const scratch = new THREE.Matrix4(),
   tint = new THREE.Color();
 
 function hashMatrix(h: number, m: THREE.Matrix4) {
-  for (let i = 0; i < 16; i++) h = (Math.imul(h ^ Math.round(m.elements[i] * 1000), 16777619) >>> 0);
+  for (let i = 0; i < 16; i++)
+    h = Math.imul(h ^ Math.round(m.elements[i] * 1000), 16777619) >>> 0;
   return h;
 }
 
@@ -165,7 +195,6 @@ class Baker {
         !this.live.has(mesh) &&
         mesh.geometry?.attributes.position &&
         mesh.geometry.attributes.normal &&
-        mesh.geometry.groups.length <= 1 &&
         bakeable(mesh.material)
       )
         found.push(mesh);
@@ -199,7 +228,9 @@ class Baker {
     this.cacheKeys = [];
   }
 
+  bakes = 0;
   bake() {
+    this.bakes++;
     const previous = new Map(this.entries.map((e) => [e.object, e.changes]));
     this.restore();
     this.root.updateWorldMatrix(true, true);
@@ -219,14 +250,19 @@ class Baker {
         material,
         geometry: object.geometry,
         instanceVersion: inst.isInstancedMesh ? inst.instanceMatrix.version : 0,
-        colorVersion: inst.isInstancedMesh && inst.instanceColor ? inst.instanceColor.version : 0,
+        colorVersion:
+          inst.isInstancedMesh && inst.instanceColor
+            ? inst.instanceColor.version
+            : 0,
         changes: previous.get(object) ?? 0,
       };
-      const side = material.side === THREE.DoubleSide ? THREE.DoubleSide : THREE.FrontSide;
+      const side =
+        material.side === THREE.DoubleSide ? THREE.DoubleSide : THREE.FrontSide;
       const flat = !!material.flatShading;
       const cast = object.castShadow;
       const key = `${side}:${flat}:${cast}`;
-      if (!buckets.has(key)) buckets.set(key, { bucket: { key, side, flat, cast }, entries: [] });
+      if (!buckets.has(key))
+        buckets.set(key, { bucket: { key, side, flat, cast }, entries: [] });
       buckets.get(key)!.entries.push(entry);
     }
     for (const { bucket, entries } of buckets.values()) {
@@ -266,9 +302,17 @@ class Baker {
       hash = Math.imul(hash ^ vc, 16777619) >>> 0;
       hash = Math.imul(hash ^ ic, 16777619) >>> 0;
       const pos = geometry.attributes.position.array as ArrayLike<number>;
-      hash = Math.imul(hash ^ Math.round((pos[0] ?? 0) * 997 + (pos[vc * 3 - 1] ?? 0) * 991), 16777619) >>> 0;
+      hash =
+        Math.imul(
+          hash ^ Math.round((pos[0] ?? 0) * 997 + (pos[vc * 3 - 1] ?? 0) * 991),
+          16777619,
+        ) >>> 0;
       hash = hashMatrix(hash, relative);
-      hash = Math.imul(hash ^ (material as THREE.MeshStandardMaterial).color.getHex(), 16777619) >>> 0;
+      hash =
+        Math.imul(
+          hash ^ (material as THREE.MeshStandardMaterial).color.getHex(),
+          16777619,
+        ) >>> 0;
       if (inst.isInstancedMesh) {
         for (let i = 0; i < count; i += Math.max(1, count >> 3)) {
           inst.getMatrixAt(i, instance);
@@ -289,7 +333,8 @@ class Baker {
       normal = new Float32Array(vertices * 3),
       colors = new Uint8Array(vertices * 3),
       rm = new Uint8Array(vertices * 2),
-      index = vertices > 65535 ? new Uint32Array(indices) : new Uint16Array(indices);
+      index =
+        vertices > 65535 ? new Uint32Array(indices) : new Uint16Array(indices);
     let vo = 0,
       io = 0;
     for (const { object, relative, material, geometry } of entries) {
@@ -335,9 +380,15 @@ class Baker {
             g *= ca.getY(i);
             b *= ca.getZ(i);
           }
-          colors[o] = Math.round(Math.sqrt(THREE.MathUtils.clamp(r, 0, 1)) * 255);
-          colors[o + 1] = Math.round(Math.sqrt(THREE.MathUtils.clamp(g, 0, 1)) * 255);
-          colors[o + 2] = Math.round(Math.sqrt(THREE.MathUtils.clamp(b, 0, 1)) * 255);
+          colors[o] = Math.round(
+            Math.sqrt(THREE.MathUtils.clamp(r, 0, 1)) * 255,
+          );
+          colors[o + 1] = Math.round(
+            Math.sqrt(THREE.MathUtils.clamp(g, 0, 1)) * 255,
+          );
+          colors[o + 2] = Math.round(
+            Math.sqrt(THREE.MathUtils.clamp(b, 0, 1)) * 255,
+          );
           rm[(base + i) * 2] = rough;
           rm[(base + i) * 2 + 1] = metal;
         }
@@ -397,10 +448,19 @@ class Baker {
         moved = false;
       if (excluded(object, this.root)) changed = true;
       else if (object.visible) changed = true;
-      else if (object.material !== entry.material || object.geometry !== entry.geometry) changed = true;
+      else if (
+        object.material !== entry.material ||
+        object.geometry !== entry.geometry
+      )
+        changed = true;
       else {
         const inst = object as unknown as THREE.InstancedMesh;
-        if (inst.isInstancedMesh && (inst.instanceMatrix.version !== entry.instanceVersion || (inst.instanceColor?.version ?? 0) !== entry.colorVersion)) moved = true;
+        if (
+          inst.isInstancedMesh &&
+          (inst.instanceMatrix.version !== entry.instanceVersion ||
+            (inst.instanceColor?.version ?? 0) !== entry.colorVersion)
+        )
+          moved = true;
         else {
           let node: THREE.Object3D | null = object.parent;
           while (node && node !== this.root) {
@@ -421,7 +481,13 @@ class Baker {
               }
           }
           const m = entry.material as THREE.MeshStandardMaterial;
-          if (!changed && !moved && m.version !== (entry as Entry & { mv?: number }).mv && (entry as Entry & { mv?: number }).mv !== undefined) changed = true;
+          if (
+            !changed &&
+            !moved &&
+            m.version !== (entry as Entry & { mv?: number }).mv &&
+            (entry as Entry & { mv?: number }).mv !== undefined
+          )
+            changed = true;
           (entry as Entry & { mv?: number }).mv = m.version;
         }
       }
@@ -460,13 +526,24 @@ export function StaticBatch({
     if (!enabled || !root.current) return;
     const b = new Baker(root.current, id);
     baker.current = b;
+    if (import.meta.env.DEV) {
+      const w = window as unknown as { __w4bakers?: Set<Baker> };
+      (w.__w4bakers ??= new Set()).add(b);
+    }
     b.bake();
     return () => {
+      if (import.meta.env.DEV)
+        (window as unknown as { __w4bakers?: Set<Baker> }).__w4bakers?.delete(
+          b,
+        );
       b.dispose();
       baker.current = null;
     };
   }, [id, enabled]);
-  useFrame(() => baker.current?.tick());
+  const active = useWorldActive();
+  useFrame(() => {
+    if (active) baker.current?.tick();
+  });
   return <group ref={root}>{children}</group>;
 }
 

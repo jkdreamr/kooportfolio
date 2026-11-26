@@ -87,9 +87,9 @@ const euler = new THREE.Euler(),
 /** Card count for one crown, by its footprint. */
 const cardsFor = (crown: Crown) => {
   const area = Math.abs(crown.s[0] * crown.s[2]);
-  if (crown.kind === "pine") return Math.max(2, Math.min(5, Math.round(2 + area * 2.4)));
+  if (crown.kind === "pine") return Math.max(3, Math.min(7, Math.round(3 + area * 3)));
   if (crown.kind === "palm") return 0;
-  return Math.max(5, Math.min(15, Math.round(5 + area * 7)));
+  return Math.max(9, Math.min(22, Math.round(8 + area * 10)));
 };
 
 export function layoutCards(crowns: readonly Crown[], small = false): Card[] {
@@ -128,7 +128,7 @@ export function layoutCards(crowns: readonly Crown[], small = false): Card[] {
       )
         .normalize()
         .applyQuaternion(crownQ);
-      local.multiplyScalar(pine ? 0.95 : 0.98).applyQuaternion(crownQ);
+      local.multiplyScalar((pine ? 0.95 : 0.98) + rand() * 0.16).applyQuaternion(crownQ);
       const p = centre.clone().add(local);
       // Face outward, tilted up a little so tops catch the sun; random roll.
       const facing = outward.clone().lerp(up, pine ? 0.55 : 0.25).normalize();
@@ -149,8 +149,8 @@ export function layoutCards(crowns: readonly Crown[], small = false): Card[] {
         centre,
         q,
         size:
-          (pine ? radius * 1.05 : radius * 0.95) *
-          (0.8 + rand() * 0.35) *
+          (pine ? radius * 1.15 : radius * 1.05) *
+          (0.8 + rand() * 0.4) *
           (small ? 0.85 : 1),
         color: tint.clone(),
         cell: pine

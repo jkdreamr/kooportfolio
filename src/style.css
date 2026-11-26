@@ -65,15 +65,40 @@ a {
   font-weight: 600;
   color: #808274;
 }
+/* ------------------------------------------------------------ portfolio */
+:root {
+  --paper: #fbfbf9;
+  --ink: #1f2321;
+  --ink-soft: #5f655c;
+  --ink-faint: #9a9c90;
+  --sky: #dce5c7;
+}
+body {
+  background: var(--paper);
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
 .portfolio {
   position: relative;
+  z-index: 1;
   min-height: 100svh;
   overflow: hidden;
-  background: #ffffff;
+  background: var(--paper);
+  display: flex;
+  flex-direction: column;
+  transition: opacity 160ms linear;
 }
 .site-header {
   height: 90px;
-  border-bottom: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -83,11 +108,9 @@ a {
 }
 .wordmark {
   font-size: 11px;
-  letter-spacing: 2.2px;
+  letter-spacing: 2.4px;
   font-weight: 700;
-}
-.site-header > span {
-  display: none;
+  color: var(--ink);
 }
 .availability {
   font-size: 11px;
@@ -102,71 +125,67 @@ a {
   background: #839579;
 }
 .editorial {
+  flex: 1;
+  width: 100%;
   max-width: 850px;
   margin: 0 auto;
-  min-height: calc(100svh - 174px);
-  padding: clamp(100px, 15vh, 185px) 32px 100px;
+  padding: clamp(100px, 17vh, 190px) 32px 100px;
   text-align: center;
   position: relative;
   z-index: 2;
 }
-.hero-eyebrow {
-  display: none;
-}
 .editorial h1 {
   font:
-    clamp(70px, 8.4vw, 110px) / 1.1 Georgia,
+    clamp(70px, 8.4vw, 112px) / 1.1 Georgia,
     "Times New Roman",
     serif;
   font-weight: 400;
-  letter-spacing: -8px;
-  margin: 0 0 32px;
-  color: #232724;
+  letter-spacing: -0.075em;
+  margin: 0 0 30px;
+  color: var(--ink);
   white-space: nowrap;
 }
 .name-period {
-  color: #232724;
+  color: var(--ink);
 }
-.letter-pocket {
-  position: relative;
-  display: inline-block;
-}
+/* The peephole: a real button that looks exactly like the letter. */
 .loose-letter {
   padding: 0;
+  margin: 0;
   border: 0;
   background: none;
   font: inherit;
   letter-spacing: inherit;
+  color: inherit;
   display: inline-block;
-  line-height: 1;
+  line-height: inherit;
   position: relative;
   z-index: 3;
-  color: inherit;
-  transition: transform 0.5s cubic-bezier(0.22, 0.61, 0.36, 1);
   touch-action: none;
   cursor: grab;
-}
-.loose .loose-letter {
-  transform-origin: 50% 80%;
-  color: #a57556;
+  -webkit-user-select: none;
+  user-select: none;
+  transform-origin: 50% 62%;
+  will-change: transform;
 }
 .loose-letter:active {
   cursor: grabbing;
-  transition: none;
+}
+.loose-letter:focus-visible {
+  outline: 1.5px solid #8a9a86;
+  outline-offset: 2px;
+  border-radius: 40%;
 }
 .bio {
   font-size: 13px;
   letter-spacing: 0.1px;
-  color: #686d60;
+  color: var(--ink-soft);
   margin: 0 0 12px;
-}
-.hero-subline {
-  display: none;
 }
 .portfolio-nav {
   display: flex;
   justify-content: center;
-  gap: 44px;
+  gap: 12px;
   margin-top: 42px;
 }
 .portfolio-nav a {
@@ -176,169 +195,12 @@ a {
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  padding: 10px 20px;
   position: relative;
-  padding-bottom: 10px;
-}
-.portfolio-nav a::after {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  height: 1px;
-  background: #c5c6b7;
-  left: 0;
-  right: 0;
-  transition: transform 0.2s;
-  transform-origin: left;
-}
-.portfolio-nav a:hover::after,
-.portfolio-nav a.active::after {
-  transform: scaleX(0.5);
-  background: #9d7355;
-}
-.portfolio-nav span {
-  display: none;
-}
-.paper-divider {
-  opacity: 0;
-  height: 1px;
-  background: #e6e3d8;
-  margin: 40px auto 0;
-  max-width: 410px;
-  position: relative;
-  transition: transform 0.6s;
-}
-.paper-divider:after {
-  content: "";
-  display: block;
-  width: 3px;
-  height: 3px;
-  background: #c2b697;
-  position: absolute;
-  top: -1px;
-  left: 50%;
-  transform: rotate(45deg);
-}
-.secret-hint {
-  visibility: hidden;
-  margin-top: 24px;
-  font-size: 10px;
-  color: #b0aea2;
-  letter-spacing: 0.4px;
-}
-.secret-hint span {
-  font-family: Georgia, serif;
-  font-style: italic;
-  color: #969c8b;
-}
-.site-footer {
-  height: 84px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 5.5%;
-  border-top: 0;
-  position: relative;
-  z-index: 3;
-  font-size: 9px;
-  letter-spacing: 1.2px;
-  color: #96988a;
-}
-.site-footer button {
-  background: none;
-  font-size: 11px;
-  color: #8d927e;
-  padding: 15px 0;
-}
-.site-footer button span {
-  margin-left: 20px;
-}
-.footer-secret {
-  display: none;
-}
-.tiny-repairer {
-  position: absolute;
-  bottom: 7px;
-  left: 13px;
-  width: 20px;
-  height: 30px;
-  z-index: -1;
-  animation: peeking 0.8s both;
-}
-.tiny-repairer i {
-  display: block;
-  position: absolute;
-  width: 20px;
-  height: 18px;
-  background: #e1b287;
-  top: 0;
-  border-radius: 6px;
-  border-top: 5px solid #69553f;
-}
-.tiny-repairer i:after {
-  content: "••";
-  letter-spacing: 4px;
-  font: 8px Arial;
-  position: absolute;
-  left: 4px;
-  top: 3px;
-}
-.tiny-repairer b {
-  display: block;
-  position: absolute;
-  bottom: 0;
-  left: 4px;
-  width: 14px;
-  height: 15px;
-  background: #789177;
-  border-radius: 4px;
-}
-.repair-note {
-  display: flex;
-  text-align: left;
-  align-items: center;
-  gap: 12px;
-  background: #f1eee3;
-  border: 1px solid #e4dfcd;
-  border-radius: 8px;
-  padding: 17px 20px;
-  max-width: 510px;
-  margin: 28px auto 0;
-  animation: fade-in 0.5s;
-}
-.repair-note p {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.5;
-}
-.repair-note small {
-  display: block;
-  font-size: 10px;
-  color: #92907f;
-  margin-top: 5px;
-}
-.repair-note small a {
-  text-decoration: underline;
-}
-.repair-note button {
-  white-space: nowrap;
-  font-size: 10px;
-  background: transparent;
-  color: #8d7655;
-  margin-left: auto;
-}
-.repair-face {
-  font-size: 20px;
-  color: #9c805a;
-  padding: 7px 9px;
-  background: #e1d6be;
-  border-radius: 8px;
 }
 .editorial-content {
   text-align: left;
-  margin: 45px auto 0;
+  margin: 52px auto 0;
   max-width: 550px;
   animation: fade-in 0.4s;
 }
@@ -351,7 +213,7 @@ a {
 }
 .editorial-content p {
   font-size: 13px;
-  color: #7d8174;
+  color: #6f7468;
   line-height: 1.9;
 }
 .work-row {
@@ -359,7 +221,6 @@ a {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #e3dfd3;
   font-size: 14px;
 }
 .work-row b {
@@ -367,12 +228,9 @@ a {
 }
 .work-row small {
   display: block;
-  color: #929386;
+  color: #85877a;
   margin-top: 8px;
   font-size: 11px;
-}
-.work-row:hover {
-  color: #ac785a;
 }
 .email-link {
   font:
@@ -387,88 +245,101 @@ a {
 .social-links a {
   text-decoration: underline;
 }
-.break-caption {
+.site-footer {
+  height: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 5.5%;
   position: relative;
-  margin: 35px auto 0;
-  animation: fade-in 1s 0.7s both;
+  z-index: 3;
+  font-size: 9px;
+  letter-spacing: 1.2px;
+  color: #8f9184;
 }
-.break-caption p {
-  font:
-    20px Georgia,
-    serif;
-}
-.break-caption button {
-  background: none;
-  color: #98947e;
-  font-size: 11px;
-}
-.paper-portal {
+
+/* ------------------------------------------------- stage & peephole states */
+.stage-root {
   position: fixed;
   inset: 0;
-  background: #515e4d;
-  z-index: 1;
-  display: grid;
-  place-content: center;
-  animation: portal-in 2s both;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--sky);
 }
-.paper-portal > span {
-  color: #eee3bc;
-  letter-spacing: 8px;
-  font-size: 13px;
+.stage-root[data-mode="game"] {
+  pointer-events: auto;
 }
-.portal-light {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse at 50% 100%, #e4bc7b, transparent 65%);
-  opacity: 0.6;
+/* The vignette and the HUD belong to the game, not to the page. */
+.stage-root .stage-vignette {
+  transition: opacity 1.2s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-.page-breaking .editorial h1 {
-  animation: paper-name 1.5s both;
+.stage-root:not([data-mode="game"]) .stage-vignette {
+  opacity: 0;
 }
-.page-breaking .paper-divider {
-  transform: rotate(-8deg) translateY(22px);
+/* Once warm, the counter of the "o" is a hole through the page onto the
+   world (the exact counter shape, rasterised from the glyph). */
+.portfolio.pp-live {
+  -webkit-mask-image: var(--pp-mask), linear-gradient(#000 0 0);
+  mask-image: var(--pp-mask), linear-gradient(#000 0 0);
+  -webkit-mask-position: var(--pp-mx) var(--pp-my), 0 0;
+  mask-position: var(--pp-mx) var(--pp-my), 0 0;
+  -webkit-mask-size: var(--pp-mw) var(--pp-mh), 100% 100%;
+  mask-size: var(--pp-mw) var(--pp-mh), 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
 }
-.page-breaking .portfolio-nav a:nth-child(1) {
-  animation: fall 0.6s 0.15s both;
+/* While the sheet is drawn in WebGL the DOM steps aside (still focusable and
+   in the accessibility tree), crossfading over identical pixels. */
+.portfolio.pp-paper {
+  opacity: 0;
+  transition: opacity 120ms linear;
 }
-.page-breaking .portfolio-nav a:nth-child(2) {
-  animation: fall 0.7s 0.3s both;
+.portfolio.pp-dissolve {
+  opacity: 0;
+  transition: opacity 400ms cubic-bezier(0.4, 0, 0.2, 1);
 }
-.page-breaking .portfolio-nav a:nth-child(3) {
-  animation: fall 0.7s 0.45s both;
+.portfolio.pp-returning {
+  transition: opacity 500ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-.page-breaking .site-header,
-.page-breaking .site-footer {
-  opacity: 0.3;
-  transition: opacity 1s;
+.portfolio.pp-gone {
+  visibility: hidden;
+  pointer-events: none;
 }
-.loading-world {
-  display: grid;
-  place-content: center;
-  text-align: center;
-  min-height: 100svh;
-  color: #76836c;
+.portfolio:is(.pp-paper, .pp-gone) {
+  -webkit-mask-image: none;
+  mask-image: none;
 }
-.loader-mark {
-  font: 72px Georgia;
-  letter-spacing: -8px;
-  animation: breathe 2s infinite;
-}
-.loading-world p {
-  font: italic 16px Georgia;
-}
-.loading-world a {
-  margin-top: 25px;
+.stage-skip {
+  position: fixed;
+  right: max(20px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  z-index: 5;
+  min-height: 44px;
+  padding: 0 14px;
+  background: none;
+  color: rgba(255, 255, 255, 0.86);
   font-size: 11px;
-  text-decoration: underline;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  text-shadow: 0 1px 6px rgba(20, 30, 20, 0.35);
+  animation: fade-in 0.6s 0.7s both;
 }
-@keyframes peeking {
-  from {
-    transform: translateY(30px);
-  }
-  to {
-    transform: translateY(0);
-  }
+.stage-skip:hover {
+  color: #fff;
+}
+/* Direct /play: the inline head script sets html.play before first paint, so
+   the very first frame is sky, never white and never the no-JS page. */
+html.play,
+html.play body {
+  background: var(--sky);
+}
+html.play #root > main {
+  display: none;
+}
+html.in-game body {
+  background: var(--sky);
 }
 @keyframes fade-in {
   from {
@@ -480,62 +351,21 @@ a {
     transform: translateY(0);
   }
 }
-@keyframes paper-name {
-  40% {
-    transform: rotate(-2deg);
-  }
-  100% {
-    transform: translateY(70px) rotate(7deg);
-    opacity: 0;
-  }
-}
-@keyframes fall {
-  100% {
-    transform: translateY(70px) rotate(25deg);
-    opacity: 0;
-  }
-}
-@keyframes portal-in {
-  0% {
-    clip-path: ellipse(0% 0% at 50% 65%);
-  }
-  80%,
-  100% {
-    clip-path: ellipse(100% 100% at 50% 65%);
-  }
-}
-@keyframes breathe {
-  50% {
-    opacity: 0.5;
-    transform: translateY(-5px);
-  }
-}
 @media (max-width: 700px) {
   .site-header {
     height: 72px;
     padding: 0 24px;
   }
-  .site-header > span {
-    display: none;
-  }
   .site-footer {
     padding: 0 24px;
     height: 80px;
   }
-  .footer-secret {
-    display: none;
-  }
   .editorial {
-    padding: 130px 22px 80px;
-    min-height: calc(100svh - 152px);
+    padding: 140px 22px 80px;
   }
   .editorial h1 {
-    letter-spacing: -4px;
     font-size: 76px;
-  }
-  .hero-eyebrow {
-    font-size: 8px;
-    letter-spacing: 1.7px;
+    letter-spacing: -0.06em;
   }
   .bio {
     font-size: 11px;
@@ -543,30 +373,16 @@ a {
     max-width: 280px;
     margin: 0 auto 12px;
   }
-  .hero-subline {
-    font-size: 13px;
-    max-width: 260px;
-    margin: 0 auto;
-  }
   .portfolio-nav {
-    gap: 33px;
+    gap: 8px;
     margin-top: 34px;
-  }
-  .repair-note {
-    padding: 12px;
     flex-wrap: wrap;
   }
-  .repair-note p {
-    font-size: 11px;
-  }
-  .repair-note small {
-    font-size: 9px;
+  .portfolio-nav a {
+    padding: 10px 15px;
   }
   .editorial-content h2 {
     font-size: 26px;
-  }
-  .site-footer button {
-    font-size: 10px;
   }
   .site-footer > span {
     font-size: 8px;
@@ -580,5 +396,12 @@ a {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* A dissolve is not motion: keep the 400 ms crossfade into the game. */
+  .portfolio.pp-dissolve,
+  .portfolio.pp-returning {
+    transition-duration: 400ms !important;
   }
 }

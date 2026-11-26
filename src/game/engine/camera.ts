@@ -64,3 +64,49 @@ export function aimCamera(
     }
   }
 }
+
+/**
+ * Scale a camera offset for `zoom`: unchanged for ortho cameras, otherwise
+ * re-lengthened to the telephoto distance that shows the same framing.
+ * Mutates and returns `offset`.
+ */
+export function zoomedOffset(
+  camera: THREE.Camera,
+  offset: THREE.Vector3,
+  zoom: number,
+  viewportHeight: number,
+) {
+  if (camera instanceof THREE.OrthographicCamera) return offset;
+  const perspective = camera as THREE.PerspectiveCamera;
+  const fov = perspective.isPerspectiveCamera ? perspective.fov : TELEPHOTO_FOV;
+  return offset
+    .normalize()
+    .multiplyScalar(zoomToDistance(zoom, Math.max(1, viewportHeight), fov));
+}
+
+/** Record (perspective) or apply (ortho) the view zoom after a manual move. */
+export function setViewZoom(
+  camera: THREE.Camera,
+  zoom: number,
+  viewportHeight: number,
+) {
+  if (camera instanceof THREE.OrthographicCamera) {
+    camera.zoom = zoom;
+    camera.updateProjectionMatrix();
+    return;
+  }
+  const perspective = camera as THREE.PerspectiveCamera;
+  const fov = perspective.isPerspectiveCamera ? perspective.fov : TELEPHOTO_FOV;
+  const distance = zoomToDistance(zoom, Math.max(1, viewportHeight), fov);
+  camera.userData.viewZoom = zoom;
+  camera.userData.viewDistance = distance;
+  if (perspective.isPerspectiveCamera) {
+    const near = Math.max(0.1, distance * 0.04);
+    const far = distance + 700;
+    if (perspective.near !== near || perspective.far !== far) {
+      perspective.near = near;
+      perspective.far = far;
+      perspective.updateProjectionMatrix();
+    }
+  }
+}

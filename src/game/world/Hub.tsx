@@ -1,4 +1,8 @@
 import { useRef, useState } from "react";
+import { gameInputEnabled, useStage } from "../../stage/contract";
+import { aimCamera, viewZoom } from "../engine/camera";
+import { useWorldActive } from "../engine/active";
+import { Environment } from "./env";
 import { GlazedPanel } from "./GlazedPanel";
 import { RegionalActivities } from "./RegionalActivities";
 import { useFrame, useThree } from "@react-three/fiber";
@@ -82,14 +86,19 @@ export function Walker({
   followCamera?: boolean;
 }) {
   const avatar = useRef<THREE.Group>(null),
-    save = useGame((s) => s.save);
+    color = useGame((s) => s.save.color),
+    hat = useGame((s) => s.save.hat);
+  // False while the hub is parked behind an interior: no movement, no camera.
+  const active = useWorldActive();
   const playing = useGameMode((s) => !!s.active);
   const { camera, size } = useThree();
   const follow = useRef(new THREE.Vector3()),
     desired = useRef(new THREE.Vector3()),
     offset = useRef(new THREE.Vector3()),
+    look = useRef(new THREE.Vector3()),
     cameraScene = useRef("");
   useFrame((_, delta) => {
+    if (!active) return;
     const state = useGame.getState(),
       dt = Math.min(delta, 0.04);
     if (locked || useGameMode.getState().active) {
@@ -98,9 +107,16 @@ export function Walker({
       if (locked && !interior) {
         // Travel owns the live view. Keep its last framing for a damped handoff,
         // including the new world key so landing cannot trigger a camera cut.
+        // The look point of whatever travel rendered (ortho or telephoto).
+        const reach =
+          typeof camera.userData.viewDistance === "number"
+            ? camera.userData.viewDistance
+            : Math.hypot(...ISLAND_CAMERA_OFFSET);
+        camera.getWorldDirection(offset.current);
         follow.current
           .copy(camera.position)
-          .sub(offset.current.set(...ISLAND_CAMERA_OFFSET));
+          .addScaledVector(offset.current, reach);
+        follow.current.y -= 0.7;
         cameraScene.current = `${state.scene}:${state.world}`;
         if (avatar.current) {
           avatar.current.position.set(runtime.x, 0.18, runtime.z);
@@ -109,7 +125,14 @@ export function Walker({
       }
       return;
     }
-    let [dx, dz] = state.overlayLocked ? [0, 0] : movement(),
+    // Before the HUD reveal (portfolio peek, cinematic) the world lives but
+    // the avatar ignores input; the camera follow below keeps running.
+    const enabled = gameInputEnabled(useStage.getState());
+    if (!enabled) {
+      runtime.target = null;
+      runtime.path = [];
+    }
+    let [dx, dz] = state.overlayLocked || !enabled ? [0, 0] : movement(),
       remaining = Infinity;
     if (Math.hypot(dx, dz) > 0.1) {
       runtime.target = null;
@@ -219,7 +242,7 @@ export function Walker({
         near = "hoover-door";
       if (!near) near = nearbyNpcId(runtime.x, runtime.z);
     }
-    state.setNear(state.overlayLocked ? "" : near);
+    state.setNear(state.overlayLocked || !enabled ? "" : near);
     if (!followCamera) return;
     const mobile = size.width < 700 || size.height < 500;
     const worldZoom = useWorldView.getState().zoom;
@@ -252,36 +275,28 @@ export function Walker({
     follow.current.lerp(desired.current, 1 - Math.exp(-dt * 3));
     if (interior) offset.current.set(15, 21, 25);
     else offset.current.set(...ISLAND_CAMERA_OFFSET);
-    camera.position.copy(offset.current.add(follow.current));
-    camera.lookAt(
+    const fitted = islandZoom(size.width, size.height, state.world);
+    const targetZoom = interior
+      ? mobile
+        ? Math.max(20, Math.min(34, size.width / 12, (size.height - 90) / 11.5))
+        : Math.max(26, Math.min(52, size.width / 23, (size.height - 100) / 14))
+      : fitted;
+    const zoom = !interior ? worldZoom : 1;
+    // The old orthographic zoom drives the telephoto camera's distance.
+    const nextZoom =
+      changedScene || wholeIsland
+        ? targetZoom * zoom
+        : THREE.MathUtils.damp(viewZoom(camera), targetZoom * zoom, 5, dt);
+    look.current.set(
       follow.current.x,
       interior ? 0.5 : follow.current.y + 0.7,
       follow.current.z,
     );
-    if (camera instanceof THREE.OrthographicCamera) {
-      const fitted = islandZoom(size.width, size.height, state.world);
-      const targetZoom = interior
-        ? mobile
-          ? Math.max(
-              20,
-              Math.min(34, size.width / 12, (size.height - 90) / 11.5),
-            )
-          : Math.max(
-              26,
-              Math.min(52, size.width / 23, (size.height - 100) / 14),
-            )
-        : fitted;
-      const zoom = !interior ? worldZoom : 1;
-      camera.zoom =
-        changedScene || wholeIsland
-          ? targetZoom * zoom
-          : THREE.MathUtils.damp(camera.zoom, targetZoom * zoom, 5, dt);
-      camera.updateProjectionMatrix();
-    }
+    aimCamera(camera, look.current, offset.current, nextZoom, size.height);
   });
   return (
     <group ref={avatar} name="village-player" visible={!locked && !playing}>
-      <Character player color={save.color} hat={save.hat} scale={0.65} />
+      <Character player color={color} hat={hat} scale={0.65} />
     </group>
   );
 }
@@ -379,10 +394,12 @@ const updateTravel = (traveling: boolean) => useGame.setState({ traveling });
 
 export function Hub() {
   const [trainRiding, setTrainRiding] = useState(false);
-  const save = useGame((s) => s.save),
+  // Field selectors only: the save object is replaced on every autosave.
+  const hasHooverKey = useGame((s) => s.save.memories.includes(HOOVER_KEY)),
     world = useGame((s) => s.world),
     traveling = useGame((s) => s.traveling),
     quality = useGame((s) => s.quality);
+  const active = useWorldActive();
   const skate = doorsInWorld(world).find((door) => door.id === "skate");
   return (
     <group>
@@ -391,6 +408,7 @@ export function Hub() {
       <IslandUnderside world={world} detail={quality === "high"} />
       <VillageGardens world={world} />
       <RegionalActivities world={world} />
+      <Environment world={world} />
       {world === "home" && <HomeWorldEnvironment />}
       {world === "korea" && (
         <KoreaWorldEnvironment
@@ -403,7 +421,7 @@ export function Hub() {
         position={world === "stanford" ? STANFORD_BULLETIN : undefined}
       />
       <Wildlife />
-      {world === "stanford" && !save.memories.includes(HOOVER_KEY) && (
+      {world === "stanford" && !hasHooverKey && (
         <group position={[HOOVER.key[0], 0.2, HOOVER.key[1]]}>
           <HooverKey />
         </group>
@@ -499,7 +517,7 @@ export function Hub() {
       {world === "home" && <Garden level={3} />}
       <NpcCrowd />
       <Walker locked={trainRiding || traveling} />
-      <LabelProjection />
+      <LabelProjection active={active} />
     </group>
   );
 }

@@ -1,11 +1,10 @@
-import { useLayoutEffect, useMemo, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import * as THREE from "three";
 import { Cylinder, Ball, Bench } from "./Models";
 import { HomeCoastArt } from "./HomeCoastArt";
 import { NaturalTrees, type TreePlacement } from "./TreeArt";
 import { KoreaRiverGround } from "./KoreaRiverGround";
-import { GroundGrass, Scenery } from "./Scenery";
-import type { GroundFootprint } from "../core/scenery";
+import { Scenery } from "./Scenery";
 import { NationalFlag } from "./NationalFlag";
 import { CampusDistrict } from "./CampusDistrict";
 import { campus } from "../core/campus";
@@ -17,12 +16,14 @@ import type { WorldId } from "../core/worlds";
 import { waterMaterial } from "./GlossKit";
 import { MicroDetail } from "./MicroDetail";
 import { STANFORD_WALKS } from "../core/stanfordLayout";
-import { doorsInWorld } from "../core/world";
+import { setLookWorld } from "./env/look";
 
 const pondDisc = new THREE.CircleGeometry(1, 48);
 const pondWater = waterMaterial({
-  color: "#49a8a0",
-  deep: "#2c7178",
+  color: "#4aa9b0",
+  deep: "#22667a",
+  shallow: "#8dcdc0",
+  bank: "#57703f",
   shore: "disc",
   scale: 0.55,
 });
@@ -94,20 +95,9 @@ const roads: Block[] = STANFORD_WALKS.map(([x, z, width, depth]) => [
   depth,
   "#c9b381",
 ]);
-const roadFootprints = roads.map<GroundFootprint>(
-  ([x, , z, width, , depth]) => [x, z, width, depth],
-);
-
 export function Landscape({ world = "stanford" }: { world?: WorldId }) {
-  const grassAvoid = useMemo(
-    () => [
-      ...roadFootprints,
-      ...doorsInWorld("stanford").map<GroundFootprint>(
-        ({ footprint: [x, z, hx, hz] }) => [x, z, hx * 2 + 1, hz * 2 + 1],
-      ),
-    ],
-    [],
-  );
+  // Species character for every grove rendered after this in the island.
+  setLookWorld(world);
   if (world === "home") return <HomeCoast />;
   return (
     <group>
@@ -177,7 +167,6 @@ export function Landscape({ world = "stanford" }: { world?: WorldId }) {
       {world === "stanford" && (
         <>
           <Blocks items={roads} />
-          <GroundGrass avoid={grassAvoid} world={world} />
         </>
       )}
       {world === "stanford" &&

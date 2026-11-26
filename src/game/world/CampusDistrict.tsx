@@ -1,3 +1,4 @@
+import { StaticBatch } from "./StaticBatch";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
@@ -224,24 +225,26 @@ function CampusIdentifier() {
 /** Local parcel only: mounting, orientation and world bounds belong to Landscape. */
 export function CampusDistrict() {
   return (
-    <group
-      position={[0, 0, campusDistrictOffsetZ]}
-      scale={[...campusDistrictScale]}
-    >
-      <CampusDistrictParts parts={campusDistrictParts} />
-      <NaturalTrees trees={campusDistrictTrees} />
-      <HooverTowerDoor />
-      <CampusIdentifier />
-      <mesh
-        geometry={plaqueBacking}
-        material={plaqueBackingMaterial}
-        castShadow
-        receiveShadow
-        dispose={null}
-      />
-      {plaqueBatches.map((batch) => (
-        <PlaqueFaces key={batch[0].text} batch={batch} />
-      ))}
-    </group>
+    <StaticBatch id="CampusDistrict">
+      <group
+        position={[0, 0, campusDistrictOffsetZ]}
+        scale={[...campusDistrictScale]}
+      >
+        <CampusDistrictParts parts={campusDistrictParts} />
+        <NaturalTrees trees={campusDistrictTrees} />
+        <HooverTowerDoor />
+        <CampusIdentifier />
+        <mesh
+          geometry={plaqueBacking}
+          material={plaqueBackingMaterial}
+          castShadow
+          receiveShadow
+          dispose={null}
+        />
+        {plaqueBatches.map((batch) => (
+          <PlaqueFaces key={batch[0].text} batch={batch} />
+        ))}
+      </group>
+    </StaticBatch>
   );
 }

@@ -1,0 +1,736 @@
+/* HUD motion, doorway feedback, first-time guidance and the backdrop budget.
+   Imported last by game.css, so it layers over village-skin.css and glass.css.
+   Timings are mirrored in motion.ts (MOTION). Everything that moves has a
+   prefers-reduced-motion answer at the bottom of this sheet. */
+
+.game-shell {
+  --motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --motion-exit-ease: cubic-bezier(0.4, 0, 1, 1);
+  --motion-reveal: 420ms;
+  --motion-step: 80ms;
+  --motion-exit: 160ms;
+  /* Critically under-damped springs sampled into linear(): 8% overshoot for
+     small controls, 1.5% for panes. */
+  --ease-spring: linear(0, 0.051, 0.175, 0.334, 0.502, 0.659, 0.794, 0.901,
+    0.981, 1.035, 1.067, 1.081, 1.083, 1.076, 1.065, 1.051, 1.037, 1.024,
+    1.014, 1.006, 1, 0.996, 0.994, 0.993, 0.993, 0.994, 0.995, 0.996, 0.997,
+    0.998, 0.999, 1);
+  --ease-spring-soft: linear(0, 0.041, 0.139, 0.265, 0.397, 0.523, 0.635,
+    0.732, 0.81, 0.873, 0.92, 0.955, 0.98, 0.996, 1.006, 1.012, 1.015, 1.015,
+    1.014, 1.013, 1.011, 1.009, 1.007, 1.005, 1.004, 1.003, 1.002, 1.001, 1);
+}
+@supports not (transition-timing-function: linear(0, 1)) {
+  .game-shell {
+    --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+    --ease-spring-soft: cubic-bezier(0.22, 1.1, 0.36, 1);
+  }
+}
+
+/* ── Hidden: site, peek, tearing, flying ───────────────────────────────── */
+/* Mounted so the reveal costs no layout, but invisible and out of the tab
+   order (visibility) and the accessibility tree (inert on .game-ui). The
+   canvas wrapper is the one child that stays. */
+.game-shell[data-hud-motion="hidden"] > :not(canvas, :has(canvas)),
+.game-ui[data-hud-motion="hidden"] {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity var(--motion-exit) var(--motion-exit-ease),
+    visibility 0s linear var(--motion-exit);
+}
+.game-shell[data-hud-motion="hidden"] .game-ui *,
+.game-shell[data-hud-motion="hidden"] > * {
+  animation: none !important;
+}
+
+/* ── Reveal: wordmark, capsule +80, dock +160, zoom/time +240, prompt last ─ */
+@keyframes hud-in-down {
+  from {
+    opacity: 0;
+    translate: 0 -8px;
+  }
+}
+@keyframes hud-in-capsule {
+  from {
+    opacity: 0;
+    translate: 0 -8px;
+    scale: 0.96;
+  }
+}
+@keyframes hud-in-rise {
+  from {
+    opacity: 0;
+    translate: 0 12px;
+  }
+}
+@keyframes hud-in-card {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+    scale: 0.98;
+  }
+}
+@keyframes hud-in-fade {
+  from {
+    opacity: 0;
+  }
+}
+/* The same animation names run whenever these surfaces mount (a door back
+   out to the village remounts the dock); the reveal only adds delays, so the
+   change from "enter" to "shown" never restarts anything. */
+.game-shell:not([data-hud-motion="hidden"]) .game-brand,
+.game-shell:not([data-hud-motion="hidden"]) .world-name {
+  animation: hud-in-down var(--motion-reveal) var(--motion-ease) var(--reveal-delay, 0ms) both;
+}
+.game-shell:not([data-hud-motion="hidden"]) .resources {
+  animation: hud-in-capsule var(--motion-reveal) var(--motion-ease) var(--reveal-delay, 0ms) both;
+}
+.game-shell:not([data-hud-motion="hidden"]) .world-toolbar {
+  animation: hud-in-rise var(--motion-reveal) var(--motion-ease) var(--reveal-delay, 0ms) both;
+}
+.game-shell:not([data-hud-motion="hidden"]) :is(.world-zoom, .time-of-day-control) {
+  animation: hud-in-card var(--motion-reveal) var(--motion-ease) var(--reveal-delay, 0ms) both;
+}
+.game-shell:not([data-hud-motion="hidden"]) :is(.game-footer, .world-labels) {
+  animation: hud-in-fade var(--motion-reveal) var(--motion-ease) var(--reveal-delay, 0ms) both;
+}
+.game-shell:not([data-hud-motion="hidden"]) .joystick {
+  animation: hud-in-card var(--motion-reveal) var(--motion-ease) var(--reveal-delay, 0ms) both;
+}
+[data-hud-motion="enter"] .world-name {
+  --reveal-delay: 40ms;
+}
+[data-hud-motion="enter"] .resources {
+  --reveal-delay: calc(var(--motion-step) * 1);
+}
+[data-hud-motion="enter"] .world-toolbar {
+  --reveal-delay: calc(var(--motion-step) * 2);
+}
+.game-shell[data-hud-motion="enter"] :is(.world-zoom, .time-of-day-control),
+[data-hud-motion="enter"] :is(.game-footer, .joystick) {
+  --reveal-delay: calc(var(--motion-step) * 3);
+}
+[data-hud-motion="enter"] .context-action.visible {
+  animation: hud-in-rise var(--motion-reveal) var(--motion-ease)
+    calc(var(--motion-step) * 4) both;
+}
+/* Labels arrive once the frame has settled. */
+[data-hud-motion="enter"] .world-labels {
+  --reveal-delay: calc(var(--motion-step) * 4 + 160ms);
+}
+
+/* ── Arrival inside / back out ─────────────────────────────────────────── */
+@keyframes hud-arrive {
+  from {
+    opacity: 0;
+    translate: 0 -10px;
+  }
+}
+.game-shell:not([data-hud-motion="hidden"])
+  :is(.interior-heading, .challenge-heading) {
+  animation: hud-arrive 520ms var(--motion-ease) 140ms both;
+}
+.game-shell:not([data-hud-motion="hidden"]) .race-select {
+  animation: hud-in-card var(--motion-reveal) var(--motion-ease) both;
+}
+.game-shell:not([data-hud-motion="hidden"]) .race-select > button {
+  animation: hud-in-rise 360ms var(--motion-ease) both;
+}
+.race-select > button:nth-child(2) {
+  animation-delay: 50ms;
+}
+.race-select > button:nth-child(3) {
+  animation-delay: 100ms;
+}
+
+/* The doorway: a shadow that clears from the centre out, like eyes meeting a
+   new room. Under every control, above the world; never takes the pointer. */
+.door-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 78% 70% at 50% 54%,
+    rgb(8 16 24 / 0) 0%,
+    rgb(8 16 24 / 0.34) 52%,
+    rgb(5 11 17 / 0.82) 100%
+  );
+  transform-origin: 50% 54%;
+}
+.door-veil[data-kind="exit"] {
+  background: radial-gradient(
+    ellipse 80% 72% at 50% 54%,
+    rgb(8 16 24 / 0) 0%,
+    rgb(8 16 24 / 0.2) 55%,
+    rgb(5 11 17 / 0.55) 100%
+  );
+}
+@keyframes door-veil-cover {
+  from {
+    opacity: 0;
+    transform: scale(1.18);
+  }
+}
+@keyframes door-veil-clear {
+  to {
+    opacity: 0;
+    transform: scale(1.32);
+  }
+}
+.door-veil[data-phase="cover"] {
+  animation: door-veil-cover 160ms var(--motion-ease) both;
+}
+.door-veil[data-phase="clear"] {
+  animation: door-veil-clear 520ms var(--motion-ease) both;
+}
+
+/* ── Panels: spring in, crisp out, contents in sequence ────────────────── */
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes scrim-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes pane-in {
+  from {
+    opacity: 0;
+    translate: 0 14px;
+    scale: 0.965;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+@keyframes pane-out {
+  to {
+    opacity: 0;
+    translate: 0 6px;
+    scale: 0.98;
+  }
+}
+@keyframes item-in {
+  from {
+    opacity: 0;
+    translate: 0 6px;
+  }
+}
+.game-shell .modal-scrim {
+  animation: scrim-in 220ms var(--motion-ease) both;
+}
+.game-shell .modal-scrim[data-phase="exit"] {
+  pointer-events: none;
+  animation: scrim-out var(--motion-exit) var(--motion-exit-ease) both;
+}
+.game-shell.game-shell .game-modal {
+  animation: pane-in 460ms var(--ease-spring-soft) both;
+}
+.game-shell.game-shell .modal-scrim[data-phase="exit"] .game-modal {
+  animation: pane-out var(--motion-exit) var(--motion-exit-ease) both;
+}
+/* Rows, links and cards arrive 28 ms apart after the pane has its footing. */
+.game-shell
+  .game-modal
+  :is(
+    .setting-row,
+    .places-list > button,
+    .memory-card,
+    .study-links > a,
+    .color-swatches > button,
+    .help-grid > *,
+    .primary-button,
+    .quiet-button,
+    .local-note,
+    .result-detail,
+    .island-map
+  ) {
+  animation: item-in 340ms var(--motion-ease) both;
+  animation-delay: calc(70ms + var(--i, 0) * 28ms);
+}
+.game-modal :is(.setting-row, .memory-card, .primary-button, .quiet-button,
+    .local-note, .result-detail):nth-of-type(2),
+.game-modal :is(.places-list, .study-links, .color-swatches) > :nth-child(2),
+.game-modal .help-grid > :nth-child(3),
+.game-modal .help-grid > :nth-child(4) {
+  --i: 1;
+}
+.game-modal :is(.setting-row, .memory-card, .quiet-button):nth-of-type(3),
+.game-modal :is(.places-list, .study-links, .color-swatches) > :nth-child(3),
+.game-modal .help-grid > :nth-child(5),
+.game-modal .help-grid > :nth-child(6) {
+  --i: 2;
+}
+.game-modal :is(.setting-row, .quiet-button):nth-of-type(4),
+.game-modal :is(.places-list, .study-links, .color-swatches) > :nth-child(4),
+.game-modal .help-grid > :nth-child(7),
+.game-modal .help-grid > :nth-child(8) {
+  --i: 3;
+}
+.game-modal :is(.places-list, .study-links, .color-swatches) > :nth-child(5),
+.game-modal .help-grid > :nth-child(9),
+.game-modal .help-grid > :nth-child(10) {
+  --i: 4;
+}
+.game-modal :is(.places-list, .color-swatches) > :nth-child(6),
+.game-modal .help-grid > :nth-child(11),
+.game-modal .help-grid > :nth-child(12) {
+  --i: 5;
+}
+.game-modal :is(.places-list, .color-swatches) > :nth-child(n + 7) {
+  --i: 6;
+}
+.game-modal .local-note ~ .setting-row {
+  --i: 4;
+}
+.game-modal .local-note ~ a.setting-row {
+  --i: 5;
+}
+.game-shell .modal-scrim[data-phase="exit"] .game-modal * {
+  animation: none;
+}
+
+/* ── Toast ─────────────────────────────────────────────────────────────── */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    translate: 0 -10px;
+    scale: 0.96;
+  }
+  45% {
+    opacity: 1;
+  }
+}
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    translate: 0 -6px;
+    scale: 0.98;
+  }
+}
+.game-shell .game-toast {
+  animation: toast-in 460ms var(--ease-spring) both;
+}
+.game-shell .game-toast[data-phase="exit"] {
+  pointer-events: none;
+  animation: toast-out var(--motion-exit) var(--motion-exit-ease) both;
+}
+
+/* ── Context prompt and the Enter affordance ───────────────────────────── */
+.game-shell .context-action {
+  scale: 0.94;
+  transition:
+    opacity 200ms var(--motion-ease),
+    transform 460ms var(--ease-spring),
+    scale 460ms var(--ease-spring),
+    visibility 0s linear 200ms;
+}
+.game-shell .context-action.visible {
+  scale: 1;
+  transition:
+    opacity 200ms var(--motion-ease),
+    transform 460ms var(--ease-spring),
+    scale 460ms var(--ease-spring),
+    visibility 0s;
+}
+.game-shell .context-action > button {
+  position: relative;
+  min-height: 44px;
+}
+@keyframes action-pop {
+  from {
+    scale: 0.9;
+    opacity: 0.4;
+  }
+}
+/* A new target (door to door) re-keys the button: a small settle. */
+.game-shell .context-action.visible > button {
+  animation: action-pop 380ms var(--ease-spring) both;
+}
+.game-shell .context-action.is-door > button svg {
+  transition: translate 260ms var(--ease-spring);
+}
+@media (hover: hover) {
+  .game-shell .context-action.is-door > button:hover svg {
+    translate: 3px 0;
+  }
+}
+/* First door: the Enter button breathes until the player has been inside
+   once. Two soft rings, then rest; nothing flashes. */
+@keyframes coach-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgb(225 239 255 / 0.55);
+  }
+  55%,
+  100% {
+    box-shadow: 0 0 0 12px rgb(225 239 255 / 0);
+  }
+}
+.game-shell .is-coached:is(.context-action) > button::after,
+.game-shell .back-link.is-coached::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  pointer-events: none;
+  animation: coach-ring 2.2s var(--motion-ease) 0.6s infinite;
+}
+.game-shell .back-link.is-coached {
+  position: relative;
+  border-radius: 10px;
+}
+/* Exit coaching lasts a few breaths, not the whole first visit. */
+.game-shell .back-link.is-coached::after {
+  animation-iteration-count: 3;
+}
+
+/* ── Controls: spring back from a press ────────────────────────────────── */
+/* The silver layer narrows these transitions to colour; restore transform
+   with a spring so a release settles instead of snapping. */
+.game-shell.game-shell.game-shell
+  :is(
+    .world-toolbar > button,
+    .world-toolbar > a,
+    .icon-button,
+    .close-button,
+    .quiet-button,
+    .setting-row,
+    .places-list button,
+    .primary-button,
+    .shoot-button,
+    .upgrade-button,
+    .context-action > button,
+    .world-zoom button,
+    .npc-dialog button,
+    .race-select > button,
+    .cadence-switch button,
+    .race-touch button,
+    .color-swatches button,
+    .story-read
+  ) {
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease,
+    transform 420ms var(--ease-spring),
+    scale 420ms var(--ease-spring);
+}
+.game-shell.game-shell.game-shell
+  :is(
+    .world-toolbar > button,
+    .world-toolbar > a,
+    .icon-button,
+    .close-button,
+    .quiet-button,
+    .places-list button,
+    .primary-button,
+    .shoot-button,
+    .upgrade-button,
+    .context-action > button,
+    .world-zoom button,
+    .race-select > button,
+    .cadence-switch button,
+    .color-swatches button,
+    .story-read
+  ):active:not(:disabled) {
+  transform: scale(0.95);
+  transition-duration: 160ms, 160ms, 160ms, 160ms, 70ms, 70ms;
+  transition-timing-function: ease, ease, ease, ease, ease-out, ease-out;
+}
+.game-shell.game-shell.game-shell .setting-row:active:not(:disabled) {
+  transform: scale(0.985);
+  transition-duration: 160ms, 160ms, 160ms, 160ms, 70ms, 70ms;
+}
+/* The dock icon of the panel just opened gives one small hop. */
+@keyframes dock-pick {
+  0% {
+    translate: 0 0;
+  }
+  35% {
+    translate: 0 -3px;
+  }
+}
+.game-shell .world-toolbar > button.active svg {
+  animation: dock-pick 420ms var(--ease-spring);
+}
+
+/* ── Joystick ──────────────────────────────────────────────────────────── */
+.game-shell .joystick {
+  transition:
+    scale 320ms var(--ease-spring),
+    box-shadow 200ms ease,
+    border-color 200ms ease;
+}
+.game-shell .joystick.is-active {
+  scale: 1.04;
+  border-color: rgb(255 255 255 / 0.62);
+}
+.game-shell .joystick > span {
+  left: 50%;
+  top: 50%;
+  margin: -21px 0 0 -21px;
+  transition:
+    transform 420ms var(--ease-spring),
+    scale 200ms var(--motion-ease);
+  will-change: transform;
+}
+.game-shell .joystick.is-active > span {
+  transition: scale 200ms var(--motion-ease);
+  scale: 0.94;
+}
+/* Direction light: a soft wedge on the rim that follows the thumb and
+   brightens with the push. */
+.game-shell .joystick > b {
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: calc(var(--stick-push, 0) * 0.9);
+  background: conic-gradient(
+    from calc(var(--stick-angle, 0rad) - 0.55rad),
+    rgb(255 255 255 / 0.62) 0rad,
+    rgb(255 255 255 / 0) 1.1rad,
+    transparent 1.1rad
+  );
+  -webkit-mask: radial-gradient(closest-side, transparent 72%, #000 76%);
+  mask: radial-gradient(closest-side, transparent 72%, #000 76%);
+  transition: opacity 160ms ease;
+}
+
+/* ── First steps ───────────────────────────────────────────────────────── */
+@keyframes hint-in {
+  from {
+    opacity: 0;
+    translate: -50% 8px;
+  }
+}
+@keyframes hint-out {
+  to {
+    opacity: 0;
+    translate: -50% -4px;
+  }
+}
+.game-shell .first-steps {
+  position: absolute;
+  left: 50%;
+  bottom: 152px;
+  translate: -50% 0;
+  z-index: 19;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 7px 16px 7px 8px;
+  color: var(--hud-ink);
+  font-size: 13px;
+  letter-spacing: 0.1px;
+  white-space: nowrap;
+  background: linear-gradient(135deg, #ffffff1f, #ffffff05 55%), rgb(18 30 42 / 0.86);
+  border: 1px solid #e6f0ff40;
+  border-top-color: #ffffff8c;
+  border-radius: 999px;
+  box-shadow:
+    inset 0 1px 0 #ffffff33,
+    0 8px 24px #030b1833;
+  pointer-events: none;
+  animation: hint-in 480ms var(--motion-ease) both;
+}
+.game-shell .first-steps[data-phase="exit"] {
+  animation: hint-out 220ms var(--motion-exit-ease) both;
+}
+.game-shell .first-steps > .keyboard-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+.game-shell .first-steps > .keyboard-hint > i {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.55;
+}
+.game-shell .keycaps {
+  display: inline-flex;
+  gap: 3px;
+}
+.game-shell :is(.first-steps, .help-grid) kbd {
+  display: inline-grid;
+  place-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  font: 600 11px/1 Arial, Helvetica, sans-serif;
+  color: var(--hud-ink);
+  background: linear-gradient(#ffffff2e, #ffffff0d);
+  border: 1px solid #e6f0ff52;
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  box-shadow: inset 0 1px 0 #ffffff40;
+}
+.game-shell .help-grid kbd {
+  min-width: 22px;
+  height: 22px;
+  margin: 0 1px;
+  vertical-align: 1px;
+}
+.game-shell .help-grid .keycaps {
+  vertical-align: middle;
+}
+.game-shell .help-grid {
+  row-gap: 14px;
+  line-height: 1.75;
+}
+/* Touch: the hint sits beside the stick it is talking about. */
+@media (pointer: coarse), (max-width: 700px) {
+  @keyframes hint-in-side {
+    from {
+      opacity: 0;
+      translate: -8px 0;
+    }
+  }
+  @keyframes hint-out-side {
+    to {
+      opacity: 0;
+      translate: -4px 0;
+    }
+  }
+  .game-shell .first-steps {
+    left: calc(max(20px, env(safe-area-inset-left) + 12px) + 116px);
+    right: auto;
+    bottom: calc(163px + env(safe-area-inset-bottom));
+    translate: 0 0;
+    max-width: calc(100vw - 156px);
+    padding: 8px 14px;
+    white-space: normal;
+    border-radius: 14px;
+    font-size: 13px;
+    line-height: 1.35;
+    animation-name: hint-in-side;
+  }
+  .game-shell .first-steps[data-phase="exit"] {
+    animation-name: hint-out-side;
+  }
+  .game-shell .first-steps::before {
+    content: "";
+    position: absolute;
+    left: -6px;
+    top: 50%;
+    width: 10px;
+    height: 10px;
+    margin-top: -5px;
+    rotate: 45deg;
+    background: rgb(18 30 42 / 0.86);
+    border-left: 1px solid #e6f0ff40;
+    border-bottom: 1px solid #e6f0ff40;
+  }
+}
+
+/* ── Backdrop budget ───────────────────────────────────────────────────── */
+/* Every tier: one backdrop pass per surface. Controls nested in a frosted
+   pane are glazed, not frosted again; the zoom card frosts through its
+   ::before only; place plaques frost only when Labels.tsx marks the nearest
+   four (and only in the full budget, below). */
+.game-shell .resources :is(.resource, .icon-button),
+.game-shell .world-zoom,
+.game-shell .world-label::before {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .game-shell[data-glass="full"]:not(
+      :has(.npc-dialog, .game-toast, .island-rail-controls, .world-travel-stop)
+    )
+    .world-label.is-frosted::before {
+    -webkit-backdrop-filter: var(--glass-blur-sm);
+    backdrop-filter: var(--glass-blur-sm);
+  }
+}
+/* Lite (phones, medium tier): two panes, smaller radius. The dock and the
+   header capsule frost; with a dialog up, only the dialog does. Everything
+   else trades blur for a denser fill so ink stays ≥ 4.5:1 over a white sky
+   (dense face over white: ink 11:1). */
+.game-shell:is([data-glass="lite"], [data-glass="none"]) {
+  --hud-face: rgb(20 33 44 / 0.88);
+  --glass-bg: rgb(18 31 42 / 0.88);
+  --glass-bg-strong: rgb(18 31 42 / 0.9);
+  --glass-panel-fill: linear-gradient(135deg, #ffffff1f, #ffffff05 40%), rgb(18 30 42 / 0.92);
+  --silver-blur: none;
+  --glass-blur: none;
+  --glass-blur-sm: none;
+  --glass-scrim-blur: none;
+  --glass-panel-blur: none;
+}
+.game-shell[data-glass="lite"] :is(.world-toolbar, .resources) {
+  --hud-face: #13212c66;
+  -webkit-backdrop-filter: blur(12px) saturate(115%) brightness(0.54);
+  backdrop-filter: blur(12px) saturate(115%) brightness(0.54);
+}
+.game-shell[data-glass="lite"]:has(.modal-scrim) :is(.world-toolbar, .resources) {
+  --hud-face: rgb(20 33 44 / 0.88);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.game-shell[data-glass="lite"] .game-modal {
+  -webkit-backdrop-filter: blur(14px) saturate(115%) brightness(0.54);
+  backdrop-filter: blur(14px) saturate(115%) brightness(0.54);
+}
+
+/* ── Reduced motion ────────────────────────────────────────────────────── */
+/* Nothing travels, scales or springs; surfaces still fade so state changes
+   are not abrupt. The reveal collapses to one 240 ms fade, no stagger. */
+@media (prefers-reduced-motion: reduce) {
+  .game-shell :is(
+      .game-brand, .world-name, .resources, .world-toolbar, .world-zoom,
+      .time-of-day-control, .game-footer, .world-labels, .joystick,
+      .context-action, .interior-heading, .challenge-heading, .race-select,
+      .race-select > button, .game-toast, .first-steps, .modal-scrim,
+      .game-modal, .game-modal *
+    ) {
+    animation-name: hud-in-fade !important;
+    animation-duration: 240ms !important;
+    animation-delay: 0ms !important;
+    animation-timing-function: ease-out !important;
+    translate: none;
+    scale: none;
+  }
+  .game-shell :is(.game-toast, .first-steps)[data-phase="exit"],
+  .game-shell .modal-scrim[data-phase="exit"],
+  .game-shell .modal-scrim[data-phase="exit"] .game-modal {
+    animation-name: scrim-out !important;
+    animation-duration: 90ms !important;
+  }
+  .game-shell .context-action,
+  .game-shell .context-action.visible {
+    scale: none;
+    transition:
+      opacity 200ms ease-out,
+      visibility 0s;
+  }
+  .game-shell .context-action.visible > button,
+  .game-shell .world-toolbar > button.active svg,
+  .door-veil {
+    animation: none;
+  }
+  .door-veil {
+    display: none;
+  }
+  .game-shell .is-coached:is(.context-action) > button::after,
+  .game-shell .back-link.is-coached::after {
+    animation: none;
+    box-shadow: 0 0 0 3px rgb(225 239 255 / 0.4);
+  }
+  .game-shell.game-shell.game-shell :is(button, a):active:not(:disabled),
+  .game-shell .joystick.is-active,
+  .game-shell .joystick.is-active > span {
+    transform: none;
+    scale: none;
+  }
+  .game-shell .joystick > span {
+    transition: none;
+  }
+}

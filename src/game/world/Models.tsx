@@ -1,3 +1,4 @@
+import { StaticBatch } from "./StaticBatch";
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
@@ -8,6 +9,7 @@ import { sculptedMaterial } from "./Surface";
 import { NationalFlag } from "./NationalFlag";
 import { TreeArt } from "./TreeArt";
 import { GlazedPanel } from "./GlazedPanel";
+import { Character } from "./character/CharacterRig";
 
 const rounded = new Map<string, RoundedBoxGeometry>();
 function roundedGeometry(size: [number, number, number]) {
@@ -181,7 +183,7 @@ export function Sign({
   );
 }
 /** Rounded, procedurally animated rig; see world/character. */
-export { Character } from "./character/CharacterRig";
+export { Character };
 export function Tree({
   p,
   size = 1,
@@ -277,109 +279,116 @@ export function House({
   const study = kind === "study";
   const roof = study ? "#466c65" : "#bd512f";
   return (
-    <group position={p}>
-      {/* Chunky masonry and timber corner braces. */}
-      {[-2.8, 2.8].flatMap((x) =>
-        [-1.9, 1.9].map((z) => (
-          <group key={`${x}:${z}`}>
-            <Box p={[x, 0.42, z]} s={[0.7, 0.8, 0.65]} c="#9f9a83" />
-            <Box p={[x, 1.9, z]} s={[0.32, 3.2, 0.3]} c="#755335" />
-            <Box p={[x, 3.35, z]} s={[0.55, 0.35, 0.5]} c="#e5b971" />
+    <StaticBatch id="House">
+      <group position={p}>
+        {/* Chunky masonry and timber corner braces. */}
+        {[-2.8, 2.8].flatMap((x) =>
+          [-1.9, 1.9].map((z) => (
+            <group key={`${x}:${z}`}>
+              <Box p={[x, 0.42, z]} s={[0.7, 0.8, 0.65]} c="#9f9a83" />
+              <Box p={[x, 1.9, z]} s={[0.32, 3.2, 0.3]} c="#755335" />
+              <Box p={[x, 3.35, z]} s={[0.55, 0.35, 0.5]} c="#e5b971" />
+            </group>
+          )),
+        )}
+        {[-2, -1, 0, 1, 2].map((x, i) => (
+          <Box
+            key={x}
+            p={[x * 1.15, 0.32, 2.14]}
+            s={[1.08, 0.48, 0.25]}
+            c={i % 2 ? "#b7b19b" : "#a8a58f"}
+          />
+        ))}
+        <Box p={[0, 3.44, 2.2]} s={[6.3, 0.32, 0.32]} c="#775438" />
+        <NationalFlag nation={study ? "us" : "stanford"} p={[2.5, 4.5, 0.5]} />
+        {study && (
+          <group position={[-1.4, 5.1, -0.65]}>
+            <Box p={[0, 0.65, 0]} s={[1.8, 2, 1.8]} c="#c5b79b" />
+            <Box p={[0, 0.7, 0.94]} s={[0.62, 0.95, 0.08]} c="#48645b" />
+            <Box p={[0, 1.7, 0]} s={[2.15, 0.35, 2.15]} c="#7a7057" />
+            {[-0.8, 0, 0.8].flatMap((x) =>
+              [-0.8, 0.8].map((z) => (
+                <Box
+                  key={`${x}${z}`}
+                  p={[x, 2.05, z]}
+                  s={[0.48, 0.65, 0.5]}
+                  c="#d3c1a0"
+                />
+              )),
+            )}
           </group>
-        )),
-      )}
-      {[-2, -1, 0, 1, 2].map((x, i) => (
+        )}
+        <Box p={[0, 0.15, 0]} s={[6.4, 0.4, 4.6]} c="#b8af98" />
         <Box
-          key={x}
-          p={[x * 1.15, 0.32, 2.14]}
-          s={[1.08, 0.48, 0.25]}
-          c={i % 2 ? "#b7b19b" : "#a8a58f"}
+          p={[0, 1.85, 0]}
+          s={[5.8, 3.4, 4.1]}
+          c={study ? "#e1c5a1" : "#eddec0"}
         />
-      ))}
-      <Box p={[0, 3.44, 2.2]} s={[6.3, 0.32, 0.32]} c="#775438" />
-      <NationalFlag nation={study ? "us" : "stanford"} p={[2.5, 4.5, 0.5]} />
-      {study && (
-        <group position={[-1.4, 5.1, -0.65]}>
-          <Box p={[0, 0.65, 0]} s={[1.8, 2, 1.8]} c="#c5b79b" />
-          <Box p={[0, 0.7, 0.94]} s={[0.62, 0.95, 0.08]} c="#48645b" />
-          <Box p={[0, 1.7, 0]} s={[2.15, 0.35, 2.15]} c="#7a7057" />
-          {[-0.8, 0, 0.8].flatMap((x) =>
-            [-0.8, 0.8].map((z) => (
+        {[-2.83, 0, 2.83].map((x) => (
+          <Box key={x} p={[x, 1.8, 2.08]} s={[0.18, 3.4, 0.16]} c="#a28b69" />
+        ))}
+        <Box p={[0, 1.1, 2.12]} s={[1.22, 2.1, 0.2]} c="#61594b" />
+        <Box p={[0, 1.03, 2.24]} s={[0.95, 1.9, 0.12]} c="#8d7655" />
+        {[-0.27, 0, 0.27].map((x) => (
+          <Box key={x} p={[x, 1.1, 2.32]} s={[0.025, 1.7, 0.02]} c="#bda17a" />
+        ))}
+        <Ball p={[0.3, 1, 2.35]} s={[0.055, 0.055, 0.06]} c="#edd38b" />
+        <Window p={[-1.75, 1.85, 2.1]} />
+        <Window p={[1.75, 1.85, 2.1]} />
+        <Box p={[0, 0.3, 2.58]} s={[1.8, 0.44, 1]} c="#d7c8aa" />
+        <Box p={[0, 0.19, 3]} s={[2.1, 0.18, 0.7]} c="#c6b99e" />
+        <Box p={[0, 3.55, 0]} s={[6.6, 0.38, 4.85]} c="#795a3c" />
+        <StoneFooting width={6} depth={4.2} />
+        <GableRoof width={6.6} depth={4.95} y={3.7} rise={1.55} color={roof} />
+        <Box p={[1.8, 4.9, -0.9]} s={[0.63, 1.8, 0.65]} c="#b99b7a" />
+        <Box p={[1.8, 5.85, -0.9]} s={[0.84, 0.15, 0.85]} c="#cdbc9d" />
+        <Sign
+          text={study ? "THE STUDY" : "BOATHOUSE"}
+          p={[0, 3.05, 2.18]}
+          size={[2.3, 0.45]}
+        />
+        <Flowers p={[-2.7, 0.12, 2.72]} />
+        <Flowers p={[2.7, 0.12, 2.72]} color="#e7c05f" />
+        {!study && (
+          <>
+            <group position={[-3.08, 1.5, 0]} rotation={[0, 0, 0.1]}>
+              <Box p={[0, 0, 0]} s={[0.12, 2.7, 0.14]} c="#b38d62" />
+              <Box p={[0, -0.85, 0.1]} s={[0.13, 0.7, 0.4]} c="#6b8c86" />
+            </group>
+            <Box p={[3, 0.5, 1]} s={[0.7, 0.5, 1.7]} c="#ad8762" />
+          </>
+        )}
+        {level > 1 && (
+          <group>
+            <Box p={[0, 2.8, 2.95]} s={[5, 0.18, 1.6]} c="#a78662" />
+            {[-2.4, 0, 2.4].map((x) => (
               <Box
-                key={`${x}${z}`}
-                p={[x, 2.05, z]}
-                s={[0.48, 0.65, 0.5]}
-                c="#d3c1a0"
+                key={x}
+                p={[x, 1.4, 3.6]}
+                s={[0.14, 2.8, 0.14]}
+                c="#ad9070"
               />
-            )),
-          )}
-        </group>
-      )}
-      <Box p={[0, 0.15, 0]} s={[6.4, 0.4, 4.6]} c="#b8af98" />
-      <Box
-        p={[0, 1.85, 0]}
-        s={[5.8, 3.4, 4.1]}
-        c={study ? "#e1c5a1" : "#eddec0"}
-      />
-      {[-2.83, 0, 2.83].map((x) => (
-        <Box key={x} p={[x, 1.8, 2.08]} s={[0.18, 3.4, 0.16]} c="#a28b69" />
-      ))}
-      <Box p={[0, 1.1, 2.12]} s={[1.22, 2.1, 0.2]} c="#61594b" />
-      <Box p={[0, 1.03, 2.24]} s={[0.95, 1.9, 0.12]} c="#8d7655" />
-      {[-0.27, 0, 0.27].map((x) => (
-        <Box key={x} p={[x, 1.1, 2.32]} s={[0.025, 1.7, 0.02]} c="#bda17a" />
-      ))}
-      <Ball p={[0.3, 1, 2.35]} s={[0.055, 0.055, 0.06]} c="#edd38b" />
-      <Window p={[-1.75, 1.85, 2.1]} />
-      <Window p={[1.75, 1.85, 2.1]} />
-      <Box p={[0, 0.3, 2.58]} s={[1.8, 0.44, 1]} c="#d7c8aa" />
-      <Box p={[0, 0.19, 3]} s={[2.1, 0.18, 0.7]} c="#c6b99e" />
-      <Box p={[0, 3.55, 0]} s={[6.6, 0.38, 4.85]} c="#795a3c" />
-      <StoneFooting width={6} depth={4.2} />
-      <GableRoof width={6.6} depth={4.95} y={3.7} rise={1.55} color={roof} />
-      <Box p={[1.8, 4.9, -0.9]} s={[0.63, 1.8, 0.65]} c="#b99b7a" />
-      <Box p={[1.8, 5.85, -0.9]} s={[0.84, 0.15, 0.85]} c="#cdbc9d" />
-      <Sign
-        text={study ? "THE STUDY" : "BOATHOUSE"}
-        p={[0, 3.05, 2.18]}
-        size={[2.3, 0.45]}
-      />
-      <Flowers p={[-2.7, 0.12, 2.72]} />
-      <Flowers p={[2.7, 0.12, 2.72]} color="#e7c05f" />
-      {!study && (
-        <>
-          <group position={[-3.08, 1.5, 0]} rotation={[0, 0, 0.1]}>
-            <Box p={[0, 0, 0]} s={[0.12, 2.7, 0.14]} c="#b38d62" />
-            <Box p={[0, -0.85, 0.1]} s={[0.13, 0.7, 0.4]} c="#6b8c86" />
+            ))}
+            <Box p={[0, 3.4, 3.63]} s={[5, 0.1, 0.1]} c="#e2c49d" />
+            {Array.from({ length: 13 }, (_, i) => (
+              <Box
+                key={i}
+                p={[i * 0.4 - 2.4, 3.1, 3.63]}
+                s={[0.07, 0.6, 0.07]}
+                c="#dfbd91"
+              />
+            ))}
           </group>
-          <Box p={[3, 0.5, 1]} s={[0.7, 0.5, 1.7]} c="#ad8762" />
-        </>
-      )}
-      {level > 1 && (
-        <group>
-          <Box p={[0, 2.8, 2.95]} s={[5, 0.18, 1.6]} c="#a78662" />
-          {[-2.4, 0, 2.4].map((x) => (
-            <Box key={x} p={[x, 1.4, 3.6]} s={[0.14, 2.8, 0.14]} c="#ad9070" />
-          ))}
-          <Box p={[0, 3.4, 3.63]} s={[5, 0.1, 0.1]} c="#e2c49d" />
-          {Array.from({ length: 13 }, (_, i) => (
-            <Box
-              key={i}
-              p={[i * 0.4 - 2.4, 3.1, 3.63]}
-              s={[0.07, 0.6, 0.07]}
-              c="#dfbd91"
-            />
-          ))}
-        </group>
-      )}
-      {level > 2 && (
-        <group position={[-3.8, 0, -0.5]}>
-          <Box p={[0, 1.4, 0]} s={[1.5, 2.8, 2.8]} c="#d6c6a5" />
-          <Cone p={[0, 3.3, 0]} s={[1.5, 1.5, 1.9]} c={roof} />
-          <Window p={[0, 1.8, 1.45]} width={0.7} />
-        </group>
-      )}
-    </group>
+        )}
+        {level > 2 && (
+          <group position={[-3.8, 0, -0.5]}>
+            <Box p={[0, 1.4, 0]} s={[1.5, 2.8, 2.8]} c="#d6c6a5" />
+            <Cone p={[0, 3.3, 0]} s={[1.5, 1.5, 1.9]} c={roof} />
+            <Window p={[0, 1.8, 1.45]} width={0.7} />
+          </group>
+        )}
+      </group>
+    </StaticBatch>
   );
 }
 export function Boat({

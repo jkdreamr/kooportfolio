@@ -3,7 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#ffffff" />
+    <meta name="theme-color" content="#fbfbf9" />
+    <script>
+      // Direct /play: paint the sky before anything else, never white.
+      if (/^\/play(\/|$)/.test(location.pathname)) {
+        document.documentElement.className += " play";
+        document.documentElement.style.background = "#dce5c7";
+        document
+          .querySelector('meta[name="theme-color"]')
+          .setAttribute("content", "#dce5c7");
+      }
+    </script>
     <meta
       name="description"
       content="Joshua Koo — Stanford CS + math, coxswain and investment intern at CRV."

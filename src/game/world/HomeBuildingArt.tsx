@@ -1,3 +1,4 @@
+import { StaticBatch } from "./StaticBatch";
 import { GableRoof, Glazing, type Pane } from "./ArchitectureDetail";
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
 
@@ -106,7 +107,9 @@ for (const [id, offset, y, z, width] of [
         id,
         [px, y - 0.75 + (i % 2) * 0.05, z + 0.36 + ((i * 7) % 3) * 0.04 - 0.04],
         [0.15, 0.13, 0.15],
-        i % 3 === 2 ? "#6f8b4f" : blooms[(i + (side > 0 ? 1 : 0)) % blooms.length],
+        i % 3 === 2
+          ? "#6f8b4f"
+          : blooms[(i + (side > 0 ? 1 : 0)) % blooms.length],
         [0.3, i * 1.1, 0.2],
       );
     }
@@ -135,14 +138,16 @@ function Dormer({ p, color }: { p: [number, number, number]; color: string }) {
 /** Mounted inside the landmark's existing placement/scale group, Home only. */
 export function HomeBuildingArt({ id }: { id: string }) {
   return (
-    <group name={`home-${id}-crafted-detail`}>
-      {parts[id] && <WorldSceneryParts parts={parts[id]} />}
-      {glazing[id] && <Glazing panes={glazing[id]} />}
-      {id === "kitchen" && <Dormer p={[0, 4.06, 1.3]} color="#a35538" />}
-      {id === "writing" &&
-        [-2.25, 2.25].map((x) => (
-          <Dormer key={x} p={[x, 5.05, 1.8]} color="#416c5b" />
-        ))}
-    </group>
+    <StaticBatch id="HomeBuildingArt">
+      <group name={`home-${id}-crafted-detail`}>
+        {parts[id] && <WorldSceneryParts parts={parts[id]} />}
+        {glazing[id] && <Glazing panes={glazing[id]} />}
+        {id === "kitchen" && <Dormer p={[0, 4.06, 1.3]} color="#a35538" />}
+        {id === "writing" &&
+          [-2.25, 2.25].map((x) => (
+            <Dormer key={x} p={[x, 5.05, 1.8]} color="#416c5b" />
+          ))}
+      </group>
+    </StaticBatch>
   );
 }

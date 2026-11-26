@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { sculptedMaterial } from "./Surface";
-import { useGame } from "../core/store";
+import { lookWorld } from "./env/look";
 import type { WorldId } from "../core/worlds";
 import { registerCrowns, type Crown } from "./env/foliage";
 
@@ -517,7 +517,7 @@ function TreeInstances({
 
 /** Three opaque grove batches, plus one when palms are present. Placement stays external. */
 export function NaturalTrees({ trees }: { trees: readonly TreePlacement[] }) {
-  const world = useGame((s) => s.world);
+  const world = lookWorld();
   const { wood, broad, pine, palms } = useMemo(() => {
     const wood: Part[] = [],
       broad: Part[] = [],
@@ -527,16 +527,57 @@ export function NaturalTrees({ trees }: { trees: readonly TreePlacement[] }) {
     trees.forEach((tree) => makeTree(tree, look, wood, broad, pine, palms));
     return { wood, broad, pine, palms };
   }, [trees, world]);
-  // The leaf-cluster shell (one draw for every grove) follows these crowns.
+  // With the leaf shell over them, closed crowns become the darker, slightly
+  // smaller inner mass: gaps between leaf clusters read as depth.
+  const inner = useMemo(() => {
+    const color = new THREE.Color();
+    const shrink = (parts: Part[]) =>
+      parts.map(
+        (part): Part => ({
+          ...part,
+          s: [part.s[0] * 0.88, part.s[1] * 0.9, part.s[2] * 0.88],
+          c: `#${color.set(part.c).multiplyScalar(0.66).getHexString()}`,
+        }),
+      );
+    return { broad: shrink(broad), pine: shrink(pine) };
+  }, [broad, pine]);
+  // The leaf-cluster shell (one draw for every grove) follows these crowns,
+  // in world space: groves inside moved/rotated parents (campus district,
+  // underside islets) are carried through their parents' transforms.
+  const anchor = useRef<THREE.Group>(null);
   useLayoutEffect(() => {
-    const crowns: Crown[] = [
-      ...broad.map((part): Crown => ({ ...part, color: part.c, kind: "broad" })),
-      ...pine.map((part): Crown => ({ ...part, color: part.c, kind: "pine" })),
-    ];
-    return registerCrowns(crowns);
+    const group = anchor.current;
+    const matrix = new THREE.Matrix4();
+    if (group) {
+      group.updateWorldMatrix(true, false);
+      matrix.copy(group.matrixWorld);
+    }
+    const position = new THREE.Vector3(),
+      parentQ = new THREE.Quaternion(),
+      parentS = new THREE.Vector3(),
+      q = new THREE.Quaternion(),
+      e = new THREE.Euler();
+    matrix.decompose(position, parentQ, parentS);
+    const scale = (parentS.x + parentS.y + parentS.z) / 3;
+    const place = (part: Part, kind: Crown["kind"]): Crown => {
+      const p = new THREE.Vector3(...part.p).applyMatrix4(matrix);
+      q.setFromEuler(e.set(...part.r));
+      e.setFromQuaternion(q.premultiply(parentQ));
+      return {
+        p: [p.x, p.y, p.z],
+        s: [part.s[0] * scale, part.s[1] * scale, part.s[2] * scale],
+        r: [e.x, e.y, e.z],
+        color: part.c,
+        kind,
+      };
+    };
+    return registerCrowns([
+      ...broad.map((part) => place(part, "broad")),
+      ...pine.map((part) => place(part, "pine")),
+    ]);
   }, [broad, pine]);
   return (
-    <>
+    <group ref={anchor}>
       {wood.length > 0 && (
         <TreeInstances
           parts={wood}
@@ -546,14 +587,14 @@ export function NaturalTrees({ trees }: { trees: readonly TreePlacement[] }) {
       )}
       {broad.length > 0 && (
         <TreeInstances
-          parts={broad}
+          parts={inner.broad}
           geometry={broadGeometry}
           material={leafMaterial}
         />
       )}
       {pine.length > 0 && (
         <TreeInstances
-          parts={pine}
+          parts={inner.pine}
           geometry={pineGeometry}
           material={leafMaterial}
         />
@@ -565,7 +606,7 @@ export function NaturalTrees({ trees }: { trees: readonly TreePlacement[] }) {
           material={leafMaterial}
         />
       )}
-    </>
+    </group>
   );
 }
 

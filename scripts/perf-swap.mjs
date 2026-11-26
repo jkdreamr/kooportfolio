@@ -25,8 +25,11 @@ const browser = await chromium.launch({
     "--enable-precise-memory-info",
   ],
 });
+// VIEWPORT=320x200 keeps software rasterisation cheap so long tasks reflect
+// main-thread work (React, compile, scene setup) rather than pixel fill.
+const [vw, vh] = (process.env.VIEWPORT ?? "1280x800").split("x").map(Number);
 const context = await browser.newContext({
-  viewport: { width: 1280, height: 800 },
+  viewport: { width: vw, height: vh },
   deviceScaleFactor: 1,
 });
 const page = await context.newPage();
@@ -140,25 +143,34 @@ const snapshot = () =>
   });
 
 const ready = await snapshot();
-const interiors = ["boathouse", "office", "kitchen", "gym", "kappa", "cognition"];
+// Interiors that belong to the seeded home world (go() rejects others).
+const interiors = ["office", "kitchen", "music", "writing", "go", "theater"];
 const rows = [];
 for (let i = 0; i < swaps; i++) {
   const target = interiors[i % interiors.length];
   for (const scene of [target, "hub"]) {
     const before = await snapshot();
-    await page.evaluate(async (scene) => {
-      const { useGame } = await import("/src/game/core/store.ts");
+    const entered = await page.evaluate(async (scene) => {
+      const { useGame } =
+        window.__stageDebug ?? (await import("/src/game/core/store.ts"));
       useGame.getState().go(scene);
+      return useGame.getState().scene === scene;
     }, scene);
-    await page.waitForTimeout(2500);
+    if (!entered) errors.push(`go(${scene}) was rejected`);
+    await page.waitForTimeout(Number(process.env.SETTLE ?? 2500));
     const after = await snapshot();
     const lt = await page.evaluate(
       (since) => window.__perfProbe.longTasks.filter(([s]) => s >= since),
       before.t,
     );
+    const presented = await page.evaluate(
+      () => document.querySelector(".game-shell")?.dataset.scene ?? null,
+    );
     rows.push({
       swap: i,
       scene,
+      entered,
+      presented,
       links: after.links - before.links,
       longest: Math.max(0, ...lt.map(([, d]) => d)),
       longTasks: lt.length,

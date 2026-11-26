@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { KOREA_COAST, KOREA_SHORE } from "../core/koreaDistrict";
 import { KOREA_APRON_Y } from "../core/terrain";
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
+import { sculptedMaterial } from "./Surface";
 import type { GroundFootprint } from "../core/scenery";
 
 const river = { left: -12, right: 62, near: 22, far: 44 };
@@ -31,14 +32,8 @@ const terrain = new THREE.ExtrudeGeometry(land, {
 terrain.rotateX(Math.PI / 2);
 terrain.translate(0, 0.14, 0);
 terrain.computeVertexNormals();
-const groundMaterial = new THREE.MeshStandardMaterial({
-  color: "#8b9480",
-  roughness: 1,
-});
-const soilMaterial = new THREE.MeshStandardMaterial({
-  color: "#6f7569",
-  roughness: 1,
-});
+const groundMaterial = sculptedMaterial({ color: "#8b9480", roughness: 0.96 });
+const soilMaterial = sculptedMaterial({ color: "#6f7569", roughness: 0.96 });
 const terrainMaterials = [groundMaterial, soilMaterial];
 // The streets end at a stone edge; a rounded, mossy apron of unwalkable rock
 // lies a step below it and carries the pine hillside and the granite ridge.
@@ -57,8 +52,8 @@ apron.rotateX(Math.PI / 2);
 apron.translate(0, KOREA_APRON_Y, 0);
 apron.computeVertexNormals();
 const apronMaterials = [
-  new THREE.MeshStandardMaterial({ color: "#7f8c6c", roughness: 1 }),
-  new THREE.MeshStandardMaterial({ color: "#8f9087", roughness: 1 }),
+  sculptedMaterial({ color: "#7f8c6c", roughness: 0.96 }),
+  sculptedMaterial({ color: "#8f9087", roughness: 0.96 }),
 ];
 const walls: SceneryPart[] = [];
 for (let x = -11; x < 62; x += 2.4) {

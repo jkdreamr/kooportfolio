@@ -1,3 +1,4 @@
+import { StaticBatch } from "../world/StaticBatch";
 import {
   useEffect,
   useMemo,
@@ -10,6 +11,9 @@ import {
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
+import { setViewZoom, viewZoom, zoomedOffset } from "../engine/camera";
+
+const skateOffset = new THREE.Vector3();
 import { runtime, useGame } from "../core/store";
 import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import { keys, movement, movementSpeed, touch } from "../core/input";
@@ -178,13 +182,15 @@ export function SkateParkBuilding({
   rotation?: number;
 }) {
   return (
-    <group
-      position={position}
-      rotation={[0, rotation, 0]}
-      scale={[1.42, 1, 0.9]}
-    >
-      <SkateParkTerrain detailed={false} />
-    </group>
+    <StaticBatch id="SkateParkBuilding">
+      <group
+        position={position}
+        rotation={[0, rotation, 0]}
+        scale={[1.42, 1, 0.9]}
+      >
+        <SkateParkTerrain detailed={false} />
+      </group>
+    </StaticBatch>
   );
 }
 
@@ -389,22 +395,22 @@ export function SkateParkInterior() {
       overview ? 0 : runtime.z * 0.92,
     );
     follow.current.lerp(cameraTarget.current, 1 - Math.exp(-dt * 4));
-    cameraTarget.current.copy(follow.current).add(cameraOffset);
+    const fit = Math.max(
+      5,
+      Math.min((size.width - 36) / 65, (size.height - 210) / 56),
+    );
+    const zoom = THREE.MathUtils.damp(
+      viewZoom(camera),
+      overview ? fit : size.width < 700 ? 23 : 29,
+      5,
+      dt,
+    );
+    skateOffset.copy(cameraOffset);
+    zoomedOffset(camera, skateOffset, zoom, size.height);
+    cameraTarget.current.copy(follow.current).add(skateOffset);
     camera.position.lerp(cameraTarget.current, 1 - Math.exp(-dt * 5));
     camera.lookAt(follow.current.x, 0.7, follow.current.z);
-    if (camera instanceof THREE.OrthographicCamera) {
-      const fit = Math.max(
-        5,
-        Math.min((size.width - 36) / 65, (size.height - 210) / 56),
-      );
-      camera.zoom = THREE.MathUtils.damp(
-        camera.zoom,
-        overview ? fit : size.width < 700 ? 23 : 29,
-        5,
-        dt,
-      );
-      camera.updateProjectionMatrix();
-    }
+    setViewZoom(camera, zoom, size.height);
   });
 
   const begin = (nextMode: SkateState["mode"]) => {

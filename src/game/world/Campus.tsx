@@ -1,3 +1,4 @@
+import { StaticBatch } from "./StaticBatch";
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
@@ -162,111 +163,133 @@ function Palm({ x, z }: { x: number; z: number }) {
 // An original miniature inspired by Stanford's sandstone quad, not a floor plan.
 export function Campus() {
   return (
-    <group position={[campus.x, 0, campus.z]}>
-      <CampusEmblem />
-      <Box p={[0, 0.12, 0]} s={[19.8, 0.25, 17.8]} c="#b4a47a" />
-      <Box p={[0, 0.26, 0.4]} s={[13.4, 0.12, 13.5]} c="#b4ac77" />
-      <Box p={[0, 0.34, 0.4]} s={[3.3, 0.12, 15.4]} c="#d9c390" />
-      <Box p={[0, 0.34, 0.4]} s={[14.2, 0.12, 2.9]} c="#d9c390" />
-      <Masonry />
-      {[-1, 1].map((side) => (
-        <group key={side}>
-          <Box p={[side * 8.5, 1.75, -0.5]} s={[2.4, 3.5, 13.6]} c="#c3a572" />
-          <Box p={[side * 7.1, 3.1, -0.5]} s={[0.55, 0.55, 14.1]} c="#d6b980" />
-          <group position={[side * 8, 0, -0.5]}>
-            <GableRoof
-              width={4.4}
-              depth={14.7}
-              y={3.4}
-              rise={0.9}
-              color="#a6492e"
+    <StaticBatch id="Campus">
+      <group position={[campus.x, 0, campus.z]}>
+        <CampusEmblem />
+        <Box p={[0, 0.12, 0]} s={[19.8, 0.25, 17.8]} c="#b4a47a" />
+        <Box p={[0, 0.26, 0.4]} s={[13.4, 0.12, 13.5]} c="#b4ac77" />
+        <Box p={[0, 0.34, 0.4]} s={[3.3, 0.12, 15.4]} c="#d9c390" />
+        <Box p={[0, 0.34, 0.4]} s={[14.2, 0.12, 2.9]} c="#d9c390" />
+        <Masonry />
+        {[-1, 1].map((side) => (
+          <group key={side}>
+            <Box
+              p={[side * 8.5, 1.75, -0.5]}
+              s={[2.4, 3.5, 13.6]}
+              c="#c3a572"
             />
+            <Box
+              p={[side * 7.1, 3.1, -0.5]}
+              s={[0.55, 0.55, 14.1]}
+              c="#d6b980"
+            />
+            <group position={[side * 8, 0, -0.5]}>
+              <GableRoof
+                width={4.4}
+                depth={14.7}
+                y={3.4}
+                rise={0.9}
+                color="#a6492e"
+              />
+            </group>
+            {Array.from({ length: 4 }, (_, i) => (
+              <mesh
+                key={i}
+                position={[side * 7.1, 1.65, -4.05 + i * 2.7]}
+                rotation={[0, Math.PI / 2, 0]}
+                geometry={arch}
+                material={archMaterial}
+                castShadow
+                receiveShadow
+                dispose={null}
+              />
+            ))}
           </group>
-          {Array.from({ length: 4 }, (_, i) => (
-            <mesh
-              key={i}
-              position={[side * 7.1, 1.65, -4.05 + i * 2.7]}
-              rotation={[0, Math.PI / 2, 0]}
-              geometry={arch}
-              material={archMaterial}
-              castShadow
-              receiveShadow
-              dispose={null}
-            />
-          ))}
-        </group>
-      ))}
-      <Box p={[0, 1.5, -7]} s={[15.6, 3, 2]} c="#c5a875" />
-      <group position={[0, 0, -6.8]} rotation={[0, Math.PI / 2, 0]}>
-        <GableRoof width={3.5} depth={17} y={3.1} rise={0.85} color="#a6492e" />
-      </group>
-      <Box p={[0, 2.5, -6]} s={[6.8, 5, 2.8]} c="#d1b687" />
-      <Box p={[0, 0.4, -4.3]} s={[7.6, 0.45, 1]} c="#b49a6f" />
-      <group position={[0, 0, -6]}>
-        <GableRoof width={7.5} depth={3.8} y={4.8} rise={1.8} color="#a54d31" />
-      </group>
-      <Cylinder
-        p={[0, 1.1, -4.5]}
-        s={[0.7, 0.12, 0.7]}
-        r={[Math.PI / 2, 0, 0]}
-        c="#6e5038"
-      />
-      <Ring
-        p={[0, 3.5, -4.52]}
-        radius={0.83}
-        tube={0.16}
-        r={[Math.PI / 2, 0, 0]}
-        c="#ae8250"
-      />
-      <Cylinder
-        p={[0, 3.5, -4.52]}
-        s={[0.67, 0.08, 0.67]}
-        r={[Math.PI / 2, 0, 0]}
-        c="#61847b"
-      />
-      {Array.from({ length: 8 }, (_, i) => (
-        <Ball
-          key={i}
-          p={[
-            Math.cos((i * Math.PI) / 4) * 0.45,
-            3.5 + Math.sin((i * Math.PI) / 4) * 0.45,
-            -4.58,
-          ]}
-          s={[0.15, 0.15, 0.06]}
-          c={i % 2 ? "#dec27b" : "#995c4b"}
-        />
-      ))}
-      <group position={[6.9, 0, -5.4]}>
-        <Box p={[0, 4.3, 0]} s={[2, 8.6, 2]} c="#c8ad7e" />
-        <Box p={[0, 7.9, 0]} s={[2.4, 0.45, 2.4]} c="#dcc390" />
-        {[-0.55, 0.55].map((x) => (
-          <Box key={x} p={[x, 7.05, 1.02]} s={[0.4, 1.1, 0.08]} c="#614f3a" />
         ))}
-        <group>
+        <Box p={[0, 1.5, -7]} s={[15.6, 3, 2]} c="#c5a875" />
+        <group position={[0, 0, -6.8]} rotation={[0, Math.PI / 2, 0]}>
           <GableRoof
-            width={2.7}
-            depth={2.7}
-            y={8.3}
-            rise={0.65}
-            color="#a74c30"
+            width={3.5}
+            depth={17}
+            y={3.1}
+            rise={0.85}
+            color="#a6492e"
           />
         </group>
-        <Box p={[0, 2.5, 1.03]} s={[0.4, 2.1, 0.06]} c="#9e8158" />
-      </group>
-      <Cylinder p={[0, 0.6, 0.3]} s={[1.65, 0.55, 1.65]} c="#a58e66" />
-      <Cylinder p={[0, 0.89, 0.3]} s={[1.4, 0.08, 1.4]} c="#64a4a1" />
-      <Ring p={[0, 0.98, 0.3]} radius={1.55} tube={0.15} c="#d6bf8d" />
-      <Cylinder p={[0, 1.2, 0.3]} s={[0.22, 0.7, 0.22]} c="#c9b181" />
-      <Ball p={[0, 1.65, 0.3]} s={[0.48, 0.18, 0.48]} c="#90bbb1" />
-      <Palm x={-5} z={3} />
-      <Palm x={5} z={3} />
-      {[-7.5, 7.5].map((x) => (
-        <group key={x}>
-          <Box p={[x, 1.4, 7]} s={[0.9, 2.8, 0.9]} c="#c5a875" />
-          <Box p={[x, 2.9, 7]} s={[1.2, 0.25, 1.2]} c="#dfc695" />
+        <Box p={[0, 2.5, -6]} s={[6.8, 5, 2.8]} c="#d1b687" />
+        <Box p={[0, 0.4, -4.3]} s={[7.6, 0.45, 1]} c="#b49a6f" />
+        <group position={[0, 0, -6]}>
+          <GableRoof
+            width={7.5}
+            depth={3.8}
+            y={4.8}
+            rise={1.8}
+            color="#a54d31"
+          />
         </group>
-      ))}
-      <Sign text="STANFORD" p={[0, 0.45, 7.8]} size={[4.4, 0.7]} />
-    </group>
+        <Cylinder
+          p={[0, 1.1, -4.5]}
+          s={[0.7, 0.12, 0.7]}
+          r={[Math.PI / 2, 0, 0]}
+          c="#6e5038"
+        />
+        <Ring
+          p={[0, 3.5, -4.52]}
+          radius={0.83}
+          tube={0.16}
+          r={[Math.PI / 2, 0, 0]}
+          c="#ae8250"
+        />
+        <Cylinder
+          p={[0, 3.5, -4.52]}
+          s={[0.67, 0.08, 0.67]}
+          r={[Math.PI / 2, 0, 0]}
+          c="#61847b"
+        />
+        {Array.from({ length: 8 }, (_, i) => (
+          <Ball
+            key={i}
+            p={[
+              Math.cos((i * Math.PI) / 4) * 0.45,
+              3.5 + Math.sin((i * Math.PI) / 4) * 0.45,
+              -4.58,
+            ]}
+            s={[0.15, 0.15, 0.06]}
+            c={i % 2 ? "#dec27b" : "#995c4b"}
+          />
+        ))}
+        <group position={[6.9, 0, -5.4]}>
+          <Box p={[0, 4.3, 0]} s={[2, 8.6, 2]} c="#c8ad7e" />
+          <Box p={[0, 7.9, 0]} s={[2.4, 0.45, 2.4]} c="#dcc390" />
+          {[-0.55, 0.55].map((x) => (
+            <Box key={x} p={[x, 7.05, 1.02]} s={[0.4, 1.1, 0.08]} c="#614f3a" />
+          ))}
+          <group>
+            <GableRoof
+              width={2.7}
+              depth={2.7}
+              y={8.3}
+              rise={0.65}
+              color="#a74c30"
+            />
+          </group>
+          <Box p={[0, 2.5, 1.03]} s={[0.4, 2.1, 0.06]} c="#9e8158" />
+        </group>
+        <Cylinder p={[0, 0.6, 0.3]} s={[1.65, 0.55, 1.65]} c="#a58e66" />
+        <Cylinder p={[0, 0.89, 0.3]} s={[1.4, 0.08, 1.4]} c="#64a4a1" />
+        <Ring p={[0, 0.98, 0.3]} radius={1.55} tube={0.15} c="#d6bf8d" />
+        <Cylinder p={[0, 1.2, 0.3]} s={[0.22, 0.7, 0.22]} c="#c9b181" />
+        <Ball p={[0, 1.65, 0.3]} s={[0.48, 0.18, 0.48]} c="#90bbb1" />
+        <Palm x={-5} z={3} />
+        <Palm x={5} z={3} />
+        {[-7.5, 7.5].map((x) => (
+          <group key={x}>
+            <Box p={[x, 1.4, 7]} s={[0.9, 2.8, 0.9]} c="#c5a875" />
+            <Box p={[x, 2.9, 7]} s={[1.2, 0.25, 1.2]} c="#dfc695" />
+          </group>
+        ))}
+        <Sign text="STANFORD" p={[0, 0.45, 7.8]} size={[4.4, 0.7]} />
+      </group>
+    </StaticBatch>
   );
 }

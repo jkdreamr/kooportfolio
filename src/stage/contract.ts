@@ -205,7 +205,7 @@ export interface WarmTask {
   id: string;
   /** Lower runs first. Engine core: 0–9, world/env: 10–49, interiors: 50+. */
   priority?: number;
-  run: (ctx: WarmContext) => Promise<void> | void;
+  run: (ctx: WarmContext) => unknown;
 }
 
 const warmTasks = new Map<string, WarmTask>();

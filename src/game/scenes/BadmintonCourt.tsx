@@ -1,7 +1,12 @@
+import { StaticBatch } from "../world/StaticBatch";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
+import { setViewZoom, viewZoom, zoomedOffset } from "../engine/camera";
+
+const courtOffset = new THREE.Vector3(),
+  courtCamera = new THREE.Vector3();
 import {
   BADMINTON,
   canReturnBadminton,
@@ -336,7 +341,10 @@ export function BadmintonCourt({
   const matchCamera = useThree((s) => s.camera);
   useEffect(
     () => () => {
-      if (matchCamera instanceof THREE.OrthographicCamera)
+      if (
+        matchCamera instanceof THREE.OrthographicCamera ||
+        matchCamera instanceof THREE.PerspectiveCamera
+      )
         matchCamera.clearViewOffset();
     },
     [playing, matchCamera],
@@ -474,40 +482,40 @@ export function BadmintonCourt({
       );
       shadow.current.scale.setScalar(0.8 + s.y * 0.06);
     }
-    camera.position.lerp(
-      new THREE.Vector3(0, 34, 34),
-      1 - Math.exp(-delta * 7),
+    const narrow = size.width < 700;
+    // Keep the entire court between the score and two compact touch surfaces.
+    const portrait = size.width < 600 && size.height >= 500;
+    const fitted = Math.min(
+      30,
+      (size.width - (narrow ? 24 : 120)) / (narrow ? 15 : 29),
+      portrait
+        ? (size.height - 154) / 20
+        : (size.height - (size.height < 500 ? 84 : 160)) / 20,
     );
+    const zoom = THREE.MathUtils.damp(
+      viewZoom(camera),
+      Math.max(6, fitted),
+      7,
+      delta,
+    );
+    courtOffset.set(0, 34, 36.1);
+    zoomedOffset(camera, courtOffset, zoom, size.height);
+    courtCamera.set(0, 0, -2.1).add(courtOffset);
+    camera.position.lerp(courtCamera, 1 - Math.exp(-delta * 7));
     camera.lookAt(0, 0, -2.1);
-    if (camera instanceof THREE.OrthographicCamera) {
-      const narrow = size.width < 700;
-      // Keep the entire court between the score and two compact touch surfaces.
-      const portrait = size.width < 600 && size.height >= 500;
-      const zoom = Math.min(
-        30,
-        (size.width - (narrow ? 24 : 120)) / (narrow ? 15 : 29),
-        portrait
-          ? (size.height - 154) / 20
-          : (size.height - (size.height < 500 ? 84 : 160)) / 20,
+    setViewZoom(camera, zoom, size.height);
+    const viewed = camera as THREE.PerspectiveCamera | THREE.OrthographicCamera;
+    if (portrait || size.height < 500)
+      viewed.setViewOffset(
+        size.width,
+        size.height,
+        0,
+        portrait ? 15 : -20,
+        size.width,
+        size.height,
       );
-      camera.zoom = THREE.MathUtils.damp(
-        camera.zoom,
-        Math.max(6, zoom),
-        7,
-        delta,
-      );
-      if (portrait || size.height < 500)
-        camera.setViewOffset(
-          size.width,
-          size.height,
-          0,
-          portrait ? 15 : -20,
-          size.width,
-          size.height,
-        );
-      else if (camera.view?.enabled) camera.clearViewOffset();
-      camera.updateProjectionMatrix();
-    }
+    else if (viewed.view?.enabled) viewed.clearViewOffset();
+    viewed.updateProjectionMatrix();
   });
   const begin = () => {
     if (!playing && !startGameMode("badminton")) return;
@@ -690,53 +698,61 @@ export function BadmintonCourt({
 /** Village-scale landmark only; placement and entry remain with the world host. */
 export function BadmintonPavilion() {
   return (
-    <group>
-      <Box p={[0, 0.3, 0]} s={[8, 0.6, 10]} c="#6c7053" />
-      <Box p={[0, 0.62, 0]} s={[7.5, 0.15, 9.5]} c="#bca67c" />
-      <Box p={[0, 0.72, 0]} s={[4.8, 0.06, 7.7]} c="#337b7f" />
-      {[-2.2, 2.2].map((x) => (
-        <Box
-          key={x}
-          p={[x, 0.77, 0]}
-          s={[0.055, 0.02, 7.2]}
-          c="#f0dfb6"
-          sharp
-        />
-      ))}
-      {[-3.6, -1.2, 1.2, 3.6].map((z) => (
-        <Box
-          key={z}
-          p={[0, 0.77, z]}
-          s={[4.45, 0.02, 0.055]}
-          c="#f0dfb6"
-          sharp
-        />
-      ))}
-      {[-2.4, 2.4].map((x) => (
-        <group key={x}>
-          <Box p={[x, 0.9, 0]} s={[0.5, 0.35, 0.5]} c="#4c5140" />
-          <Cylinder p={[x, 1.6, 0]} s={[0.07, 1.6, 0.07]} c="#d4a64f" />
+    <StaticBatch id="BadmintonPavilion">
+      <group>
+        <Box p={[0, 0.3, 0]} s={[8, 0.6, 10]} c="#6c7053" />
+        <Box p={[0, 0.62, 0]} s={[7.5, 0.15, 9.5]} c="#bca67c" />
+        <Box p={[0, 0.72, 0]} s={[4.8, 0.06, 7.7]} c="#337b7f" />
+        {[-2.2, 2.2].map((x) => (
+          <Box
+            key={x}
+            p={[x, 0.77, 0]}
+            s={[0.055, 0.02, 7.2]}
+            c="#f0dfb6"
+            sharp
+          />
+        ))}
+        {[-3.6, -1.2, 1.2, 3.6].map((z) => (
+          <Box
+            key={z}
+            p={[0, 0.77, z]}
+            s={[4.45, 0.02, 0.055]}
+            c="#f0dfb6"
+            sharp
+          />
+        ))}
+        {[-2.4, 2.4].map((x) => (
+          <group key={x}>
+            <Box p={[x, 0.9, 0]} s={[0.5, 0.35, 0.5]} c="#4c5140" />
+            <Cylinder p={[x, 1.6, 0]} s={[0.07, 1.6, 0.07]} c="#d4a64f" />
+          </group>
+        ))}
+        {Array.from({ length: 17 }, (_, i) => (
+          <Box
+            key={i}
+            p={[-2.3 + i * 0.29, 1.8, 0]}
+            s={[0.018, 0.9, 0.018]}
+            c="#344e46"
+            sharp
+          />
+        ))}
+        {[1.35, 1.6, 1.85, 2.1, 2.25].map((y) => (
+          <Box
+            key={y}
+            p={[0, y, 0]}
+            s={[4.7, 0.018, 0.018]}
+            c="#344e46"
+            sharp
+          />
+        ))}
+        <Box p={[0, 2.3, 0]} s={[4.85, 0.09, 0.07]} c="#f4e6bd" />
+        <group position={[3.2, 1.2, -3]} rotation={[0, 0, -0.3]} scale={1.6}>
+          <Racket />
         </group>
-      ))}
-      {Array.from({ length: 17 }, (_, i) => (
-        <Box
-          key={i}
-          p={[-2.3 + i * 0.29, 1.8, 0]}
-          s={[0.018, 0.9, 0.018]}
-          c="#344e46"
-          sharp
-        />
-      ))}
-      {[1.35, 1.6, 1.85, 2.1, 2.25].map((y) => (
-        <Box key={y} p={[0, y, 0]} s={[4.7, 0.018, 0.018]} c="#344e46" sharp />
-      ))}
-      <Box p={[0, 2.3, 0]} s={[4.85, 0.09, 0.07]} c="#f4e6bd" />
-      <group position={[3.2, 1.2, -3]} rotation={[0, 0, -0.3]} scale={1.6}>
-        <Racket />
+        <group position={[-1.1, 0.83, 1.7]}>
+          <Shuttlecock />
+        </group>
       </group>
-      <group position={[-1.1, 0.83, 1.7]}>
-        <Shuttlecock />
-      </group>
-    </group>
+    </StaticBatch>
   );
 }

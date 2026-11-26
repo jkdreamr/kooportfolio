@@ -1,6 +1,9 @@
 import { useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
+import { setViewZoom, viewZoom, zoomedOffset } from "../engine/camera";
+
+const journeyOffset = new THREE.Vector3();
 import { runtime, useGame } from "../core/store";
 import { findPath } from "../core/world";
 import { moveJourneyApproach } from "../core/journeyApproach";
@@ -218,18 +221,23 @@ export function IslandJourney({
       }
     }
     focus.current.lerp(position.current, 1 - Math.exp(-dt * 3));
-    camera.position.copy(focus.current).add(offset.current);
+    const zoom = THREE.MathUtils.damp(
+      viewZoom(camera),
+      Math.min(
+        size.width / (reduced ? 55 : 38),
+        Math.max(140, size.height - 140) / (reduced ? 48 : 32),
+      ),
+      4,
+      dt,
+    );
+    // Same direction as the journey offset; telephoto distance for the zoom.
+    journeyOffset.copy(offset.current);
+    zoomedOffset(camera, journeyOffset, zoom, size.height);
+    camera.position.copy(focus.current).add(journeyOffset);
     lookMatrix.current.lookAt(camera.position, focus.current, camera.up);
     lookRotation.current.setFromRotationMatrix(lookMatrix.current);
     camera.quaternion.slerp(lookRotation.current, 1 - Math.exp(-dt * 4));
-    if (camera instanceof THREE.OrthographicCamera) {
-      const zoom = Math.min(
-        size.width / (reduced ? 55 : 38),
-        Math.max(140, size.height - 140) / (reduced ? 48 : 32),
-      );
-      camera.zoom = THREE.MathUtils.damp(camera.zoom, zoom, 4, dt);
-      camera.updateProjectionMatrix();
-    }
+    setViewZoom(camera, zoom, size.height);
     if (phase.current === "done") {
       runtime.heading = actor.current?.rotation.y ?? heading;
       onComplete();

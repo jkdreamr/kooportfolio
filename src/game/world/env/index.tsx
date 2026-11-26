@@ -13,6 +13,8 @@ import { Grass } from "./Grass";
 import { Rocks } from "./Rocks";
 import { ShoreDetail } from "./ShoreDetail";
 import { Ripples } from "./Ripples";
+import { Lakes } from "./Lakes";
+import { Groves } from "./Groves";
 
 /**
  * Environment layer (W3): foliage shells, grass, rocks, shoreline, atmosphere.
@@ -33,6 +35,8 @@ export function Environment({ world }: { world: WorldId }) {
       <EnvironmentDriver />
       <LeafShell />
       <Grass world={world} />
+      <Lakes world={world} />
+      <Groves world={world} />
       <Rocks world={world} />
       <ShoreDetail world={world} />
       <Ripples world={world} />
@@ -53,6 +57,8 @@ function EnvironmentDriver() {
   const active = useWorldActive();
   useFrame(({ scene, camera }, delta) => {
     if (!active) return;
+    if (import.meta.env.DEV)
+      (window as unknown as { __w3scene?: THREE.Scene }).__w3scene = scene;
     const paused = useGame.getState().paused;
     if (!paused && !reducedMotion?.matches)
       envUniforms.uEnvTime.value =

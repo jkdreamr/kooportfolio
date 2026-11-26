@@ -7,13 +7,29 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import {
-  OrthographicCamera,
-  PerspectiveCamera,
-  PerformanceMonitor,
-} from "@react-three/drei";
+  Canvas,
+  events as createPointerEvents,
+  useFrame,
+  useThree,
+  type RootState,
+} from "@react-three/fiber";
+import { PerspectiveCamera } from "@react-three/drei";
 import * as THREE from "three";
+import {
+  ACTIVITY_FOV,
+  TELEPHOTO_FOV,
+  TIER_BUDGETS,
+  gameInputEnabled,
+  useStage,
+  type Tier,
+} from "../stage/contract";
+import { EngineRuntime, pinPrograms, rig } from "./engine/Engine";
+import { WorldActiveContext } from "./engine/active";
+import { usePresented } from "./engine/presented";
+import { PerfOverlay } from "./engine/PerfOverlay";
+import { installGradeToneMapping } from "./engine/grade";
+import { legacyQuality, pickTier } from "./engine/tier";
 import { Hub } from "./world/Hub";
 import { Interior } from "./scenes/Interior";
 import { Rowing } from "./scenes/Rowing";
@@ -80,84 +96,55 @@ function WorldFallback() {
     </div>
   );
 }
-declare global {
-  interface Window {
-    __joshuaPerf?: {
-      frames: number[];
-      calls: number;
-      triangles: number;
-      geometries: number;
-      textures: number;
-      renderer: string;
-    };
-  }
-}
-function FrameMetrics() {
-  useFrame(({ gl }, dt) => {
-    const stat = (window.__joshuaPerf ??= {
-      frames: [],
-      calls: 0,
-      triangles: 0,
-      geometries: 0,
-      textures: 0,
-      renderer: "",
-    });
-    if (!useGame.getState().paused && runtime.active) {
-      stat.frames.push(dt * 1000);
-      if (stat.frames.length > 2400) stat.frames.shift();
-    }
-    stat.calls = gl.info.render.calls;
-    stat.triangles = gl.info.render.triangles;
-    stat.geometries = gl.info.memory.geometries;
-    stat.textures = gl.info.memory.textures;
-    // A driver query can synchronize the GPU. Read it once, not every frame.
-    if (!stat.renderer)
-      stat.renderer = gl.getContext().getParameter(gl.getContext().RENDERER);
-  });
-  return null;
-}
-// The key light's fixed direction; the shadow camera sits far enough back
-// that a whole island fits between its near and far planes.
-const SUN_OFFSET = [-60, 120, 60] as const;
+// Key light at noon: the shadow camera sits far enough back that a whole
+// island fits between its near and far planes. The azimuth and elevation
+// follow the hour (late afternoon gives long warm shadows).
+const SUN_DISTANCE = Math.hypot(-60, 120, 60);
+const NOON_AZIMUTH = Math.atan2(60, -60);
+const NOON_ELEVATION = Math.atan2(120, Math.hypot(60, 60));
 const reducedMotion =
   typeof matchMedia === "function"
     ? matchMedia("(prefers-reduced-motion: reduce)")
     : null;
-function Sun() {
+const sunDirection = new THREE.Vector3();
+/** Unit vector toward the sun for an hour of day (interiors keep noon). */
+export function sunDirectionFor(hour: number, out = sunDirection) {
+  // Day arc 6:00 → 18:30; outside it the (moon) light parks near noon so
+  // night shadows stay short and readable.
+  const day = Math.min(1, Math.max(0, (hour - 6) / 12.5));
+  const isDay = hour >= 6 && hour <= 18.5;
+  const swing = isDay ? (day - 0.5) * 1.6 : 0.35;
+  // Quantised to 0.25° so a slowly moving sun never crawls shadow texels.
+  const step = (0.25 * Math.PI) / 180;
+  const azimuth = Math.round((NOON_AZIMUTH + swing) / step) * step;
+  const height = isDay ? Math.sin(day * Math.PI) : 0.8;
+  const elevation =
+    Math.round(
+      THREE.MathUtils.lerp(0.42, NOON_ELEVATION, Math.min(1, height * 1.15)) /
+        step,
+    ) * step;
+  return out.set(
+    Math.cos(azimuth) * Math.cos(elevation),
+    Math.sin(elevation),
+    Math.sin(azimuth) * Math.cos(elevation),
+  );
+}
+const lightRight = new THREE.Vector3(),
+  lightUp = new THREE.Vector3(),
+  worldUp = new THREE.Vector3(0, 1, 0),
+  snapped = new THREE.Vector3();
+function Sun({ tier }: { tier: Tier }) {
   const light = useRef<THREE.DirectionalLight>(null);
   const hemisphere = useRef<THREE.HemisphereLight | undefined>(undefined);
   const target = useMemo(() => new THREE.Object3D(), []);
-  const quality = useGame((s) => s.quality);
-  // Desktop gets a 4096 map so the island-wide overview frustum keeps roughly
-  // the texel density the old player-sized 2048 frustum had; phones stay 2048.
-  // Software rasterisers (SwiftShader, llvmpipe) and small-texture GPUs keep
-  // 2048 too: a 4096 depth target there risks losing the WebGL context.
+  // One map for the session: 2048 at most (4096 depth targets risked context
+  // loss on mobile and software rasterisers), chosen with the tier.
+  const mapSize = TIER_BUDGETS[tier].shadowMapSize || 512;
+  const casts = TIER_BUDGETS[tier].shadowMapSize > 0;
   const gl = useThree((s) => s.gl);
-  const capable = useMemo(() => {
-    const context = gl.getContext();
-    const info = context.getExtension("WEBGL_debug_renderer_info");
-    const name = String(
-      context.getParameter(
-        info ? info.UNMASKED_RENDERER_WEBGL : context.RENDERER,
-      ),
-    );
-    return (
-      gl.capabilities.maxTextureSize >= 8192 &&
-      !/swiftshader|llvmpipe|software|basic render/i.test(name)
-    );
-  }, [gl]);
-  const wide = useThree((s) => s.size.width >= 700);
-  const mapSize = capable && wide ? 4096 : 2048;
-  useEffect(() => {
-    // Three allocates the depth target once; a new size needs a new target.
-    const shadow = light.current?.shadow;
-    if (!shadow?.map || shadow.map.width === mapSize) return;
-    shadow.mapSize.set(mapSize, mapSize);
-    shadow.map.dispose();
-    shadow.map = null;
-  }, [mapSize]);
   useFrame(({ camera, scene: root }, delta) => {
-    const { scene, world, quality: tier, paused } = useGame.getState();
+    const { world, quality, paused } = useGame.getState();
+    const scene = usePresented.getState().scene;
     const race = scene === "rowing";
     const hub = scene === "hub";
     let x = race ? camera.position.x : hub ? runtime.x : 0;
@@ -172,8 +159,9 @@ function Sun() {
     );
     x = THREE.MathUtils.lerp(island.centerX, x, follow);
     z = THREE.MathUtils.lerp(island.centerZ, z, follow);
-    const halfRight = THREE.MathUtils.lerp(reach * Math.SQRT1_2, 35, follow);
-    const halfUp = THREE.MathUtils.lerp(reach / Math.sqrt(3), 32, follow);
+    // Tight follow frustum when walking; island-wide only at the overview.
+    const halfRight = THREE.MathUtils.lerp(reach * Math.SQRT1_2, 26, follow);
+    const halfUp = THREE.MathUtils.lerp(reach / Math.sqrt(3), 24, follow);
     // Roofs and towers lean toward the top of the light's view.
     const top = halfUp + 14 * (1 - follow);
     const sun = light.current;
@@ -191,23 +179,29 @@ function Sun() {
         view.updateProjectionMatrix();
       }
     }
+    const direction = hub || race
+      ? sunDirectionFor(daylightClock.hour)
+      : sunDirectionFor(12.25);
     // Snap the tracking light in its own texel space. Fractional shadow-map
     // motion otherwise makes stationary roofs/grass sparkle while walking.
+    lightRight.crossVectors(worldUp, direction).normalize();
+    lightUp.crossVectors(direction, lightRight).normalize();
     const texelRight = (halfRight * 2) / mapSize;
     const texelUp = (top + halfUp) / mapSize;
-    const right = Math.round(((x + z) * Math.SQRT1_2) / texelRight) * texelRight;
-    const up = Math.round((x - z) / Math.sqrt(3) / texelUp) * texelUp;
-    target.position.set(
-      (right / Math.SQRT1_2 + up * Math.sqrt(3)) / 2,
-      0,
-      (right / Math.SQRT1_2 - up * Math.sqrt(3)) / 2,
-    );
+    const right = Math.round((x * lightRight.x + z * lightRight.z) / texelRight) * texelRight;
+    const up = Math.round((x * lightUp.x + z * lightUp.z) / texelUp) * texelUp;
+    // Solve for the ground point (y = 0) with those light-space coordinates.
+    const det = lightRight.x * lightUp.z - lightRight.z * lightUp.x;
+    if (Math.abs(det) > 1e-5)
+      snapped.set(
+        (right * lightUp.z - up * lightRight.z) / det,
+        0,
+        (up * lightRight.x - right * lightUp.x) / det,
+      );
+    else snapped.set(x, 0, z);
+    target.position.copy(snapped);
     target.updateMatrixWorld();
-    sun?.position.set(
-      target.position.x + SUN_OFFSET[0],
-      SUN_OFFSET[1],
-      target.position.z + SUN_OFFSET[2],
-    );
+    sun?.position.copy(snapped).addScaledVector(direction, SUN_DISTANCE);
     // One driver for every glossy surface: sky tint, night glow, water time.
     if (!hemisphere.current) {
       const found = root.getObjectByName("world-hemisphere");
@@ -218,7 +212,7 @@ function Sun() {
       hemisphere.current,
       sampleDaylight(daylightClock.hour).night,
       delta,
-      tier === "high",
+      quality === "high",
       !paused && !reducedMotion?.matches,
     );
   });
@@ -231,17 +225,124 @@ function Sun() {
         target={target}
         intensity={3.1}
         color="#fff0cc"
-        castShadow={quality === "high"}
+        castShadow={casts}
         shadow-mapSize={[mapSize, mapSize]}
         shadow-camera-near={1}
         shadow-camera-far={320}
-        shadow-normalBias={0.05}
-        shadow-bias={-0.0001}
+        shadow-normalBias={0.04}
+        shadow-bias={-0.0002}
+        shadow-radius={3}
       />
     </>
   );
 }
-function World() {
+
+/** Where activity scenes used to mount their own camera. */
+const ACTIVITY_START: Record<string, [number, number, number]> = {
+  rowing: [3, 9.5, 17],
+  "paper-toss": [0, 9, 16],
+  basketball: [7, 12, 18],
+};
+
+/**
+ * One persistent perspective camera. Hub and interiors use a 20° telephoto
+ * lens (Walker maps the old ortho zoom to distance); activities use 55°.
+ * A scene change never cuts: the rig blends from the on-screen pose.
+ */
+function SceneCamera() {
+  const camera = useThree((s) => s.camera);
+  const key = useRef("");
+  useFrame(() => {
+    const { scene } = useGame.getState();
+    const paperToss =
+      scene === "office" && useGameMode.getState().active?.id === "paper-toss";
+    const activity = paperToss || !(scene === "hub" || isInterior(scene));
+    const next = `${scene}:${paperToss}`;
+    if (next === key.current) return;
+    const first = key.current === "";
+    key.current = next;
+    const perspective = camera as THREE.PerspectiveCamera;
+    if (activity) {
+      const start = ACTIVITY_START[paperToss ? "paper-toss" : scene] ??
+        ACTIVITY_START.basketball;
+      perspective.position.set(...start);
+      perspective.lookAt(0, 0, 0);
+      perspective.fov = ACTIVITY_FOV;
+      perspective.near = 0.1;
+      perspective.far = 130;
+      perspective.userData.viewDistance = Math.hypot(...start);
+      perspective.updateProjectionMatrix();
+    } else if (perspective.fov !== TELEPHOTO_FOV) {
+      perspective.fov = TELEPHOTO_FOV;
+      perspective.updateProjectionMatrix();
+    }
+    usePresented.setState({ activity });
+    if (!first) rig.blend(0.6);
+  }, -10);
+  return null;
+}
+
+/** Scenes other than the hub mount hidden, compile (parallel where the
+ * driver allows), then take over: the previous frame stays on screen with
+ * the camera held, so there is no stall-frame or blank between them. */
+function useIncomingScene(scene: Scene) {
+  const gl = useThree((s) => s.gl);
+  const incoming = useRef<THREE.Group>(null);
+  const presented = usePresented((s) => s.scene);
+  useEffect(() => {
+    if (presented === scene) return;
+    if (scene === "hub") {
+      // The hub never unmounts: it is compiled and current already.
+      usePresented.setState({ scene });
+      rig.release(0.6);
+      return;
+    }
+    let cancelled = false;
+    rig.hold();
+    void (async () => {
+      // Let the incoming subtree mount and its effects run.
+      await new Promise((r) => requestAnimationFrame(r));
+      const group = incoming.current;
+      const root = useThreeRoot.current;
+      if (group && root) {
+        let pending: Promise<unknown> = Promise.resolve();
+        group.visible = true;
+        try {
+          pending = gl.compileAsync(group, root.camera, root.scene);
+        } catch {
+          // Compile errors surface on render; never block the swap on them.
+        } finally {
+          group.visible = false;
+        }
+        // Never hold the camera longer than 2.5 s, whatever the driver does.
+        await Promise.race([
+          pending.catch(() => {}),
+          new Promise((r) => setTimeout(r, 2500)),
+        ]);
+        // Keep these programs for the session: leaving this scene later
+        // must not release (and re-entering relink) them.
+        pinPrograms(gl);
+      }
+      if (cancelled) return;
+      rig.release(0.6);
+      usePresented.setState({ scene });
+    })();
+    return () => {
+      cancelled = true;
+      // Superseded before it presented (e.g. straight back outside).
+      rig.release(0.3);
+    };
+  }, [gl, presented, scene]);
+  return { incoming, presented };
+}
+const useThreeRoot: { current: RootState | null } = { current: null };
+function RootCapture() {
+  const state = useThree();
+  useThreeRoot.current = state;
+  return null;
+}
+
+function World({ tier }: { tier: Tier }) {
   const scene = useGame((s) => s.scene),
     world = useGame((s) => s.world),
     run = useGame((s) => s.run);
@@ -252,42 +353,27 @@ function World() {
   const paperToss = useGameMode(
     (s) => scene === "office" && s.active?.id === "paper-toss",
   );
-  const flat = !paperToss && (scene === "hub" || isInterior(scene));
+  const { incoming, presented } = useIncomingScene(scene);
+  const hubShown = presented === "hub";
+  const backdrop = presented === "rowing" ? "#d5e0ce" : "#dce5c7";
   return (
     <>
-      {flat ? (
-        <OrthographicCamera
-          makeDefault
-          position={[70, 85, 95]}
-          zoom={29}
-          near={0.1}
-          far={350}
-        />
-      ) : (
-        <PerspectiveCamera
-          makeDefault
-          position={
-            scene === "rowing"
-              ? [3, 9.5, 17]
-              : paperToss
-                ? [0, 9, 16]
-                : [7, 12, 18]
-          }
-          fov={55}
-          near={0.1}
-          far={130}
-        />
-      )}
-      <color
-        attach="background"
-        args={[scene === "rowing" ? "#d5e0ce" : "#dce5c7"]}
+      <PerspectiveCamera
+        makeDefault
+        position={[70, 85, 95]}
+        fov={TELEPHOTO_FOV}
+        near={0.5}
+        far={1200}
       />
+      <RootCapture />
+      <SceneCamera />
+      <color attach="background" args={[backdrop]} />
       <fog
         attach="fog"
         args={[
-          scene === "rowing" ? "#d5e0ce" : "#dce5c7",
-          scene === "hub" ? 300 : 65,
-          scene === "hub" ? 500 : scene === "rowing" ? 120 : 160,
+          backdrop,
+          presented === "hub" ? 300 : 65,
+          presented === "hub" ? 500 : presented === "rowing" ? 120 : 160,
         ]}
       />
       <hemisphereLight
@@ -301,13 +387,13 @@ function World() {
         intensity={0.8}
         color="#c7e6ff"
       />
-      <Sun />
+      <Sun tier={tier} />
       <TimeOfDayLighting dimmed={scene === "theater" && filmPlaying} />
       <WorldAmbience />
       <WorldZoomInput />
       {/* Islands float in open sky: a mid-air catcher would print shadows on
           nothing and clip transparent falls beneath it. */}
-      {scene !== "rowing" && scene !== "hub" && (
+      {presented !== "rowing" && presented !== "hub" && (
         <mesh
           rotation={[-Math.PI / 2, 0, 0]}
           position={[0, -2.2, 0]}
@@ -317,19 +403,72 @@ function World() {
           <shadowMaterial transparent opacity={0.12} />
         </mesh>
       )}
-      {scene === "hub" && <Hub />}
-      {isInterior(scene) && scene !== "skate" && !paperToss && (
-        <Interior key={scene} />
-      )}
-      {scene === "office" && <StudyPaperToss playing={paperToss} />}
-      {scene === "skate" && <SkateParkInterior key={`skate-${run}`} />}
-      {scene === "rowing" && <Rowing key={`race-${run}`} />}
-      {scene === "basketball" && <Basketball key={`basket-${run}`} />}
-      <FrameMetrics />
+      {/* The hub stays mounted (hidden, frame work gated) while interiors and
+          activities are shown: returning outside relinks nothing. */}
+      <WorldActiveContext.Provider value={scene === "hub" && hubShown}>
+        <group name="hub-root" visible={hubShown}>
+          <Hub />
+        </group>
+      </WorldActiveContext.Provider>
+      <group
+        name="scene-root"
+        ref={incoming}
+        visible={!hubShown && presented === scene}
+      >
+        {isInterior(scene) && scene !== "skate" && !paperToss && (
+          <Interior key={scene} />
+        )}
+        {scene === "office" && <StudyPaperToss playing={paperToss} />}
+        {scene === "skate" && <SkateParkInterior key={`skate-${run}`} />}
+        {scene === "rowing" && <Rowing key={`race-${run}`} />}
+        {scene === "basketball" && <Basketball key={`basket-${run}`} />}
+      </group>
     </>
   );
 }
-export default function Game() {
+
+/** Sky colour behind the canvas and on the shell, so a cleared, resized or
+ * lost drawing buffer never shows white. */
+function ShellSky({ shell }: { shell: React.RefObject<HTMLDivElement | null> }) {
+  const last = useRef("");
+  const elapsed = useRef(1);
+  useFrame(({ scene, gl }, delta) => {
+    elapsed.current += delta;
+    if (elapsed.current < 0.5) return;
+    elapsed.current = 0;
+    if (!(scene.background instanceof THREE.Color)) return;
+    const hex = `#${scene.background.getHexString(THREE.SRGBColorSpace)}`;
+    if (hex === last.current) return;
+    last.current = hex;
+    gl.domElement.style.background = hex;
+    shell.current?.style.setProperty("--stage-sky", hex);
+    if (shell.current) shell.current.style.background = hex;
+  });
+  return null;
+}
+
+/** Pointer hits on hidden subtrees (the parked hub) are ignored. */
+function visibleChain(object: THREE.Object3D) {
+  for (let node: THREE.Object3D | null = object; node; node = node.parent)
+    if (!node.visible) return false;
+  return true;
+}
+const events = (store: Parameters<typeof createPointerEvents>[0]) => ({
+  ...createPointerEvents(store),
+  filter: (items: THREE.Intersection[]) =>
+    items.filter((hit) => visibleChain(hit.object)),
+});
+
+const webgl2 = () => {
+  try {
+    return typeof WebGL2RenderingContext !== "undefined";
+  } catch {
+    return false;
+  }
+};
+const DEFAULT_SKY = "#dce5c7";
+
+export default function Game({ autoEnter = true }: { autoEnter?: boolean } = {}) {
   useEffect(
     () =>
       useGame.subscribe((state, previous) => {
@@ -339,22 +478,22 @@ export default function Game() {
     [],
   );
   const [lost, setLost] = useState(false),
-    [supported] = useState(() => {
-      try {
-        const c = document.createElement("canvas");
-        return !!c.getContext("webgl2");
-      } catch {
-        return false;
-      }
-    });
-  const quality = useGame((s) => s.quality),
-    traveling = useGame((s) => s.traveling),
+    [supported] = useState(webgl2),
+    [tier, setTier] = useState<Tier | null>(() => useStage.getState().tier);
+  const shell = useRef<HTMLDivElement>(null);
+  const traveling = useGame((s) => s.traveling),
     paused = useGame((s) => s.paused),
     panel = useGame((s) => s.panel);
+  const mode = useStage((s) => s.mode),
+    ready = useStage((s) => s.ready),
+    hudRevealed = useStage((s) => s.hudRevealed),
+    worldVisible = useStage((s) => s.worldVisible);
   const gameMode = useGameMode((s) => s.active);
+  const presentedScene = usePresented((s) => s.scene);
   const photoBooth = gameMode?.id === "photo-booth";
   const interact = useCallback(() => {
     const g = useGame.getState();
+    if (!gameInputEnabled(useStage.getState())) return;
     if (interactWithNpc()) return;
     if (
       g.paused ||
@@ -417,37 +556,94 @@ export default function Game() {
     };
   }, []);
   if (!supported || lost) return <WorldFallback />;
+  const budget = tier ? TIER_BUDGETS[tier] : null;
+  const idle = paused || photoBooth || (mode === "site" && !worldVisible);
   return (
-    <div className="game-shell" data-game-mode={gameMode?.id}>
+    <div
+      ref={shell}
+      className="game-shell"
+      data-game-mode={gameMode?.id}
+      data-stage-mode={mode}
+      data-stage-ready={ready ? "true" : "false"}
+      data-scene={presentedScene}
+      data-hud={hudRevealed ? "revealed" : "hidden"}
+      style={{ background: DEFAULT_SKY }}
+    >
       <WorldBoundary>
-        <Canvas
-          shadows={quality === "high" ? "soft" : false}
-          dpr={quality === "high" ? [1, 1.6] : 1}
-          gl={{
-            antialias: true,
-            powerPreference: "high-performance",
-          }}
-          frameloop={paused || photoBooth ? "demand" : "always"}
-          onCreated={({ gl }) => {
-            gl.toneMapping = THREE.ACESFilmicToneMapping;
-            gl.toneMappingExposure = 0.98;
-            gl.domElement.addEventListener("webglcontextlost", (e) => {
-              e.preventDefault();
-              setLost(true);
-            });
-          }}
-          fallback={<WorldFallback />}
+        {/* Large-viewport height: mobile URL-bar show/hide never resizes the
+            drawing buffer (the shell clips the overflow instead). */}
+        <div
+          className="stage-canvas"
+          style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100lvh" }}
         >
-          {!paused && !traveling && !photoBooth && (
-            <PerformanceMonitor
-              onDecline={() => useGame.setState({ quality: "low" })}
-              flipflops={1}
-              onFallback={() => useGame.setState({ quality: "low" })}
-            />
-          )}
-          <World />
-        </Canvas>
+          <Canvas
+            shadows={budget && budget.shadowMapSize > 0 ? "soft" : false}
+            dpr={budget ? Math.min(budget.dpr[1], Math.max(budget.dpr[0], window.devicePixelRatio || 1)) : 1}
+            gl={{
+              alpha: false,
+              antialias: true,
+              stencil: false,
+              powerPreference: "high-performance",
+            }}
+            style={{ background: DEFAULT_SKY }}
+            events={events}
+            frameloop={idle ? "demand" : "always"}
+            onCreated={({ gl }) => {
+              installGradeToneMapping();
+              gl.setClearColor(DEFAULT_SKY, 1);
+              gl.clear();
+              const chosen = useStage.getState().tier ?? pickTier(gl);
+              gl.toneMapping =
+                TIER_BUDGETS[chosen].grade && !TIER_BUDGETS[chosen].ao
+                  ? THREE.CustomToneMapping
+                  : THREE.ACESFilmicToneMapping;
+              gl.toneMappingExposure = 0.98;
+              gl.info.autoReset = false;
+              useStage.setState({ tier: chosen });
+              useGame.setState({ quality: legacyQuality(chosen) });
+              setTier(chosen);
+            }}
+            fallback={<WorldFallback />}
+          >
+            {tier && (
+              <>
+                <EngineRuntime tier={tier} autoEnter={autoEnter} onLost={setLost} />
+                <ShellSky shell={shell} />
+                <World tier={tier} />
+              </>
+            )}
+          </Canvas>
+        </div>
       </WorldBoundary>
+      {/* Veil in the sky colour until the first warm frame: never a spinner,
+          never white. It dissolves as the world arrives. */}
+      <div
+        className="stage-veil"
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "var(--stage-sky, #dce5c7)",
+          opacity: ready ? 0 : 1,
+          transition: "opacity 600ms cubic-bezier(.2,.8,.2,1)",
+          pointerEvents: "none",
+          zIndex: 1,
+        }}
+      />
+      {budget?.vignette && (
+        <div
+          className="stage-vignette"
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            inset: 0,
+            pointerEvents: "none",
+            zIndex: 1,
+            background:
+              "radial-gradient(ellipse 120% 95% at 50% 46%, transparent 58%, rgba(20,28,36,.2) 100%)",
+          }}
+        />
+      )}
       <Hud interact={interact} />
       {!gameMode && !traveling && <TimeOfDayControls />}
       {!gameMode && <WorldZoomControls />}
@@ -459,6 +655,7 @@ export default function Game() {
           onClose={() => useGame.setState({ panel: "none" })}
         />
       )}
+      <PerfOverlay />
     </div>
   );
 }

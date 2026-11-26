@@ -26,6 +26,8 @@ function load() {
   }
 }
 let writeAllowed = true;
+/** The save object last written to storage (skip identical autosaves). */
+let lastWritten: Save | null = null;
 const initial = load();
 if (!canWalk(initial.position[0], initial.position[1], initial.world))
   initial.position = [0, 5];
@@ -176,16 +178,23 @@ export const useGame = create<State>((set, get) => ({
     if (get().near !== near) set({ near });
   },
   persist() {
-    const s =
-      get().scene === "hub"
-        ? {
-            ...get().save,
-            world: get().world,
-            position: [runtime.x, runtime.z] as [number, number],
-          }
-        : get().save;
-    set({ save: s });
-    if (!writeAllowed) return;
+    const current = get().save;
+    // Keep the save's identity unless something actually changed: the 4 s
+    // autosave used to replace it every time, re-rendering every subscriber.
+    const moved =
+      get().scene === "hub" &&
+      (current.world !== get().world ||
+        current.position[0] !== runtime.x ||
+        current.position[1] !== runtime.z);
+    const s = moved
+      ? {
+          ...current,
+          world: get().world,
+          position: [runtime.x, runtime.z] as [number, number],
+        }
+      : current;
+    if (s !== current) set({ save: s });
+    if (!writeAllowed || s === lastWritten) return;
     try {
       const written = writeGuestSave(localStorage, s, savedRaw);
       if (written === null) {
@@ -198,6 +207,7 @@ export const useGame = create<State>((set, get) => ({
         return;
       }
       savedRaw = written;
+      lastWritten = s;
     } catch {
       set({
         notice:

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Box3, Vector3, type Camera, type Object3D } from "three";
 import { runtime, useGame, walkTo } from "../core/store";
@@ -58,36 +59,114 @@ export function markerLabelRect(
 
 // Keep labels in the main React DOM tree, not independent roots inside Canvas.
 // The renderer only updates their projection; React owns their full lifecycle.
-export function LabelProjection() {
-  useFrame(({ camera, size, scene }) => {
+//
+// Layout discipline: label sizes come from a ResizeObserver cache and HUD
+// control rects are re-read at most every 250 ms, all reads before any write,
+// so a frame never forces a synchronous layout. Projection runs at ~20 Hz, or
+// immediately when the camera or the player moved.
+const sizes = new WeakMap<Element, { w: number; h: number }>();
+const observer =
+  typeof ResizeObserver === "function"
+    ? new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const box = entry.borderBoxSize?.[0];
+          const target = entry.target as HTMLElement;
+          sizes.set(target, {
+            w: box ? box.inlineSize : target.offsetWidth,
+            h: box ? box.blockSize : target.offsetHeight,
+          });
+        }
+      })
+    : null;
+function labelSize(element: HTMLElement) {
+  let size = sizes.get(element);
+  if (!size) {
+    size = { w: element.offsetWidth, h: element.offsetHeight };
+    sizes.set(element, size);
+    observer?.observe(element);
+  }
+  return size;
+}
+const CONTROLS =
+  ".context-action.visible, .time-of-day-control, .world-zoom, .island-rail-controls, .world-toolbar, .joystick";
+let controlRects: LabelRect[] = [];
+let controlsReadAt = -Infinity;
+function readControls(now: number) {
+  if (now - controlsReadAt < 250) return controlRects;
+  controlsReadAt = now;
+  const shell = document.querySelector(".game-shell");
+  controlRects = [];
+  if (!shell) return controlRects;
+  const origin = shell.getBoundingClientRect();
+  for (const control of shell.querySelectorAll(CONTROLS)) {
+    if (getComputedStyle(control).visibility === "hidden") continue;
+    const bounds = control.getBoundingClientRect();
+    if (!bounds.width || !bounds.height) continue;
+    controlRects.push({
+      x: bounds.left - origin.left + bounds.width / 2,
+      y: bounds.top - origin.top + bounds.height / 2,
+      w: bounds.width + 20,
+      h: bounds.height + 20,
+    });
+  }
+  return controlRects;
+}
+const shown = new WeakMap<HTMLElement, string>();
+function place(element: HTMLElement, transform: string, visible: boolean, frosted: boolean) {
+  const key = `${transform}|${visible ? 1 : 0}|${frosted ? 1 : 0}`;
+  if (shown.get(element) === key) return;
+  shown.set(element, key);
+  element.style.transform = transform;
+  element.style.visibility = visible ? "visible" : "hidden";
+  element.classList.toggle("is-frosted", frosted);
+}
+export function hideAllLabels() {
+  for (const element of elements.values()) {
+    if (shown.get(element)?.includes("|0|")) continue;
+    shown.set(element, "hidden|0|0");
+    element.style.visibility = "hidden";
+    element.classList.remove("is-frosted");
+  }
+}
+
+export function LabelProjection({ active = true }: { active?: boolean }) {
+  const last = useMemo(
+    () => ({ at: -Infinity, camera: new Float64Array(17), x: NaN, z: NaN }),
+    [],
+  );
+  useFrame(({ camera, size, scene, clock }) => {
+    if (!active) {
+      hideAllLabels();
+      return;
+    }
+    const now = clock.elapsedTime * 1000;
+    // Skip when nothing that affects placement changed and the 20 Hz tick
+    // has not come round.
+    const m = camera.matrixWorld.elements;
+    const p = camera.projectionMatrix.elements;
+    let moved = runtime.x !== last.x || runtime.z !== last.z;
+    for (let i = 0; i < 16 && !moved; i++)
+      if (m[i] !== last.camera[i]) moved = true;
+    if (p[0] !== last.camera[16]) moved = true;
+    if (!moved && now - last.at < 50) return;
+    last.at = now;
+    last.x = runtime.x;
+    last.z = runtime.z;
+    for (let i = 0; i < 16; i++) last.camera[i] = m[i];
+    last.camera[16] = p[0];
+
+    // --- reads ---
     const occupied: LabelRect[] = [];
     const marker = scene.getObjectByName("player-location-arrow");
     if (marker) {
       const rect = markerLabelRect(marker, camera, size.width, size.height);
       if (rect) occupied.push(rect);
     }
-    const shell = document.querySelector(".game-shell");
-    if (shell) {
-      const origin = shell.getBoundingClientRect();
-      for (const control of shell.querySelectorAll(
-        ".context-action.visible, .time-of-day-control, .world-zoom, .island-rail-controls, .world-toolbar, .joystick",
-      )) {
-        if (getComputedStyle(control).visibility === "hidden") continue;
-        const bounds = control.getBoundingClientRect();
-        if (!bounds.width || !bounds.height) continue;
-        occupied.push({
-          x: bounds.left - origin.left + bounds.width / 2,
-          y: bounds.top - origin.top + bounds.height / 2,
-          w: bounds.width + 20,
-          h: bounds.height + 20,
-        });
-      }
-    }
+    occupied.push(...readControls(now));
     const compact = size.height < 500;
-    // Glass budget: only the nearest few plaques may frost (see glass.css).
-    let frosted = 0;
     const distance = (door: { x: number; z: number }) =>
       Math.hypot(door.x - runtime.x, door.z - runtime.z);
+    const placements: [HTMLElement, string, boolean][] = [];
     destinationsInWorld(useGame.getState().world)
       .sort((a, b) => distance(a) - distance(b))
       .forEach((door) => {
@@ -98,8 +177,9 @@ export function LabelProjection() {
           .project(camera);
         const x = ((projected.x + 1) * size.width) / 2,
           y = ((-projected.y + 1) * size.height) / 2;
-        const w = element.offsetWidth + 16,
-          h = element.offsetHeight + 14;
+        const label = labelSize(element);
+        const w = label.w + 16,
+          h = label.h + 14;
         const visible =
           Math.abs(projected.z) <= 1 &&
           distance(door) < (compact ? 25 : 36) &&
@@ -108,11 +188,18 @@ export function LabelProjection() {
           y > (compact ? 75 : 100) &&
           y < size.height - (compact ? 80 : 155) &&
           !occupied.some((b) => labelsOverlap({ x, y, w, h }, b));
-        element.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
-        element.style.visibility = visible ? "visible" : "hidden";
-        element.classList.toggle("is-frosted", visible && frosted++ < 4);
+        placements.push([
+          element,
+          `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%)`,
+          visible,
+        ]);
         if (visible) occupied.push({ x, y, w, h });
       });
+    // --- writes ---
+    // Glass budget: only the nearest few plaques may frost (see glass.css).
+    let frosted = 0;
+    for (const [element, transform, visible] of placements)
+      place(element, transform, visible, visible && frosted++ < 4);
   });
   return null;
 }

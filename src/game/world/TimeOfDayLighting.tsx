@@ -6,6 +6,7 @@ import { daylightClock, useTimeOfDay } from "../core/timeOfDay";
 import { readWorldHour } from "../core/worldTime";
 import { runtime, useGame } from "../core/store";
 import { isInterior } from "../core/world";
+import { usePresented } from "../engine/presented";
 
 const palettes = DAYLIGHT_KEYS.map((key) => ({
   top: new THREE.Color(key.top),
@@ -96,7 +97,9 @@ export function TimeOfDayLighting({ dimmed = false }: { dimmed?: boolean }) {
   );
   const displayedAt = useRef(0);
   const quality = useGame((state) => state.quality);
-  const scene = useGame((state) => state.scene);
+  // What is on screen, not what was just requested: an incoming interior
+  // compiles hidden while the outdoor frame (and its sky) stays up.
+  const scene = usePresented((state) => state.scene);
   const interior = isInterior(scene);
 
   useFrame(({ scene: world, size }, delta) => {

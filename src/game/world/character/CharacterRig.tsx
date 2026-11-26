@@ -183,10 +183,26 @@ export function Character({
   useLayoutEffect(() => {
     // First pose immediately so the figure never flashes in a T-pose.
     write(0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pal]);
-  useFrame((_, delta) => {
+  useFrame(({ camera, size, scene, gl }, delta) => {
     if (!active) return;
+    if (import.meta.env.DEV && player && root.current) {
+      (window as unknown as { __w4three?: unknown }).__w4three = {
+        scene,
+        camera,
+        gl,
+        player: root.current,
+      };
+      // Dev-only probe for screenshot tooling: player's screen position.
+      const g = root.current;
+      (window as unknown as { __w4player?: () => number[] }).__w4player =
+        () => {
+          const v = g.getWorldPosition(new THREE.Vector3());
+          v.y += 0.6;
+          v.project(camera);
+          return [((v.x + 1) / 2) * size.width, ((1 - v.y) / 2) * size.height];
+        };
+    }
     if (document.hidden || useGame.getState().paused) return;
     write(Math.min(delta, 0.05));
   });

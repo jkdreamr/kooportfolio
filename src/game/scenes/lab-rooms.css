@@ -323,7 +323,7 @@
   border-radius: 12px;
   background: var(--beat-surface);
   box-shadow: 0 8px 24px #0b101766;
-  backdrop-filter: blur(12px);
+  backdrop-filter: var(--silver-blur, blur(12px));
 }
 .lab-beat header span,
 .lab-beat .lab-feedback,
