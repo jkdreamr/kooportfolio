@@ -4,6 +4,7 @@ import { extraLocals, routines } from "./npcRoutines";
 import { islandLocals } from "./npcPopulation";
 import { STANFORD_NPC_WALKS } from "./stanfordLayout";
 import { HOME_NPC_WALKS } from "./homeLayout";
+import { KOREA_VISITORS } from "./koreaVisitors";
 
 type Point = [number, number];
 export const TALK_DISTANCE = 2.7;
@@ -20,7 +21,15 @@ export type Villager = {
   color: string;
   skin: string;
   hat: boolean;
-  place: PlaceId | "photo" | "campus" | "bridge";
+  place:
+    | PlaceId
+    | "photo"
+    | "campus"
+    | "bridge"
+    | "gwanghwamun"
+    | "bukchon"
+    | "sejong"
+    | "namsan";
   lines: string[];
   route: Point[];
   stops?: Record<number, NpcStop>;
@@ -340,6 +349,7 @@ export const villagers: Villager[] = [
   ...locals.map((npc) => ({ ...npc, ...routines[npc.id] })),
   ...extraLocals,
   ...islandLocals,
+  ...KOREA_VISITORS,
 ].map((npc) => {
   const homeWalk = HOME_NPC_WALKS[npc.id] ?? HOME_NPC_WALKS[npc.place];
   if (homeWalk) {

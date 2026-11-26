@@ -19,6 +19,7 @@ import {
   KOREA_LANDMARK_SOLIDS,
   KOREA_STREET_BUILDINGS,
 } from "./koreaLandmarks";
+import { KOREA_SIGHT_SOLIDS } from "./koreaSights";
 import { campusObstacles } from "./campus";
 import { POND } from "./pond";
 import {
@@ -405,6 +406,7 @@ const obstaclesFor = (world?: WorldId): ReadonlyArray<readonly number[]> => [
         ...KOREA_BRIDGE_RAILS,
         ...KOREA_PARK_OBSTACLES,
         ...KOREA_LANDMARK_SOLIDS,
+        ...KOREA_SIGHT_SOLIDS,
         ...KOREA_PARK_TREES.map(({ p }) => [p[0], p[2], 0.4, 0.4]),
       ]
     : []),

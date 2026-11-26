@@ -10,6 +10,8 @@ import { KoreaHistoricLandmarks } from "./KoreaHistoricLandmarks";
 import { NamsanTower } from "./NamsanTower";
 import { KoreaPublicGrounds, KOREA_PUBLIC_TREES } from "./KoreaPublicGrounds";
 import { NaturalTrees, type TreePlacement } from "./TreeArt";
+import { KOREA_SIGHT_PAVING } from "../core/koreaSights";
+import { KoreaSights } from "./korea/KoreaSights";
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
 import {
   KoreaRiversideLife,
@@ -98,9 +100,12 @@ export const KOREA_PAVING_FOOTPRINTS: readonly (readonly [
   number,
   number,
   number,
-])[] = paving
-  .filter(({ s }) => s[0] * s[2] > 0.5)
-  .map(({ p, s }) => [p[0], p[2], s[0], s[2]] as const);
+])[] = [
+  ...paving
+    .filter(({ s }) => s[0] * s[2] > 0.5)
+    .map(({ p, s }) => [p[0], p[2], s[0], s[2]] as const),
+  ...KOREA_SIGHT_PAVING,
+];
 
 const benchFootprints: readonly (readonly [number, number, number, number])[] =
   [
@@ -215,6 +220,7 @@ export function KoreaWorldEnvironment({
       <HangangWater />
       <HanRiverBridge />
       <KoreaRiversideLife />
+      <KoreaSights />
     </group>
   );
 }
