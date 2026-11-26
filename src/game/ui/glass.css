@@ -9,59 +9,6 @@
 
 /* ── Scheme and capability fallbacks ───────────────────────────────────── */
 
-/* Light glass is worn by the open-air hub only. Interiors keep the dark
-   set: their scene sheets assume it, and a lit room reads better on it.
-   The --hud-* aliases are opaque dark constants, so anything still written
-   against them stays legible inside a light world. */
-@media (prefers-color-scheme: light) {
-  .game-shell:has(.game-ui.scene-hub) {
-    --glass-bg: rgb(250 251 248 / 0.8);
-    --glass-bg-strong: rgb(250 251 248 / 0.9);
-    --glass-bg-dense: rgb(250 251 248 / 0.94);
-    --glass-bg-solid: #f4f6f2;
-    --glass-blur: blur(22px) saturate(1.8) brightness(1.06);
-    --glass-blur-sm: blur(8px) saturate(1.6) brightness(1.06);
-    --glass-scrim: rgb(16 32 42 / 0.3);
-    --glass-border: rgb(255 255 255 / 0.72);
-    --glass-border-solid: #4f646d;
-    --glass-highlight:
-      inset 0 1px 0 rgb(255 255 255 / 0.92),
-      inset 0 0 0 1px rgb(255 255 255 / 0.24),
-      inset 0 -1px 0 rgb(20 40 54 / 0.06);
-    --glass-shadow-sm:
-      0 0 0 1px rgb(20 40 54 / 0.08), 0 1px 2px rgb(20 40 54 / 0.14),
-      0 4px 12px rgb(20 40 54 / 0.12);
-    --glass-shadow:
-      0 0 0 1px rgb(20 40 54 / 0.08), 0 1px 2px rgb(20 40 54 / 0.14),
-      0 8px 24px rgb(20 40 54 / 0.14), 0 24px 48px rgb(20 40 54 / 0.1);
-    --glass-shadow-lg:
-      0 0 0 1px rgb(20 40 54 / 0.08), 0 2px 6px rgb(20 40 54 / 0.16),
-      0 18px 48px rgb(20 40 54 / 0.22), 0 48px 96px rgb(20 40 54 / 0.14);
-    --glass-sheen: linear-gradient(
-      180deg,
-      rgb(255 255 255 / 0.5),
-      rgb(255 255 255 / 0) 52%
-    );
-    --glass-ink: #14242e;
-    --glass-muted: #384b55;
-    --glass-gold: #644508;
-    --glass-well: rgb(255 255 255 / 0.6);
-    --glass-well-hover: rgb(20 36 46 / 0.09);
-    --glass-active: rgb(20 36 46 / 0.12);
-    --glass-hairline: rgb(20 36 46 / 0.14);
-    --glass-accent: #44663a;
-    --glass-accent-hover: #527846;
-    --glass-accent-border: rgb(20 36 46 / 0.2);
-    --glass-focus: #14242e;
-    --glass-focus-halo: rgb(255 255 255 / 0.92);
-  }
-  .game-shell:has(.game-ui.scene-hub)
-    :is(.time-of-day-control, .leaderboard)
-    select {
-    color-scheme: light;
-  }
-}
-
 /* No backdrop-filter: every pane falls back to its opaque fill. */
 @supports not (
   (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
@@ -102,17 +49,6 @@
     --glass-active: #36586a;
   }
 }
-@media (prefers-color-scheme: light) and (prefers-reduced-transparency: reduce),
-  (prefers-color-scheme: light) and (prefers-contrast: more),
-  (prefers-color-scheme: light) and (forced-colors: active) {
-  .game-shell:has(.game-ui.scene-hub) {
-    --glass-scrim: rgb(16 32 42 / 0.6);
-    --glass-well: #e6eae5;
-    --glass-well-hover: #d8ded8;
-    --glass-active: #d3dad4;
-  }
-}
-
 /* ── The recipe ────────────────────────────────────────────────────────── */
 
 /* Panes that frost the world behind them. */
