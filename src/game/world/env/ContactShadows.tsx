@@ -1,5 +1,9 @@
 import { useLayoutEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { activeNpcActors } from "../../core/npcState";
+import { runtime } from "../../core/store";
+import { useWorldActive } from "../../engine/active";
 import type { WorldId } from "../../core/worlds";
 import { terrainHeightAt } from "../../core/terrain";
 import { allCrowns, crownVersion, subscribeCrowns } from "./foliage";
@@ -8,8 +12,9 @@ import { useEnvTier } from "./tier";
 
 /**
  * Contact blobs (PLAN2 §1.4): one instanced, depth-tested soft dark disc
- * under every tree, grove trunk and granite outcrop, in one draw (≤600
- * instances). They ground objects where there is no screen-space AO (medium
+ * under every tree, grove trunk and granite outcrop, plus moving ones under
+ * the player and every villager (the low NPC rig casts no shadow), in one
+ * draw (≤600 instances; the moving tail is rewritten each frame). They ground objects where there is no screen-space AO (medium
  * and low) and add a faint occlusion under the AO on high. Never cast or
  * receive shadows; fogged like the ground beneath them.
  */
@@ -79,17 +84,21 @@ function spots(world: WorldId): Spot[] {
   }
   for (const rock of rockField(world))
     out.push({ x: rock.x, y: rock.y + 0.03, z: rock.z, r: rock.size * 2.3, k: 0.8 });
-  return out.slice(0, CAPACITY);
+  return out;
 }
 
 export function ContactShadows({ world }: { world: WorldId }) {
   const version = useSyncExternalStore(subscribeCrowns, crownVersion, crownVersion);
   const tier = useEnvTier();
+  const active = useWorldActive();
   const ref = useRef<THREE.InstancedMesh>(null);
+  const actors = activeNpcActors(world);
+  // Moving blobs (player + villagers) take the tail of the buffer.
+  const movers = Math.min(CAPACITY, actors.length + 1);
   const list = useMemo(() => {
     void version;
-    return spots(world);
-  }, [world, version]);
+    return spots(world).slice(0, CAPACITY - movers);
+  }, [world, version, movers]);
   useLayoutEffect(() => {
     // Heavier where they replace screen-space AO.
     material.opacity = tier === "high" ? 0.24 : 0.34;
@@ -105,9 +114,26 @@ export function ContactShadows({ world }: { world: WorldId }) {
       matrix.compose(p, q, s);
       mesh.setMatrixAt(i, matrix);
     });
-    mesh.count = list.length;
+    mesh.count = list.length + movers;
     mesh.instanceMatrix.needsUpdate = true;
-  }, [list, tier]);
+  }, [list, tier, movers]);
+  const moving = useMemo(() => new THREE.Matrix4(), []);
+  useFrame(() => {
+    const mesh = ref.current;
+    if (!mesh || !active) return;
+    const array = mesh.instanceMatrix.array as Float32Array;
+    const start = list.length;
+    const put = (i: number, x: number, z: number, r: number) => {
+      const h = terrainHeightAt(x, z, world);
+      moving.makeScale(r, 1, r).setPosition(x, (h === 0 ? 0.14 : h) + 0.03, z);
+      moving.toArray(array, (start + i) * 16);
+    };
+    put(0, runtime.x, runtime.z, 0.9);
+    for (let i = 0; i < movers - 1; i++) put(i + 1, actors[i].x, actors[i].z, 0.85);
+    mesh.instanceMatrix.clearUpdateRanges();
+    mesh.instanceMatrix.addUpdateRange(start * 16, movers * 16);
+    mesh.instanceMatrix.needsUpdate = true;
+  });
   return (
     <instancedMesh
       ref={ref}

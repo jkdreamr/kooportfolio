@@ -357,7 +357,9 @@ export function IslandUnderside({
           material={quartzMaterial}
         />
       )}
-      <NaturalTrees trees={dressing.trees} />
+      {/* Hanging trees: below the island, their shadows reach nothing
+          the camera sees; they skip the shadow pass. */}
+      <NaturalTrees trees={dressing.trees} castShadows={false} />
       {wheelSpec && (
         <group
           position={wheelSpec.p}

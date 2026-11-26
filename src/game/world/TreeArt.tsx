@@ -574,15 +574,18 @@ function TreeInstances({
 export function NaturalTrees({
   trees,
   lod = "full",
+  castShadows = true,
 }: {
   trees: readonly TreePlacement[];
   lod?: "full" | "low";
+  /** Off for trees no shadow from them can reach the view (underside). */
+  castShadows?: boolean;
 }) {
   const low = lod === "low";
   // Medium's shadow budget (§2): scenic groves' inner mass does not cast
   // (their canopies still do, through the leaf shell). Fixed per mount.
   const tier = useStage((state) => state.tier);
-  const cast = !(low && tier !== "high");
+  const cast = castShadows && !(low && tier !== "high");
   const world = lookWorld();
   const { wood, broad, pine, palms } = useMemo(() => {
     const wood: Part[] = [],
@@ -677,6 +680,7 @@ export function NaturalTrees({
           parts={palms}
           geometry={palmGeometry}
           material={leafMaterial}
+          cast={cast}
         />
       )}
     </group>

@@ -18,7 +18,7 @@ import { viewRuntime } from "../../core/worldView";
  * - Saves and restores the render target, forces no shadow update and keeps
  *   `renderer.info` counting the whole frame.
  * - Tier: "planar" = half-resolution, every 2nd frame; "planar-lite" = 256 px
- *   tall, every 4th frame, 60-unit far plane (110 on high), off on
+ *   tall, every 4th frame, 60-unit far plane (80 on high), off on
  *   software renderers;
  *   "none" = the painted streaks only. Only while the view blend is above
  *   0.3 and the camera's elevation is below 30°. The diorama keeps the
@@ -139,7 +139,7 @@ function render(
   virtualCamera.aspect = camera.aspect;
   virtualCamera.near = camera.near;
   // Far plane: what a water surface can plausibly mirror (budget §1.5).
-  virtualCamera.far = Math.min(camera.far, lite ? 60 : 110);
+  virtualCamera.far = Math.min(camera.far, lite ? 60 : 80);
   virtualCamera.updateProjectionMatrix();
   virtualCamera.updateMatrixWorld();
   reflectionUniforms.uWaterReflectMatrix.value
