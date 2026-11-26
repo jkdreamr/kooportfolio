@@ -369,11 +369,14 @@ function* placeGrass(world: WorldId): Generator<void, GrassTuft[]> {
         const extraKeep = Math.min(1, 0.62 + 0.4 * field + edgeBoost * 0.7 + wet * 0.4);
         if (fhash(x, z, 33) > extraKeep) continue;
         const rim = Math.max(edgeBoost, wet);
+        // Tall along paths and the pond, short on the island's edge (a lake
+        // or the view beyond stays visible over it).
+        const pathEdge = Math.max(0, 1 - edge / 1.6);
         out.push({
           x,
           z,
           y: 0.14,
-          scale: 0.7 + fhash(x, z, 41) * 0.55 + rim * 0.6,
+          scale: 0.7 + fhash(x, z, 41) * 0.5 + Math.max(pathEdge * 0.5, wet * 0.6) - Math.max(0, 1 - shoreGap / 2.2) * 0.25,
           angle: fhash(x, z, 43) * Math.PI * 2,
           shade: fhash(x, z, 47) * 0.75 + clump(x, z, 9, 3) * 0.25,
           reed: false,
@@ -583,8 +586,9 @@ export function shoreField(world: WorldId): ShorePiece[] {
     const normals = loopNormals(loop);
     loop.forEach(([x, z], i) => {
       const [nx, nz] = normals[i];
-      // Reed beds in clumps on the water's edge.
-      if (clump(x, z, 3, 83) > 0.55)
+      // Reed beds in clumps on the water's edge (not on a Home lake's lawn
+      // side, where they hid the water from the walkable rim).
+      if (clump(x, z, 3, 83) > 0.55 && !(world === "home" && touchesWalkable(x, z, 2.4, world)))
         for (let k = 0; k < 3; k++) {
           const px = x - nx * (0.1 + hash01(i, k, 1) * 0.5) + (hash01(i, k, 2) - 0.5) * 0.4,
             pz = z - nz * (0.1 + hash01(i, k, 1) * 0.5) + (hash01(i, k, 3) - 0.5) * 0.4;
@@ -848,8 +852,8 @@ function* placeUnderstory(world: WorldId): Generator<void, UnderstoryClump[]> {
       if (clump(x, z, 3.5, 221) < 0.35 || !ok(x, z) || !clear(x, z, 0.9)) return;
       const lawnSide = touchesWalkable(x, z, 2.2, world);
       let kind: UnderstoryKind = i % 3 === 0 ? 1 : i % 3 === 1 ? 3 : 0;
-      if (lawnSide && kind === 0) kind = 2;
-      push(x, lakeBankY(lake, 0.95), z, kind, kind === 1 ? 0.75 : kind === 3 ? 1 : kind === 2 ? 0.5 : 0.8);
+      if (lawnSide && kind !== 1) kind = 2;
+      push(x, lakeBankY(lake, 0.95), z, kind, kind === 1 ? (lawnSide ? 0.5 : 0.75) : kind === 3 ? 1 : kind === 2 ? 0.5 : 0.8);
     });
     yield;
   }

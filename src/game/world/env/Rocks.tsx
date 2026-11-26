@@ -198,12 +198,23 @@ export function rockGeometry(world: WorldId) {
   if (!baked.has(world)) baked.set(world, bakeRocks(world, rockField(world)));
   return baked.get(world)!;
 }
+/** Rocks big enough to throw a shadow worth its triangles (high only). */
+const isLarge = (rock: { size: number; height: number }) => rock.size * Math.max(1, rock.height) >= 0.9;
+const split = new Map<WorldId, { large: THREE.BufferGeometry | null; small: THREE.BufferGeometry | null }>();
+function splitRocks(world: WorldId) {
+  let value = split.get(world);
+  if (!value) {
+    const rocks = rockField(world);
+    split.set(world, (value = { large: bakeRocks(world, rocks.filter(isLarge)), small: bakeRocks(world, rocks.filter((rock) => !isLarge(rock))) }));
+  }
+  return value;
+}
 
 /** The water mirrors only the larger rocks (budget §1.5), cell-split. */
 const mirrored = new Map<WorldId, THREE.BufferGeometry | null>();
 function mirroredRocks(world: WorldId) {
   if (!mirrored.has(world))
-    mirrored.set(world, bakeRocks(world, rockField(world).filter((rock) => rock.size * Math.max(1, rock.height) >= 0.9)));
+    mirrored.set(world, bakeRocks(world, rockField(world).filter(isLarge)));
   return mirrored.get(world)!;
 }
 
@@ -215,21 +226,24 @@ export function Rocks({ world }: { world: WorldId }) {
     rockUniforms.uRockMoss.value.set(TONES[world].moss);
     rockUniforms.uRockMossAmount.value = TONES[world].mossAmount;
   }, [world]);
+  const parts = useMemo(() => (cast ? splitRocks(world) : null), [world, cast]);
   if (!geometry) return null;
+  // Shadow budgets: on high only the larger rocks cast (one extra draw); on
+  // medium none do (their contact blobs stay). Fixed per mount via the keys.
   return (
     <>
-      <mesh
-        // Medium's 120k shadow budget: rocks cast on high only (their
-        // contact blobs stay). Fixed per mount: the key remounts on a change.
-        key={`rocks:${cast}`}
-        name="env-rocks"
-        geometry={geometry}
-        material={rockMaterialShared}
-        castShadow={cast}
-        receiveShadow
-        raycast={noRaycast}
-        dispose={null}
-      />
+      {parts ? (
+        <>
+          {parts.large && (
+            <mesh key="rocks-large" name="env-rocks" geometry={parts.large} material={rockMaterialShared} castShadow receiveShadow raycast={noRaycast} dispose={null} />
+          )}
+          {parts.small && (
+            <mesh key="rocks-small" name="env-rocks-small" geometry={parts.small} material={rockMaterialShared} receiveShadow raycast={noRaycast} dispose={null} />
+          )}
+        </>
+      ) : (
+        <mesh key="rocks" name="env-rocks" geometry={geometry} material={rockMaterialShared} receiveShadow raycast={noRaycast} dispose={null} />
+      )}
       <ReflectionProxy geometry={reflected} material={rockMaterialShared} cell={16} />
     </>
   );

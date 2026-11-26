@@ -599,11 +599,11 @@ export function NaturalTrees({
   castShadows?: boolean;
 }) {
   const low = lod === "low";
-  // Medium's shadow budget (§2, 120k): below high no tree's inner mass or
-  // trunk casts; canopies still cast through the leaf shell. Fixed per
-  // mount (a tier change remounts through the key below).
+  // Shadow budgets (§2): scenic groves' inner mass never casts, and below
+  // high no tree's inner mass or trunk casts; canopies still cast through
+  // the leaf shell. Fixed per mount (a tier change remounts via the keys).
   const tier = useStage((state) => state.tier);
-  const cast = castShadows && (tier === "high" || tier === null);
+  const cast = castShadows && !low && (tier === "high" || tier === null);
   const world = lookWorld();
   const { wood, broad, pine, palms } = useMemo(() => {
     const wood: Part[] = [],

@@ -120,6 +120,8 @@ export function LeafShell() {
     return pack(layoutCards(crowns, false, 1, 0, tier === "medium" ? 0.5 : 1), extra);
   }, [version, tier]);
   const last = useRef("");
+  const shadowCount = useRef(0);
+  const drawn = useRef(0);
   useLayoutEffect(() => {
     last.current = "";
     const mesh = ref.current;
@@ -180,9 +182,18 @@ export function LeafShell() {
         ? THREE.MathUtils.lerp(1, 0.4, THREE.MathUtils.clamp((d - 30) / 30, 0, 1))
         : 1;
       copy(chunk, 0, Math.ceil(chunk.base * keep * density));
-      if (explore && d < 30 + CHUNK * 0.5) copy(chunk, chunk.base, chunk.extra);
       if (n >= CAPACITY) break;
     }
+    // The explore extras go after every base card: they fill canopies for
+    // the low camera but do not cast (the base cards already shape the
+    // canopy's shadow; high's shadow budget, §2).
+    shadowCount.current = n;
+    if (explore)
+      for (const { chunk, d } of picks) {
+        if (d >= 30 + CHUNK * 0.5) continue;
+        copy(chunk, chunk.base, chunk.extra);
+        if (n >= CAPACITY) break;
+      }
     mesh.count = n;
     for (const [attribute, size] of [
       [mesh.instanceMatrix, 16],
@@ -201,6 +212,15 @@ export function LeafShell() {
       name="env-leaf-shell"
       args={[geometry, material, CAPACITY]}
       customDepthMaterial={depthMaterial}
+      onBeforeShadow={() => {
+        const mesh = ref.current;
+        if (!mesh) return;
+        drawn.current = mesh.count;
+        mesh.count = Math.min(mesh.count, shadowCount.current);
+      }}
+      onAfterShadow={() => {
+        if (ref.current) ref.current.count = drawn.current;
+      }}
       castShadow
       receiveShadow
       frustumCulled={false}
