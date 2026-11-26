@@ -1,3 +1,4 @@
+import { useWorldActive } from "../engine/active";
 import { StaticBatch } from "./StaticBatch";
 import { useLayoutEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
@@ -123,7 +124,9 @@ function RainbowFountains() {
       ref.current!.instanceColor.needsUpdate = true;
     ref.current!.computeBoundingSphere();
   }, []);
+  const worldActive = useWorldActive();
   useFrame(({ clock }) => {
+    if (!worldActive) return;
     const shader = material.current?.userData.fountainShader as
       | { uniforms: typeof uniforms }
       | undefined;

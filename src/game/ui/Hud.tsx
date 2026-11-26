@@ -13,6 +13,7 @@ import { usePresence, type PresenceState } from "./motion";
 import { useGlassMode, useHudReveal } from "./hudStage";
 import { FirstSteps, useHintLearning, useHints } from "./FirstSteps";
 import { DoorTransition } from "./DoorTransition";
+import { useStage } from "../../stage/contract";
 import {
   catchBoosted,
   catchReady,
@@ -413,6 +414,72 @@ function Modal({
         {children}
       </div>
     </div>
+  );
+}
+/**
+ * Visual quality is a preference for the next visit, not a live switch:
+ * changing tier at runtime would recompile every shader mid-session (the one
+ * hitch the engine is built to avoid). The engine reads "stage-tier" once,
+ * when it picks the tier during warmup; "Auto" lets it detect.
+ */
+const QUALITY_KEY = "stage-tier";
+const QUALITY_STEPS = ["auto", "high", "medium", "low"] as const;
+type QualityChoice = (typeof QUALITY_STEPS)[number];
+const QUALITY_NAMES: Record<QualityChoice, string> = {
+  auto: "Automatic",
+  high: "Full detail",
+  medium: "Balanced",
+  low: "Low power",
+};
+function readQuality(): QualityChoice {
+  try {
+    const stored = localStorage.getItem(QUALITY_KEY);
+    return (QUALITY_STEPS as readonly string[]).includes(stored ?? "")
+      ? (stored as QualityChoice)
+      : "auto";
+  } catch {
+    return "auto";
+  }
+}
+function QualitySetting() {
+  const tier = useStage((s) => s.tier);
+  const [loaded] = useState(readQuality);
+  const [choice, setChoice] = useState(readQuality);
+  const pending = choice !== loaded;
+  return (
+    <>
+      <button
+        className="setting-row"
+        aria-describedby={pending ? "quality-pending" : undefined}
+        onClick={() => {
+          const next =
+            QUALITY_STEPS[(QUALITY_STEPS.indexOf(choice) + 1) % QUALITY_STEPS.length];
+          setChoice(next);
+          try {
+            if (next === "auto") localStorage.removeItem(QUALITY_KEY);
+            else localStorage.setItem(QUALITY_KEY, next);
+          } catch {
+            /* Storage blocked: the choice lasts only for this panel. */
+          }
+        }}
+      >
+        <span>Visual quality</span>
+        <b>
+          {QUALITY_NAMES[choice]}
+          {choice === "auto" && tier && !pending
+            ? ` · ${QUALITY_NAMES[tier]}`
+            : ""}
+        </b>
+      </button>
+      {pending && (
+        <p className="setting-pending" id="quality-pending" role="status">
+          Applies the next time the village opens.{" "}
+          <button type="button" onClick={() => location.reload()}>
+            Reload now
+          </button>
+        </p>
+      )}
+    </>
   );
 }
 function Toast({ notice }: { notice: string }) {
@@ -845,17 +912,7 @@ export function Hud({ interact }: { interact: () => void }) {
             <span>Sound</span>
             <b>{g.muted ? "Off" : "On"}</b>
           </button>
-          <button
-            className="setting-row"
-            onClick={() =>
-              useGame.setState({
-                quality: g.quality === "high" ? "low" : "high",
-              })
-            }
-          >
-            <span>Visual quality</span>
-            <b>{g.quality === "high" ? "Full detail" : "Low power"}</b>
-          </button>
+          <QualitySetting />
           <p className="local-note">
             Saved in this browser only. Back up your save to keep a copy.
           </p>
@@ -919,7 +976,10 @@ export function Hud({ interact }: { interact: () => void }) {
             <b>Row</b>
             <p>
               <span className="keyboard-hint">
-                <kbd>A</kbd>/<kbd>D</kbd> steer, <kbd>1</kbd>
+                <span className="nowrap">
+                  <kbd>A</kbd>/<kbd>D</kbd> steer,
+                </span>{" "}
+                <kbd>1</kbd>
                 <kbd>2</kbd>
                 <kbd>3</kbd> pace, <kbd>R</kbd> catch, <kbd>Space</kbd>{" "}
                 burst.{" "}
@@ -937,7 +997,9 @@ export function Hud({ interact }: { interact: () => void }) {
                 <kbd>A</kbd>
                 <kbd>S</kbd>
                 <kbd>D</kbd> move, hold <kbd>Space</kbd> to charge,{" "}
-                <kbd>Q</kbd>/<kbd>E</kbd> aim.{" "}
+                <span className="nowrap">
+                  <kbd>Q</kbd>/<kbd>E</kbd> aim.
+                </span>{" "}
               </span>
               <span className="touch-hint">
                 Drag the stick. Hold Shoot; slide to aim.{" "}

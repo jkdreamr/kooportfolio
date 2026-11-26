@@ -502,7 +502,9 @@ export function SkateParkInterior() {
           runtime.path = [];
         }}
       >
-        <SkateParkTerrain />
+        <StaticBatch id="skate-terrain">
+          <SkateParkTerrain />
+        </StaticBatch>
       </group>
       {!riding && (
         <group ref={walker}>

@@ -5,7 +5,8 @@ import { runtime, useGame } from "../../core/store";
 import { daylightClock } from "../../core/timeOfDay";
 import { sampleWeather } from "../../core/weather";
 import { useWorldActive } from "../../engine/active";
-import { gloss } from "../GlossKit";
+import { gloss, invalidateGlossEnvironment } from "../GlossKit";
+import { onContextRestored } from "../../engine/Engine";
 import { driveAtmosphere } from "./atmosphere";
 import { envUniforms } from "./uniforms";
 import { LeafShell } from "./LeafShell";
@@ -43,6 +44,11 @@ export function Environment({ world }: { world: WorldId }) {
     </group>
   );
 }
+
+// A restored context keeps every CPU-side texture (noise, shore maps, leaf
+// atlas re-upload lazily) but loses render-target content: rebake the gloss
+// environment on the next frame.
+onContextRestored(() => invalidateGlossEnvironment());
 
 const reducedMotion =
   typeof matchMedia === "function"

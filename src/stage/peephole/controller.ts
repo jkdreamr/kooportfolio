@@ -9,6 +9,7 @@
  * reversible.
  */
 import { create } from "zustand";
+import { useWorldView } from "../../game/core/worldView";
 import { cameraRig, revealHud, useStage, type CameraPose } from "../contract";
 import { flightPoses, peekPose, TIMELINE, type PeekScene } from "./flight";
 import { markEntered, readEnvironment, visitPolicy, type VisitEnvironment, type VisitPolicy } from "./policy";
@@ -80,6 +81,9 @@ const AUTO_DIR = 0.42;
 /** The sheet shows less travel than the spring's hand: paper resists. */
 const VISUAL = 0.62; // radians: the natural down-right tug
 const AUTO_SECONDS = 1.2;
+/** World zoom the flight settles into: close behind the player (the game's
+ * own default, 1, is the whole-island overview). */
+const ENTRY_ZOOM = 3.6;
 const ENTER_ANNOUNCE = "You are in the village. Use the arrow keys or W A S D to walk, E to interact.";
 
 function setThemeColor(color: string) {
@@ -188,6 +192,26 @@ export class PeepholeController {
     this.interest.clear();
   };
 
+  private invalidate: (() => void) | null = null;
+  private pumpAt = 0;
+  /** Engine hook: one frame on demand (the resting counter is pumped). */
+  setInvalidate(fn: () => void) {
+    this.invalidate = fn;
+  }
+  /** While resting, the counter needs only a gentle frame rate, and none
+   * at all when the "o" is off-screen or the tab is hidden. */
+  private pump() {
+    if (!this.invalidate || this.phase !== "rest" || !this.armedFlag) return;
+    const t = now();
+    const rect = this.glyphRect();
+    const onScreen = !!rect && rect.y + rect.height > 0 && rect.y < innerHeight && !document.hidden;
+    const rate = this.counterOpen < 1 || this.sheetFrames > 0 ? 60 : 30;
+    if (onScreen && t - this.pumpAt >= 1 / rate - 0.002) {
+      this.pumpAt = t;
+      this.invalidate();
+    }
+  }
+
   attachSink(sink: PaperSink) {
     this.sink = sink;
     if (this.raster) sink.setRaster(this.raster);
@@ -290,7 +314,9 @@ export class PeepholeController {
   private restStage() {
     const st = useStage.getState();
     st.setMode("site");
-    st.setWorldVisible(true);
+    // With an engine hook the counter is pumped on demand (see pump());
+    // without one the engine renders continuously while the world shows.
+    st.setWorldVisible(!this.invalidate);
     st.setWorldScissor(this.glyphRect());
   }
 
@@ -427,8 +453,24 @@ export class PeepholeController {
 
   /* -------------------------------------------------------------- phases */
 
+  private savedZoom: number | null = null;
+  /** Move the (hidden) gameplay camera to its entry framing while the peek
+   * pose owns the screen, so the live pose has settled behind the player by
+   * the time the flight hands over to it. */
+  private stageEntryZoom() {
+    if (this.savedZoom !== null) return;
+    this.savedZoom = useWorldView.getState().zoom;
+    if (this.savedZoom < ENTRY_ZOOM) useWorldView.setState({ zoom: ENTRY_ZOOM });
+  }
+  private restoreZoom() {
+    if (this.savedZoom === null) return;
+    useWorldView.setState({ zoom: this.savedZoom });
+    this.savedZoom = null;
+  }
+
   private enterPeek() {
     if (!this.armedFlag || this.phase !== "rest") return;
+    this.stageEntryZoom();
     this.phase = "peek";
     this.sheetFrames = 0;
     this.restSince = -1;
@@ -438,6 +480,7 @@ export class PeepholeController {
 
   private leavePeek() {
     this.phase = "rest";
+    this.restoreZoom();
     this.root?.classList.remove("pp-paper");
     usePeephole.setState({ phase: "rest" });
     // Let the DOM fade back in over the sheet before the sheet stops drawing.
@@ -505,6 +548,7 @@ export class PeepholeController {
   private finishEntry() {
     if (this.phase === "game") return;
     this.phase = "game";
+    this.savedZoom = null;
     const st = useStage.getState();
     st.setMode("game");
     revealHud();
@@ -524,6 +568,7 @@ export class PeepholeController {
   /** Reduced motion (or forward navigation): a 400 ms dissolve, never a cut. */
   dissolveToGame() {
     if (this.phase === "game") return;
+    this.stageEntryZoom();
     this.phase = "flying";
     cameraRig.live(0);
     const st = useStage.getState();
@@ -615,6 +660,7 @@ export class PeepholeController {
     const t = now();
     const dt = this.lastTick ? t - this.lastTick : 0;
     this.lastTick = t;
+    this.pump();
     // The engine's paper pass drives ticks while it renders (zero latency).
     if (this.lastExternal > 0 && t - this.lastExternal < 0.1) return;
     this.tick(dt);
@@ -781,6 +827,7 @@ export class PeepholeController {
         base.gap = sim.crack * (1.5 + 5 * sim.crack);
       } else {
         const t = this.tearT;
+        base.tension = sim.tension * (1 - smoothstep(0.1, 0.8, t));
         const full = tearFronts(seam, clamp(t / TIMELINE.seam, 0, 1));
         base.fronts = { back: Math.min(full.back, crack.back), front: Math.max(full.front, crack.front) };
         base.gap = sim.crack * (1.5 + 5 * sim.crack) + 12 * easeOutCubic(clamp(t / 0.55, 0, 1));

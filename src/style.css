@@ -317,17 +317,19 @@ body {
   bottom: max(18px, env(safe-area-inset-bottom));
   z-index: 5;
   min-height: 44px;
-  padding: 0 14px;
-  background: none;
-  color: rgba(255, 255, 255, 0.86);
-  font-size: 11px;
-  letter-spacing: 1.6px;
+  padding: 0 16px;
+  border-radius: 22px;
+  background: rgba(24, 30, 26, 0.32);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 10px;
+  letter-spacing: 1.8px;
   text-transform: uppercase;
-  text-shadow: 0 1px 6px rgba(20, 30, 20, 0.35);
   animation: fade-in 0.6s 0.7s both;
 }
 .stage-skip:hover {
-  color: #fff;
+  background: rgba(24, 30, 26, 0.46);
 }
 /* Direct /play: the inline head script sets html.play before first paint, so
    the very first frame is sky, never white and never the no-JS page. */
@@ -340,6 +342,15 @@ html.play #root > main {
 }
 html.in-game body {
   background: var(--sky);
+}
+/* The stage (and its .game-shell) is mounted on every route, so the game's
+   document lock (game.css: html:has(.game-shell) { overflow: hidden }) must
+   not apply while the portfolio is the page. Higher specificity wins here. */
+html:not(.play):not([data-stage-mode="game"]),
+html:not(.play):not([data-stage-mode="game"]) body,
+html:not(.play):not([data-stage-mode="game"]) #root {
+  height: auto;
+  overflow: visible;
 }
 @keyframes fade-in {
   from {

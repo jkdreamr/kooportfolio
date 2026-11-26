@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { useWorldActive } from "../engine/active";
 import { runtime, useGame } from "../core/store";
 import { daylightClock } from "../core/timeOfDay";
 import { sampleWeather } from "../core/weather";
@@ -41,7 +42,9 @@ export function Weather() {
       texture.dispose();
     };
   }, [texture]);
+  const active = useWorldActive();
   useFrame(() => {
+    if (!active) return;
     const weather = sampleWeather(daylightClock.hour),
       t = wildlifeClock.seconds;
     if (fog.current) {

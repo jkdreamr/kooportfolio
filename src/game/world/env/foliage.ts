@@ -128,7 +128,7 @@ export function layoutCards(crowns: readonly Crown[], small = false): Card[] {
       )
         .normalize()
         .applyQuaternion(crownQ);
-      local.multiplyScalar((pine ? 0.95 : 0.98) + rand() * 0.16).applyQuaternion(crownQ);
+      local.multiplyScalar((pine ? 0.95 : 1.0) + rand() * 0.2).applyQuaternion(crownQ);
       const p = centre.clone().add(local);
       // Face outward, tilted up a little so tops catch the sun; random roll.
       const facing = outward.clone().lerp(up, pine ? 0.55 : 0.25).normalize();
@@ -149,7 +149,7 @@ export function layoutCards(crowns: readonly Crown[], small = false): Card[] {
         centre,
         q,
         size:
-          (pine ? radius * 1.15 : radius * 1.05) *
+          (pine ? radius * 1.3 : radius * 1.4) *
           (0.8 + rand() * 0.4) *
           (small ? 0.85 : 1),
         color: tint.clone(),

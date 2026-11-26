@@ -20,6 +20,13 @@ import { usePresented } from "./presented";
 import { islandFollow } from "../core/islandCamera";
 import { useWorldView } from "../core/worldView";
 
+/** Request one frame while the canvas is in demand mode (W1: the resting
+ * peephole counter is pumped at a gentle rate instead of rendering always). */
+let invalidate: () => void = () => {};
+export function invalidateStage() {
+  invalidate();
+}
+
 /** The engine-wide rig instance (also used by Game for scene-change blends). */
 export const rig = new CameraRigRuntime();
 
@@ -72,6 +79,12 @@ export function EngineRuntime({
 }) {
   const gl = useThree((s) => s.gl);
   const store = useStore();
+  useEffect(() => {
+    invalidate = () => store.getState().invalidate();
+    return () => {
+      invalidate = () => {};
+    };
+  }, [store]);
   const budget = TIER_BUDGETS[tier];
   const post = useRef<StagePost | null>(null);
   const postCamera = useRef<THREE.Camera | null>(null);

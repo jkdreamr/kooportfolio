@@ -127,7 +127,9 @@ function TalkRings({ world }: { world: WorldId }) {
   const mesh = useRef<THREE.InstancedMesh>(null);
   const transform = useMemo(() => new THREE.Object3D(), []);
   const actors = activeNpcActors(world);
+  const worldActive = useWorldActive();
   useFrame(() => {
+    if (!worldActive) return;
     const game = useGame.getState(),
       selected = useNpcs.getState().pending;
     const nearest =
@@ -167,7 +169,9 @@ function TalkRings({ world }: { world: WorldId }) {
 export function NpcCrowd() {
   const world = useGame((game) => game.world);
   useEffect(() => () => closeConversation(), []);
+  const worldActive = useWorldActive();
   useFrame((_, delta) => {
+    if (!worldActive) return;
     const game = useGame.getState(),
       state = useNpcs.getState();
     if (state.talking && game.panel !== "npc") closeConversation();

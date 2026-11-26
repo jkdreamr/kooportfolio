@@ -1,3 +1,4 @@
+import { StaticBatch } from "../world/StaticBatch";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Html, Line } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
@@ -438,20 +439,25 @@ export function Basketball() {
     };
   }, [close]);
   return (
-    <>
-      <BasketballCourt key={`${playing}-${round}`} playing={playing} />
-      {playing && !hidden && (
-        <Html
-          fullscreen
-          portal={portal}
-          zIndexRange={[70, 70]}
-          style={{ pointerEvents: "none" }}
-          calculatePosition={(_, __, size) => [size.width / 2, size.height / 2]}
-        >
-          <CourtSessionHud close={close} />
-        </Html>
-      )}
-    </>
+    <StaticBatch id="Basketball">
+      <>
+        <BasketballCourt key={`${playing}-${round}`} playing={playing} />
+        {playing && !hidden && (
+          <Html
+            fullscreen
+            portal={portal}
+            zIndexRange={[70, 70]}
+            style={{ pointerEvents: "none" }}
+            calculatePosition={(_, __, size) => [
+              size.width / 2,
+              size.height / 2,
+            ]}
+          >
+            <CourtSessionHud close={close} />
+          </Html>
+        )}
+      </>
+    </StaticBatch>
   );
 }
 

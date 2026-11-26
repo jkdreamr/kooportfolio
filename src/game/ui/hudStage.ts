@@ -69,8 +69,9 @@ export function useGlassMode(): GlassMode {
     query.addEventListener("change", change);
     return () => query.removeEventListener("change", change);
   }, []);
-  // The player's "Low power" setting always wins over the engine's pick.
-  return glassModeFor(quality === "low" ? "low" : (tier ?? "high"), compact);
+  // The engine's once-chosen tier (which honours the player's saved quality
+  // preference); the legacy quality flag only stands in before it exists.
+  return glassModeFor(tier ?? (quality === "low" ? "low" : "high"), compact);
 }
 
 export function glassModeFor(tier: Tier, compact: boolean): GlassMode {

@@ -1,3 +1,4 @@
+import { BuildingDressing } from "./BuildingDressing";
 import { StaticBatch } from "./StaticBatch";
 import { Ball, Box, Cylinder, Ring, Sign, Window } from "./Models";
 import { StoneFooting } from "./ArchitectureDetail";
@@ -74,12 +75,13 @@ export function MathLabShell() {
     <StaticBatch id="MathLabShell">
       <group>
         <StoneFooting width={6.2} depth={4.2} />
-        <Box p={[0, 2.15, 0]} s={[6.2, 3.9, 4.2]} c="#a9a485" />
+        <Box p={[0, 2.15, 0]} s={[6.2, 3.9, 4.2]} c="#d8c093" />
+        <BuildingDressing id="math" world="stanford" />
         <Box p={[0, 0.65, 0]} s={[6.4, 0.5, 4.35]} c="#787b63" />
         {[-2.9, 2.9].map((x) => (
           <Box key={x} p={[x, 2.3, 2.05]} s={[0.45, 3.5, 0.45]} c="#6f7457" />
         ))}
-        <HipRoof width={7} depth={5} y={4.1} rise={1.6} color="#365b4d" />
+        <HipRoof width={7} depth={5} y={4.1} rise={1.6} color="#b4513a" />
         <Cylinder p={[0, 5.2, 0]} s={[0.6, 0.8, 0.6]} c="#b58b48" />
         <group position={[0, 6, 0]}>
           <Ring radius={0.9} tube={0.095} c="#d4ad55" r={[0.6, 0, 0.2]} />

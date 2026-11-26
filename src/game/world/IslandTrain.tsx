@@ -1,3 +1,4 @@
+import { useWorldActive } from "../engine/active";
 import { StaticBatch } from "./StaticBatch";
 import {
   useCallback,
@@ -146,7 +147,9 @@ function CoastalTrack({ world }: { world: WorldId }) {
 
 function Wheels({ phase }: { phase: React.RefObject<number> }) {
   const group = useRef<THREE.Group>(null);
+  const worldActive = useWorldActive();
   useFrame(() => {
+    if (!worldActive) return;
     group.current?.children.forEach((wheel) => {
       wheel.rotation.x = phase.current;
     });
@@ -317,7 +320,9 @@ export function IslandTrain({
     window.addEventListener("keydown", escape, true);
     return () => window.removeEventListener("keydown", escape, true);
   }, [riding, leave]);
+  const worldActive = useWorldActive();
   useFrame(({ camera, size }, delta) => {
+    if (!worldActive) return;
     if (hidden || !runtime.active) return;
     const dt = Math.min(delta, 0.05);
     if (!reducedMotion || riding) {

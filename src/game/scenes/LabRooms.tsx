@@ -7,7 +7,9 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import { Html, OrthographicCamera } from "@react-three/drei";
+import { Html } from "@react-three/drei";
+import * as THREE from "three";
+import { aimCamera } from "../engine/camera";
 import { useFrame, useThree } from "@react-three/fiber";
 import type { Group } from "three";
 import { Ball, Box, Cylinder, Ring, Sign } from "../world/Models";
@@ -48,22 +50,32 @@ function labZoom(id: "music" | "math", width: number, height: number) {
     : Math.max(6, Math.min(65, (width - 36) / 11.8, (height - 220) / 12.8));
 }
 
+const labUp = new THREE.Vector3(0, 0, -1);
 function LabCamera({ id }: { id: "music" | "math" }) {
-  const size = useThree((s) => s.size);
-  return (
-    <OrthographicCamera
-      makeDefault
-      position={id === "math" ? [0, 22, -2] : [0, 18, 9]}
-      up={id === "math" ? [0, 0, -1] : [0, 1, 0]}
-      zoom={labZoom(id, size.width, size.height)}
-      near={0.1}
-      far={100}
-      onUpdate={(camera) => {
-        camera.lookAt(0, 0, id === "math" ? -2 : -4.8);
-        camera.updateProjectionMatrix();
-      }}
-    />
+  // Drives the persistent rig camera (no own camera → no projection cut).
+  const target = useMemo(
+    () => new THREE.Vector3(0, 0, id === "math" ? -2 : -4.8),
+    [id],
   );
+  const offset = useMemo(
+    () =>
+      id === "math"
+        ? new THREE.Vector3(0, 24, 0)
+        : new THREE.Vector3(0, 18, 13.8),
+    [id],
+  );
+  useFrame(({ camera, size }) => {
+    if (id === "math") camera.up.copy(labUp);
+    aimCamera(
+      camera,
+      target,
+      offset,
+      labZoom(id, size.width, size.height),
+      size.height,
+    );
+    camera.up.set(0, 1, 0);
+  });
+  return null;
 }
 
 function LabGameActions({ onClose }: { onClose: () => void }) {
@@ -292,7 +304,9 @@ function BeatVisuals({ game }: { game: RefObject<RhymeGame> }) {
         ? (g.time - rhymeCountIn(g)) % barInterval
         : 0;
     const beat = Math.min(BEATS_PER_BAR - 1, Math.floor(inBar / beatInterval));
-    const bounce = playing ? Math.abs(Math.sin((inBar / beatInterval) * Math.PI)) : 0;
+    const bounce = playing
+      ? Math.abs(Math.sin((inBar / beatInterval) * Math.PI))
+      : 0;
     pads.current?.children.forEach((pad, i) => {
       const lit = playing && i === beat;
       const cap = pad.children[1];
@@ -321,7 +335,11 @@ function BeatVisuals({ game }: { game: RefObject<RhymeGame> }) {
         {laneX.map((x, beatIndex) => (
           <group key={x} position={[x, 0.4, -2]}>
             <Cylinder p={[0, 0.14, 0]} s={[0.95, 0.28, 0.95]} c="#25303d" />
-            <Cylinder p={[0, 0.33, 0]} s={[0.79, 0.2, 0.79]} c={colors[beatIndex]} />
+            <Cylinder
+              p={[0, 0.33, 0]}
+              s={[0.79, 0.2, 0.79]}
+              c={colors[beatIndex]}
+            />
             <Ring p={[0, 0.46, 0]} radius={0.61} tube={0.025} c="#d7e0e9" />
             <mesh
               position={[0, 0.445, 0]}
@@ -532,11 +550,7 @@ export function BeatLabInterior() {
                       : "Rhyme words to the beat"}
                 </p>
                 {view.phase !== "playing" && (
-                  <div
-                    className="rhyme-beats"
-                    role="group"
-                    aria-label="Beat"
-                  >
+                  <div className="rhyme-beats" role="group" aria-label="Beat">
                     {RHYME_BEATS.map((beat, i) => (
                       <button
                         key={beat.name}
@@ -803,11 +817,7 @@ export function MathLabInterior() {
               ))}
             </div>
             <footer className="lab-game-bottom lab-math-bottom">
-              <p role="status">
-                {solved
-                  ? "All lit"
-                  : "Light all nine · 1–9"}
-              </p>
+              <p role="status">{solved ? "All lit" : "Light all nine · 1–9"}</p>
               {solved ? (
                 <button
                   className="lab-primary"
@@ -821,7 +831,10 @@ export function MathLabInterior() {
                     onClick={() => {
                       if (!gameIsActive()) return;
                       setHint(
-                        mathHints.reveal(startingBoard.current, boardRef.current),
+                        mathHints.reveal(
+                          startingBoard.current,
+                          boardRef.current,
+                        ),
                       );
                     }}
                   >

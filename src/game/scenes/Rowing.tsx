@@ -1,3 +1,4 @@
+import { StaticBatch } from "../world/StaticBatch";
 import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { create } from "zustand";
@@ -201,7 +202,12 @@ export function Rowing() {
   const desired = useMemo(() => new THREE.Vector3(), []);
   useFrame(({ camera }, delta) => {
     const game = useGame.getState();
-    if (game.paused || game.result || game.panel !== "none" || !runtime.active) {
+    if (
+      game.paused ||
+      game.result ||
+      game.panel !== "none" ||
+      !runtime.active
+    ) {
       runtime.raceCatch = false;
       return;
     }
@@ -262,17 +268,19 @@ export function Rowing() {
     }
   });
   return (
-    <>
-      <River length={length} seed={seed} state={() => state.current} />
-      <CurrentFlow state={() => state.current} seed={seed} />
-      <RowingShell state={() => state.current} color="#8c1515" player />
-      {["#e6a742", "#4a9485", "#7186bd"].map((color, i) => (
-        <RowingShell
-          key={color}
-          state={() => rivals.current[i]}
-          color={color}
-        />
-      ))}
-    </>
+    <StaticBatch id="Rowing">
+      <>
+        <River length={length} seed={seed} state={() => state.current} />
+        <CurrentFlow state={() => state.current} seed={seed} />
+        <RowingShell state={() => state.current} color="#8c1515" player />
+        {["#e6a742", "#4a9485", "#7186bd"].map((color, i) => (
+          <RowingShell
+            key={color}
+            state={() => rivals.current[i]}
+            color={color}
+          />
+        ))}
+      </>
+    </StaticBatch>
   );
 }

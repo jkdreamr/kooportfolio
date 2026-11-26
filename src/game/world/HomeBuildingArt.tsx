@@ -1,3 +1,4 @@
+import { BuildingDressing } from "./BuildingDressing";
 import { StaticBatch } from "./StaticBatch";
 import { GableRoof, Glazing, type Pane } from "./ArchitectureDetail";
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
@@ -141,6 +142,7 @@ export function HomeBuildingArt({ id }: { id: string }) {
     <StaticBatch id="HomeBuildingArt">
       <group name={`home-${id}-crafted-detail`}>
         {parts[id] && <WorldSceneryParts parts={parts[id]} />}
+        <BuildingDressing id={id} world="home" />
         {glazing[id] && <Glazing panes={glazing[id]} />}
         {id === "kitchen" && <Dormer p={[0, 4.06, 1.3]} color="#a35538" />}
         {id === "writing" &&

@@ -74,12 +74,12 @@ function build(world: WorldId): Built {
     lakes: lakes.map((lake) => ({
       geometry: surface(lake),
       material: waterMaterial({
-        color: "#3f9db0",
-        deep: "#1f5f78",
-        shallow: "#86cbbf",
-        bank: "#5a6e3c",
+        color: "#2f86a6",
+        deep: "#174a6a",
+        shallow: "#7fc2b8",
+        bank: "#6a6a3a",
         shore: "map",
-        shoreMap: bakeShoreMap(lake.outline, 3.2),
+        shoreMap: bakeShoreMap(lake.outline, 1.8),
         scale: 0.8,
         flow: [0.22, 0.14],
         foam: 0.85,

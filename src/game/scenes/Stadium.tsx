@@ -1,3 +1,4 @@
+import { StaticBatch } from "../world/StaticBatch";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
@@ -586,93 +587,98 @@ export function StadiumInterior() {
   });
 
   return (
-    <group>
-      <StadiumArchitecture
-        attempt={playing ? attempt + 1 : 0}
-        made={playing && phase === "result" && result === "Good"}
-      />
-      <group ref={aimMarker} position={[spot.x, 0.2, spot.z]} visible={false}>
-        {[0, 1, 2, 3, 4].map((i) => (
-          <Cylinder
-            key={i}
-            p={[0, 0, -0.8 - i * 0.58]}
-            s={[0.065, 0.025, 0.065]}
-            c="#e5c56d"
-          />
+    <StaticBatch id="StadiumInterior">
+      <group>
+        <StadiumArchitecture
+          attempt={playing ? attempt + 1 : 0}
+          made={playing && phase === "result" && result === "Good"}
+        />
+        <group ref={aimMarker} position={[spot.x, 0.2, spot.z]} visible={false}>
+          {[0, 1, 2, 3, 4].map((i) => (
+            <Cylinder
+              key={i}
+              p={[0, 0, -0.8 - i * 0.58]}
+              s={[0.065, 0.025, 0.065]}
+              c="#e5c56d"
+            />
+          ))}
+        </group>
+        <Football ballRef={ball} />
+        <instancedMesh
+          ref={trail}
+          args={[undefined, undefined, TRAIL_DOTS]}
+          count={0}
+          visible={false}
+          frustumCulled={false}
+        >
+          <sphereGeometry args={[1, 6, 4]} />
+          <meshBasicMaterial color="#ffdfa0" />
+        </instancedMesh>
+        <Fireworks meshRef={fxMesh} />
+        <FootballPlayer
+          p={[spot.x - 0.6, 0.17, spot.z + 0.7]}
+          kicking={flying}
+        />
+        <FootballPlayer
+          p={[spot.x, 0.17, spot.z - 9]}
+          jersey="#2b3f63"
+          playerRef={defender}
+        />
+        {/* Sideline flag telegraphs the wind for the next kick. */}
+        <group position={[9.8, 0, -4]}>
+          <Cylinder p={[0, 1.5, 0]} s={[0.05, 3, 0.05]} c="#8f9aa0" />
+          <group ref={flag} position={[0.02, 2.75, 0]}>
+            <Box p={[0.45, 0, 0]} s={[0.85, 0.5, 0.04]} c="#c13b48" />
+          </group>
+        </group>
+        <Box p={[spot.x, 0.22, spot.z]} s={[0.25, 0.1, 0.25]} c="#d29433" />
+        {[-1, 1].map((side) => (
+          <group key={side}>
+            <Box p={[side * 10.35, 0.5, 2.3]} s={[0.45, 0.2, 5]} c="#b4a17c" />
+            <FootballPlayer p={[side * 7.5, 0.17, -8]} />
+          </group>
         ))}
-      </group>
-      <Football ballRef={ball} />
-      <instancedMesh
-        ref={trail}
-        args={[undefined, undefined, TRAIL_DOTS]}
-        count={0}
-        visible={false}
-        frustumCulled={false}
-      >
-        <sphereGeometry args={[1, 6, 4]} />
-        <meshBasicMaterial color="#ffdfa0" />
-      </instancedMesh>
-      <Fireworks meshRef={fxMesh} />
-      <FootballPlayer p={[spot.x - 0.6, 0.17, spot.z + 0.7]} kicking={flying} />
-      <FootballPlayer
-        p={[spot.x, 0.17, spot.z - 9]}
-        jersey="#2b3f63"
-        playerRef={defender}
-      />
-      {/* Sideline flag telegraphs the wind for the next kick. */}
-      <group position={[9.8, 0, -4]}>
-        <Cylinder p={[0, 1.5, 0]} s={[0.05, 3, 0.05]} c="#8f9aa0" />
-        <group ref={flag} position={[0.02, 2.75, 0]}>
-          <Box p={[0.45, 0, 0]} s={[0.85, 0.5, 0.04]} c="#c13b48" />
+        <Walker interior locked={playing} followCamera={false} />
+        <StadiumView ballRef={ball} playing={playing} controlsRef={controls} />
+        <group ref={controls}>
+          {!nearExit && !playing && (
+            <GameControls name="49ers field goals" position={[0, 0, 0]}>
+              <button
+                ref={(button) => {
+                  if (button && returnFocus.current) {
+                    button.focus({ preventScroll: true });
+                    returnFocus.current = false;
+                  }
+                }}
+                className="stadium-play"
+                type="button"
+                onClick={play}
+              >
+                Play
+              </button>
+            </GameControls>
+          )}
         </group>
-      </group>
-      <Box p={[spot.x, 0.22, spot.z]} s={[0.25, 0.1, 0.25]} c="#d29433" />
-      {[-1, 1].map((side) => (
-        <group key={side}>
-          <Box p={[side * 10.35, 0.5, 2.3]} s={[0.45, 0.2, 5]} c="#b4a17c" />
-          <FootballPlayer p={[side * 7.5, 0.17, -8]} />
-        </group>
-      ))}
-      <Walker interior locked={playing} followCamera={false} />
-      <StadiumView ballRef={ball} playing={playing} controlsRef={controls} />
-      <group ref={controls}>
-        {!nearExit && !playing && (
-          <GameControls name="49ers field goals" position={[0, 0, 0]}>
-            <button
-              ref={(button) => {
-                if (button && returnFocus.current) {
-                  button.focus({ preventScroll: true });
-                  returnFocus.current = false;
-                }
-              }}
-              className="stadium-play"
-              type="button"
-              onClick={play}
-            >
-              Play
-            </button>
-          </GameControls>
+        {playing && (
+          <StadiumGameHud
+            attempt={attempt}
+            wind={spot.wind}
+            phase={phase}
+            finished={finished}
+            results={results}
+            postHit={postHit}
+            lockedPower={lockedPower}
+            powerTarget={powerTarget}
+            aimWindow={aimWindow}
+            cursor={bindCursor}
+            rushBar={bindRush}
+            readTiming={() => timing.current}
+            onAction={act}
+            onSteer={steer}
+            onClose={close}
+          />
         )}
       </group>
-      {playing && (
-        <StadiumGameHud
-          attempt={attempt}
-          wind={spot.wind}
-          phase={phase}
-          finished={finished}
-          results={results}
-          postHit={postHit}
-          lockedPower={lockedPower}
-          powerTarget={powerTarget}
-          aimWindow={aimWindow}
-          cursor={bindCursor}
-          rushBar={bindRush}
-          readTiming={() => timing.current}
-          onAction={act}
-          onSteer={steer}
-          onClose={close}
-        />
-      )}
-    </group>
+    </StaticBatch>
   );
 }

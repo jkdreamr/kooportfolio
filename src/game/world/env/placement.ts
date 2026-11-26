@@ -64,7 +64,8 @@ const STANFORD_ROADS: Rect[] = STANFORD_WALKS.map(([x, z, w, d]) => [x, z, w, d]
 const CAMPUS_RECT: Rect = [campus.x, campus.z - 4, 44, 50];
 export const PAVED: Record<WorldId, readonly Rect[]> = {
   home: HOME_PATH_FOOTPRINTS,
-  korea: KOREA_PAVING_FOOTPRINTS,
+  // The Han's channel (and the bridge over it) is never lawn.
+  korea: [...KOREA_PAVING_FOOTPRINTS, [25, 33, 76, 24]],
   stanford: [...STANFORD_ROADS, CAMPUS_RECT],
 };
 

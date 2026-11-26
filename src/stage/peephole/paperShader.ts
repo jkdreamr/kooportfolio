@@ -50,12 +50,13 @@ void main() {
   // like 1/(1 + (r/r0)^2) so the far page stays where it was printed.
   float rr = max(0.0, r - 0.8 * uSigmaCore);
   float wide = 1.0 / (1.0 + rr * rr / (uSigmaWide * uSigmaWide));
+  wide *= wide; // no long tail: the header and footer never drift
   float c = cos(uAngle);
   float s = sin(uAngle);
   vec2 rd = mat2(c, s, -s, c) * d * uScale;
   vec2 disp = uPull * wide + (uLetter - uPull) * core + (rd - d) * core;
   vec2 p = q + disp * uRelax;
-  float lift = uLift * uTension * exp(-r2 / (2.0 * 4.0 * uSigmaWide * uSigmaWide)) * uRelax;
+  float lift = uLift * uTension * exp(-r2 / (2.0 * 1.4 * uSigmaWide * uSigmaWide)) * uRelax;
   float z = lift;
   vPhi = 0.0;
 
@@ -70,14 +71,18 @@ void main() {
       float u = abs(sa) / max(span, 1.0);
       // Elastic opening: wide at the seam, fading into the sheet.
       float reach = 24.0 + uGap * 14.0;
-      p += n * uFlap * uGap * sqrt(max(0.0, 1.0 - u)) * exp(-ta * ta / (reach * reach));
+      // (1-u)^1.5 tip: both flap passes agree where the strip ends.
+      float open = pow(max(0.0, 1.0 - u), 1.5);
+      p += n * uFlap * uGap * open * exp(-ta * ta / (reach * reach));
     }
     // The peel follows the tear: full behind the fronts, none ahead of them
     // (intact paper ahead of the fronts must stay flat for both passes).
     float behind = sa < 0.0 ? sa - uFronts.x : uFronts.y - sa;
-    float peel = clamp(behind / uCurlRamp, 0.0, 1.0);
-    float axis = uAxis;
     float dd = uFlap * ta;
+    // Only this flap's own paper peels (plus a margin for the jagged edge);
+    // the other flap's far vertices stay put so no triangle is torn apart.
+    float peel = clamp(behind / uCurlRamp, 0.0, 1.0) * smoothstep(-60.0, -30.0, dd);
+    float axis = uAxis;
     if (peel > 0.0 && dd < axis) {
       float phi = (axis - dd) / uCurlR;
       float uu;
@@ -229,19 +234,22 @@ void main() {
     vec2 rd = vRest - uRest;
     float along = dot(rd, pd);
     float across = dot(rd, m);
-    float sw = uSigmaWide * 2.6;
-    float env = exp(-across * across / (2.0 * pow(sw * 0.5, 2.0)))
-      * smoothstep(-sw * 2.4, -sw * 0.15, along)
-      * (1.0 - smoothstep(sw * 0.15, sw * 0.8, along))
+    // Tension wrinkles: ridges along the pull, trailing behind the letter,
+    // broken up by noise so they read as paper, not corrugation.
+    float sw = uSigmaWide;
+    float env = exp(-across * across / (2.0 * pow(sw * 0.75, 2.0)))
+      * smoothstep(-sw * 3.2, -sw * 0.4, along)
+      * (1.0 - smoothstep(-sw * 0.1, sw * 0.5, along))
       * (1.0 - vCore);
+    float brk = smoothstep(0.35, 0.75, fbm(vec2(along * 0.012, across * 0.03) + uSeed * 0.7));
     float wob = fbm(vec2(along * 0.006, across * 0.004) + uSeed) * 6.28;
-    float k = 6.2831 / (13.0 + 9.0 * fbm(vec2(across * 0.01, 3.0)));
-    float slope = 0.42 * T * T * env * cos(k * across + wob);
+    float k = 6.2831 / (11.0 + 9.0 * fbm(vec2(across * 0.01, 3.0)));
+    float slope = 0.3 * T * T * env * brk * cos(k * across + wob);
     vec2 grad = m * slope;
     N = normalize(N + vec3(-grad.x, grad.y, 0.0));
   }
   vec3 L = normalize(vec3(-0.35, 0.55, 0.76));
-  float shade = 1.0 + 1.15 * (dot(N, L) - L.z);
+  float shade = clamp(1.0 + 1.15 * (dot(N, L) - L.z), 0.62, 1.12);
   vec3 V = vec3(0.0, 0.0, 1.0);
   float sheen = pow(max(dot(reflect(-L, N), V), 0.0), 18.0) - pow(max(dot(reflect(-L, vec3(0.0, 0.0, 1.0)), V), 0.0), 18.0);
 

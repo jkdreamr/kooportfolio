@@ -1,3 +1,4 @@
+import { useWorldActive } from "../engine/active";
 import { useRef, type RefObject } from "react";
 import type { Group } from "three";
 import { useFrame } from "@react-three/fiber";
@@ -10,7 +11,9 @@ export function JourneyTrain({
   carsRef: RefObject<Group | null>;
 }) {
   const phase = useRef(0);
+  const worldActive = useWorldActive();
   useFrame((_, delta) => {
+    if (!worldActive) return;
     phase.current -= Math.min(delta, 0.05) * 12;
   });
   return (

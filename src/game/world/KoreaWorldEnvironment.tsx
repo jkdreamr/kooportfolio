@@ -162,8 +162,8 @@ for (let i = 0; i < 8; i++) {
 // the bridge's rainbow lights smeared across the near bank.
 const riverGeometry = new THREE.PlaneGeometry(74, 22);
 const riverMaterial = waterMaterial({
-  color: "#4a8e9c",
-  deep: "#24566a",
+  color: "#3b7f99",
+  deep: "#1b4a66",
   shallow: "#7db3ac",
   bank: "#6f7a68",
   shore: "band",

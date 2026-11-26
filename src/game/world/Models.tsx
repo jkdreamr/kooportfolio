@@ -1,9 +1,11 @@
+import { useWorldActive } from "../engine/active";
 import { StaticBatch } from "./StaticBatch";
+import { HouseCraft } from "./BuildingDressing";
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
-import { runtime, useGame } from "../core/store";
+import { useGame } from "../core/store";
 import { GableRoof, StoneFooting, WindowDetail } from "./ArchitectureDetail";
 import { sculptedMaterial } from "./Surface";
 import { NationalFlag } from "./NationalFlag";
@@ -327,12 +329,7 @@ export function House({
         {[-2.83, 0, 2.83].map((x) => (
           <Box key={x} p={[x, 1.8, 2.08]} s={[0.18, 3.4, 0.16]} c="#a28b69" />
         ))}
-        <Box p={[0, 1.1, 2.12]} s={[1.22, 2.1, 0.2]} c="#61594b" />
-        <Box p={[0, 1.03, 2.24]} s={[0.95, 1.9, 0.12]} c="#8d7655" />
-        {[-0.27, 0, 0.27].map((x) => (
-          <Box key={x} p={[x, 1.1, 2.32]} s={[0.025, 1.7, 0.02]} c="#bda17a" />
-        ))}
-        <Ball p={[0.3, 1, 2.35]} s={[0.055, 0.055, 0.06]} c="#edd38b" />
+        <HouseCraft study={study} />
         <Window p={[-1.75, 1.85, 2.1]} />
         <Window p={[1.75, 1.85, 2.1]} />
         <Box p={[0, 0.3, 2.58]} s={[1.8, 0.44, 1]} c="#d7c8aa" />
@@ -401,7 +398,9 @@ export function Boat({
   race?: boolean;
 }) {
   const oars = useRef<THREE.Group>(null);
+  const worldActive = useWorldActive();
   useFrame(({ clock }) => {
+    if (!worldActive) return;
     if (oars.current)
       oars.current.children.forEach((oar, i) => {
         oar.rotation.y =
@@ -447,7 +446,9 @@ export function Npc({
   color: string;
 }) {
   const ref = useRef<THREE.Group>(null);
+  const worldActive = useWorldActive();
   useFrame(({ clock }) => {
+    if (!worldActive) return;
     if (ref.current && !useGame.getState().paused) {
       const t = clock.elapsedTime * 0.3 + origin[0];
       ref.current.position.set(

@@ -1,3 +1,4 @@
+import { BuildingDressing } from "./BuildingDressing";
 import { StaticBatch } from "./StaticBatch";
 import * as THREE from "three";
 import { Box, Cylinder, Ball, Flowers, Sign, Window } from "./Models";
@@ -244,7 +245,8 @@ export function GymShell() {
           </mesh>
         ))}
         <Box p={[0, 0.2, 0]} s={[5.8, 0.4, 5.1]} c="#8c9181" />
-        <Box p={[0, 1.45, 0]} s={[5.5, 2.6, 4.8]} c="#acae94" />
+        <Box p={[0, 1.45, 0]} s={[5.5, 2.6, 4.8]} c="#d6c096" />
+        <BuildingDressing id="gym" world="stanford" />
         <mesh
           position={[0, 2.7, 0]}
           rotation={[Math.PI / 2, 0, 0]}

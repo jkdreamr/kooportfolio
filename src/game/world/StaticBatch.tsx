@@ -161,7 +161,7 @@ function hashMatrix(h: number, m: THREE.Matrix4) {
   return h;
 }
 
-class Baker {
+export class Baker {
   root: THREE.Group;
   id: string;
   entries: Entry[] = [];
@@ -229,8 +229,20 @@ class Baker {
   }
 
   bakes = 0;
+  stamps: number[] = [];
+  gaveUp = false;
   bake() {
     this.bakes++;
+    // Safety valve: content that keeps changing (a live score, a remounting
+    // prop) would rebake every few frames; give up and render it as authored.
+    const now = typeof performance !== "undefined" ? performance.now() : 0;
+    this.stamps = this.stamps.filter((t) => now - t < 12000);
+    this.stamps.push(now);
+    if (this.stamps.length > 8 && now > 0) {
+      this.gaveUp = true;
+      this.restore();
+      return;
+    }
     const previous = new Map(this.entries.map((e) => [e.object, e.changes]));
     this.restore();
     this.root.updateWorldMatrix(true, true);
@@ -420,7 +432,7 @@ class Baker {
   }
 
   tick() {
-    if (this.disposed) return;
+    if (this.disposed || this.gaveUp) return;
     this.frame++;
     if (this.dirty && --this.dirty === 0) {
       this.bake();

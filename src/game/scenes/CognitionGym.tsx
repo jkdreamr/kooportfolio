@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Html, OrthographicCamera } from "@react-three/drei";
+import { Html } from "@react-three/drei";
+import { aimCamera } from "../engine/camera";
 import { useFrame, useThree } from "@react-three/fiber";
 import { create } from "zustand";
 import * as THREE from "three";
@@ -142,37 +143,51 @@ function currentGymMotion() {
   return gymRepMotion(liftedAt, pausedAt ?? performance.now(), judgment);
 }
 
+const gymLook = new THREE.Vector3(0, 1.4, -2.5);
+const gymOffset = new THREE.Vector3(8, 6.6, 13.5);
 function GymCamera() {
-  const size = useThree((s) => s.size);
-  const landscape = size.height <= 520 && size.width > 700;
-  return (
-    <OrthographicCamera
-      makeDefault
-      position={[8, 8, 11]}
-      zoom={Math.max(
-        6,
-        Math.min(
-          82,
-          (size.width - (landscape ? 320 : 32)) / 8,
-          (size.height - (landscape ? 64 : 320)) / 7,
-        ),
-      )}
-      near={0.1}
-      far={100}
-      onUpdate={(camera) => {
-        camera.lookAt(0, 1.4, -2.5);
-        camera.setViewOffset(
-          size.width,
-          size.height,
-          landscape ? size.width * 0.16 : 0,
-          landscape ? 0 : 40,
-          size.width,
-          size.height,
-        );
-        camera.updateProjectionMatrix();
-      }}
-    />
+  // Drives the persistent rig camera (no own camera → no projection cut).
+  const camera = useThree((s) => s.camera);
+  useEffect(
+    () => () => {
+      camera.clearViewOffset();
+    },
+    [camera],
   );
+  useFrame(({ camera, size }) => {
+    const landscape = size.height <= 520 && size.width > 700;
+    const zoom = Math.max(
+      6,
+      Math.min(
+        82,
+        (size.width - (landscape ? 320 : 32)) / 8,
+        (size.height - (landscape ? 64 : 320)) / 7,
+      ),
+    );
+    aimCamera(camera, gymLook, gymOffset, zoom, size.height);
+    const cam = camera as THREE.PerspectiveCamera;
+    const ox = landscape ? size.width * 0.16 : 0,
+      oy = landscape ? 0 : 40;
+    const view = cam.view;
+    if (
+      !view ||
+      !view.enabled ||
+      view.offsetX !== ox ||
+      view.offsetY !== oy ||
+      view.fullWidth !== size.width ||
+      view.fullHeight !== size.height
+    ) {
+      cam.setViewOffset(
+        size.width,
+        size.height,
+        ox,
+        oy,
+        size.width,
+        size.height,
+      );
+    }
+  });
+  return null;
 }
 
 function GymControls() {

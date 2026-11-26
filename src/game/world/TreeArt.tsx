@@ -536,7 +536,7 @@ export function NaturalTrees({ trees }: { trees: readonly TreePlacement[] }) {
         (part): Part => ({
           ...part,
           s: [part.s[0] * 0.88, part.s[1] * 0.9, part.s[2] * 0.88],
-          c: `#${color.set(part.c).multiplyScalar(0.66).getHexString()}`,
+          c: `#${color.set(part.c).multiplyScalar(0.55).getHexString()}`,
         }),
       );
     return { broad: shrink(broad), pine: shrink(pine) };

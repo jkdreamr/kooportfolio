@@ -84,6 +84,13 @@ function bakeEnvironment(renderer: THREE.WebGLRenderer) {
   return target;
 }
 
+/** After a WebGL context restore the PMREM target's GPU content is gone while
+ * the renderer object survives: forget the bake so the next `updateGloss`
+ * redoes it (and re-points every glossy material). Idempotent. */
+export function invalidateGlossEnvironment() {
+  environmentFor = null;
+}
+
 const rim = new THREE.Color();
 /** Called once per frame from Game's Sun, after the time-of-day rig. */
 export function updateGloss(
@@ -369,9 +376,9 @@ export function waterMaterial({
         float waterLap = 0.025 * sin(vGlossWorld.x * 2.1 + vGlossWorld.z * 1.7 + waterT * 0.9) * uGlossRipple;`
                 : `waterEdge = 0.0; float waterLap = 0.0;`
         }
-        waterShallow = smoothstep(0.35, 0.95, waterEdge);
+        waterShallow = smoothstep(0.5, 0.97, waterEdge);
         diffuseColor.rgb = mix(uWaterDeep, diffuseColor.rgb, 0.4 + 0.6 * waterShallow);
-        diffuseColor.rgb = mix(diffuseColor.rgb, uWaterShallow, smoothstep(0.84, 0.985, waterEdge) * 0.5);
+        diffuseColor.rgb = mix(diffuseColor.rgb, uWaterShallow, smoothstep(0.9, 0.99, waterEdge) * 0.45);
         diffuseColor.rgb *= 1.0 + waterCrest * 0.06;
         float waterBreath = 0.5 + 0.5 * sin(waterT * 1.1 + vGlossWorld.x * 0.4 + vGlossWorld.z * 0.3);
         float waterLine = smoothstep(${shore === "band" ? "0.962" : "0.915"} + waterLap - waterBreath * 0.02, ${shore === "band" ? "0.988" : "0.965"} + waterLap, waterEdge);

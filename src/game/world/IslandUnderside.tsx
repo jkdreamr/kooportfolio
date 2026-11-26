@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { useWorldActive } from "../engine/active";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { DAYLIGHT_KEYS, sampleDaylight } from "../core/daylight";
 import {
@@ -318,7 +319,9 @@ export function IslandUnderside({
   const reduced = useReducedMotion();
   const wheel = useRef<THREE.Group>(null);
   const dressing = undersideDetail(world);
+  const active = useWorldActive();
   useFrame((_, delta) => {
+    if (!active) return;
     const light = sampleDaylight(daylightClock.hour);
     bounce.value
       .copy(skyKeys[light.index])

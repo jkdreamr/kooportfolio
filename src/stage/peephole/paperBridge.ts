@@ -15,8 +15,13 @@ type AddRenderPass = (pass: {
 
 let installed: (() => void) | null = null;
 
-export function installPaper(addRenderPass: AddRenderPass, controller: PeepholeController) {
+export function installPaper(
+  addRenderPass: AddRenderPass,
+  controller: PeepholeController,
+  invalidate?: () => void,
+) {
   if (installed) return installed;
+  if (invalidate) controller.setInvalidate(invalidate);
   const layer = new PaperLayer();
   controller.attachSink(layer);
   const removeWarm = registerWarmup({

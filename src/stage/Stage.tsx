@@ -13,6 +13,7 @@ import { markBooted } from "./peephole/policy";
 type EngineModule = {
   GameStage: ComponentType<{ autoEnter?: boolean }>;
   addRenderPass: Parameters<typeof import("./peephole/paperBridge").installPaper>[0];
+  invalidateStage?: () => void;
 };
 
 let loading: Promise<EngineModule> | null = null;
@@ -23,7 +24,7 @@ function loadEngine(withPaper: boolean): Promise<EngineModule> {
       withPaper ? import("./peephole/paperBridge") : Promise.resolve(null),
     ]);
     const mod = engine as unknown as EngineModule;
-    paper?.installPaper(mod.addRenderPass, peephole);
+    paper?.installPaper(mod.addRenderPass, peephole, mod.invalidateStage);
     return mod;
   })();
   return loading;
@@ -44,6 +45,12 @@ export function Stage({ play }: { play: boolean }) {
   const ready = useStage((s) => s.ready);
   const skippable = usePeephole((s) => s.skippable);
   const announce = usePeephole((s) => s.announce);
+
+  // Mirrored on <html> so page-level CSS (scroll locking) can follow the
+  // stage: only the game locks the document; the portfolio scrolls.
+  useEffect(() => {
+    document.documentElement.dataset.stageMode = mode;
+  }, [mode]);
 
   useEffect(() => {
     peephole.init();

@@ -90,7 +90,19 @@ export function Glazing({ panes }: { panes: Pane[] }) {
   );
 }
 
-/** Overlapping, individually shaded clay shingles, rather than a painted plane. */
+/** Convex "hand-built" roof profile: steep at the eaves, easing toward the
+ * ridge (0..1 → 0..1), like a bowed timber rafter under heavy shingles. */
+export const roofCurve = (t: number) => 0.5 * t + 0.5 * (1 - (1 - t) * (1 - t));
+const roofSlope = (t: number) => 0.5 + (1 - t);
+/** Deterministic hash in [0,1). */
+const jitter = (i: number, k = 1) => {
+  const x = Math.sin(i * 127.1 + k * 311.7) * 43758.5453;
+  return x - Math.floor(x);
+};
+
+/** Overlapping, individually shaded clay/timber shingles on a bowed profile,
+ * with an eave overhang, per-shingle tilt and tone variance, moss-touched
+ * low courses and raised ridge/hip caps. */
 export function RoofShingles({
   width,
   depth,
@@ -108,101 +120,131 @@ export function RoofShingles({
 }) {
   const pieces = useMemo(() => {
     const out: Piece[] = [],
-      base = new THREE.Color(color);
-    const shade = (i: number) =>
-      `#${base
+      base = new THREE.Color(color),
+      moss = new THREE.Color("#7d8a4f");
+    const shade = (i: number, t = 0.5) => {
+      const c = base
         .clone()
-        .multiplyScalar(0.9 + ((i * 37) % 17) / 133)
-        .getHexString()}`;
-    const slope = Math.hypot(width / 2, rise),
-      rows = Math.ceil(slope / 0.55),
-      pitch = Math.atan2(rise, width / 2);
+        .multiplyScalar(0.84 + jitter(i, 2) * 0.26)
+        .lerp(moss, jitter(i, 5) > 0.93 && t < 0.45 ? 0.28 : 0);
+      return `#${c.getHexString()}`;
+    };
+    const run = width / 2,
+      overhang = 0.32;
+    const slope = Math.hypot(run, rise) * 1.08,
+      rows = Math.ceil(slope / 0.42);
+    // Underlay boards keep the bowed roof solid between shingle rows.
     for (const side of [-1, 1])
-      for (let row = 0; row < rows; row++) {
-        const t = (row + 0.5) / rows,
-          span = depth * (hip ? 1 - 0.44 * t : 1),
-          cols = Math.max(1, Math.ceil(span / 0.62));
+      for (let row = -1; row < rows; row++) {
+        const t0 = Math.max(-overhang / run, row / rows),
+          t1 = (row + 1) / rows;
+        const t = (t0 + t1) / 2;
+        const len = Math.hypot(
+          (t1 - t0) * run,
+          (roofCurve(t1) - roofCurve(t0)) * rise,
+        );
+        const pitch = Math.atan2(roofSlope(Math.max(0, t)) * rise, run);
+        const span =
+          depth * (hip ? 1 - 0.44 * Math.max(0, t) : 1) + (hip ? 0 : 0.5);
+        out.push({
+          p: [side * run * (1 - t), y + roofCurve(t) * rise - 0.02, 0],
+          s: [len * 1.04, 0.1, span],
+          r: [0, 0, -side * pitch],
+          c: `#${base.clone().multiplyScalar(0.62).getHexString()}`,
+        });
+      }
+    for (const side of [-1, 1])
+      for (let row = -1; row < rows; row++) {
+        // Row -1 is the eave course hanging past the wall.
+        const t = row < 0 ? -overhang / run / 2 : (row + 0.5) / rows,
+          tt = Math.max(0, t);
+        const span = depth * (hip ? 1 - 0.44 * tt : 1) + (hip ? 0 : 0.5),
+          cols = Math.max(1, Math.ceil(span / 0.5));
         const unit = span / cols;
-        for (let col = 0; col < cols + (row % 2); col++) {
-          const start = Math.max(
-            -span / 2,
-            -span / 2 + (col - (row % 2) / 2) * unit,
-          );
-          const end = Math.min(
-            span / 2,
-            -span / 2 + (col + 1 - (row % 2) / 2) * unit,
-          );
+        const pitch = Math.atan2(roofSlope(tt) * rise, run);
+        const odd = ((row + 2) % 2) / 2;
+        for (let col = 0; col < cols + (odd ? 1 : 0); col++) {
+          const start = Math.max(-span / 2, -span / 2 + (col - odd) * unit);
+          const end = Math.min(span / 2, -span / 2 + (col + 1 - odd) * unit);
+          if (end - start < 0.08) continue;
+          const i = out.length;
           out.push({
             p: [
-              ((side * width) / 2) * (1 - t),
-              y + rise * t + 0.07,
+              side * run * (1 - t),
+              y + roofCurve(t) * rise + 0.08 + jitter(i, 3) * 0.02,
               (start + end) / 2,
             ],
-            s: [(slope / rows) * 1.14, 0.17, (end - start) * 0.97],
-            r: [0, 0, -side * pitch],
-            c: shade(out.length),
+            s: [(slope / rows) * 1.32, 0.14, (end - start) * 0.94],
+            r: [
+              (jitter(i, 4) - 0.5) * 0.05,
+              (jitter(i, 6) - 0.5) * 0.06,
+              -side * (pitch + (jitter(i, 7) - 0.5) * 0.05),
+            ],
+            c: shade(i, tt),
           });
         }
       }
     if (hip) {
-      const run = depth * 0.22,
-        endSlope = Math.hypot(run, rise),
-        endRows = Math.ceil(endSlope / 0.55),
-        endPitch = Math.atan2(rise, run);
+      const endRun = depth * 0.22,
+        endSlope = Math.hypot(endRun, rise),
+        endRows = Math.ceil(endSlope / 0.42),
+        endPitch = (t: number) => Math.atan2(roofSlope(t) * rise, endRun);
       for (const side of [-1, 1])
         for (let row = 0; row < endRows; row++) {
           const t = (row + 0.5) / endRows,
             span = width * (1 - t),
-            cols = Math.max(1, Math.ceil(span / 0.62));
-          for (let col = 0; col < cols; col++)
+            cols = Math.max(1, Math.ceil(span / 0.5));
+          for (let col = 0; col < cols; col++) {
+            const i = out.length;
             out.push({
               p: [
                 -span / 2 + ((col + 0.5) * span) / cols,
-                y + rise * t + 0.09,
-                side * (depth / 2 - run * t),
+                y + roofCurve(t) * rise + 0.1,
+                side * (depth / 2 - endRun * t),
               ],
-              s: [(span / cols) * 0.96, 0.18, (endSlope / endRows) * 1.12],
-              r: [side * endPitch, 0, 0],
-              c: shade(out.length),
+              s: [(span / cols) * 0.96, 0.15, (endSlope / endRows) * 1.3],
+              r: [side * endPitch(t), (jitter(i, 6) - 0.5) * 0.06, 0],
+              c: shade(i, t),
             });
+          }
         }
-      // Raised hip caps close the diagonal seams between the roof planes.
-      const hipLength = Math.hypot(width / 2, run, rise);
-      const capCount = Math.ceil(hipLength / 0.5);
+      // Raised hip caps follow the bowed seams between the roof planes.
+      const caps = 9;
       for (const x of [-1, 1])
-        for (const z of [-1, 1]) {
-          const direction = new THREE.Vector3(
-            (-x * width) / 2,
-            rise,
-            -z * run,
-          ).normalize();
-          const rotation = new THREE.Euler().setFromQuaternion(
-            new THREE.Quaternion().setFromUnitVectors(
-              new THREE.Vector3(0, 0, 1),
-              direction,
-            ),
-          );
-          for (let i = 0; i < capCount; i++) {
-            const t = (i + 0.5) / capCount;
+        for (const z of [-1, 1])
+          for (let i = 0; i < caps; i++) {
+            const t0 = i / caps,
+              t1 = (i + 1) / caps;
+            const a = new THREE.Vector3(
+              ((x * width) / 2) * (1 - t0),
+              y + roofCurve(t0) * rise + 0.17,
+              z * (depth / 2 - endRun * t0),
+            );
+            const b = new THREE.Vector3(
+              ((x * width) / 2) * (1 - t1),
+              y + roofCurve(t1) * rise + 0.17,
+              z * (depth / 2 - endRun * t1),
+            );
+            const rotation = new THREE.Euler().setFromQuaternion(
+              new THREE.Quaternion().setFromUnitVectors(
+                new THREE.Vector3(0, 0, 1),
+                b.clone().sub(a).normalize(),
+              ),
+            );
             out.push({
-              p: [
-                ((x * width) / 2) * (1 - t),
-                y + rise * t + 0.16,
-                z * (depth / 2 - run * t),
-              ],
-              s: [0.32, 0.25, (hipLength / capCount) * 1.1],
+              p: [(a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2],
+              s: [0.3, 0.24, a.distanceTo(b) * 1.15],
               r: [rotation.x, rotation.y, rotation.z],
               c: shade(i + 3),
             });
           }
-        }
     }
-    const ridge = depth * (hip ? 0.56 : 1),
-      caps = Math.ceil(ridge / 0.55);
+    const ridge = depth * (hip ? 0.56 : 1) + (hip ? 0 : 0.5),
+      caps = Math.ceil(ridge / 0.45);
     for (let i = 0; i < caps; i++)
       out.push({
-        p: [0, y + rise + 0.15, -ridge / 2 + ((i + 0.5) * ridge) / caps],
-        s: [0.45, 0.3, (ridge / caps) * 1.08],
+        p: [0, y + rise + 0.16, -ridge / 2 + ((i + 0.5) * ridge) / caps],
+        s: [0.46, 0.3, (ridge / caps) * 1.06],
         c: shade(i + 4),
       });
     return out;
@@ -332,42 +374,54 @@ export function GableRoof({
   color: string;
 }) {
   const geometry = useMemo(() => {
+    // Solid gable mass on the same bowed profile as the shingles.
     const w = width / 2,
-      d = depth / 2;
-    const g = new THREE.BufferGeometry();
-    g.setAttribute(
-      "position",
-      new THREE.Float32BufferAttribute(
-        [-w, 0, -d, w, 0, -d, 0, rise, -d, -w, 0, d, w, 0, d, 0, rise, d],
-        3,
-      ),
-    );
-    g.setIndex([
-      0, 2, 1, 3, 4, 5, 0, 3, 5, 0, 5, 2, 1, 2, 5, 1, 5, 4, 0, 1, 4, 0, 4, 3,
-    ]);
-    const solid = g.toNonIndexed();
-    g.dispose();
-    solid.computeVertexNormals();
-    return solid;
+      shape = new THREE.Shape();
+    const steps = 10;
+    shape.moveTo(-w, 0);
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      shape.lineTo(-w * (1 - t), roofCurve(t) * rise);
+    }
+    for (let i = steps - 1; i >= 0; i--) {
+      const t = i / steps;
+      shape.lineTo(w * (1 - t), roofCurve(t) * rise);
+    }
+    shape.lineTo(-w, 0);
+    const g = new THREE.ExtrudeGeometry(shape, {
+      depth,
+      bevelEnabled: false,
+      steps: 1,
+    });
+    g.translate(0, 0, -depth / 2);
+    g.computeVertexNormals();
+    return g;
   }, [width, depth, rise]);
   useEffect(() => () => geometry.dispose(), [geometry]);
   const fascia = useMemo(() => {
     const out: Piece[] = [];
-    const slope = Math.hypot(width / 2, rise);
-    const pitch = Math.atan2(rise, width / 2);
     for (const side of [-1, 1]) {
       out.push({
         p: [(side * width) / 2, y - 0.035, 0],
         s: [0.24, 0.27, depth + 0.22],
         c: "#735237",
       });
+      // Bargeboards follow the bowed gable edge in short timber lengths.
       for (const end of [-1, 1])
-        out.push({
-          p: [(side * width) / 4, y + rise / 2, end * (depth / 2 + 0.055)],
-          s: [slope + 0.15, 0.2, 0.24],
-          r: [0, 0, -side * pitch],
-          c: "#9b7149",
-        });
+        for (let i = 0; i < 6; i++) {
+          const t0 = i / 6,
+            t1 = (i + 1) / 6;
+          const x0 = side * (width / 2) * (1 - t0),
+            x1 = side * (width / 2) * (1 - t1);
+          const y0 = y + roofCurve(t0) * rise,
+            y1 = y + roofCurve(t1) * rise;
+          out.push({
+            p: [(x0 + x1) / 2, (y0 + y1) / 2 + 0.06, end * (depth / 2 + 0.3)],
+            s: [Math.hypot(x1 - x0, y1 - y0) * 1.12, 0.24, 0.2],
+            r: [0, 0, Math.atan2(y1 - y0, x1 - x0)],
+            c: "#8d6440",
+          });
+        }
       const brackets = Math.max(2, Math.floor(depth / 1.8));
       for (let i = 0; i < brackets; i++)
         out.push({

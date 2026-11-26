@@ -10,6 +10,6 @@ export { default, default as GameStage } from "../Game";
 export { useWorldActive } from "./active";
 export { aimCamera, viewZoom } from "./camera";
 export { addRenderPass, type RenderPass } from "./passes";
-export { onContextRestored } from "./Engine";
+export { onContextRestored, invalidateStage } from "./Engine";
 export { usePresented } from "./presented";
 export { setViewZoom, zoomedOffset } from "./camera";

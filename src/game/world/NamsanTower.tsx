@@ -1,3 +1,4 @@
+import { useWorldActive } from "../engine/active";
 import { StaticBatch } from "./StaticBatch";
 import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
@@ -52,7 +53,9 @@ column(25.05, 0.055, 1.15, red);
 function TowerLights() {
   const deck = useRef<MeshStandardMaterial>(null);
   const beacon = useRef<MeshStandardMaterial>(null);
+  const worldActive = useWorldActive();
   useFrame(() => {
+    if (!worldActive) return;
     const night = sampleDaylight(daylightClock.hour).night;
     if (deck.current) deck.current.emissiveIntensity = night * 1.45;
     if (beacon.current) beacon.current.emissiveIntensity = night * 0.9;

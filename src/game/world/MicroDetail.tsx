@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { useWorldActive } from "../engine/active";
 import {
   insidePolygon,
   loopNormals,
@@ -425,7 +426,9 @@ function Batch({
     mesh.computeBoundingSphere();
   }, [pieces]);
   // Halos cost nothing by day: the mesh is simply not drawn.
+  const active = useWorldActive();
   useFrame(() => {
+    if (!active) return;
     if (night && ref.current) ref.current.visible = gloss.night.value > 0.26;
   });
   if (!pieces.length) return null;
