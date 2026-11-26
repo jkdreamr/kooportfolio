@@ -58,27 +58,28 @@ const exclude = a.exclude ? new RegExp(a.exclude, "i") : null;
 const min = a.min ? Number(a.min) : null;
 const max = a.max ? Number(a.max) : null;
 const limit = Number(a.limit);
+const note = (line) => (a.json ? console.error : console.log)(line);
 let wantChannel = a["channel-id"] ?? null;
 
 let videos = [];
 if (a.channel) {
   const { channel, videos: v } = await listVideos(a.channel, a.tab);
-  console.log(`# Channel: ${channel.title}  ${channel.id}  ${channel.subscribers ?? "? subscribers"}  ${channel.verified ? "✓ verified" : "(no verified badge found)"}`);
-  if (channel.url) console.log(`#   ${channel.url}`);
+  note(`# Channel: ${channel.title}  ${channel.id}  ${channel.subscribers ?? "? subscribers"}  ${channel.verified ? "✓ verified" : "(no verified badge found)"}`);
+  if (channel.url) note(`#   ${channel.url}`);
   wantChannel ??= channel.id;
   videos = v;
 } else if (a.playlist) {
   const pl = await playlistVideos(a.playlist);
-  console.log(`# Playlist: ${pl.title}  by ${pl.owner ?? "?"}  ${pl.ownerId ?? ""}  (${pl.videos.length} videos)`);
+  note(`# Playlist: ${pl.title}  by ${pl.owner ?? "?"}  ${pl.ownerId ?? ""}  (${pl.videos.length} videos)`);
   videos = pl.videos;
 } else {
   videos = await search(a.search);
-  console.log(`# Search: ${a.search}  (${videos.length} results)`);
+  note(`# Search: ${a.search}  (${videos.length} results)`);
   const owners = new Map();
   for (const v of videos) if (v.channelId) owners.set(v.channelId, v.channel);
-  for (const [id, name] of owners) console.log(`#   owner ${id}  ${name}`);
+  for (const [id, name] of owners) note(`#   owner ${id}  ${name}`);
 }
-if (wantChannel) console.log(`# Requiring owner ${wantChannel}`);
+if (wantChannel) note(`# Requiring owner ${wantChannel}`);
 
 const ok = [];
 const rejects = [];
@@ -100,7 +101,7 @@ for (const v of videos) {
   candidates.push(v);
 }
 if (candidates.length > limit) {
-  console.log(`# ${candidates.length} candidates; checking first ${limit} (raise --limit for more)`);
+  note(`# ${candidates.length} candidates; checking first ${limit} (raise --limit for more)`);
 }
 
 for (const v of candidates.slice(0, limit)) {
