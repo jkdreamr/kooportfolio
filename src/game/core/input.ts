@@ -34,7 +34,8 @@ export function useInput(interact: () => void) {
       e.stopImmediatePropagation();
     };
     const down = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).matches("input,textarea,select")) return;
+      // Keys can target window/document (not an Element) when nothing has focus.
+      if (e.target instanceof Element && e.target.matches("input,textarea,select")) return;
       if (!stageInputLive()) return;
       const k = e.key.toLowerCase();
       // Space activates a focused button on keyup; cancelling its keydown

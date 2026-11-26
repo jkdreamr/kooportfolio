@@ -119,7 +119,7 @@ function EnvironmentDriver() {
       0.3 + weather.wind * 0.7,
       Math.min(1, delta),
     );
-    if (useGame.getState().scene === "hub") driveAtmosphere(scene, camera);
+    if (useGame.getState().scene === "hub") driveAtmosphere(scene, camera, delta);
   });
   return null;
 }

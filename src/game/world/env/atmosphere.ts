@@ -86,16 +86,18 @@ let focusSmoothed = 0;
  * Hub only: centre the fog's near/far on the camera's focus (where its view
  * ray meets the ground). Called every frame by the environment driver.
  */
-export function driveAtmosphere(scene: THREE.Scene, camera: THREE.Camera) {
+export function driveAtmosphere(scene: THREE.Scene, camera: THREE.Camera, delta = 1 / 60) {
   const fog = scene.fog;
   if (!(fog instanceof THREE.Fog)) return;
   camera.getWorldDirection(forward);
   const height = camera.position.y;
   // Distance along the view ray to the y = 0 plane (fallback: 150).
   const focus = forward.y < -0.05 ? height / -forward.y : 150;
-  focusSmoothed = focusSmoothed
-    ? THREE.MathUtils.lerp(focusSmoothed, focus, 0.2)
-    : focus;
+  // Frame-rate independent damping (time constant ~1/12 s), so a view
+  // switch settles in the same wall time on a 20 or a 144 fps display and
+  // the overview never lingers in the explore view's near fog.
+  const k = 1 - Math.exp(-12 * Math.min(Math.max(delta, 0), 0.25));
+  focusSmoothed = focusSmoothed ? THREE.MathUtils.lerp(focusSmoothed, focus, k) : focus;
   fog.near = Math.max(1, focusSmoothed - atmosphere.clear);
   // The explore view sees to the horizon: thicker depth haze (260 → 140).
   fog.far = fog.near + atmosphere.span * (1 - viewRuntime.blend * (120 / 260));

@@ -49,6 +49,16 @@ export function pinPrograms(gl: THREE.WebGLRenderer) {
   }
 }
 
+/** performance.measure without the buffer growing over a session. */
+function measure(name: string, start: number) {
+  try {
+    performance.measure(name, { start, end: performance.now() });
+    performance.clearMeasures(name);
+  } catch {
+    /* User Timing unavailable */
+  }
+}
+
 /** Count real program links on this context (perf overlay, soak tests). */
 function instrument(gl: THREE.WebGLRenderer) {
   const context = gl.getContext() as WebGL2RenderingContext & {
@@ -206,8 +216,15 @@ export function EngineRuntime({
   };
 
   useFrame((state, delta) => {
+    // JS frame cost for CDP traces (PLAN2 §7.2): "engine:submit" is the
+    // render call, "engine:update" the per-frame bookkeeping. Entries are
+    // cleared right after they are recorded, so nothing piles up; a trace
+    // still sees every measure.
+    const submitStart = performance.now();
     renderNow.current(state, delta);
+    measure("engine:submit", submitStart);
     if (!ready.current) return;
+    const updateStart = performance.now();
     stats.frame(delta * 1000, state);
     adapt(state, delta);
     // Time-based (not frame-based): at low frame rates a frame cadence would
@@ -216,6 +233,7 @@ export function EngineRuntime({
       pinnedAt.current = state.clock.elapsedTime;
       pinPrograms(state.gl);
     }
+    measure("engine:update", updateStart);
   }, 1);
 
   // Continuous resolution scaling against the tier's frame budget.
