@@ -1,12 +1,12 @@
 import * as THREE from "three";
-import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+import { chamferBoxGeometry } from "../world/chamferBox";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
 type Vec3 = [number, number, number];
 
 /** One colored mesh per rower, rather than a draw call for every small detail. */
 export function makeRower(jersey: string, skin: string, cap: string) {
-  const box = new RoundedBoxGeometry(1, 1, 1, 1, 0.1);
+  const box = chamferBoxGeometry(0.1);
   const ball = new THREE.SphereGeometry(1, 10, 8);
   const parts: THREE.BufferGeometry[] = [];
   const matrix = new THREE.Matrix4();

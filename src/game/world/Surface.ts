@@ -224,24 +224,27 @@ export function sculptedMaterial(
         diffuseColor.rgb *= mix(vec3(0.78, 0.83, 0.88), vec3(1.04, 1.02, 0.98), sculptLight);
         vec4 sculptFine = sculptLayer(vSculptWorld * 0.42, sculptN, sculptKind);
         float sculptBroad = texture2D(uSurfaceNoise, vSculptWorld.xz * 0.021 + 0.37).b;
-        sculptTagged = step(0.5, sculptKind);
+        // Large flat, up-facing surfaces (paving, flagstones, decks, flat
+        // roofs) take a calmer layer; lawns ("ground", 5) keep it.
+        sculptTagged = step(0.5, sculptKind)
+          * (1.0 - 0.55 * smoothstep(0.75, 0.97, sculptN.y) * step(0.5, abs(sculptKind - 5.0)));
         sculptGrain = sculptFine.r;
         sculptRough = sculptFine.b;
         sculptHeight = sculptFine.g;
-        diffuseColor.rgb *= 1.0 + (sculptGrain - 0.5) * mix(0.14, 0.24, sculptTagged) * uSurfaceDetail;
+        diffuseColor.rgb *= 1.0 + (sculptGrain - 0.5) * mix(0.14, 0.2, sculptTagged) * uSurfaceDetail;
         diffuseColor.rgb *= mix(vec3(1.0), mix(vec3(0.965, 0.985, 1.02), vec3(1.035, 1.01, 0.965), sculptBroad), uSurfaceDetail);`,
       )
       .replace(
         "#include <roughnessmap_fragment>",
         `#include <roughnessmap_fragment>
-        roughnessFactor = clamp(roughnessFactor + (sculptRough - 0.5) * mix(0.16, 0.28, sculptTagged) * uSurfaceDetail, 0.04, 1.0);`,
+        roughnessFactor = clamp(roughnessFactor + (sculptRough - 0.5) * mix(0.16, 0.26, sculptTagged) * uSurfaceDetail, 0.04, 1.0);`,
       )
       .replace(
         "#include <normal_fragment_maps>",
         `#include <normal_fragment_maps>
         {
           // Derivative bump from the layer height (tagged kinds only).
-          float sculptBump = 0.35 * uSurfaceDetail * sculptTagged;
+          float sculptBump = 0.35 * uSurfaceDetail * sculptTagged * step(0.5, sculptKind);
           vec2 sculptDH = vec2(dFdx(sculptHeight), dFdy(sculptHeight)) * sculptBump;
           vec3 sculptSX = dFdx(-vViewPosition);
           vec3 sculptSY = dFdy(-vViewPosition);

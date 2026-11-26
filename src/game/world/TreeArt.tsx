@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { sculptedMaterial } from "./Surface";
 import { REFLECT_LAYER } from "./env/reflection";
+import { useStage } from "../../stage/contract";
 import { lookWorld } from "./env/look";
 import type { WorldId } from "../core/worlds";
 import { registerCrowns, type Crown } from "./env/foliage";
@@ -517,11 +518,13 @@ function TreeInstances({
   geometry,
   material,
   reflected = true,
+  cast = true,
 }: {
   parts: Part[];
   geometry: THREE.BufferGeometry;
   material: THREE.Material;
   reflected?: boolean;
+  cast?: boolean;
 }) {
   const ref = useRef<THREE.InstancedMesh>(null);
   useLayoutEffect(() => {
@@ -558,7 +561,7 @@ function TreeInstances({
     <instancedMesh
       ref={ref}
       args={[geometry, material, parts.length]}
-      castShadow
+      castShadow={cast}
       receiveShadow={geometry === woodGeometry || geometry === lowWoodGeometry}
       dispose={null}
     />
@@ -576,6 +579,10 @@ export function NaturalTrees({
   lod?: "full" | "low";
 }) {
   const low = lod === "low";
+  // Medium's shadow budget (§2): scenic groves' inner mass does not cast
+  // (their canopies still do, through the leaf shell). Fixed per mount.
+  const tier = useStage((state) => state.tier);
+  const cast = !(low && tier !== "high");
   const world = lookWorld();
   const { wood, broad, pine, palms } = useMemo(() => {
     const wood: Part[] = [],
@@ -643,6 +650,7 @@ export function NaturalTrees({
           parts={wood}
           geometry={low ? lowWoodGeometry : woodGeometry}
           reflected={!low}
+          cast={cast}
           material={barkMaterial}
         />
       )}
@@ -651,6 +659,7 @@ export function NaturalTrees({
           parts={inner.broad}
           geometry={low ? lowCrownGeometry : broadGeometry}
           reflected={!low}
+          cast={cast}
           material={leafMaterial}
         />
       )}
@@ -659,6 +668,7 @@ export function NaturalTrees({
           parts={inner.pine}
           geometry={low ? lowCrownGeometry : pineGeometry}
           reflected={!low}
+          cast={cast}
           material={leafMaterial}
         />
       )}

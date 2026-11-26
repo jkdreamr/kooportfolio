@@ -1,10 +1,9 @@
 import { useMemo } from "react";
 import { Character } from "../world/character/CharacterRig";
 import * as THREE from "three";
-import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import { chamferBoxSizedShared } from "../world/chamferBox";
 import { Ball, Cylinder, Ring } from "../world/Models";
 
-const shapes = new Map<string, RoundedBoxGeometry>();
 const materials = new Map<string, THREE.MeshStandardMaterial>();
 export function CraftedBox({
   p = [0, 0, 0],
@@ -19,12 +18,8 @@ export function CraftedBox({
   r?: [number, number, number];
   metal?: boolean;
 }) {
-  const shapeKey = s.join(",");
-  if (!shapes.has(shapeKey))
-    shapes.set(
-      shapeKey,
-      new RoundedBoxGeometry(...s, 2, Math.min(...s) * 0.28),
-    );
+  // 44-triangle chamfer box (was a 2-segment rounded box, 300 tris).
+  const shape = chamferBoxSizedShared(s, Math.min(...s) * 0.28);
   const key = `${c}/${metal}`;
   if (!materials.has(key))
     materials.set(
@@ -39,7 +34,7 @@ export function CraftedBox({
     <mesh
       position={p}
       rotation={r}
-      geometry={shapes.get(shapeKey)}
+      geometry={shape}
       material={materials.get(key)}
       castShadow
       receiveShadow

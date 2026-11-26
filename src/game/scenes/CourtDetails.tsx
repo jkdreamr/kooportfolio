@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import { chamferBoxSized } from "../world/chamferBox";
 import { Ball, Cylinder } from "../world/Models";
 
 type Triple = [number, number, number];
@@ -26,11 +26,7 @@ export function CourtBlock({
       key,
       sharp
         ? new THREE.BoxGeometry(...s)
-        : new RoundedBoxGeometry(
-            ...s,
-            2,
-            Math.min(0.12, ...s.map((v) => v * 0.22)),
-          ),
+        : chamferBoxSized(s, Math.min(0.12, ...s.map((v) => v * 0.22))),
     );
   if (!materials.has(c))
     materials.set(

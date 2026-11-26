@@ -172,18 +172,19 @@ const LAYERS: Texel[] = [
     o[2] = 0.5 + (grain - 0.5) * 0.35 + gaps * 0.35 - knot * 0.1;
     o[3] = gaps;
   },
-  // 2 stone: squared-off cellular blocks with mortar, a bevel and chips.
+  // 2 stone: large squared-off blocks (2×3 per tile, ~0.8–1.2 m) with a
+  // soft mortar line, a bevel and sparse chips — calm enough for paving.
   (u, v, o) => {
-    const c = voronoi(u, v, 3, 4, 301, 0.65, 0.55);
+    const c = voronoi(u, v, 2, 3, 301, 0.65, 0.5);
     const edge = c.f2 - c.f1,
       id = c.id;
-    const mortar = 1 - step(0.025, 0.07, edge);
-    const bevel = step(0.03, 0.2, edge);
-    const fine = fbm2(u, v, 12, 12, 3, 307);
-    const chip = step(0.66, 0.74, fbm2(u, v, 20, 20, 2, 311)) * (1 - step(0.06, 0.3, edge));
-    o[0] = 0.55 + (id - 0.5) * 0.35 + (fine - 0.5) * 0.4 - mortar * 0.45 - chip * 0.18;
-    o[1] = bevel * (0.72 + (fine - 0.5) * 0.25) - chip * 0.3;
-    o[2] = 0.52 + (fine - 0.5) * 0.25 + mortar * 0.3 + chip * 0.1;
+    const mortar = 1 - step(0.02, 0.06, edge);
+    const bevel = step(0.03, 0.18, edge);
+    const fine = fbm2(u, v, 8, 8, 3, 307);
+    const chip = step(0.72, 0.8, fbm2(u, v, 16, 16, 2, 311)) * (1 - step(0.05, 0.25, edge));
+    o[0] = 0.55 + (id - 0.5) * 0.22 + (fine - 0.5) * 0.25 - mortar * 0.3 - chip * 0.1;
+    o[1] = bevel * (0.7 + (fine - 0.5) * 0.15) - chip * 0.15;
+    o[2] = 0.52 + (fine - 0.5) * 0.2 + mortar * 0.22 + chip * 0.06;
     o[3] = mortar;
   },
   // 3 shingle: overlapping rows of scalloped tiles, half-offset per row.
@@ -219,7 +220,7 @@ const LAYERS: Texel[] = [
     const tile = hash(((col % cols) + cols) % cols, ((r % rows) + rows) % rows, 401);
     const gap = step(0.44, 0.5, Math.abs(x));
     const fine = fbm2(u, v, 16, 16, 2, 409);
-    o[0] = 0.56 + (tile - 0.5) * 0.3 + (fine - 0.5) * 0.25 - shade * 0.45 - gap * 0.3 + t * 0.08;
+    o[0] = 0.56 + (tile - 0.5) * 0.18 + (fine - 0.5) * 0.18 - shade * 0.3 - gap * 0.2 + t * 0.06;
     o[1] = 0.2 + t * 0.7 - gap * 0.25;
     o[2] = 0.5 + (fine - 0.5) * 0.3 + shade * 0.2 + (tile - 0.5) * 0.15;
     o[3] = Math.max(shade, gap);
