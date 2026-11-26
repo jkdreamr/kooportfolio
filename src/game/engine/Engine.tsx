@@ -275,6 +275,9 @@ export function EngineRuntime({
     const onLostEvent = (event: Event) => {
       event.preventDefault();
       lost.current = true;
+      // A lost canvas paints as a blank (white, with the browser's sad-face
+      // glyph in some builds). Hide it so the shell's last sky colour shows.
+      canvas.style.visibility = "hidden";
       stats.contextLosses++;
       // Give the browser a few seconds to restore before admitting defeat.
       timer = window.setTimeout(() => onLost(true), 4000);
@@ -289,6 +292,12 @@ export function EngineRuntime({
       post.current?.setSize(state.size.width, state.size.height);
       for (const listener of restoreListeners) listener(gl);
       state.invalidate();
+      // Show the canvas again once a restored frame has been drawn.
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          if (!lost.current) canvas.style.visibility = "";
+        }),
+      );
     };
     canvas.addEventListener("webglcontextlost", onLostEvent);
     canvas.addEventListener("webglcontextrestored", onRestored);
