@@ -365,11 +365,14 @@ export class PeepholeController {
   private onClick = (e: MouseEvent) => {
     // Pointer drags are handled by pointer events; keyboard by keydown. A
     // detail-0 click without a key is assistive tech "activate": open it.
-    if (e.detail !== 0 || this.auto) return;
+    if (e.detail !== 0 || this.auto || now() - this.lastKey < 0.5) return;
     e.preventDefault();
     this.activate();
   };
+  /** Keyboard activation also fires a detail-0 click; remember the key. */
+  private lastKey = -1;
   private onKeyDown = (e: KeyboardEvent) => {
+    this.lastKey = now();
     this.wantEngine();
     if (this.phase !== "rest" && this.phase !== "peek") return;
     const k = e.key;
@@ -405,6 +408,7 @@ export class PeepholeController {
     }
   };
   private onKeyUp = (e: KeyboardEvent) => {
+    this.lastKey = now();
     if (this.auto?.held && this.auto.key === e.key) {
       e.preventDefault();
       this.auto = null;
@@ -568,7 +572,7 @@ export class PeepholeController {
   /** Reduced motion (or forward navigation): a 400 ms dissolve, never a cut. */
   dissolveToGame() {
     if (this.phase === "game") return;
-    this.stageEntryZoom();
+    // No zoom change here: a camera glide after the dissolve is motion.
     this.phase = "flying";
     cameraRig.live(0);
     const st = useStage.getState();

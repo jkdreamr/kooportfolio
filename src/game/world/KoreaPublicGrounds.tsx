@@ -6,7 +6,12 @@ import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
 
 type Point = readonly [number, number];
 
+/** Stone-paved public grounds (outline polygons): the environment keeps
+ * grass off them. */
+export const KOREA_PAVED_GROUNDS: (readonly Point[])[] = [];
+const PAVED_NAMES = ["gwanghwamun-square", "bukchon-courts", "market-court"];
 function ground(name: string, color: string, outline: readonly Point[]) {
+  if (PAVED_NAMES.includes(name)) KOREA_PAVED_GROUNDS.push(outline);
   const shape = new THREE.Shape(
     outline.map(([x, z]) => new THREE.Vector2(x, -z)),
   );

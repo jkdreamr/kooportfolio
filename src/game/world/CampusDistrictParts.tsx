@@ -55,7 +55,8 @@ function Batch({
 }) {
   const ref = useRef<THREE.InstancedMesh>(null);
   useLayoutEffect(() => {
-    const mesh = ref.current!,
+    if (!ref.current) return;
+    const mesh = ref.current,
       object = new THREE.Object3D(),
       color = new THREE.Color();
     parts.forEach(({ p, s, c, r = [0, 0, 0] }, i) => {

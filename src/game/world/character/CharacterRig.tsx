@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, type RefObject } from "react";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
-import { useGame } from "../../core/store";
+import { runtime, useGame, walkTo } from "../../core/store";
 import { useWorldActive } from "../../engine/active";
 import { PlayerMarker } from "../PlayerMarker";
 import { createGait, stepGait, type Gait, type Pose } from "./locomotion";
@@ -192,6 +192,9 @@ export function Character({
         camera,
         gl,
         player: root.current,
+        game: useGame,
+        runtime,
+        walkTo,
       };
       // Dev-only probe for screenshot tooling: player's screen position.
       const g = root.current;

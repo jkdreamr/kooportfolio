@@ -20,9 +20,9 @@ import { setLookWorld } from "./env/look";
 
 const pondDisc = new THREE.CircleGeometry(1, 48);
 const pondWater = waterMaterial({
-  color: "#4aa9b0",
-  deep: "#22667a",
-  shallow: "#8dcdc0",
+  color: "#2f8ca6",
+  deep: "#154f6e",
+  shallow: "#7cc0b6",
   bank: "#57703f",
   shore: "disc",
   scale: 0.55,

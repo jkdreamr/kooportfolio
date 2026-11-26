@@ -33,7 +33,7 @@ const layers = [
   ],
   [slab(STANFORD_COAST, STANFORD_VERGE_Y, STANFORD_VERGE_Y - 0.4), "#a9ab55"],
   [slab(offsetLoop(lawn, 0.16), -0.02, STANFORD_VERGE_Y - 0.1), "#c9b88a"],
-  [slab(lawn, 0.14, -0.02), "#639343"],
+  [slab(lawn, 0.14, -0.02), "#6e9148"],
 ] as const;
 
 const materials = new Map<string, THREE.Material>();

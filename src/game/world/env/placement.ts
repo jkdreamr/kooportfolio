@@ -29,6 +29,7 @@ import {
 } from "../../../shared/stanford-ground";
 import { HOME_PATH_FOOTPRINTS } from "./homePaths";
 import { KOREA_PAVING_FOOTPRINTS } from "../KoreaWorldEnvironment";
+import { KOREA_PAVED_GROUNDS } from "../KoreaPublicGrounds";
 
 /**
  * Pure placement for the environment layer: grass tufts, granite rocks, lakes
@@ -295,6 +296,7 @@ function placeGrass(world: WorldId): GrassTuft[] {
       if (relief(x, z)) continue;
       const near = paved(x, z);
       if (near.some((rect) => inRect(x, z, rect, 0.12))) continue;
+      if (world === "korea" && KOREA_PAVED_GROUNDS.some((loop) => insidePolygon(x, z, loop))) continue;
       if (doors.some(([dx, dz]) => Math.hypot(x - dx, z - dz) < 1.6)) continue;
       if (pond && ((x - pond.x) / (pond.radiusX + 0.3)) ** 2 + ((z - pond.z) / (pond.radiusZ + 0.3)) ** 2 < 1) continue;
       const walk = canWalk(x, z, world);

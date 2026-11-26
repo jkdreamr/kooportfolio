@@ -35,6 +35,8 @@ function CoastalTrack({ world }: { world: WorldId }) {
   const piers = useRef<THREE.InstancedMesh>(null);
   const braces = useRef<THREE.InstancedMesh>(null);
   useLayoutEffect(() => {
+    if (!ties.current || !rails.current || !piers.current || !braces.current)
+      return;
     const object = new THREE.Object3D();
     for (let i = 0; i < TIES; i++) {
       const p = railPose(i / TIES, 0, world);

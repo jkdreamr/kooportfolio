@@ -315,10 +315,10 @@ export function waterMaterial({
   const material = register(
     new THREE.MeshStandardMaterial({
       color,
-      roughness: 0.12,
+      roughness: 0.1,
       metalness: 0.1,
     }),
-    0.55,
+    0.34,
     0.12,
   );
   const deepColor = new THREE.Color(deep),

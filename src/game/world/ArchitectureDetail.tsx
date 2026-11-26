@@ -29,7 +29,8 @@ function Pieces({
 }) {
   const ref = useRef<THREE.InstancedMesh>(null);
   useLayoutEffect(() => {
-    const mesh = ref.current!,
+    if (!ref.current) return;
+    const mesh = ref.current,
       object = new THREE.Object3D(),
       color = new THREE.Color();
     pieces.forEach((piece, i) => {
@@ -69,8 +70,9 @@ export const windowGlass = glassMaterial();
 export function Glazing({ panes }: { panes: Pane[] }) {
   const ref = useRef<THREE.InstancedMesh>(null);
   useLayoutEffect(() => {
+    if (!ref.current) return;
     const object = new THREE.Object3D(),
-      mesh = ref.current!;
+      mesh = ref.current;
     panes.forEach(({ p, s, r = [0, 0, 0] }, i) => {
       object.position.set(...p);
       object.scale.set(...s);

@@ -24,7 +24,8 @@ function GoldCoins({ claimed }: { claimed: boolean }) {
   useLayoutEffect(() => {
     const object = new THREE.Object3D();
     const color = new THREE.Color();
-    const mesh = ref.current!;
+    const mesh = ref.current;
+    if (!mesh) return;
     const remaining = claimed ? coins.filter((_, i) => i < 8) : coins;
     mesh.count = remaining.length;
     remaining.forEach(({ x, y, z, tilt }, i) => {

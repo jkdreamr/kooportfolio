@@ -93,6 +93,7 @@ function Seats({ seats }: { seats: Seat[] }) {
   const bases = useRef<THREE.InstancedMesh>(null);
   const backs = useRef<THREE.InstancedMesh>(null);
   useLayoutEffect(() => {
+    if (!bases.current || !backs.current) return;
     const object = new THREE.Object3D();
     seats.forEach((seat, i) => {
       object.position.set(seat.x, seat.y, seat.z);
