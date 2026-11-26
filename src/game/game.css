@@ -1292,12 +1292,13 @@ body:has(.game-shell[data-stage-mode="game"]),
   color: #929982;
 }
 .world-fallback .primary-button,
-.game-shell .world-fallback .primary-button {
+.game-shell.game-shell .world-fallback .primary-button {
   max-width: 260px;
   /* Outside the HUD the glass tokens are unset: keep the solid button. */
   background: #687c55;
   color: #faf6df;
-  border-color: transparent;
+  border: 0;
+  box-shadow: none;
 }
 .world-fallback > a:not(.primary-button),
 .world-fallback > button {
