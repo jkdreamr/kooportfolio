@@ -10,7 +10,8 @@
  */
 import { create } from "zustand";
 import { useWorldView } from "../../game/core/worldView";
-import { cameraRig, revealHud, useStage, type CameraPose } from "../contract";
+import { cameraRig, revealHud, useCameraRig, useStage, type CameraPose } from "../contract";
+import { exposeQa, qaEnabled } from "../qa";
 import { flightPoses, peekPose, TIMELINE, type PeekScene } from "./flight";
 import { markEntered, readEnvironment, visitPolicy, type VisitEnvironment, type VisitPolicy } from "./policy";
 import { rasterizePage, type PageRaster } from "./raster";
@@ -878,6 +879,7 @@ function angleDelta(a: number, b: number) {
 /** The one controller for the page. */
 export const peephole = new PeepholeController();
 
-if (import.meta.env.DEV && typeof window !== "undefined") {
+if (typeof window !== "undefined" && qaEnabled()) {
   (window as unknown as Record<string, unknown>).__peephole = { peephole, useStage, cameraRig };
+  exposeQa({ peephole, useStage, cameraRig, useCameraRig, useWorldView });
 }

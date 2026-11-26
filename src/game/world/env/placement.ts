@@ -119,6 +119,17 @@ function reliefTest(world: WorldId) {
 /** Signed distance to a loop (positive inside), sampled on a grid once and
  * read back bilinearly: exact enough for dressing, ~100× cheaper per query. */
 export function distanceGrid(full: readonly P2[], cell = 0.8, pad = 4) {
+  const steps = distanceGridSteps(full, cell, pad);
+  let step = steps.next();
+  while (!step.done) step = steps.next();
+  return step.value;
+}
+/** The same grid, yielding between rows (for time-sliced callers). */
+function* distanceGridSteps(
+  full: readonly P2[],
+  cell = 0.8,
+  pad = 4,
+): Generator<void, (x: number, z: number) => number> {
   const loop = full.length > 240 ? resampleLoop(full, 240) : full;
   const b = bounds(loop);
   const x0 = b.minX - pad,
@@ -126,9 +137,11 @@ export function distanceGrid(full: readonly P2[], cell = 0.8, pad = 4) {
   const nx = Math.ceil((b.maxX - b.minX + pad * 2) / cell) + 1,
     nz = Math.ceil((b.maxZ - b.minZ + pad * 2) / cell) + 1;
   const values = new Float32Array(nx * nz);
-  for (let j = 0; j < nz; j++)
+  for (let j = 0; j < nz; j++) {
+    yield;
     for (let i = 0; i < nx; i++)
       values[j * nx + i] = signedDistanceToPolygon(x0 + i * cell, z0 + j * cell, loop);
+  }
   return (x: number, z: number) => {
     const u = (x - x0) / cell,
       v = (z - z0) / cell;
@@ -275,11 +288,46 @@ const doorAvoid = (world: WorldId) =>
 const grassCache = new Map<WorldId, GrassTuft[]>();
 export function grassField(world: WorldId, max: number): GrassTuft[] {
   let all = grassCache.get(world);
-  if (!all) grassCache.set(world, (all = placeGrass(world)));
+  if (!all) {
+    const steps = placeGrass(world);
+    let step = steps.next();
+    while (!step.done) step = steps.next();
+    grassCache.set(world, (all = step.value));
+  }
   return all.slice(0, max);
 }
-function placeGrass(world: WorldId): GrassTuft[] {
-  const shore = distanceGrid(SHORE[world]);
+/** True once a world's tufts are placed (grassField is then free). */
+export const grassPlaced = (world: WorldId) => grassCache.has(world);
+/**
+ * The same placement, time-sliced: yields to `pause` whenever a slice has run
+ * for `budgetMs`, so the ~0.3–0.7 s of work never lands as one long task
+ * (it runs at idle behind the portfolio, while the "o" may be in the hand).
+ */
+export async function grassFieldAsync(
+  world: WorldId,
+  max: number,
+  pause: () => Promise<unknown>,
+  budgetMs = 6,
+): Promise<GrassTuft[]> {
+  if (!grassCache.has(world)) {
+    const steps = placeGrass(world);
+    let since = performance.now();
+    let step = steps.next();
+    while (!step.done) {
+      if (performance.now() - since > budgetMs) {
+        await pause();
+        if (grassCache.has(world)) break;
+        since = performance.now();
+      }
+      step = steps.next();
+    }
+    if (step.done && !grassCache.has(world)) grassCache.set(world, step.value);
+  }
+  return grassField(world, max);
+}
+/** Yields between grid columns (each column is ≲1 ms of work). */
+function* placeGrass(world: WorldId): Generator<void, GrassTuft[]> {
+  const shore = yield* distanceGridSteps(SHORE[world]);
   const relief = reliefTest(world);
   const paved = rectGrid(PAVED[world], 2.6);
   const doors = doorAvoid(world);
@@ -287,7 +335,8 @@ function placeGrass(world: WorldId): GrassTuft[] {
   const spacing = world === "korea" ? 0.5 : 0.42;
   const out: (GrassTuft & { rank: number })[] = [];
   const pond = pondFor(world);
-  for (let gx = minX; gx <= maxX; gx += spacing)
+  for (let gx = minX; gx <= maxX; gx += spacing) {
+    yield;
     for (let gz = minZ; gz <= maxZ; gz += spacing) {
       const x = gx + (fhash(gx, gz, 11) - 0.5) * spacing * 0.9,
         z = gz + (fhash(gx, gz, 23) - 0.5) * spacing * 0.9;
@@ -322,8 +371,17 @@ function placeGrass(world: WorldId): GrassTuft[] {
         rank: fhash(x, z, 53),
       });
     }
-  out.sort((a, b) => a.rank - b.rank);
-  return out;
+  }
+  yield;
+  // Rank order via one native numeric sort of packed (rank, index) keys:
+  // a comparator sort of ~60k objects is a long task on its own.
+  const keys = new Float64Array(out.length);
+  for (let k = 0; k < out.length; k++)
+    keys[k] = Math.floor(out[k].rank * 1048576) * 2097152 + k;
+  keys.sort();
+  const ranked = new Array<GrassTuft & { rank: number }>(out.length);
+  for (let k = 0; k < out.length; k++) ranked[k] = out[keys[k] % 2097152];
+  return ranked;
 }
 
 /* ------------------------------------------------------------------ rocks */

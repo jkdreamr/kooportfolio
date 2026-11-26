@@ -36,6 +36,7 @@ import { Rowing } from "./scenes/Rowing";
 import { StudyPaperToss } from "./scenes/StudyPaperToss";
 import { Basketball } from "./scenes/Basketball";
 import { Hud } from "./ui/Hud";
+import { coverDoorway } from "./ui/DoorTransition";
 import { TimeOfDayLighting } from "./world/TimeOfDayLighting";
 import { TimeOfDayControls } from "./ui/TimeOfDayControls";
 import { WorldZoomControls, WorldZoomInput } from "./ui/WorldZoom";
@@ -292,9 +293,12 @@ function useIncomingScene(scene: Scene) {
   useEffect(() => {
     if (presented === scene) return;
     if (scene === "hub") {
-      // The hub never unmounts: it is compiled and current already.
+      // The hub never unmounts: it is compiled and current already. Nothing
+      // was held on the way out, so blend from the interior's last frame
+      // (release() alone only blends after a hold: walking out was a cut).
       usePresented.setState({ scene });
       rig.release(0.6);
+      rig.blend(0.6);
       return;
     }
     let cancelled = false;
@@ -468,6 +472,20 @@ const webgl2 = () => {
 };
 const DEFAULT_SKY = "#dce5c7";
 
+/** Door and exit swaps happen under the doorway veil (W5's DoorTransition):
+ * it darkens for MOTION.veilIn, the scene changes beneath it, and it clears
+ * once the new scene is presented, so the room/street content swap is never
+ * a bare cut. Reduced motion resolves at once (no veil). */
+let doorwayBusy = false;
+function throughDoorway(scene: Scene) {
+  if (doorwayBusy) return;
+  doorwayBusy = true;
+  void coverDoorway().then(() => {
+    doorwayBusy = false;
+    useGame.getState().go(scene);
+  });
+}
+
 export default function Game({ autoEnter = true }: { autoEnter?: boolean } = {}) {
   useEffect(
     () =>
@@ -504,8 +522,8 @@ export default function Game({ autoEnter = true }: { autoEnter?: boolean } = {})
     )
       return;
     if (g.scene === "hub" && doors.some((door) => door.id === g.near))
-      g.go(g.near as Scene);
-    else if (g.near === "exit") g.go("hub");
+      throughDoorway(g.near as Scene);
+    else if (g.near === "exit") throughDoorway("hub");
     else if (g.near === "race") {
       runtime.raceCadence = 30;
       g.go("rowing");
@@ -555,7 +573,7 @@ export default function Game({ autoEnter = true }: { autoEnter?: boolean } = {})
       window.removeEventListener("storage", storage);
     };
   }, []);
-  if (!supported || lost) return <WorldFallback />;
+  if (!supported) return <WorldFallback />;
   const budget = tier ? TIER_BUDGETS[tier] : null;
   const idle = paused || photoBooth || (mode === "site" && !worldVisible);
   return (
@@ -603,7 +621,11 @@ export default function Game({ autoEnter = true }: { autoEnter?: boolean } = {})
               useGame.setState({ quality: legacyQuality(chosen) });
               setTier(chosen);
             }}
-            fallback={<WorldFallback />}
+            // Canvas fallback content lives inside <canvas>: never painted,
+            // but its links were keyboard-focusable and read out ("3D
+            // unavailable") on every working page. Real failures are covered
+            // by the support check, WorldBoundary and the context-loss card.
+            fallback={null}
           >
             {tier && (
               <>
@@ -645,6 +667,10 @@ export default function Game({ autoEnter = true }: { autoEnter?: boolean } = {})
         />
       )}
       <Hud interact={interact} />
+      {/* A lost context keeps the canvas mounted (so the browser can still
+          restore it); the card covers the stage meanwhile and leaves again
+          on restore instead of replacing the world for good. */}
+      {lost && <WorldFallback />}
       {!gameMode && !traveling && <TimeOfDayControls />}
       {!gameMode && <WorldZoomControls />}
       <NpcDialog />

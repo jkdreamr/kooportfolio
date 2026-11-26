@@ -13,3 +13,10 @@ export { addRenderPass, type RenderPass } from "./passes";
 export { onContextRestored, invalidateStage } from "./Engine";
 export { usePresented } from "./presented";
 export { setViewZoom, zoomedOffset } from "./camera";
+
+import { exposeQa } from "../../stage/qa";
+import { usePresented as presentedStore } from "./presented";
+import { useGameMode } from "../core/gameMode";
+import { useTimeOfDay, daylightClock } from "../core/timeOfDay";
+import { useWorldView } from "../core/worldView";
+exposeQa({ usePresented: presentedStore, useGameMode, useTimeOfDay, daylightClock, useWorldView });

@@ -186,7 +186,7 @@ function foliageBuilder() {
   };
   return { leaf, volume, geometry };
 }
-function leafGeometry(flat: boolean) {
+function leafGeometry(flat: boolean, leaves = 10) {
   const builder = foliageBuilder();
   if (flat) {
     builder.volume([-0.25, -0.04, 0], [0.7, 0.58, 0.65], 0.4);
@@ -197,7 +197,7 @@ function leafGeometry(flat: boolean) {
     builder.volume([0.02, 0.13, 0.35], [0.66, 0.83, 0.67], 3.1);
   }
   const count = 10;
-  for (let i = 0; i < count; i++) {
+  for (let i = count - leaves; i < count; i++) {
     const angle = i * 2.39996,
       radius = 0.47 + Math.sqrt((i + 0.5) / count) * 0.42;
     const x = Math.cos(angle) * radius,
@@ -247,8 +247,11 @@ function palmFrondGeometry() {
   builder.leaf(spine(10 / 11), spine(1), 0.045, 0.025, 0.98);
   return builder.geometry();
 }
-const broadGeometry = leafGeometry(false);
-const pineGeometry = leafGeometry(true);
+// The crowns are the inner mass under the leaf-cluster shell: the shell
+// carries the ragged silhouette, so the inner crowns keep only the outermost
+// of their petal leaves (the first, inner spiral ones sit inside the shell).
+const broadGeometry = leafGeometry(false, 5);
+const pineGeometry = leafGeometry(true, 5);
 const palmGeometry = palmFrondGeometry();
 const woodGeometry = new THREE.CylinderGeometry(0.62, 1, 1, 7);
 const barkColors = [];

@@ -257,7 +257,7 @@ const lathe = (points: [number, number][], segments = 14) =>
   );
 
 function buildGeometries(): Record<Kind, THREE.BufferGeometry> {
-  const sphere = new THREE.SphereGeometry(1, 16, 12);
+  const sphere = new THREE.SphereGeometry(1, 14, 10);
   const limb = lathe(
     [
       [0, -1.07],
@@ -269,7 +269,7 @@ function buildGeometries(): Record<Kind, THREE.BufferGeometry> {
       [0.55, 0.085],
       [0, 0.1],
     ],
-    12,
+    10,
   );
   const torso = lathe(
     [
@@ -286,7 +286,7 @@ function buildGeometries(): Record<Kind, THREE.BufferGeometry> {
     16,
   );
   torso.scale(1, 1, 0.8);
-  const hair = new THREE.SphereGeometry(1, 16, 10, 0, Math.PI * 2, 0, 1.78);
+  const hair = new THREE.SphereGeometry(1, 14, 9, 0, Math.PI * 2, 0, 1.78);
   hair.rotateX(-0.52);
   const brim = lathe(
     [
@@ -300,7 +300,7 @@ function buildGeometries(): Record<Kind, THREE.BufferGeometry> {
       [0.2, -0.01],
       [0.2, 0.03],
     ],
-    22,
+    18,
   );
   const crown = lathe(
     [

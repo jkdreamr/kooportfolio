@@ -3,7 +3,7 @@ import type { PlaceId } from "../core/world";
 import { roomFor } from "../core/room";
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import { chamferBoxGeometry } from "../world/chamferBox";
 import { sculptedMaterial } from "../world/Surface";
 import { CognitionDeskBadge, CognitionScreen } from "./CognitionWordmark";
 
@@ -128,7 +128,7 @@ type Detail = {
   r?: V3;
 };
 const detailGeometry = {
-  box: new RoundedBoxGeometry(1, 1, 1, 1, 0.055),
+  box: chamferBoxGeometry(0.055),
   cylinder: new THREE.CylinderGeometry(1, 1, 1, 10),
   ring: new THREE.TorusGeometry(1, 0.12, 5, 16),
 };

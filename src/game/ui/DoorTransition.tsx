@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useGame } from "../core/store";
+import { usePresented } from "../engine/presented";
 import { isInterior } from "../core/world";
 import { sound } from "../core/sound";
 import { MOTION, prefersReducedMotion } from "./motion";
@@ -25,7 +25,9 @@ export function coverDoorway(): Promise<void> {
 type Veil = { key: number; phase: "cover" | "clear"; kind: "enter" | "exit" };
 
 export function DoorTransition() {
-  const scene = useGame((s) => s.scene);
+  // Clear when the new scene is actually on screen (an incoming interior
+  // compiles hidden while the previous frame is held), not when requested.
+  const scene = usePresented((s) => s.scene);
   const previous = useRef(scene);
   const [veil, setVeil] = useState<Veil | null>(null);
   useEffect(() => {

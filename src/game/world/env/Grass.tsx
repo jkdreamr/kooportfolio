@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { WorldId } from "../../core/worlds";
@@ -6,7 +6,7 @@ import { useWorldView } from "../../core/worldView";
 import { useWorldActive } from "../../engine/active";
 import { registerWarmup } from "../../../stage/contract";
 import { ENV_UNIFORMS_GLSL, bindEnvUniforms } from "./uniforms";
-import { grassField, type GrassTuft } from "./placement";
+import { grassField, grassFieldAsync, type GrassTuft } from "./placement";
 import { envBudget, useEnvTier } from "./tier";
 
 /**
@@ -206,16 +206,47 @@ function fieldFor(world: WorldId, max: number) {
   if (!field) fields.set(key, (field = packField(world, grassField(world, max))));
   return field;
 }
+/** Packed field, placing in time slices first if needed (never one long task). */
+const pending = new Map<string, Promise<Field>>();
+function fieldAsync(world: WorldId, max: number) {
+  const key = `${world}:${max}`;
+  const ready = fields.get(key);
+  if (ready) return Promise.resolve(ready);
+  let job = pending.get(key);
+  if (!job) {
+    job = grassFieldAsync(world, max, nextSlice).then(async () => {
+      await nextSlice();
+      return fieldFor(world, max);
+    });
+    pending.set(key, job);
+  }
+  return job;
+}
+// Yield a macrotask (not a whole frame): input and paint get their turn
+// between slices, yet the placement still finishes in about its CPU time.
+const sliceChannel = typeof MessageChannel === "function" ? new MessageChannel() : null;
+const sliceQueue: (() => void)[] = [];
+if (sliceChannel) {
+  sliceChannel.port1.onmessage = () => sliceQueue.shift()?.();
+  // Node (tests): never keep the process alive for this port.
+  for (const port of [sliceChannel.port1, sliceChannel.port2])
+    (port as MessagePort & { unref?: () => void }).unref?.();
+}
+const nextSlice = () =>
+  new Promise<void>((resolve) => {
+    if (!sliceChannel) return void setTimeout(resolve, 0);
+    sliceQueue.push(resolve);
+    sliceChannel.port2.postMessage(0);
+  });
 
-// Placement walks the walkable map: do it during the hidden warmup, not on a
-// visible frame. Each island is cached for every later visit.
+// Placement walks the walkable map: do it during the hidden warmup, in
+// slices, not on a visible frame. Each island is cached for every later visit.
 for (const world of ["home", "korea", "stanford"] as const)
   registerWarmup({
     id: `env-grass-${world}`,
     priority: world === "home" ? 20 : 45,
-    run: async ({ tier, yieldToFrame }) => {
-      await yieldToFrame();
-      fieldFor(world, envBudget(tier).grassInstances);
+    run: async ({ tier }) => {
+      await fieldAsync(world, envBudget(tier).grassInstances);
     },
   });
 
@@ -227,7 +258,17 @@ export function Grass({ world }: { world: WorldId }) {
   const max = envBudget(tier).grassInstances;
   const active = useWorldActive();
   const ref = useRef<THREE.InstancedMesh>(null);
-  const field = useMemo(() => fieldFor(world, max), [world, max]);
+  // Never place synchronously in render: until the sliced placement lands
+  // (normally already done by the warm task) the mesh simply draws nothing.
+  const key = `${world}:${max}`;
+  const [, setPlaced] = useState(0);
+  const field = fields.get(key) ?? null;
+  useEffect(() => {
+    if (field) return;
+    let live = true;
+    void fieldAsync(world, max).then(() => live && setPlaced((n) => n + 1));
+    return () => void (live = false);
+  }, [field, world, max]);
   // Visible-instance ceiling: what the tier can afford at once (overview
   // thins evenly; close views get the full density of nearby chunks).
   const visibleCap = Math.min(max, tier === "high" ? 11000 : tier === "medium" ? 5000 : 1500);
@@ -243,7 +284,7 @@ export function Grass({ world }: { world: WorldId }) {
   useEffect(() => () => void (last.current.key = ""), []);
   useFrame(({ camera }) => {
     const mesh = ref.current;
-    if (!mesh || !active) return;
+    if (!mesh || !active || !field) return;
     camera.getWorldDirection(forward);
     const t = forward.y < -0.05 ? camera.position.y / -forward.y : 100;
     focus.copy(camera.position).addScaledVector(forward, t);

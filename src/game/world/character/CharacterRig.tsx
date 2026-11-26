@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { runtime, useGame, walkTo } from "../../core/store";
 import { useWorldActive } from "../../engine/active";
 import { PlayerMarker } from "../PlayerMarker";
+import { exposeQa, qaEnabled } from "../../../stage/qa";
 import { createGait, stepGait, type Gait, type Pose } from "./locomotion";
 import {
   DEFAULT_PALETTE,
@@ -186,7 +187,8 @@ export function Character({
   }, [pal]);
   useFrame(({ camera, size, scene, gl }, delta) => {
     if (!active) return;
-    if (import.meta.env.DEV && player && root.current) {
+    if (player && root.current && qaEnabled()) {
+      exposeQa({ scene, camera, gl, player: root.current, game: useGame, runtime, walkTo });
       (window as unknown as { __w4three?: unknown }).__w4three = {
         scene,
         camera,

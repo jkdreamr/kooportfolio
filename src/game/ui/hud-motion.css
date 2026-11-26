@@ -615,6 +615,12 @@
   .game-shell .first-steps[data-phase="exit"] {
     animation-name: hint-out-side;
   }
+  /* Only the touch wording on touch/narrow screens (the keycap row's own
+     display rule above would otherwise outrank the global .keyboard-hint
+     hide and squeeze both hints into one card). */
+  .game-shell .first-steps > .keyboard-hint {
+    display: none;
+  }
   .game-shell .first-steps::before {
     content: "";
     position: absolute;

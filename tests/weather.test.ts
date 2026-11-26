@@ -7,6 +7,9 @@ describe("village weather", () => {
     expect(sampleWeather(5.5).fog).toBeGreaterThan(0.5);
     expect(sampleWeather(12)).toEqual({ rain: 0, fog: 0, snow: 0, wind: 0 });
     expect(sampleWeather(18).rain).toBeGreaterThan(0.4);
+    // The first visit's late-afternoon arrival (16:36) is clear.
+    expect(sampleWeather(16.6).rain).toBe(0);
+    expect(sampleWeather(16.6).fog).toBeLessThan(0.05);
     expect(sampleWeather(23).snow).toBeGreaterThan(0.5);
     expect(ambientMix(18, 0, 0, "hub").rain).toBeGreaterThan(0.1);
     expect(ambientMix(23, 0, 0, "hub").wind).toBeGreaterThan(0);

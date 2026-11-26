@@ -20,6 +20,10 @@ import { usePresented } from "./presented";
 import { islandFollow } from "../core/islandCamera";
 import { useWorldView } from "../core/worldView";
 
+const liveCamera = new THREE.Vector3(),
+  liveForward = new THREE.Vector3(),
+  liveTarget = new THREE.Vector3();
+
 /** Request one frame while the canvas is in demand mode (W1: the resting
  * peephole counter is pumped at a gentle rate instead of rendering always). */
 let invalidate: () => void = () => {};
@@ -137,7 +141,34 @@ export function EngineRuntime({
         shadowDirty.current = false;
       }
     }
+    // Where gameplay aims (the live pose), before the rig overrides it.
+    liveCamera.copy(camera.position);
+    camera.getWorldDirection(liveForward);
+    liveTarget
+      .copy(liveCamera)
+      .addScaledVector(
+        liveForward,
+        typeof camera.userData.viewDistance === "number"
+          ? camera.userData.viewDistance
+          : 24,
+      );
     rig.apply(camera, delta);
+    // Interiors and activities keep a short fog (65–160 in view depth) tuned
+    // for their own camera. While the rig blends in from the previous
+    // scene's telephoto pose (2–3× farther away), that fog swallowed the
+    // whole room: flat backdrop-coloured frames on every entry. Push the
+    // fog out by exactly the extra distance for this frame only.
+    const fog = scene.fog;
+    let fogShift = 0;
+    if (fog instanceof THREE.Fog && usePresented.getState().scene !== "hub") {
+      fogShift =
+        camera.position.distanceTo(liveTarget) -
+        liveCamera.distanceTo(liveTarget);
+      if (fogShift > 0.5) {
+        fog.near += fogShift;
+        fog.far += fogShift;
+      } else fogShift = 0;
+    }
     const scissor = useStage.getState().worldScissor;
     if (scissor) {
       renderer.setScissorTest(true);
@@ -163,6 +194,10 @@ export function EngineRuntime({
       renderer.autoClear = false;
       for (const pass of passes) pass.render(renderer, delta);
       renderer.autoClear = autoClear;
+    }
+    if (fogShift && fog instanceof THREE.Fog) {
+      fog.near -= fogShift;
+      fog.far -= fogShift;
     }
     rig.restore(camera);
     stats.calls = renderer.info.render.calls;

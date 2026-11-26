@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import { chamferBoxGeometry } from "./chamferBox";
 import { sculptedMaterial } from "./Surface";
 import { glassMaterial } from "./GlossKit";
 
@@ -10,7 +10,7 @@ type Piece = {
   r?: [number, number, number];
   c: string;
 };
-const clay = new RoundedBoxGeometry(1, 1, 1, 1, 0.1);
+const clay = chamferBoxGeometry(0.1);
 const ceramic = sculptedMaterial({
   roughness: 0.67,
   metalness: 0.02,

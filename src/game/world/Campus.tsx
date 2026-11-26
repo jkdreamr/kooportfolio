@@ -1,7 +1,7 @@
 import { StaticBatch } from "./StaticBatch";
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import { chamferBoxGeometry } from "./chamferBox";
 import { campus } from "../core/campus";
 import { Ball, Box, Cylinder, Ring, Sign } from "./Models";
 import { GableRoof } from "./ArchitectureDetail";
@@ -12,7 +12,9 @@ type Part = {
   s: [number, number, number];
   c: string;
 };
-const stone = new RoundedBoxGeometry(1, 1, 1, 2, 0.07);
+// Sandstone blocks: chamfered (44 tris) with rounded-edge shading; the
+// two-segment rounded box was 300 tris for each of hundreds of instances.
+const stone = chamferBoxGeometry(0.07);
 const matte = new THREE.MeshStandardMaterial({ roughness: 0.88 });
 const arch = new THREE.TorusGeometry(0.9, 0.18, 7, 16, Math.PI);
 const archMaterial = new THREE.MeshStandardMaterial({

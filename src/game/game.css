@@ -116,8 +116,14 @@ body:has(.game-shell[data-stage-mode="game"]),
   .room-story {
     top: 156px;
   }
+  /* Phones: the Court heading and mode picker fill the top-left column, so
+     the story card sits bottom-right, clear of the walking joystick. */
   .scene-basketball .room-story {
-    top: 64px;
+    top: auto;
+    bottom: max(96px, calc(env(safe-area-inset-bottom) + 88px));
+    right: max(16px, env(safe-area-inset-right));
+    left: auto;
+    width: min(230px, calc(100vw - 160px));
   }
 }
 @media (max-height: 500px) {
@@ -1251,7 +1257,14 @@ body:has(.game-shell[data-stage-mode="game"]),
   color: #6f805b;
   text-align: center;
 }
+/* Covers the whole stage (labels, HUD and the dead canvas): world labels
+   project from a camera that no longer renders, so they must never float
+   over this card. */
 .world-fallback {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  overflow: auto;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -1261,6 +1274,12 @@ body:has(.game-shell[data-stage-mode="game"]),
   background: #faf7ed;
   padding: 30px;
   gap: 25px;
+  /* The stage root ignores the pointer until the game is live; the card's
+     links and retry button must still work. */
+  pointer-events: auto;
+}
+.game-shell:has(> .world-fallback) :is(.world-labels, .world-name) {
+  display: none;
 }
 .world-fallback h1 {
   font: 48px/1.2 Georgia;
@@ -1272,8 +1291,13 @@ body:has(.game-shell[data-stage-mode="game"]),
   line-height: 1.9;
   color: #929982;
 }
-.world-fallback .primary-button {
+.world-fallback .primary-button,
+.game-shell .world-fallback .primary-button {
   max-width: 260px;
+  /* Outside the HUD the glass tokens are unset: keep the solid button. */
+  background: #687c55;
+  color: #faf6df;
+  border-color: transparent;
 }
 .world-fallback > a:not(.primary-button),
 .world-fallback > button {

@@ -14,6 +14,8 @@ import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { setViewZoom, viewZoom, zoomedOffset } from "../engine/camera";
 import { Box, Cylinder, Sign } from "./Models";
+import { chamferBoxGeometry } from "./chamferBox";
+import { sculptedMaterial } from "./Surface";
 import { runtime, useGame } from "../core/store";
 import { keys, touch } from "../core/input";
 import { railForWorld, railPose } from "../core/islandRail";
@@ -147,35 +149,77 @@ function CoastalTrack({ world }: { world: WorldId }) {
   );
 }
 
+/** Four spinning wheels per car as three instanced draws (tyre, hub,
+ * spoke) instead of twelve meshes: same parts, sizes and colours. */
+const WHEEL_SPOTS = [-1.25, 1.25].flatMap((z) => [-1, 1].map((x) => [x, z] as const));
+const wheelCylinder = new THREE.CylinderGeometry(1, 1, 1, 12);
+const wheelSpoke = chamferBoxGeometry(0.2);
+const wheelMaterial = sculptedMaterial({ color: "#ffffff" });
+const WHEEL_PARTS = [
+  { geometry: wheelCylinder, s: [0.48, 0.22, 0.48], dx: 0, c: "#29373b" },
+  { geometry: wheelCylinder, s: [0.3, 0.07, 0.3], dx: 0.13, c: "#b69450" },
+  { geometry: wheelSpoke, s: [0.05, 0.55, 0.09], dx: 0.18, c: "#dbc489", box: true },
+] as const;
+const wheelM = new THREE.Matrix4(),
+  wheelSpin = new THREE.Matrix4(),
+  wheelLocal = new THREE.Matrix4(),
+  wheelQ = new THREE.Quaternion(),
+  wheelE = new THREE.Euler(),
+  wheelV = new THREE.Vector3(),
+  wheelS = new THREE.Vector3();
+function writeWheels(meshes: (THREE.InstancedMesh | null)[], phase: number) {
+  wheelSpin.makeRotationX(phase);
+  WHEEL_PARTS.forEach((part, k) => {
+    const mesh = meshes[k];
+    if (!mesh) return;
+    WHEEL_SPOTS.forEach(([x, z], i) => {
+      wheelE.set(0, 0, "box" in part ? 0 : Math.PI / 2);
+      wheelLocal.compose(
+        wheelV.set(x * part.dx, 0, 0),
+        wheelQ.setFromEuler(wheelE),
+        wheelS.set(part.s[0], part.s[1], part.s[2]),
+      );
+      wheelM.makeTranslation(x * 0.96, 0.45, z).multiply(wheelSpin).multiply(wheelLocal);
+      mesh.setMatrixAt(i, wheelM);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+  });
+}
+
 function Wheels({ phase }: { phase: React.RefObject<number> }) {
-  const group = useRef<THREE.Group>(null);
+  const meshes = useRef<(THREE.InstancedMesh | null)[]>([]);
   const worldActive = useWorldActive();
+  const last = useRef(Number.NaN);
+  useLayoutEffect(() => {
+    const color = new THREE.Color();
+    WHEEL_PARTS.forEach((part, k) => {
+      const mesh = meshes.current[k];
+      if (!mesh) return;
+      for (let i = 0; i < WHEEL_SPOTS.length; i++) mesh.setColorAt(i, color.set(part.c));
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    });
+    writeWheels(meshes.current, phase.current ?? 0);
+    meshes.current.forEach((mesh) => mesh?.computeBoundingSphere());
+  }, [phase]);
   useFrame(() => {
     if (!worldActive) return;
-    group.current?.children.forEach((wheel) => {
-      wheel.rotation.x = phase.current;
-    });
+    const p = phase.current ?? 0;
+    if (p === last.current) return;
+    last.current = p;
+    writeWheels(meshes.current, p);
   });
   return (
-    <group ref={group} userData={{ noBake: true }}>
-      {[-1.25, 1.25].flatMap((z) =>
-        [-1, 1].map((x) => (
-          <group key={`${x}:${z}`} position={[x * 0.96, 0.45, z]}>
-            <Cylinder
-              s={[0.48, 0.22, 0.48]}
-              c="#29373b"
-              r={[0, 0, Math.PI / 2]}
-            />
-            <Cylinder
-              p={[x * 0.13, 0, 0]}
-              s={[0.3, 0.07, 0.3]}
-              c="#b69450"
-              r={[0, 0, Math.PI / 2]}
-            />
-            <Box p={[x * 0.18, 0, 0]} s={[0.05, 0.55, 0.09]} c="#dbc489" />
-          </group>
-        )),
-      )}
+    <group userData={{ noBake: true }}>
+      {WHEEL_PARTS.map((part, k) => (
+        <instancedMesh
+          key={k}
+          ref={(mesh) => void (meshes.current[k] = mesh)}
+          args={[part.geometry, wheelMaterial, WHEEL_SPOTS.length]}
+          castShadow
+          receiveShadow
+          dispose={null}
+        />
+      ))}
     </group>
   );
 }

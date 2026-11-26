@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import { chamferBoxGeometry } from "./chamferBox";
 import { sculptedMaterial } from "./Surface";
 
 /**
@@ -24,7 +24,7 @@ export type KitPiece = {
 };
 
 const geometries = {
-  box: new RoundedBoxGeometry(1, 1, 1, 1, 0.08),
+  box: chamferBoxGeometry(0.08),
   cyl: new THREE.CylinderGeometry(0.5, 0.5, 1, 12),
   sphere: new THREE.SphereGeometry(0.5, 12, 8),
 };
