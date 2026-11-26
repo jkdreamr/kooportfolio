@@ -66,6 +66,8 @@ type Part = {
   noHat?: boolean;
   eye?: boolean;
   breath?: boolean;
+  /** Face/shoe detail the distant (low) rig leaves out. */
+  detail?: boolean;
 };
 
 const HIP = 0.77;
@@ -137,6 +139,7 @@ export const PARTS: Part[] = mirror([
     s: [0.06, 0.016, 0.022],
     r: [0, 0, -0.18],
     slot: "brow",
+    detail: true,
   },
   {
     kind: "sphere",
@@ -145,6 +148,7 @@ export const PARTS: Part[] = mirror([
     s: [0.06, 0.03, 0.02],
     r: [0, 0.6, 0],
     slot: "blush",
+    detail: true,
   },
   {
     kind: "sphere",
@@ -152,6 +156,7 @@ export const PARTS: Part[] = mirror([
     p: [0.325, 0.27, 0.0],
     s: [0.05, 0.072, 0.04],
     slot: "skin",
+    detail: true,
   },
   {
     kind: "sphere",
@@ -159,6 +164,7 @@ export const PARTS: Part[] = mirror([
     p: [0, 0.215, 0.315],
     s: [0.04, 0.034, 0.034],
     slot: "skin",
+    detail: true,
   },
   // Straw hat (or a hair tuft without it)
   {
@@ -247,6 +253,7 @@ export const PARTS: Part[] = mirror([
     p: [0, -0.07, 0.05],
     s: [0.1, 0.022, 0.158],
     slot: "sole",
+    detail: true,
   },
 ]);
 
@@ -256,65 +263,105 @@ const lathe = (points: [number, number][], segments = 14) =>
     segments,
   );
 
-function buildGeometries(): Record<Kind, THREE.BufferGeometry> {
-  const sphere = new THREE.SphereGeometry(1, 14, 10);
+/** "high": the full rig. "low": the distant crowd rig (≈⅓ the triangles,
+ * no face/shoe detail, no shadows); see VillageNpcs. */
+export type RigLod = "high" | "low";
+
+function buildGeometries(lod: RigLod): Record<Kind, THREE.BufferGeometry> {
+  const low = lod === "low";
+  const sphere = new THREE.SphereGeometry(1, low ? 8 : 14, low ? 6 : 10);
   const limb = lathe(
-    [
-      [0, -1.07],
-      [0.62, -1.03],
-      [0.86, -0.9],
-      [0.95, -0.45],
-      [1, -0.06],
-      [0.9, 0.03],
-      [0.55, 0.085],
-      [0, 0.1],
-    ],
-    10,
+    low
+      ? [
+          [0, -1.07],
+          [0.8, -0.96],
+          [0.97, -0.4],
+          [0.95, 0.0],
+          [0.5, 0.09],
+          [0, 0.1],
+        ]
+      : [
+          [0, -1.07],
+          [0.62, -1.03],
+          [0.86, -0.9],
+          [0.95, -0.45],
+          [1, -0.06],
+          [0.9, 0.03],
+          [0.55, 0.085],
+          [0, 0.1],
+        ],
+    low ? 6 : 10,
   );
   const torso = lathe(
-    [
-      [0, -0.09],
-      [0.19, -0.085],
-      [0.232, 0.02],
-      [0.248, 0.2],
-      [0.268, 0.37],
-      [0.25, 0.46],
-      [0.18, 0.525],
-      [0.06, 0.55],
-      [0, 0.552],
-    ],
-    16,
+    low
+      ? [
+          [0, -0.09],
+          [0.21, -0.07],
+          [0.25, 0.15],
+          [0.265, 0.38],
+          [0.2, 0.515],
+          [0, 0.552],
+        ]
+      : [
+          [0, -0.09],
+          [0.19, -0.085],
+          [0.232, 0.02],
+          [0.248, 0.2],
+          [0.268, 0.37],
+          [0.25, 0.46],
+          [0.18, 0.525],
+          [0.06, 0.55],
+          [0, 0.552],
+        ],
+    low ? 8 : 16,
   );
   torso.scale(1, 1, 0.8);
-  const hair = new THREE.SphereGeometry(1, 14, 9, 0, Math.PI * 2, 0, 1.78);
+  const hair = low
+    ? new THREE.SphereGeometry(1, 8, 5, 0, Math.PI * 2, 0, 1.78)
+    : new THREE.SphereGeometry(1, 14, 9, 0, Math.PI * 2, 0, 1.78);
   hair.rotateX(-0.52);
   const brim = lathe(
-    [
-      [0.2, 0.03],
-      [0.4, 0.012],
-      [0.52, -0.035],
-      [0.585, -0.075],
-      [0.58, -0.095],
-      [0.52, -0.065],
-      [0.4, -0.022],
-      [0.2, -0.01],
-      [0.2, 0.03],
-    ],
-    18,
+    low
+      ? [
+          [0.2, 0.03],
+          [0.585, -0.075],
+          [0.2, -0.01],
+          [0.2, 0.03],
+        ]
+      : [
+          [0.2, 0.03],
+          [0.4, 0.012],
+          [0.52, -0.035],
+          [0.585, -0.075],
+          [0.58, -0.095],
+          [0.52, -0.065],
+          [0.4, -0.022],
+          [0.2, -0.01],
+          [0.2, 0.03],
+        ],
+    low ? 8 : 18,
   );
   const crown = lathe(
-    [
-      [0, -0.01],
-      [0.29, -0.01],
-      [0.285, 0.02],
-      [0.272, 0.11],
-      [0.235, 0.19],
-      [0.15, 0.222],
-      [0, 0.225],
-    ],
-    18,
+    low
+      ? [
+          [0, -0.01],
+          [0.29, -0.01],
+          [0.272, 0.11],
+          [0.15, 0.222],
+          [0, 0.225],
+        ]
+      : [
+          [0, -0.01],
+          [0.29, -0.01],
+          [0.285, 0.02],
+          [0.272, 0.11],
+          [0.235, 0.19],
+          [0.15, 0.222],
+          [0, 0.225],
+        ],
+    low ? 8 : 18,
   );
-  const band = new THREE.CylinderGeometry(1, 1.02, 1, 18, 1, true);
+  const band = new THREE.CylinderGeometry(1, 1.02, 1, low ? 8 : 18, 1, true);
   for (const g of [sphere, limb, torso, hair, brim, crown, band]) {
     g.deleteAttribute("uv");
     g.computeBoundingSphere();
@@ -322,9 +369,10 @@ function buildGeometries(): Record<Kind, THREE.BufferGeometry> {
   return { sphere, limb, torso, hair, brim, crown, band };
 }
 
-let geometries: Record<Kind, THREE.BufferGeometry> | null = null;
-export function rigGeometries() {
-  return (geometries ??= buildGeometries());
+const geometries: Partial<Record<RigLod, Record<Kind, THREE.BufferGeometry>>> =
+  {};
+export function rigGeometries(lod: RigLod = "high") {
+  return (geometries[lod] ??= buildGeometries(lod));
 }
 let material: THREE.MeshStandardMaterial | null = null;
 let doubleMaterial: THREE.MeshStandardMaterial | null = null;
@@ -346,9 +394,33 @@ export const KINDS: Kind[] = [
   "crown",
   "band",
 ];
-export const PARTS_PER_KIND: Record<Kind, number> = Object.fromEntries(
-  KINDS.map((kind) => [kind, PARTS.filter((p) => p.kind === kind).length]),
-) as Record<Kind, number>;
+/** Instances per character for each kind, per LOD. */
+export const PARTS_PER_KIND_LOD: Record<RigLod, Record<Kind, number>> = {
+  high: Object.fromEntries(
+    KINDS.map((kind) => [kind, PARTS.filter((p) => p.kind === kind).length]),
+  ) as Record<Kind, number>,
+  low: Object.fromEntries(
+    KINDS.map((kind) => [
+      kind,
+      PARTS.filter((p) => p.kind === kind && !p.detail).length,
+    ]),
+  ) as Record<Kind, number>,
+};
+export const PARTS_PER_KIND = PARTS_PER_KIND_LOD.high;
+/** PARTS index → instance slot within its kind (−1: not drawn at this LOD). */
+export const PART_SLOT: Record<RigLod, Int16Array> = {
+  high: slots(false),
+  low: slots(true),
+};
+function slots(skipDetail: boolean) {
+  const cursor: Partial<Record<Kind, number>> = {};
+  return Int16Array.from(PARTS, (part) => {
+    if (skipDetail && part.detail) return -1;
+    const n = cursor[part.kind] ?? 0;
+    cursor[part.kind] = n + 1;
+    return n;
+  });
+}
 
 const FIXED: Record<string, string> = {
   eye: "#2a2522",

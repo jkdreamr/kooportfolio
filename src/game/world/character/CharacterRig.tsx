@@ -10,12 +10,14 @@ import {
   DEFAULT_PALETTE,
   KINDS,
   PARTS,
-  PARTS_PER_KIND,
+  PARTS_PER_KIND_LOD,
+  PART_SLOT,
   paletteColors,
   rigGeometries,
   rigMaterial,
   writeCharacter,
   type Palette,
+  type RigLod,
 } from "./rig";
 
 type Kind = (typeof KINDS)[number];
@@ -28,22 +30,26 @@ type Kind = (typeof KINDS)[number];
 export class RigBatch {
   meshes: Partial<Record<Kind, THREE.InstancedMesh>> = {};
   capacity: number;
+  lod: RigLod;
+  perKind: Record<Kind, number>;
   colorKeys: string[] = [];
-  constructor(capacity: number) {
+  /** `lod` "low" draws the distant rig (fewer triangles, no face detail). */
+  constructor(capacity: number, lod: RigLod = "high") {
     this.capacity = capacity;
+    this.lod = lod;
+    this.perKind = PARTS_PER_KIND_LOD[lod];
   }
   write(index: number, pose: Pose, base: THREE.Matrix4, palette: Palette) {
     const key = paletteKey(palette);
     const recolor = this.colorKeys[index] !== key;
     const colors = recolor ? paletteColors(palette) : null;
     if (recolor) this.colorKeys[index] = key;
-    const cursor: Record<string, number> = {};
+    const slot = PART_SLOT[this.lod];
     writeCharacter(pose, base, palette.hasHat, (kind, matrix, partIndex) => {
       const mesh = this.meshes[kind];
-      const n = cursor[kind] ?? 0;
-      cursor[kind] = n + 1;
-      if (!mesh) return;
-      const at = index * PARTS_PER_KIND[kind] + n;
+      const n = slot[partIndex];
+      if (!mesh || n < 0) return;
+      const at = index * this.perKind[kind] + n;
       mesh.setMatrixAt(at, matrix);
       if (colors) {
         mesh.setColorAt(at, colors[partIndex]);
@@ -55,13 +61,13 @@ export class RigBatch {
     for (const kind of KINDS) {
       const mesh = this.meshes[kind];
       if (!mesh) continue;
-      mesh.count = count * PARTS_PER_KIND[kind];
+      mesh.count = count * this.perKind[kind];
       mesh.instanceMatrix.needsUpdate = true;
     }
   }
   /** Character index under a pointer hit on one of the batch meshes. */
   characterAt(kind: Kind, instanceId: number) {
-    return Math.floor(instanceId / PARTS_PER_KIND[kind]);
+    return Math.floor(instanceId / this.perKind[kind]);
   }
 }
 
@@ -78,7 +84,7 @@ export function RigMeshes({
   onPointerDown?: (kind: Kind, event: ThreeEvent<PointerEvent>) => void;
   shadows?: boolean;
 }) {
-  const geometries = rigGeometries();
+  const geometries = rigGeometries(batch.lod);
   return (
     <>
       {KINDS.map((kind) => (
@@ -94,7 +100,7 @@ export function RigMeshes({
           args={[
             geometries[kind],
             rigMaterial(kind === "hair" || kind === "band" || kind === "brim"),
-            Math.max(1, batch.capacity * PARTS_PER_KIND[kind]),
+            Math.max(1, batch.capacity * batch.perKind[kind]),
           ]}
           frustumCulled={false}
           castShadow={shadows}

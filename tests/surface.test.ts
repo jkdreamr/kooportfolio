@@ -99,20 +99,23 @@ describe("detail layers", () => {
     }
   });
 
-  it("tiles seamlessly (the wrap step is no larger than interior steps)", async () => {
+  it("tiles seamlessly (no wrap step exceeds the row's own steps)", async () => {
     const size = 64;
     for (let layer = 0; layer < DETAIL_LAYERS; layer++) {
       const data = await buildDetailLayer(layer, size);
       const at = (x: number, y: number) => data[(y * size + x) * 4 + 1];
-      let seam = 0,
-        inner = 0;
+      let bad = 0;
       for (let y = 0; y < size; y++) {
-        seam += Math.abs(at(size - 1, y) - at(0, y)) + Math.abs(at(y, size - 1) - at(y, 0));
-        for (let x = 1; x < size; x++)
-          inner += Math.abs(at(x, y) - at(x - 1, y)) + Math.abs(at(y, x) - at(y, x - 1));
+        let rowMax = 0,
+          colMax = 0;
+        for (let x = 1; x < size; x++) {
+          rowMax = Math.max(rowMax, Math.abs(at(x, y) - at(x - 1, y)));
+          colMax = Math.max(colMax, Math.abs(at(y, x) - at(y, x - 1)));
+        }
+        if (Math.abs(at(size - 1, y) - at(0, y)) > rowMax + 6) bad++;
+        if (Math.abs(at(y, size - 1) - at(y, 0)) > colMax + 6) bad++;
       }
-      // Mean step across the wrap vs the mean interior step.
-      expect(seam / (2 * size)).toBeLessThan((inner / (2 * size * (size - 1))) * 3 + 2);
+      expect(bad, `layer ${layer}`).toBeLessThanOrEqual(4);
     }
   });
 });

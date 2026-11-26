@@ -6,6 +6,9 @@ export type Save = {
   color: string;
   hat: boolean;
   memories: string[];
+  /** Hub camera the visitor last chose. Optional: older saves have none,
+   * and an unknown value is dropped rather than rejecting the save. */
+  view?: "diorama" | "explore";
 };
 import { WORLD_BOUNDS } from "./world-bounds";
 import { onStanfordLand, STANFORD_SHORE_CLEARANCE } from "./stanford-ground";
@@ -60,6 +63,8 @@ export function parseSave(raw: string | null): Save {
       !onStanfordLand(...s.position, STANFORD_SHORE_CLEARANCE))
   )
     s.position = [0, 5];
+  if (s.view !== undefined && s.view !== "diorama" && s.view !== "explore")
+    delete (s as Record<string, unknown>).view;
   // Coins, levels, upgrades and best marks from retired saves are dropped.
   delete (s as Record<string, unknown>).coins;
   delete (s as Record<string, unknown>).xp;

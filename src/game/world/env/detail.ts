@@ -26,20 +26,35 @@ export const DETAIL_SIZE_LOW = 64;
 
 /* ----------------------------------------------------------------- noise */
 
-/** Periodic value noise with separate x / y lattice periods. */
+/** Lattice hashes per (period, seed), so noise lookups are table reads. */
+const lattices = new Map<number, Float32Array>();
+function lattice(px: number, py: number, seed: number) {
+  const key = (seed * 1024 + px) * 1024 + py;
+  let table = lattices.get(key);
+  if (!table) {
+    table = new Float32Array(px * py);
+    for (let y = 0; y < py; y++) for (let x = 0; x < px; x++) table[y * px + x] = hash(x, y, seed);
+    lattices.set(key, table);
+  }
+  return table;
+}
+
+/** Periodic value noise with separate x / y lattice periods (the same
+ * values as noise.ts's valueNoise when px = py). */
 function vnoise(x: number, y: number, px: number, py: number, seed: number) {
+  const table = lattice(px, py, seed);
   const xi = Math.floor(x),
     yi = Math.floor(y);
   const fx = smooth(x - xi),
     fy = smooth(y - yi);
   const x0 = ((xi % px) + px) % px,
-    x1 = (x0 + 1) % px,
-    y0 = ((yi % py) + py) % py,
-    y1 = (y0 + 1) % py;
-  const a = hash(x0, y0, seed),
-    b = hash(x1, y0, seed),
-    c = hash(x0, y1, seed),
-    d = hash(x1, y1, seed);
+    x1 = x0 + 1 === px ? 0 : x0 + 1,
+    y0 = (((yi % py) + py) % py) * px,
+    y1 = (y0 + px) % (px * py);
+  const a = table[y0 + x0],
+    b = table[y0 + x1],
+    c = table[y1 + x0],
+    d = table[y1 + x1];
   return a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy;
 }
 /** Periodic fbm; with bx = by it is noise.ts's fbm, value for value. */
@@ -63,7 +78,25 @@ function fbm2(u: number, v: number, bx: number, by: number, octaves: number, see
  * nearest cell's hash. `block` blends euclidean (0) toward chebyshev (1)
  * distance, which squares the cells off into blocks. */
 const cell = { f1: 0, f2: 0, id: 0 };
+const features = new Map<number, Float32Array>();
+function featureTable(cx: number, cy: number, seed: number) {
+  const key = (seed * 1024 + cx) * 1024 + cy;
+  let table = features.get(key);
+  if (!table) {
+    table = new Float32Array(cx * cy * 3);
+    for (let y = 0; y < cy; y++)
+      for (let x = 0; x < cx; x++) {
+        const i = (y * cx + x) * 3;
+        table[i] = hash(x, y, seed);
+        table[i + 1] = hash(x, y, seed + 9);
+        table[i + 2] = hash(x, y, seed + 31);
+      }
+    features.set(key, table);
+  }
+  return table;
+}
 function voronoi(u: number, v: number, cx: number, cy: number, seed: number, block = 0, jitter = 0.8) {
+  const table = featureTable(cx, cy, seed);
   const x = u * cx,
     y = v * cy;
   const xi = Math.floor(x),
@@ -76,15 +109,14 @@ function voronoi(u: number, v: number, cx: number, cy: number, seed: number, blo
     for (let i = -1; i <= 1; i++) {
       const gx = xi + i,
         gy = yi + j;
-      const wx = ((gx % cx) + cx) % cx,
-        wy = ((gy % cy) + cy) % cy;
-      const dx = Math.abs(gx + lo + hash(wx, wy, seed) * jitter - x),
-        dy = Math.abs(gy + lo + hash(wx, wy, seed + 9) * jitter - y);
-      const d = Math.hypot(dx, dy) * (1 - block) + Math.max(dx, dy) * block;
+      const k = ((((gy % cy) + cy) % cy) * cx + (((gx % cx) + cx) % cx)) * 3;
+      const dx = Math.abs(gx + lo + table[k] * jitter - x),
+        dy = Math.abs(gy + lo + table[k + 1] * jitter - y);
+      const d = Math.sqrt(dx * dx + dy * dy) * (1 - block) + (dx > dy ? dx : dy) * block;
       if (d < f1) {
         f2 = f1;
         f1 = d;
-        id = hash(wx, wy, seed + 31);
+        id = table[k + 2];
       } else if (d < f2) f2 = d;
     }
   cell.f1 = f1;

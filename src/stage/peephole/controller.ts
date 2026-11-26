@@ -9,7 +9,7 @@
  * reversible.
  */
 import { create } from "zustand";
-import { useWorldView } from "../../game/core/worldView";
+import { useWorldView, type WorldViewMode } from "../../game/core/worldView";
 import { cameraRig, revealHud, useCameraRig, useStage, type CameraPose } from "../contract";
 import { exposeQa, qaEnabled } from "../qa";
 import { flightPoses, peekPose, TIMELINE, type PeekScene } from "./flight";
@@ -465,18 +465,32 @@ export class PeepholeController {
   /* -------------------------------------------------------------- phases */
 
   private savedZoom: number | null = null;
+  private savedView: WorldViewMode | null = null;
   /** Move the (hidden) gameplay camera to its entry framing while the peek
    * pose owns the screen, so the live pose has settled behind the player by
-   * the time the flight hands over to it. */
+   * the time the flight hands over to it. First-time visitors land in the
+   * explore view (the hero frame behind the character); returning visitors
+   * land in the view their save holds (the diorama at ENTRY_ZOOM). */
   private stageEntryZoom() {
     if (this.savedZoom !== null) return;
-    this.savedZoom = useWorldView.getState().zoom;
-    if (this.savedZoom < ENTRY_ZOOM) useWorldView.setState({ zoom: ENTRY_ZOOM });
+    const view = useWorldView.getState();
+    this.savedZoom = view.zoom;
+    this.savedView = view.view;
+    const landing = view.savedView ?? "explore";
+    if (landing === "explore") useWorldView.setState({ view: "explore" });
+    else {
+      useWorldView.setState({ view: "diorama" });
+      if (this.savedZoom < ENTRY_ZOOM) useWorldView.setState({ zoom: ENTRY_ZOOM });
+    }
   }
   private restoreZoom() {
     if (this.savedZoom === null) return;
-    useWorldView.setState({ zoom: this.savedZoom });
+    useWorldView.setState({
+      zoom: this.savedZoom,
+      view: this.savedView ?? useWorldView.getState().view,
+    });
     this.savedZoom = null;
+    this.savedView = null;
   }
 
   private enterPeek() {

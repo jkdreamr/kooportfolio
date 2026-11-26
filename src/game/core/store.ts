@@ -12,6 +12,8 @@ import {
 import { keys, touch } from "./input";
 import { journeyGate } from "./journey";
 import type { TravelOption } from "./travel";
+import { useWorldView } from "./worldView";
+import { useStage } from "../../stage/contract";
 export type Scene = "hub" | "rowing" | "secret" | PlaceId;
 let storageIssue = "";
 let savedRaw: string | null = null;
@@ -220,3 +222,23 @@ export const useGame = create<State>((set, get) => ({
     get().persist();
   },
 }));
+
+/* Second view: the saved choice seeds the hub camera, and a change made in
+ * the game (toggle, flight landing) is written back to the save. */
+useWorldView.setState({
+  view: initial.view ?? "diorama",
+  savedView: initial.view ?? null,
+});
+function keepView() {
+  const { view } = useWorldView.getState();
+  const state = useGame.getState();
+  if (useStage.getState().mode !== "game" || state.save.view === view) return;
+  useGame.setState({ save: { ...state.save, view } });
+  state.persist();
+}
+useWorldView.subscribe((next, previous) => {
+  if (next.view !== previous.view) keepView();
+});
+useStage.subscribe((next, previous) => {
+  if (next.mode === "game" && previous.mode !== "game") keepView();
+});

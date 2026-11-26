@@ -720,35 +720,49 @@ export function StaticBatch({
   children,
   enabled = true,
   soft = false,
+  ao,
 }: {
   id: string;
   children?: ReactNode;
   enabled?: boolean;
   soft?: boolean;
+  /** Baked contact AO; default: on under the hub, off in interiors. */
+  ao?: boolean;
 }) {
   const nested = useContext(InBatch);
   if (soft && nested) return <>{children}</>;
   return (
-    <BatchRoot id={id} enabled={enabled}>
+    <BatchRoot id={id} enabled={enabled} ao={ao}>
       {children}
     </BatchRoot>
   );
+}
+
+/** True when `node` sits under the hub world (Game.tsx "hub-root"). */
+function underHub(node: THREE.Object3D) {
+  for (let p: THREE.Object3D | null = node; p; p = p.parent)
+    if (p.name === "hub-root") return true;
+  return false;
 }
 
 function BatchRoot({
   id,
   children,
   enabled,
+  ao,
 }: {
   id: string;
   children?: ReactNode;
   enabled: boolean;
+  ao?: boolean;
 }) {
   const root = useRef<THREE.Group>(null);
   const baker = useRef<Baker | null>(null);
   useLayoutEffect(() => {
     if (!enabled || !root.current) return;
-    const b = new Baker(root.current, id);
+    const b = new Baker(root.current, id, {
+      ao: ao ?? underHub(root.current),
+    });
     baker.current = b;
     if (import.meta.env.DEV) {
       const w = window as unknown as { __w4bakers?: Set<Baker> };
@@ -763,7 +777,7 @@ function BatchRoot({
       b.dispose();
       baker.current = null;
     };
-  }, [id, enabled]);
+  }, [id, enabled, ao]);
   const active = useWorldActive();
   useFrame(() => {
     if (active) baker.current?.tick();

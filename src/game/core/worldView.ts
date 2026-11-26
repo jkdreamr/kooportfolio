@@ -18,12 +18,16 @@ export interface WorldViewState {
   view: WorldViewMode;
   /** Explore boom length in world units (6–16). */
   exploreDistance: number;
+  /** The view stored in the save when the game booted (null: none yet, a
+   * first-time or pre-explore visitor). The flight landing reads it. */
+  savedView: WorldViewMode | null;
 }
 
 export const useWorldView = create<WorldViewState>(() => ({
   zoom: 1,
   view: "diorama",
   exploreDistance: DEFAULT_EXPLORE_DISTANCE,
+  savedView: null,
 }));
 
 /**
