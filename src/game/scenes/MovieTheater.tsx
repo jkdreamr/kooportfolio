@@ -209,8 +209,9 @@ function ProgramPanel({
   };
   const allShows = () => {
     focusShow.current = openTitle;
+    const index = openTitle ? [...groups.keys()].indexOf(openTitle) : 0;
     setOpenTitle(null);
-    setLimit(PROGRAM_PAGE);
+    setLimit(Math.ceil((Math.max(index, 0) + 1) / PROGRAM_PAGE) * PROGRAM_PAGE);
   };
   const showMore = () => {
     focusIndex.current = limit;
