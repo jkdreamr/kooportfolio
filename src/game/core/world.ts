@@ -31,7 +31,12 @@ import { HOME_COMMUNITY_OBSTACLES } from "../world/CommunityScenery";
 import { villageGardenSolids } from "./villageGardens";
 import { HOME_GARDEN_OBSTACLES } from "./homeGardens";
 import { HOME_DESTINATION_CENTERS } from "./homeLayout";
-import { HOME_AIRPORT_GATE, islandForWorld } from "./homeIsland";
+import {
+  HOME_AIRPORT_GATE,
+  HOME_SHORE_CLEARANCE,
+  isHomeLand,
+  islandForWorld,
+} from "./homeIsland";
 import { journeyGate } from "./journey";
 import { railForWorld } from "./islandRail";
 import { STANFORD_BUILDINGS, isStanfordTreeSite } from "./stanfordLayout";
@@ -425,7 +430,9 @@ export function canWalk(x: number, z: number, world?: WorldId) {
       ? !isOnKoreaLand(x, z, 0.35)
       : ((x - island.centerX) / island.radiusX) ** 2 +
           ((z - island.centerZ) / island.radiusZ) ** 2 >
-        1)
+        1) ||
+    // Home's coves bite into the old ellipse; its headlands stay scenery.
+    (world === "home" && !isHomeLand(x, z, HOME_SHORE_CLEARANCE))
   )
     return false;
   return !regionalObstacles[world ?? "all"].some(

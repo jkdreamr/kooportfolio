@@ -1,67 +1,14 @@
-import { useLayoutEffect, useRef } from "react";
-import { useFrame } from "@react-three/fiber";
-import * as THREE from "three";
-import { daylightClock } from "../core/timeOfDay";
-import { sampleDaylight } from "../core/daylight";
-import { GableRoof } from "./ArchitectureDetail";
+import { GableRoof, Glazing, type Pane } from "./ArchitectureDetail";
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
 
-type Pane = { p: [number, number, number]; s: [number, number, number] };
-const box = new THREE.BoxGeometry();
-const glass = new THREE.MeshStandardMaterial({
-  color: "#9dbbb5",
-  emissive: "#ffb85d",
-  emissiveIntensity: 0.04,
-  roughness: 0.28,
-  metalness: 0.15,
-});
-const dayGlass = new THREE.Color("#9dbbb5"),
-  nightGlass = new THREE.Color("#e8ba77");
-
-/** Mounted once in Home; consumes the real regional clock, never sets it. */
+/** Kept for the Home environment's mount point. Window glass is now driven
+ * by the shared gloss rig (see GlossKit), on every island. */
 export function HomeWindowLighting() {
-  useFrame(() => {
-    const night = sampleDaylight(daylightClock.hour).night;
-    glass.color.copy(dayGlass).lerp(nightGlass, night);
-    glass.emissiveIntensity = 0.04 + night * 1.6;
-  });
   return null;
 }
 
-function Glazing({ panes }: { panes: Pane[] }) {
-  const ref = useRef<THREE.InstancedMesh>(null);
-  useLayoutEffect(() => {
-    const object = new THREE.Object3D(),
-      mesh = ref.current!;
-    panes.forEach(({ p, s }, i) => {
-      object.position.set(...p);
-      object.scale.set(...s);
-      object.updateMatrix();
-      mesh.setMatrixAt(i, object.matrix);
-    });
-    mesh.instanceMatrix.needsUpdate = true;
-    mesh.computeBoundingSphere();
-  }, [panes]);
-  return (
-    <instancedMesh ref={ref} args={[box, glass, panes.length]} dispose={null} />
-  );
-}
-
-function windowPanes(x: number, y: number, z: number, width: number): Pane[] {
-  const panes: Pane[] = [];
-  for (const sx of [-1, 1])
-    for (const sy of [-1, 1])
-      panes.push({
-        p: [x + (sx * width) / 4, y + sy * 0.25, z + 0.171],
-        s: [width / 2 - 0.06, 0.44, 0.028],
-      });
-  return panes;
-}
-
 const glazing: Record<string, Pane[]> = {
-  kitchen: [-1.5, 1.5].flatMap((x) => windowPanes(x, 1.8, 1.9, 0.8)),
-  writing: [-2.2, 2.2].flatMap((x) => windowPanes(x, 2.7, 2.59, 1.3)),
-  office: [-1.75, 1.75].flatMap((x) => windowPanes(x, 1.85, 2.1, 0.8)),
+  // Framed windows carry their own panes (ArchitectureDetail.WindowDetail).
   go: [-2.15, 2.15].map((x) => ({
     p: [x, 2.2, 2.528],
     s: [1.24, 1.64, 0.025],
@@ -140,6 +87,30 @@ add("theater", [0, 6.59, -0.6], [5.85, 0.14, 4.85], "#c99563");
 add("office", [1.8, 6.03, -0.9], [0.98, 0.19, 0.99], "#53716a");
 for (const side of [-1, 1])
   add("office", [-1.4 + side * 0.86, 5.8, 0.25], [0.12, 1.65, 0.12], "#897957");
+
+// Planted window boxes under every framed window: the hand-tended village.
+const blooms = ["#e58f6c", "#f1cf6a", "#f3ede0", "#c97f9c"];
+for (const [id, offset, y, z, width] of [
+  ["kitchen", 1.5, 1.8, 1.9, 0.8],
+  ["writing", 2.2, 2.7, 2.59, 1.3],
+  ["office", 1.75, 1.85, 2.1, 0.8],
+] as const)
+  for (const side of [-1, 1]) {
+    const x = side * offset;
+    add(id, [x, y - 0.93, z + 0.36], [width + 0.34, 0.2, 0.26], "#7a5a3c");
+    add(id, [x, y - 0.84, z + 0.36], [width + 0.24, 0.05, 0.18], "#4d4233");
+    const count = Math.round((width + 0.2) / 0.2);
+    for (let i = 0; i < count; i++) {
+      const px = x - (width + 0.1) / 2 + ((i + 0.5) * (width + 0.1)) / count;
+      add(
+        id,
+        [px, y - 0.75 + (i % 2) * 0.05, z + 0.36 + ((i * 7) % 3) * 0.04 - 0.04],
+        [0.15, 0.13, 0.15],
+        i % 3 === 2 ? "#6f8b4f" : blooms[(i + (side > 0 ? 1 : 0)) % blooms.length],
+        [0.3, i * 1.1, 0.2],
+      );
+    }
+  }
 
 function Dormer({ p, color }: { p: [number, number, number]; color: string }) {
   const frame: SceneryPart[] = [

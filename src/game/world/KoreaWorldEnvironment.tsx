@@ -1,8 +1,5 @@
-import { useRef } from "react";
-import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { daylightClock } from "../core/timeOfDay";
-import { sampleDaylight } from "../core/daylight";
+import { waterMaterial } from "./GlossKit";
 import {
   KOREA_GARDEN_WALKS,
   KOREA_LANDMARKS,
@@ -151,64 +148,41 @@ for (let i = 0; i < 8; i++) {
   }
 }
 
+// The Han: broad slow ripples, foam along both embankments and, after dark,
+// the bridge's rainbow lights smeared across the near bank.
+const riverGeometry = new THREE.PlaneGeometry(74, 22);
+const riverMaterial = waterMaterial({
+  color: "#47828a",
+  deep: "#2c5a66",
+  shore: "band",
+  scale: 1.7,
+  flow: [0.42, 0.12],
+  foam: 0.8,
+});
+{
+  const water = riverMaterial.onBeforeCompile;
+  riverMaterial.onBeforeCompile = (shader, renderer) => {
+    water.call(riverMaterial, shader, renderer);
+    shader.fragmentShader = shader.fragmentShader.replace(
+      "#include <emissivemap_fragment>",
+      `#include <emissivemap_fragment>
+        float bridgeGlow = exp(-pow((vWaterUv.y - .14) * 22.0, 2.0)) * (.6 + .4 * sin(vWaterUv.y * 340.0 + vWaterUv.x * 25.0 - uGlossTime));
+        vec3 bridgeRainbow = .5 + .5 * cos(6.28318 * (vWaterUv.x * .78 + vec3(0.0,.33,.67)));
+        totalEmissiveRadiance += bridgeRainbow * bridgeGlow * uGlossNight * .25;`,
+    );
+  };
+  riverMaterial.customProgramCacheKey = () => "gloss-water-han-v1";
+}
 function HangangWater() {
-  const material = useRef<THREE.MeshStandardMaterial>(null);
-  useFrame(({ clock }) => {
-    const shader = material.current?.userData.riverShader as
-      | { uniforms: { uFlow: { value: number }; uNight: { value: number } } }
-      | undefined;
-    if (shader) {
-      shader.uniforms.uFlow.value = clock.elapsedTime;
-      shader.uniforms.uNight.value = sampleDaylight(daylightClock.hour).night;
-    }
-  });
   return (
     <mesh
+      geometry={riverGeometry}
+      material={riverMaterial}
       rotation={[-Math.PI / 2, 0, 0]}
       position={[25, -2.3, 33]}
       receiveShadow
-    >
-      <planeGeometry args={[74, 22]} />
-      <meshStandardMaterial
-        ref={material}
-        color="#3f7279"
-        roughness={0.3}
-        metalness={0.16}
-        onBeforeCompile={(shader) => {
-          shader.uniforms.uFlow = { value: 0 };
-          shader.uniforms.uNight = { value: 0 };
-          material.current!.userData.riverShader = shader;
-          shader.vertexShader = shader.vertexShader
-            .replace(
-              "#include <common>",
-              "#include <common>\nvarying vec2 vRiverUv;",
-            )
-            .replace(
-              "#include <begin_vertex>",
-              "#include <begin_vertex>\nvRiverUv = uv;",
-            );
-          shader.fragmentShader = shader.fragmentShader
-            .replace(
-              "#include <common>",
-              "#include <common>\nvarying vec2 vRiverUv; uniform float uFlow; uniform float uNight;",
-            )
-            .replace(
-              "#include <color_fragment>",
-              `#include <color_fragment>
-        float ripple = sin(vRiverUv.y * 180.0 + sin(vRiverUv.x * 29.0 + uFlow * .18) * 2.0 + uFlow * .65);
-        float bank = pow(abs(vRiverUv.y - .5) * 2.0, 5.0);
-        diffuseColor.rgb *= 1.0 + ripple * .045 + bank * .12;`,
-            )
-            .replace(
-              "#include <emissivemap_fragment>",
-              `#include <emissivemap_fragment>
-        float reflection = exp(-pow((vRiverUv.y - .14) * 22.0, 2.0)) * (.6 + .4 * sin(vRiverUv.y * 340.0 + vRiverUv.x * 25.0 - uFlow));
-        vec3 rainbow = .5 + .5 * cos(6.28318 * (vRiverUv.x * .78 + vec3(0.0,.33,.67)));
-        totalEmissiveRadiance += rainbow * reflection * uNight * .25;`,
-            );
-        }}
-      />
-    </mesh>
+      dispose={null}
+    />
   );
 }
 

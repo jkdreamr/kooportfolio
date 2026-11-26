@@ -1,14 +1,73 @@
-/* Quiet, matte controls leave the dimensional world in front.
-   Hierarchy comes from spacing and contrast, not embossed rims or bevels. */
+/* Glass pass: frosted, dimensional controls float over the world.
+   Tokens live on :root; the recipes that consume them are in glass.css.
+   Hierarchy still comes from spacing and contrast — one hairline, one top
+   highlight, layered soft shadows. Contrast figures are in docs/ART_BIBLE.md. */
+:root {
+  /* Fills. --glass-bg sits behind --glass-blur; -strong carries long copy;
+     -dense is for small surfaces that do not blur; -solid is the fallback. */
+  --glass-bg: rgb(14 28 38 / 0.72);
+  --glass-bg-strong: rgb(15 29 39 / 0.84);
+  --glass-bg-dense: rgb(18 33 43 / 0.84);
+  --glass-bg-solid: #1b2f3a;
+  --glass-blur: blur(22px) saturate(1.8) brightness(0.68);
+  --glass-blur-sm: blur(8px) saturate(1.6) brightness(0.68);
+  --glass-scrim: rgb(6 18 26 / 0.46);
+  --glass-scrim-blur: blur(14px) saturate(1.3);
+  /* Edges and depth. */
+  --glass-border: rgb(255 255 255 / 0.2);
+  --glass-border-solid: #71878e;
+  --glass-highlight:
+    inset 0 1px 0 rgb(255 255 255 / 0.3),
+    inset 0 0 0 1px rgb(255 255 255 / 0.04), inset 0 -1px 0 rgb(4 16 24 / 0.28);
+  --glass-shadow-sm:
+    0 1px 2px rgb(4 16 24 / 0.3), 0 4px 12px rgb(4 16 24 / 0.18);
+  --glass-shadow:
+    0 1px 2px rgb(4 16 24 / 0.28), 0 8px 24px rgb(4 16 24 / 0.2),
+    0 24px 48px rgb(4 16 24 / 0.12);
+  --glass-shadow-lg:
+    0 2px 6px rgb(4 16 24 / 0.3), 0 18px 48px rgb(4 16 24 / 0.32),
+    0 48px 96px rgb(4 16 24 / 0.2);
+  --glass-sheen: linear-gradient(
+    180deg,
+    rgb(255 255 255 / 0.09),
+    rgb(255 255 255 / 0.02) 46%,
+    rgb(255 255 255 / 0)
+  );
+  /* Ink. */
+  --glass-ink: #f6f5ec;
+  --glass-muted: #d3dedd;
+  --glass-gold: #f0cf8e;
+  /* Controls that sit inside a pane. */
+  --glass-well: rgb(255 255 255 / 0.06);
+  --glass-well-hover: rgb(255 255 255 / 0.11);
+  --glass-active: rgb(255 255 255 / 0.14);
+  --glass-hairline: rgb(255 255 255 / 0.14);
+  --glass-accent: #4c6d42;
+  --glass-accent-hover: #557849;
+  --glass-accent-ink: #fff8e1;
+  --glass-accent-border: rgb(255 255 255 / 0.26);
+  --glass-focus: #ffd98a;
+  --glass-focus-halo: rgb(6 18 26 / 0.85);
+  /* Shape and motion. */
+  --glass-radius-lg: 22px;
+  --glass-radius: 16px;
+  --glass-radius-sm: 11px;
+  --glass-radius-xs: 8px;
+  --glass-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --glass-speed: 0.18s;
+}
 .game-shell {
-  --hud-face: #293f49;
-  --hud-low: #21353e;
-  --hud-edge: #536971;
-  --hud-rim: #72847f;
-  --hud-ink: #f5f4e9;
-  --hud-muted: #c3d0d0;
-  --hud-gold: #e7c27e;
-  --hud-shadow: 0 4px 12px #071b2824;
+  /* Legacy names stay as aliases, so scene styles written against the matte
+     HUD (cinema, kitchen, stadium, …) pick up the glass palette unedited.
+     They resolve to opaque values because those panels do not blur. */
+  --hud-face: var(--glass-bg-solid);
+  --hud-low: #14262f;
+  --hud-edge: #4d646d;
+  --hud-rim: #6f8589;
+  --hud-ink: #f6f5ec;
+  --hud-muted: #d3dedd;
+  --hud-gold: #f0cf8e;
+  --hud-shadow: 0 1px 2px rgb(4 16 24 / 0.3), 0 4px 12px rgb(4 16 24 / 0.18);
   --hud-raised: var(--hud-shadow);
   --world-control-right: max(24px, env(safe-area-inset-right));
   --world-control-width: 164px;
@@ -35,7 +94,7 @@
   background: linear-gradient(#142b3e66, #142b3e00);
 }
 .game-shell .brand-glyph {
-  color: var(--hud-gold);
+  color: var(--glass-gold);
   background: var(--hud-face);
   border: 1px solid var(--hud-rim);
   border-radius: 6px;
@@ -51,7 +110,7 @@
   letter-spacing: 0;
 }
 .game-shell :is(.resource, .icon-button) {
-  color: var(--hud-ink);
+  color: var(--glass-ink);
   background: var(--hud-face);
   border-color: var(--hud-edge);
   box-shadow: var(--hud-shadow);
@@ -71,19 +130,19 @@
 }
 .game-shell .world-toolbar > :is(button, a) {
   background: transparent;
-  color: var(--hud-muted);
+  color: var(--glass-muted);
   border: 1px solid transparent;
   box-shadow: var(--hud-shadow);
   border-radius: 5px;
 }
 .game-shell .world-toolbar > button.active {
-  color: var(--hud-gold);
+  color: var(--glass-gold);
   background: #3d5259;
   border-color: #6c7774;
   box-shadow: var(--hud-shadow);
 }
 .game-shell :is(.world-label, .context-action) {
-  color: var(--hud-ink);
+  color: var(--glass-ink);
   background: var(--hud-face);
   border: 1px solid #7f8b87;
   border-bottom-width: 1px;
@@ -99,7 +158,7 @@
   color: #d5dfdc;
 }
 .game-shell .label-dot {
-  background: var(--hud-gold);
+  background: var(--glass-gold);
 }
 .game-shell .context-action {
   border-radius: 6px;
@@ -137,20 +196,19 @@
     .build-panel,
     .race-select
   ) {
-  color: var(--hud-ink);
+  color: var(--glass-ink);
   background: var(--hud-face);
   border: 1px solid #6a7b7f;
   border-bottom-width: 1px;
   border-radius: 6px;
   box-shadow: var(--hud-shadow);
-  backdrop-filter: none;
 }
 .game-shell :is(.world-heading p, .world-coordinates) {
   color: #e3ebe3;
   text-shadow: 0 1px 4px #0d233b40;
 }
 .game-shell :is(.objective-card p, .context-action small, .help-grid b) {
-  color: var(--hud-muted);
+  color: var(--glass-muted);
 }
 .game-shell
   :is(
@@ -160,11 +218,11 @@
     .memory-card b,
     .context-action strong
   ) {
-  color: var(--hud-ink);
+  color: var(--glass-ink);
   font-weight: 600;
 }
 .game-shell :is(.quest-icon, .build-preview, .build-preview.garden) {
-  color: var(--hud-gold);
+  color: var(--glass-gold);
   background: #233943;
   border-color: #61777b;
   border-radius: 4px;
@@ -179,7 +237,7 @@
   background: #96b576;
 }
 .game-shell .text-action {
-  color: var(--hud-gold);
+  color: var(--glass-gold);
 }
 .game-shell :is(.race-instruments, .basket-score) strong {
   color: #fff8e3;
@@ -195,7 +253,7 @@
     .basket-score small,
     .aim-label
   ) {
-  color: var(--hud-muted);
+  color: var(--glass-muted);
   letter-spacing: 0.25px;
   text-transform: none;
 }
@@ -209,7 +267,7 @@
     .build-option p,
     .race-select span
   ) {
-  color: var(--hud-muted);
+  color: var(--glass-muted);
 }
 .game-shell
   :is(
@@ -217,7 +275,7 @@
     .race-instruments em,
     .basket-score em
   ) {
-  color: var(--hud-ink);
+  color: var(--glass-ink);
 }
 .game-shell :is(.energy-track, .power-track) {
   background: #172c36;
@@ -228,7 +286,7 @@
   box-shadow: var(--hud-shadow);
 }
 .game-shell .cadence-switch button {
-  color: var(--hud-muted);
+  color: var(--glass-muted);
   background: #233944;
   border-color: #596c72;
 }
@@ -255,7 +313,7 @@
   text-shadow: 0 1px 4px #0d233b40;
 }
 .game-shell .last-split b {
-  color: var(--hud-ink);
+  color: var(--glass-ink);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -290,7 +348,7 @@
 }
 .game-shell
   :is(.aim-label button, .basketball-controls button, .basketball-mode-select) {
-  color: var(--hud-ink);
+  color: var(--glass-ink);
   background: #304a56;
   border: 1px solid #788b90;
   border-bottom-width: 1px;
@@ -324,10 +382,6 @@
   font-weight: 600;
   text-shadow: 0 1px 4px #0d233b40;
 }
-.game-shell .modal-scrim {
-  background: #10293980;
-  backdrop-filter: blur(2px);
-}
 .game-shell .game-modal {
   background: var(--hud-face);
   border: 1px solid var(--hud-edge);
@@ -335,7 +389,7 @@
   border-bottom-width: 1px;
   border-radius: 10px;
   box-shadow: var(--hud-shadow);
-  color: var(--hud-ink);
+  color: var(--glass-ink);
 }
 .game-shell .game-modal h2 {
   color: #fff8e6;
@@ -352,38 +406,38 @@
     .help-grid p,
     .game-modal .result-detail
   ) {
-  color: var(--hud-muted);
+  color: var(--glass-muted);
 }
 .game-shell
   :is(.close-button, .quiet-button, .setting-row, .race-select > button) {
-  color: var(--hud-ink);
+  color: var(--glass-ink);
   background: #233943;
   border-color: #596e75;
   box-shadow: var(--hud-shadow);
 }
 .game-shell .setting-row b {
-  color: var(--hud-ink);
+  color: var(--glass-ink);
 }
 .game-shell :is(.memory-card, :where(.places-list button)) {
-  color: var(--hud-ink);
+  color: var(--glass-ink);
   background: #243a44;
   border-color: #566b72;
   box-shadow: var(--hud-shadow);
 }
 .game-shell .memory-card :is(small, svg) {
-  color: var(--hud-muted);
+  color: var(--glass-muted);
 }
 .game-shell .study-links > a {
   color: #f2d18b;
   border-color: #6e7c7b;
 }
 .game-shell .reward-line {
-  color: var(--hud-gold);
+  color: var(--glass-gold);
   background: #203740;
   border-color: #6d7666;
 }
 .game-shell .reward-line > span {
-  color: var(--hud-muted);
+  color: var(--glass-muted);
 }
 .game-shell .court-keyboard-hint {
   position: absolute;
@@ -488,7 +542,7 @@
   box-shadow: var(--hud-shadow);
 }
 .game-shell .game-toast button {
-  color: var(--hud-muted);
+  color: var(--glass-muted);
 }
 .game-shell :is(.time-of-day-control, .world-zoom) {
   position: absolute;
@@ -496,11 +550,6 @@
   display: flex;
   width: var(--world-control-width);
   height: var(--world-control-height);
-  color: #fff;
-  background: var(--hud-low);
-  border: 1px solid var(--hud-edge);
-  border-radius: 6px;
-  box-shadow: var(--hud-shadow);
 }
 @media (max-width: 900px), (max-height: 500px) {
   .game-shell {
@@ -538,28 +587,6 @@
 @media (pointer: coarse) {
   .game-shell {
     --world-control-height: 46px;
-  }
-}
-.game-shell :is(button, a, input, select):focus-visible {
-  outline: 2px solid #e7c27e;
-  outline-offset: 3px;
-}
-@media (hover: hover) {
-  .game-shell
-    :is(
-      .icon-button,
-      .world-label,
-      .places-list button,
-      .quiet-button,
-      .race-select > button
-    ):hover,
-  .game-shell .world-toolbar > :is(button, a):hover {
-    background: #4b626a;
-    color: #fff5d6;
-  }
-  .game-shell
-    :is(.primary-button, .shoot-button, .upgrade-button):hover:not(:disabled) {
-    background: #688747;
   }
 }
 @media (max-width: 700px) {
@@ -612,7 +639,6 @@
   border-color: #62757d;
   border-radius: 8px;
   background: #243a44;
-  backdrop-filter: none;
 }
 .game-shell .world-toolbar > :is(button, a) {
   min-width: 60px;
@@ -672,7 +698,6 @@
   gap: 18px;
   border-color: #62757d;
   border-radius: 6px;
-  backdrop-filter: none;
 }
 .game-shell .context-action strong {
   font-size: 16px;
@@ -705,15 +730,6 @@
 .game-shell button:active:not(:disabled),
 .game-shell .world-toolbar > a:active {
   filter: brightness(0.9);
-}
-@media (hover: hover) {
-  .game-shell .world-label:hover {
-    background: transparent;
-    color: #fff;
-  }
-  .game-shell .world-label:hover::before {
-    background: #3a525b;
-  }
 }
 @media (max-width: 700px) {
   .game-shell .world-toolbar {

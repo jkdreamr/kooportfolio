@@ -1,3 +1,5 @@
+import { ccwLoop, resampleLoop, splineLoop, type P2 } from "./coast";
+
 export const KOREA_SHORE = [
   [-56, -17.5],
   [-48.5, -24.5],
@@ -64,3 +66,57 @@ export function isOnKoreaLand(x: number, z: number, setback = 0) {
   }
   return inside;
 }
+
+// Render-only outer coast. KOREA_SHORE above stays the walking limit; this
+// hand-drawn apron surrounds it with headlands, bays and room for the granite
+// ridge behind Namsan and the pine hillside along the north streets.
+const koreaCoastControl: readonly P2[] = [
+  [-60.5, -2],
+  [-60, -15.5],
+  [-58.5, -27],
+  [-54, -38.5],
+  [-46, -48.5],
+  [-34, -55],
+  [-20, -53.5],
+  [-9, -49],
+  [-3.5, -40],
+  [7, -36],
+  [21, -39.5],
+  [35, -37.5],
+  [47, -35.5],
+  [55.5, -30.5],
+  [57.5, -18],
+  [61.5, -6],
+  [58, 5],
+  [60.5, 10.5],
+  [67, 11.5],
+  [74, 20],
+  [76, 34],
+  [75, 49],
+  [76, 62],
+  [71, 74],
+  [63.5, 77],
+  [52.5, 76.5],
+  [46, 71],
+  [44, 63.5],
+  [37, 61],
+  [20, 61.5],
+  [1, 63],
+  [-14, 61.2],
+  [-28, 56.5],
+  [-38.5, 51.5],
+  [-44, 44],
+  [-44.5, 36],
+  [-41, 29.5],
+  [-36, 26.5],
+  [-35, 22],
+  [-42, 19.8],
+  [-52, 18.6],
+  [-59.5, 15],
+  [-61.5, 6],
+];
+/** Counter-clockwise, 256 even vertices, everywhere outside the shore. */
+export const KOREA_COAST: readonly P2[] = resampleLoop(
+  ccwLoop(splineLoop(koreaCoastControl, 16)),
+  256,
+);
