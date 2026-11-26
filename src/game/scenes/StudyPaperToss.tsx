@@ -8,6 +8,7 @@ import {
   type PointerEvent,
 } from "react";
 import { Html } from "@react-three/drei";
+import { screenOverlayNoOcclude } from "../world/screenOverlay";
 import { useFrame, useThree } from "@react-three/fiber";
 import { DoubleSide, Group, PerspectiveCamera, Vector3 } from "three";
 import {
@@ -390,7 +391,7 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
         </>
       )}
       {!hidden && (
-        <Html
+        <Html onOcclude={screenOverlayNoOcclude}
           fullscreen
           portal={portal}
           zIndexRange={[80, 0]}

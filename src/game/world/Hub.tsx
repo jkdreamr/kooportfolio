@@ -162,6 +162,10 @@ export function Walker({
     dioramaZoom: 1,
     ownsLens: false,
     resumed: false,
+    /** Another controller took the camera; the first hub frame after it
+     * returns goes straight to the saved view instead of ramping up from
+     * the far diorama pose. */
+    handedOff: false,
   });
   useFrame((_, delta) => {
     if (!active) {
@@ -387,6 +391,16 @@ export function Walker({
     }
     // --- hub: diorama, explore, or the parametric blend between them ---
     const toward = useWorldView.getState().view === "explore" ? 1 : 0;
+    if (v.handedOff) {
+      v.handedOff = false;
+      if (toward === 1) {
+        // Land on explore directly; the rig smooths the cut from whatever
+        // the other controller left on screen.
+        v.progress = 1;
+        v.resumed = true;
+        rig.blend(0.6);
+      }
+    }
     const wasIdle = v.progress === 0;
     v.progress = changedScene
       ? toward
@@ -447,6 +461,7 @@ export function Walker({
     if (v.progress === 0 && !v.ownsLens) return;
     v.progress = 0;
     v.ownsLens = false;
+    v.handedOff = true;
     viewRuntime.blend = 0;
     viewRuntime.effective = "diorama";
     const perspective = camera as THREE.PerspectiveCamera;

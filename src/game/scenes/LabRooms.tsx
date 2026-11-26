@@ -8,6 +8,7 @@ import {
   type RefObject,
 } from "react";
 import { Html } from "@react-three/drei";
+import { screenOverlayNoOcclude } from "../world/screenOverlay";
 import * as THREE from "three";
 import { aimCamera } from "../engine/camera";
 import { useFrame, useThree } from "@react-three/fiber";
@@ -132,7 +133,7 @@ function LabControls({
   );
   if (hidden) return null;
   return (
-    <Html
+    <Html onOcclude={screenOverlayNoOcclude}
       fullscreen
       portal={portal}
       zIndexRange={active ? [70, 70] : [25, 25]}

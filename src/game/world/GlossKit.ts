@@ -427,7 +427,11 @@ export function waterMaterial({
         vec3 waterMirror = texture2D(uWaterReflection, waterMirrorUv).rgb;
         waterReflect = mix(waterReflect, waterMirror, uWaterReflectMix);
         float waterGlint = smoothstep(0.88, 0.985, waterCrest) * (1.0 - waterFoam);
-        vec3 waterSky = waterReflect * mix(0.05 + 0.36 * waterFresnel, 0.16 + 0.6 * waterFresnel, uWaterReflectMix) * (1.0 - 0.85 * uGlossNight);
+        float waterReflectWeight = mix(0.05 + 0.36 * waterFresnel, 0.16 + 0.6 * waterFresnel, uWaterReflectMix) * (1.0 - 0.85 * uGlossNight);
+        vec3 waterSky = waterReflect * waterReflectWeight;
+        // With the planar mirror on, the reflection replaces part of the lit
+        // water instead of stacking on it (stacking read as milky).
+        diffuseColor.rgb *= 1.0 - saturate(waterReflectWeight) * uWaterReflectMix;
         totalEmissiveRadiance += waterSky * (1.0 - waterFoam * 0.6);
         totalEmissiveRadiance += mix(uGlossSky * 0.4, uGlossWarm * 0.22, uGlossNight) * waterGlint;
         totalEmissiveRadiance += uGlossWarm * uGlossNight * (0.02 + 0.05 * waterShallow * (0.6 + 0.4 * waterCrest));`,

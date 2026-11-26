@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { screenOverlayNoOcclude } from "../world/screenOverlay";
 import { Html } from "@react-three/drei";
 import { aimCamera } from "../engine/camera";
 import { useFrame, useThree } from "@react-three/fiber";
@@ -284,7 +285,7 @@ function GymControls() {
   });
   if (hidden) return null;
   return (
-    <Html
+    <Html onOcclude={screenOverlayNoOcclude}
       fullscreen
       portal={portal}
       zIndexRange={active ? [70, 70] : [25, 25]}

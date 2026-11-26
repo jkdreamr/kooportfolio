@@ -1,4 +1,5 @@
 import { StaticBatch } from "../world/StaticBatch";
+import { screenOverlayNoOcclude } from "../world/screenOverlay";
 import {
   useEffect,
   useMemo,
@@ -513,7 +514,7 @@ export function SkateParkInterior() {
       )}
       <Skater game={game} active={riding} />
       {!blocked && (
-        <Html
+        <Html onOcclude={screenOverlayNoOcclude}
           portal={portal}
           fullscreen
           zIndexRange={[28, 0]}

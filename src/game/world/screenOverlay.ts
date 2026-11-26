@@ -10,3 +10,11 @@ export const screenOverlayStyle = {
   maxHeight: "100dvh",
   pointerEvents: "none",
 } as const;
+
+/**
+ * drei <Html> only re-tests "behind the camera" when its projected position
+ * changes. Screen-fixed overlays return a constant position, so a hide decided
+ * on the first frame (e.g. while the walk-view camera is still blending into a
+ * room) would stick for good. Overlays pass this to opt out of hiding.
+ */
+export const screenOverlayNoOcclude = (): void => undefined;

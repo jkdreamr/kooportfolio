@@ -18,7 +18,7 @@ import { Box, Cylinder, Sign } from "./Models";
 import { PassengerJet, PassengerStairs } from "./TravelVehicles";
 import { IslandJourney, type IslandTrip } from "./IslandJourney";
 import "./world-travel.css";
-import { screenOverlayPosition, screenOverlayStyle } from "./screenOverlay";
+import { screenOverlayNoOcclude, screenOverlayPosition, screenOverlayStyle } from "./screenOverlay";
 
 export type { TravelWorld, TravelMode } from "../core/travel";
 
@@ -192,7 +192,7 @@ export function WorldTravel({
         />
       )}
       {!hidden && !trip && nearAirport && (
-        <Html
+        <Html onOcclude={screenOverlayNoOcclude}
           fullscreen
           calculatePosition={screenOverlayPosition}
           portal={portal}
@@ -221,7 +221,7 @@ export function WorldTravel({
         </Html>
       )}
       {trip && !paused && (
-        <Html
+        <Html onOcclude={screenOverlayNoOcclude}
           fullscreen
           calculatePosition={screenOverlayPosition}
           portal={portal}

@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef, type RefCallback } from "react";
+import { screenOverlayNoOcclude } from "../world/screenOverlay";
 import { Html } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
 import type { KickResult } from "../core/fieldGoal";
@@ -152,7 +153,7 @@ export function StadiumGameHud({
     </button>
   );
   return hidden ? null : (
-    <Html
+    <Html onOcclude={screenOverlayNoOcclude}
       fullscreen
       portal={portal}
       zIndexRange={[40, 40]}

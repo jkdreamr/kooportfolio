@@ -1,4 +1,5 @@
 import { StaticBatch } from "../world/StaticBatch";
+import { screenOverlayNoOcclude } from "../world/screenOverlay";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
@@ -563,7 +564,7 @@ export function BadmintonCourt({
         </>
       )}
       {!blocked && (
-        <Html
+        <Html onOcclude={screenOverlayNoOcclude}
           portal={portal}
           fullscreen
           calculatePosition={(_object, _camera, size) => [

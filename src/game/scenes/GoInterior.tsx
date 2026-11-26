@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { screenOverlayNoOcclude } from "../world/screenOverlay";
 import { Html } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
 import { Ball, Box, Cylinder, Ring } from "../world/Models";
@@ -262,7 +263,7 @@ export function GoInterior() {
           </group>
         ) : null)}
       </group>
-      {!hidden && <Html fullscreen portal={portal} zIndexRange={[80, 0]}
+      {!hidden && <Html onOcclude={screenOverlayNoOcclude} fullscreen portal={portal} zIndexRange={[80, 0]}
         calculatePosition={(_, __, size) => [size.width / 2, size.height / 2]}
         style={{ pointerEvents: "none" }}>
         <div className={`go-room-ui${started ? " go-room-ui--playing" : ""}`}>

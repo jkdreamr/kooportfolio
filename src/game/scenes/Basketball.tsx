@@ -1,4 +1,5 @@
 import { StaticBatch } from "../world/StaticBatch";
+import { screenOverlayNoOcclude } from "../world/screenOverlay";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Html, Line } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
@@ -443,7 +444,7 @@ export function Basketball() {
       <>
         <BasketballCourt key={`${playing}-${round}`} playing={playing} />
         {playing && !hidden && (
-          <Html
+          <Html onOcclude={screenOverlayNoOcclude}
             fullscreen
             portal={portal}
             zIndexRange={[70, 70]}
