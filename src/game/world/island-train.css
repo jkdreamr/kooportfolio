@@ -11,12 +11,8 @@
   width: max-content;
   max-width: calc(100vw - 24px);
   box-sizing: border-box;
-  padding: 8px 10px;
-  border: 1px solid #647580;
-  border-radius: 8px;
-  background: #243946;
-  box-shadow: 0 3px 10px #14232c33;
-  color: #fff;
+  /* Surface, edge and depth come from the shared glass recipe (glass.css). */
+  padding: 10px;
   font:
     600 13px system-ui,
     sans-serif;
@@ -30,20 +26,16 @@
 .island-rail-controls button {
   min-height: 44px;
   padding: 8px 10px;
-  border: 1px solid #71808b;
-  border-radius: 5px;
-  background: #354d5b;
-  color: #fff;
+  border: 1px solid var(--glass-hairline, #4d646d);
+  border-radius: var(--glass-radius-sm, 11px);
+  background: var(--glass-well-hover, #354d5b);
+  color: inherit;
   font: inherit;
   cursor: pointer;
   touch-action: manipulation;
 }
 .island-rail-controls button:hover {
-  background: #496373;
-}
-.island-rail-controls button:focus-visible {
-  outline: 2px solid #fff;
-  outline-offset: 3px;
+  background: var(--glass-active, #496373);
 }
 .rail-compact-label {
   display: none;

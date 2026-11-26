@@ -84,6 +84,8 @@ export function LabelProjection() {
       }
     }
     const compact = size.height < 500;
+    // Glass budget: only the nearest few plaques may frost (see glass.css).
+    let frosted = 0;
     const distance = (door: { x: number; z: number }) =>
       Math.hypot(door.x - runtime.x, door.z - runtime.z);
     destinationsInWorld(useGame.getState().world)
@@ -108,6 +110,7 @@ export function LabelProjection() {
           !occupied.some((b) => labelsOverlap({ x, y, w, h }, b));
         element.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
         element.style.visibility = visible ? "visible" : "hidden";
+        element.classList.toggle("is-frosted", visible && frosted++ < 4);
         if (visible) occupied.push({ x, y, w, h });
       });
   });
