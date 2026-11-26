@@ -6,10 +6,13 @@ import { bakeShoreMap, waterMaterial } from "../GlossKit";
 import { sculptedMaterial } from "../Surface";
 import { attachReflection, reflect } from "./reflection";
 import { lakesFor, lipLoop, type Lake } from "./placement";
+import { BANK_WIDTH, LIP_WIDTH, lakeBankY } from "./lakeShelves";
 
 /**
- * Home's lowered cove shelves become still lakes held by a low granite lip:
- * the reference's lakeside, set into land nobody walks on. Each lake gets a
+ * Home's lowered cove shelves become still lakes held by a granite lip and
+ * a sloping stone bank, filled to a short drop below the lawn so the water
+ * shows from the walkable rim: the reference's lakeside, set into land
+ * nobody walks on. Each lake gets a
  * baked shore map (depth tint, lapping foam, bank reflections) and one draw;
  * every lip of the island is one merged mesh.
  */
@@ -34,9 +37,12 @@ function lips(lakes: readonly Lake[]) {
   };
   for (const lake of lakes) {
     const inner = lake.outline;
-    const outer: readonly P2[] = lipLoop(inner);
+    const outer: readonly P2[] = lipLoop(inner, LIP_WIDTH);
+    const foot: readonly P2[] = lipLoop(inner, LIP_WIDTH + BANK_WIDTH);
     const top = lake.y + 0.09,
-      foot = lake.floorY - 0.04;
+      floor = lake.floorY - 0.04,
+      coping = lakeBankY(lake, LIP_WIDTH),
+      base = lake.floorY - 0.1;
     const n = inner.length;
     for (let i = 0; i < n; i++) {
       const j = (i + 1) % n;
@@ -44,14 +50,17 @@ function lips(lakes: readonly Lake[]) {
       const [ax, az] = inner[i],
         [bx, bz] = inner[j],
         [cx, cz] = outer[i],
-        [dx, dz] = outer[j];
-      // Inner wall (faces the water), top coping, outer wall.
-      push([ax, foot, az], [ax, top, az], [bx, foot, bz], lipColor, shade * 0.86);
-      push([bx, foot, bz], [ax, top, az], [bx, top, bz], lipColor, shade * 0.86);
-      push([ax, top, az], [cx, top + 0.03, cz], [bx, top, bz], lipTop, shade);
-      push([bx, top, bz], [cx, top + 0.03, cz], [dx, top + 0.03, dz], lipTop, shade);
-      push([cx, foot - 0.1, cz], [dx, foot - 0.1, dz], [cx, top + 0.03, cz], lipColor, shade * 0.8);
-      push([dx, foot - 0.1, dz], [dx, top + 0.03, dz], [cx, top + 0.03, cz], lipColor, shade * 0.8);
+        [dx, dz] = outer[j],
+        [ex, ez] = foot[i],
+        [fx, fz] = foot[j];
+      // Inner wall (faces the water), top coping, then a sloping stone bank
+      // down to the shelf floor (no trench between the lake and the cliff).
+      push([ax, floor, az], [ax, top, az], [bx, floor, bz], lipColor, shade * 0.86);
+      push([bx, floor, bz], [ax, top, az], [bx, top, bz], lipColor, shade * 0.86);
+      push([ax, top, az], [cx, coping, cz], [bx, top, bz], lipTop, shade);
+      push([bx, top, bz], [cx, coping, cz], [dx, coping, dz], lipTop, shade);
+      push([ex, base, ez], [fx, base, fz], [cx, coping, cz], lipColor, shade * 0.8);
+      push([fx, base, fz], [dx, coping, dz], [cx, coping, cz], lipColor, shade * 0.8);
     }
   }
   if (!positions.length) return null;

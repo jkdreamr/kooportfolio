@@ -407,6 +407,13 @@ export function waterMaterial({
         roughnessFactor = mix(roughnessFactor, 0.7, waterFoam);`,
       )
       .replace(
+        "#include <lights_fragment_maps>",
+        `#include <lights_fragment_maps>
+        // The planar mirror is the sky reflection: drop the baked studio sky's
+        // specular under it (its pale horizon is what read as milky).
+        radiance *= 1.0 - 0.9 * uWaterReflectMix * (1.0 - waterFoam);`,
+      )
+      .replace(
         "#include <emissivemap_fragment>",
         `#include <emissivemap_fragment>
         float waterFresnel = 1.0 - saturate(dot(normal, vec3(0.0, 0.0, 1.0)));
@@ -423,14 +430,26 @@ export function waterMaterial({
         waterReflect *= 0.75 + 0.5 * waterStreak.r;
         // Projected planar reflection, rippled by the slope (explore only).
         vec4 waterProj = uWaterReflectMatrix * vec4(vGlossWorld, 1.0);
-        vec2 waterMirrorUv = waterProj.xy / max(1e-4, waterProj.w) + waterSlope * 0.02;
-        vec3 waterMirror = texture2D(uWaterReflection, waterMirrorUv).rgb;
-        waterReflect = mix(waterReflect, waterMirror, uWaterReflectMix);
+        vec2 waterMirrorUv = waterProj.xy / max(1e-4, waterProj.w) + waterSlope * 0.012;
+        vec4 waterMirror = texture2D(uWaterReflection, waterMirrorUv);
+        // Mirror on: a stylised Schlick term on the true view angle (the
+        // perturbed view-space normal flattens it).
+        float waterCos = saturate(dot(normalize(cameraPosition - vGlossWorld), vec3(0.0, 1.0, 0.0)) + waterSlope.x * 0.01);
+        float waterSchlick = pow(1.0 - waterCos, 3.0);
+        // Alpha = mirrored geometry. Open sky is shaded here, tinted by the
+        // water and weaker, so the body stays a clear blue; banks, trees and
+        // roofs mirror strongly.
+        vec3 waterOpenSky = mix(uWaterDeep * 1.25 + uGlossSky * vec3(0.1, 0.16, 0.24), uGlossSky * vec3(0.72, 0.84, 1.0), 0.25 + 0.65 * waterSchlick);
+        vec3 waterImage = mix(waterOpenSky, waterMirror.rgb, waterMirror.a);
+        waterReflect = mix(waterReflect, waterImage, uWaterReflectMix);
         float waterGlint = smoothstep(0.88, 0.985, waterCrest) * (1.0 - waterFoam);
-        float waterReflectWeight = mix(0.05 + 0.36 * waterFresnel, 0.16 + 0.6 * waterFresnel, uWaterReflectMix) * (1.0 - 0.85 * uGlossNight);
+        float waterMirrorWeight = mix(0.16 + 0.5 * waterSchlick, 0.5 + 0.4 * waterSchlick, waterMirror.a) * (1.0 - waterFoam * 0.8);
+        float waterReflectWeight = mix(0.05 + 0.36 * waterFresnel, waterMirrorWeight, uWaterReflectMix) * (1.0 - 0.85 * uGlossNight);
         vec3 waterSky = waterReflect * waterReflectWeight;
         // With the planar mirror on, the reflection replaces part of the lit
-        // water instead of stacking on it (stacking read as milky).
+        // water instead of stacking on it (stacking read as milky); the body
+        // left under it is the deep tint, so the mirror image keeps contrast.
+        diffuseColor.rgb = mix(diffuseColor.rgb, mix(diffuseColor.rgb, uWaterDeep, 0.55 * (1.0 - waterShallow)), uWaterReflectMix);
         diffuseColor.rgb *= 1.0 - saturate(waterReflectWeight) * uWaterReflectMix;
         totalEmissiveRadiance += waterSky * (1.0 - waterFoam * 0.6);
         totalEmissiveRadiance += mix(uGlossSky * 0.4, uGlossWarm * 0.22, uGlossNight) * waterGlint;
@@ -438,7 +457,7 @@ export function waterMaterial({
       );
   };
   material.customProgramCacheKey = () =>
-    `gloss-water-v4:${shore}:${scale}:${flow.join(",")}:${foam}`;
+    `gloss-water-v5:${shore}:${scale}:${flow.join(",")}:${foam}`;
   return material;
 }
 

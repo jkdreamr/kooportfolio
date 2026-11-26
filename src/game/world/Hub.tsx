@@ -12,6 +12,9 @@ import {
   makeViewPose,
   mixView,
   stepViewProgress,
+  buildTreeGrid,
+  emptyTreeGrid,
+  treeBlocked,
   EXPLORE_ELEVATION,
   VIEW_BLEND_SECONDS,
   VIEW_BLEND_SECONDS_REDUCED,
@@ -78,6 +81,7 @@ import { WORLD_ELLIPSE } from "../../shared/world-bounds";
 import { PhotoBooth } from "./PhotoBooth";
 import { PhotoBoothView } from "./PhotoBoothView";
 import { isNearPhotoBooth } from "../core/photoBoothLayout";
+import { allCrowns, crownVersion } from "./env/foliage";
 import { StargazingHill } from "./StargazingHill";
 import {
   STANFORD_BULLETIN,
@@ -95,6 +99,11 @@ import {
   KitchenShell,
   GymShell,
 } from "./VillageBuildings";
+
+/** Rig blend when travel, the train or a game mode takes or returns the hub
+ * camera: position and fov (42° explore ↔ 20° telephoto) ease together,
+ * ≤ ~2°/frame at 30 fps. */
+const HANDOFF_BLEND_SECONDS = 0.8;
 
 const reducedMotion =
   typeof matchMedia === "function"
@@ -119,12 +128,32 @@ function solidsFor(world: WorldId) {
   return solids;
 }
 let boomWorld: WorldId = "home";
+/** The boom's look point: the crown the player stands under is ignored. */
+const boomOrigin = { x: 0, z: 0 };
+/** Every registered tree crown (village trees and groves), binned once per
+ * change of the crown registry; queried without allocation. */
+let treeGrid = emptyTreeGrid();
+let treeGridVersion = -1;
+function refreshTreeGrid() {
+  const version = crownVersion();
+  if (version === treeGridVersion) return;
+  treeGridVersion = version;
+  treeGrid = buildTreeGrid(
+    allCrowns().map(({ p, s }) => [
+      p[0],
+      p[1],
+      p[2],
+      Math.max(Math.abs(s[0]), Math.abs(s[1]), Math.abs(s[2])),
+    ]),
+  );
+}
 function boomBlocked(x: number, z: number, y: number) {
   const solids = solidsFor(boomWorld);
   for (let i = 0; i < solids.length; i++) {
     const [cx, cz, hx, hz, top] = solids[i];
     if (y < top && Math.abs(x - cx) < hx && Math.abs(z - cz) < hz) return true;
   }
+  if (treeBlocked(treeGrid, x, z, y, boomOrigin.x, boomOrigin.z)) return true;
   return terrainHeightAt(x, z, boomWorld) > y - 0.6;
 }
 
@@ -398,7 +427,7 @@ export function Walker({
         // the other controller left on screen.
         v.progress = 1;
         v.resumed = true;
-        rig.blend(0.6);
+        rig.blend(HANDOFF_BLEND_SECONDS);
       }
     }
     const wasIdle = v.progress === 0;
@@ -433,6 +462,9 @@ export function Walker({
     if (snap) v.focus.copy(v.feet);
     else v.focus.lerp(v.feet, 1 - Math.exp(-dt * 10));
     boomWorld = state.world;
+    boomOrigin.x = v.focus.x;
+    boomOrigin.z = v.focus.z;
+    refreshTreeGrid();
     explorePose(v.explore, v.focus, offset.current, reach, lens.fov);
     clearBoom(v.safe, v.explore.target, azimuthOf(offset.current), reach, boomBlocked);
     if (snap) {
@@ -469,7 +501,7 @@ export function Walker({
       perspective.fov = TELEPHOTO_FOV;
       perspective.updateProjectionMatrix();
     }
-    rig.blend(0.6);
+    rig.blend(HANDOFF_BLEND_SECONDS);
   }
   return (
     <group ref={avatar} name="village-player" visible={!locked && !playing}>

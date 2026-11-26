@@ -4,6 +4,7 @@ import { loopNormals, resampleLoop, type P2 } from "../core/coast";
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
 import { sculptedMaterial } from "./Surface";
 import { reflect } from "./env/reflection";
+import { distanceToLakeShelf } from "./env/lakeShelves";
 
 // Art only. The playable shore, ground level, rail and gates remain owned by
 // homeIsland/world. Keep this module store-free: Landscape is in world's graph.
@@ -86,7 +87,8 @@ const cliff = cliffGeometry();
 const lawn = lawnGeometry();
 // Painted variation (shared noise) on the lawn and the strata.
 const lawnMaterial = sculptedMaterial({ color: "#6f8c52", roughness: 0.96 }, "ground");
-const cliffMaterial = sculptedMaterial({ vertexColors: true, roughness: 0.92 }, "stone");
+// Painted grain on the strata (R4): the block layer read as cobbles.
+const cliffMaterial = sculptedMaterial({ vertexColors: true, roughness: 0.92 }, "plain");
 const details: SceneryPart[] = [];
 for (let i = 0; i < segments; i += 2) {
   const [x, z] = beyond(i, 0.12);
@@ -96,6 +98,8 @@ for (let i = 0; i < segments; i += 2) {
   // Leave transport's west station and east runway silhouettes untouched.
   if ((x < -40 && Math.abs(z - centerZ) < 5) || (x > 22 && z > -27 && z < 2))
     continue;
+  // Keep the lawn's edge open above a lake: these rocks hid the water.
+  if (distanceToLakeShelf(x, z) < 1.5) continue;
   if (k % 3 === 0 && Math.sin(k * 0.327 + 1.1) > -0.2) {
     details.push({
       p: [x, -0.14, z],

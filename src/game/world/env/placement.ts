@@ -28,6 +28,7 @@ import {
   STANFORD_SHORE,
 } from "../../../shared/stanford-ground";
 import { HOME_PATH_FOOTPRINTS } from "./homePaths";
+import { HOME_LAKE_SHELVES, distanceToLakeShelf, lakeBankY, lakeWaterY } from "./lakeShelves";
 import { KOREA_PAVING_FOOTPRINTS } from "../KoreaWorldEnvironment";
 import { KOREA_PAVED_GROUNDS } from "../KoreaPublicGrounds";
 
@@ -201,13 +202,6 @@ export type Lake = {
   kind: "lake" | "pond" | "river";
 };
 
-/** Home's lowered cove shelves hold lakes: a granite lip retains each. */
-const HOME_LAKE_SHELVES = [
-  "home-south-east-notch-shelf",
-  "home-north-east-cove-shelf",
-  "home-north-notch-shelf",
-  "home-north-west-cove-shelf",
-];
 export const LAKE_LIP_INSET = 0.55;
 /** The outer edge of a lake's granite lip: 0.5 out along the loop normals
  * (no corner amplification, unlike a mitred offset). */
@@ -257,7 +251,7 @@ export function lakesFor(world: WorldId): Lake[] {
       lakes.push({
         id: feature.id,
         outline: water,
-        y: feature.tiers[top].y + 0.32,
+        y: lakeWaterY(feature.tiers[top].y),
         floorY: feature.tiers[top].y,
         kind: "lake",
       });
@@ -279,6 +273,11 @@ export type GrassTuft = {
   /** 0..1 colour pick (dry ↔ lush) and tall-reed flag. */
   shade: number;
   reed: boolean;
+  /** Explore-only (high tier): the denser near carpet, ranked after every
+   * base tuft so the diorama's field is unchanged. */
+  extra?: boolean;
+  /** Explore-only flower clump (drawn by the flower mesh, not as grass). */
+  flower?: boolean;
 };
 
 const doorAvoid = (world: WorldId) =>
@@ -359,7 +358,31 @@ function* placeGrass(world: WorldId): Generator<void, GrassTuft[]> {
       const edgeBoost = Math.max(0, 1 - edge / 1.6) * 0.55 + (walk ? 0 : 0.45) + Math.max(0, 1 - shoreGap / 2.2) * 0.35;
       const field = clump(x, z, 5.5, 7) * 0.7 + clump(x, z, 1.7, 9) * 0.3;
       const keep = Math.min(1, 0.08 + 1.6 * Math.max(0, field - 0.45) * 2 + edgeBoost * 0.8);
-      if (fhash(x, z, 31) > keep) continue;
+      if (fhash(x, z, 31) > keep) {
+        // Explore carpet: most of the open lawn the base field leaves bare,
+        // densest (and tallest) along path edges and the water.
+        if (!walk) continue;
+        const pondGap = pond
+          ? Math.hypot((x - pond.x) / (pond.radiusX + 1.2), (z - pond.z) / (pond.radiusZ + 1.2)) - 1
+          : 9;
+        const wet = Math.max(0, 1 - Math.max(0, pondGap) * 2.5);
+        const extraKeep = Math.min(1, 0.62 + 0.4 * field + edgeBoost * 0.7 + wet * 0.4);
+        if (fhash(x, z, 33) > extraKeep) continue;
+        const rim = Math.max(edgeBoost, wet);
+        out.push({
+          x,
+          z,
+          y: 0.14,
+          scale: 0.7 + fhash(x, z, 41) * 0.55 + rim * 0.6,
+          angle: fhash(x, z, 43) * Math.PI * 2,
+          shade: fhash(x, z, 47) * 0.75 + clump(x, z, 9, 3) * 0.25,
+          reed: false,
+          extra: true,
+          flower: rim > 0.15 && clump(x, z, 2.2, 63) > 0.5 && fhash(x, z, 65) < 0.7,
+          rank: 1 + fhash(x, z, 53),
+        });
+        continue;
+      }
       out.push({
         x,
         z,
@@ -431,6 +454,8 @@ export function rockField(world: WorldId): RockPiece[] {
       const along = (hash01(i, k, 9) - 0.5) * 1.2;
       const x = cx + nx * out - nz * along,
         z = cz + nz * out + nx * along;
+      // Home: no coast rocks along a lake's lawn edge (they hid the water).
+      if (world === "home" && distanceToLakeShelf(x, z) < 1.2) continue;
       const ground = world === "home" ? -0.25 - hash01(i, k, 13) * 0.35 : world === "stanford" ? -0.34 : 0.14;
       add({
         x,
@@ -444,6 +469,40 @@ export function rockField(world: WorldId): RockPiece[] {
       });
     }
   });
+  // Lake ends and far banks: a few big granite groupings for massing (a
+  // large stepped block with smaller ones leaning on it), never on the
+  // lawn side, where they would hide the water.
+  for (const lake of lakesFor(world)) {
+    const loop = resampleLoop(lake.outline, 48);
+    const normals = loopNormals(loop);
+    let last = -99;
+    loop.forEach(([lx, lz], i) => {
+      if (i - last < 9 || clump(lx, lz, 6, 71) < 0.5) return;
+      const [nx, nz] = normals[i];
+      const cx = lx + nx * 0.9,
+        cz = lz + nz * 0.9;
+      if (touchesWalkable(cx, cz, 2.6, world)) return;
+      last = i;
+      const big = 1.05 + hash01(i, 47, 5) * 0.4;
+      const pieces: [number, number, number, number][] = [
+        [0, 0.2, big, 0.75],
+        [1.0, 0.5, big * 0.6, 0.85],
+        [-0.9, 0.7, big * 0.5, 1.0],
+      ];
+      pieces.forEach(([along, out, size, height], k) => {
+        add({
+          x: cx + nx * out - nz * along,
+          y: lake.floorY,
+          z: cz + nz * out + nx * along,
+          size,
+          height: height + hash01(i, k, 53) * 0.2,
+          angle: Math.atan2(nz, nx) + (hash01(i, k, 59) - 0.5) * 0.9,
+          variant: k === 0 ? 0 : ((1 + Math.floor(hash01(i, k, 61) * 3)) as 1 | 2 | 3),
+          tone: hash01(i, k, 67),
+        });
+      });
+    });
+  }
   // Lake rims: granite steps leaning into the water.
   for (const lake of lakesFor(world)) {
     const loop = resampleLoop(lake.outline, 70);
@@ -452,12 +511,14 @@ export function rockField(world: WorldId): RockPiece[] {
       if (clump(lx, lz, 4, 67) < 0.45) return;
       const [nx, nz] = normals[i];
       const size = 0.55 + hash01(i, 31, 3) * 0.9;
+      // Low on the lawn side: the rim stays a sight line onto the water.
+      const low = touchesWalkable(lx + nx * 0.25, lz + nz * 0.25, 2.2, world);
       add({
         x: lx + nx * 0.25,
         y: lake.floorY + 0.05,
         z: lz + nz * 0.25,
-        size,
-        height: 0.9 + hash01(i, 37, 3) * 0.8,
+        size: low ? size * 0.8 : size,
+        height: low ? 0.75 + hash01(i, 37, 3) * 0.3 : 0.9 + hash01(i, 37, 3) * 0.8,
         angle: Math.atan2(nz, nx),
         variant: (Math.floor(hash01(i, 41, 3) * 4) as 0 | 1 | 2 | 3),
         tone: hash01(i, 43, 3),
@@ -609,6 +670,9 @@ export function groveField(world: WorldId): GroveTree[] {
         if (clump(x, z, 5, 103) < 0.4) return;
         if (!insidePolygon(x, z, shelf)) return;
         if (!ok(x, z, 1.2)) return;
+        // Open sight lines from the walkable rim: trees only on the far
+        // (railway) side of the water.
+        if (touchesWalkable(x, z, 3, world)) return;
         trees.push({
           p: [x, lake.floorY, z],
           size: 0.7 + fhash(x, z, 13) * 0.4,
@@ -758,7 +822,7 @@ function* placeUnderstory(world: WorldId): Generator<void, UnderstoryClump[]> {
     for (let gz = minZ; gz <= maxZ; gz += spacing) {
       const x = gx + (fhash(gx, gz, 201) - 0.5) * spacing * 0.8,
         z = gz + (fhash(gx, gz, 203) - 0.5) * spacing * 0.8;
-      if (clump(x, z, 4.5, 205) < 0.3) continue;
+      if (clump(x, z, 4.5, 205) < 0.2) continue;
       if (!ok(x, z)) continue;
       // Within 1.3 of walkable ground, and part of a real mass of
       // non-walkable land (≥3 of 8 probes at 1.4 also blocked).
@@ -769,20 +833,23 @@ function* placeUnderstory(world: WorldId): Generator<void, UnderstoryClump[]> {
         if (!canWalk(x + Math.cos(a) * 1.4, z + Math.sin(a) * 1.4, world)) blocked++;
       }
       if (blocked < 3) continue;
-      if (!clear(x, z, 0.7)) continue;
+      if (!clear(x, z, 0.6)) continue;
       const pick = fhash(x, z, 207);
       const kind: UnderstoryKind = pick < 0.42 ? 0 : pick < 0.62 ? 3 : pick < 0.82 ? 2 : 1;
       push(x, heightAt(x, z), z, kind, kind === 0 ? 0.85 : kind === 3 ? 0.95 : kind === 2 ? 0.45 : 0.7);
     }
   }
   yield;
-  // Lake rims: ferns and tall grass in the damp ground round the lip.
+  // Lake rims: ferns, tall grass and flowers on the stone bank round the
+  // lip. On the lawn side only low kinds, so the water stays in view.
   for (const lake of lakes) {
     const rim = resampleLoop(lipLoop(lake.outline, 0.95), Math.max(12, Math.round(lake.outline.length * 0.6)));
     rim.forEach(([x, z], i) => {
       if (clump(x, z, 3.5, 221) < 0.35 || !ok(x, z) || !clear(x, z, 0.9)) return;
-      const kind: UnderstoryKind = i % 3 === 0 ? 1 : i % 3 === 1 ? 3 : 0;
-      push(x, lake.floorY + 0.3, z, kind, kind === 1 ? 0.75 : kind === 3 ? 1 : 0.8);
+      const lawnSide = touchesWalkable(x, z, 2.2, world);
+      let kind: UnderstoryKind = i % 3 === 0 ? 1 : i % 3 === 1 ? 3 : 0;
+      if (lawnSide && kind === 0) kind = 2;
+      push(x, lakeBankY(lake, 0.95), z, kind, kind === 1 ? 0.75 : kind === 3 ? 1 : kind === 2 ? 0.5 : 0.8);
     });
     yield;
   }

@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { chamferBoxGeometry } from "./chamferBox";
+import { chamferBoxGeometry, pieceBox } from "./chamferBox";
 import { sculptedMaterial } from "./Surface";
 
 /**
@@ -75,7 +75,11 @@ function KitShape({
   return (
     <instancedMesh
       ref={ref}
-      args={[geometries[shape], materials[material], pieces.length]}
+      args={[
+        shape === "box" ? pieceBox(geometries.box) : geometries[shape],
+        materials[material],
+        pieces.length,
+      ]}
       castShadow
       receiveShadow
       dispose={null}

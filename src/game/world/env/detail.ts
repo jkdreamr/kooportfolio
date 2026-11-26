@@ -167,9 +167,11 @@ const LAYERS: Texel[] = [
     const knot = hash(board, 13, 241) < 0.6 ? 1 - step(0.05, 0.18, kd) : 0;
     const ring = knot > 0 ? 0.5 + 0.5 * Math.sin(kd * 90) : 0.5;
     const gaps = Math.max(seam, butt);
-    o[0] = 0.55 + (grain - 0.5) * 0.85 + (fine - 0.5) * 0.25 + (bh - 0.5) * 0.18 - gaps * 0.5 - knot * (0.3 + ring * 0.15);
-    o[1] = 0.66 + (grain - 0.5) * 0.22 + (fine - 0.5) * 0.12 - gaps * 0.6 - knot * 0.12;
-    o[2] = 0.5 + (grain - 0.5) * 0.35 + gaps * 0.35 - knot * 0.1;
+    // Seams stay faint (R4): most wood parts are already modelled as planks,
+    // and strong painted seams doubled them.
+    o[0] = 0.55 + (grain - 0.5) * 0.85 + (fine - 0.5) * 0.25 + (bh - 0.5) * 0.12 - gaps * 0.14 - knot * (0.3 + ring * 0.15);
+    o[1] = 0.66 + (grain - 0.5) * 0.22 + (fine - 0.5) * 0.12 - gaps * 0.16 - knot * 0.12;
+    o[2] = 0.5 + (grain - 0.5) * 0.35 + gaps * 0.1 - knot * 0.1;
     o[3] = gaps;
   },
   // 2 stone: large squared-off blocks (2×3 per tile, ~0.8–1.2 m) with a
@@ -231,8 +233,10 @@ const LAYERS: Texel[] = [
     const broad = fbm2(u + warp * 0.2, v - warp * 0.2, 3, 3, 3, 509);
     const strokes = fbm2(u + warp * 0.35, v + warp * 0.1, 4, 10, 3, 521);
     const pits = 1 - step(0.0, 0.06, voronoi(u, v, 22, 22, 523).f1);
-    o[0] = 0.5 + (broad - 0.5) * 0.55 + (strokes - 0.5) * 0.25 - pits * 0.12;
-    o[1] = 0.5 + (strokes - 0.5) * 0.45 + (broad - 0.5) * 0.15 - pits * 0.3;
+    // Calm (R4): faint pits and shallow strokes, so a pale panel such as a
+    // cinema screen reads as a painted wall, not as rough render.
+    o[0] = 0.5 + (broad - 0.5) * 0.45 + (strokes - 0.5) * 0.16 - pits * 0.04;
+    o[1] = 0.5 + (strokes - 0.5) * 0.22 + (broad - 0.5) * 0.1 - pits * 0.08;
     o[2] = 0.5 + (strokes - 0.5) * 0.4 - (broad - 0.5) * 0.2;
     o[3] = pits;
   },

@@ -6,6 +6,7 @@ import { daylightClock } from "../core/timeOfDay";
 import { sampleDaylight } from "../core/daylight";
 import { sampleWeather } from "../core/weather";
 import { useWorldActive } from "../engine/active";
+import { useStage } from "../../stage/contract";
 import { Weather } from "./Weather";
 import { StaticBatch } from "./StaticBatch";
 import {
@@ -353,7 +354,10 @@ function Menagerie({ animals, birds }: { animals: Animal[]; birds: number }) {
     [animals],
   );
   const base = useRef(new THREE.Matrix4());
-  const geometries = shapeGeometries();
+  // Below high the menagerie is a few pixels tall: coarser parts and no
+  // shadow (medium's caster budget is 120k triangles).
+  const full = (useStage.getState().tier ?? "high") === "high";
+  const geometries = shapeGeometries(full ? "high" : "low");
   useFrame((_, delta) => {
     if (!active) return;
     const dt = Math.min(delta, 0.05);
@@ -417,7 +421,7 @@ function Menagerie({ animals, birds }: { animals: Animal[]; birds: number }) {
           }}
           args={[geometries[shape], partMaterial(), batch.capacity[shape]]}
           frustumCulled={false}
-          castShadow
+          castShadow={full}
           receiveShadow
           userData={{ noBake: true }}
           dispose={null}

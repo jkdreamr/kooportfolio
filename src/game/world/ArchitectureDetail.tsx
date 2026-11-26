@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { chamferBoxGeometry } from "./chamferBox";
+import { chamferBoxGeometry, pieceBox } from "./chamferBox";
 import { sculptedMaterial } from "./Surface";
 import { glassMaterial } from "./GlossKit";
 
@@ -63,7 +63,7 @@ function Pieces({
     <instancedMesh
       ref={ref}
       args={[
-        clay,
+        pieceBox(clay),
         masonry ? stone : wood ? timber : roof ? ceramicTile : ceramic,
         pieces.length,
       ]}

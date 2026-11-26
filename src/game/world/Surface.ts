@@ -63,7 +63,7 @@ function hexRgb(color: string | number): [number, number, number] | null {
  * colour management). Used where a part only has a colour (Models' Box and
  * Cylinder). Only clear cases are tagged; everything else stays "plain":
  *  - warm browns, mid to dark  → wood
- *  - near-neutral greys        → stone
+ *  - near-neutral greys        → plain (stone is tagged by the part)
  *  - pale, low-saturation tints → plaster
  * Metal is never inferred from colour; shingle and bark are tagged by the
  * part that knows it is a roof or a trunk.
@@ -85,7 +85,9 @@ export function surfaceKindForColor(color: string | number): SurfaceKind {
     h *= 60;
   }
   if (h >= 14 && h <= 46 && s >= 0.22 && l >= 0.12 && l <= 0.56) return "wood";
-  if (s < 0.1 && l >= 0.28 && l <= 0.78) return "stone";
+  // Neutral greys stay plain (R4): grey boxes are tarmac, posts, frames and
+  // machinery far more often than masonry; real stone is tagged by its part.
+  if (s < 0.1 && l >= 0.28 && l <= 0.78) return "plain";
   if (l > 0.78 && s < 0.45) return "plaster";
   return "plain";
 }

@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { chamferBoxGeometry } from "./chamferBox";
+import { chamferBoxGeometry, pieceBox } from "./chamferBox";
 import {
   sculptedMaterial,
   surfaceKindForColor,
@@ -129,7 +129,7 @@ export function CampusDistrictParts({ parts }: { parts: CampusPart[] }) {
   return batches.map(([key, { shape, kind, parts: batch }]) => (
     <Batch
       key={key}
-      geometry={shapes[shape]}
+      geometry={shape === "stone" ? pieceBox(shapes.stone) : shapes[shape]}
       kind={kind}
       parts={batch}
       // Roof tiles sit on the solid roof wedge, which casts the same shadow.

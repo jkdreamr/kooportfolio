@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { chamferBoxGeometry } from "./chamferBox";
+import { chamferBoxGeometry, pieceBox } from "./chamferBox";
 import { sculptedMaterial } from "./Surface";
 
 export type SceneryPart = {
@@ -70,7 +70,11 @@ export function WorldSceneryParts({ parts }: { parts: SceneryPart[] }) {
   return batches
     .filter((batch) => batch.parts.length > 0)
     .map((batch) => (
-      <Batch key={batch.shape} geometry={batch.geometry} parts={batch.parts} />
+      <Batch
+        key={batch.shape}
+        geometry={batch.shape === "stone" ? pieceBox(batch.geometry) : batch.geometry}
+        parts={batch.parts}
+      />
     ));
 }
 

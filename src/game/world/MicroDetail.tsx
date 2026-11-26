@@ -21,6 +21,7 @@ import { useGame } from "../core/store";
 import { STANFORD_COAST } from "../../shared/stanford-ground";
 import { gemGeometry, gloss, glassMaterial, haloMaterial } from "./GlossKit";
 import { sculptedMaterial } from "./Surface";
+import { useEnvTier } from "./env/tier";
 
 // Small, non-interactive dressing: lamp posts with clear lanterns, cliff-top
 // fences, flower drifts, shore rocks and quartz. Four instanced batches per
@@ -450,10 +451,13 @@ const noRaycast = () => {};
 export function MicroDetail({ world }: { world: WorldId }) {
   const high = useGame((state) => state.quality === "high");
   const kit = useMemo(() => kitFor(world), [world]);
+  // Medium's shadow budget: micro detail casts on the high tier only (fixed
+  // per mount; the keys remount on a tier change).
+  const cast = useEnvTier() === "high";
   return (
     <group name="island-micro-detail">
-      <Batch pieces={kit.solids} geometry={solidGeometry} material={solidMaterial} shadows />
-      <Batch pieces={kit.rocks} geometry={rockGeometry} material={rockMaterial} shadows />
+      <Batch key={`solids:${cast}`} pieces={kit.solids} geometry={solidGeometry} material={solidMaterial} shadows={cast} />
+      <Batch key={`rocks:${cast}`} pieces={kit.rocks} geometry={rockGeometry} material={rockMaterial} shadows={cast} />
       <Batch pieces={kit.glass} geometry={gemGeometry} material={gemMaterial} />
       {high && (
         <Batch pieces={kit.halos} geometry={haloGeometry} material={glowMaterial} night />

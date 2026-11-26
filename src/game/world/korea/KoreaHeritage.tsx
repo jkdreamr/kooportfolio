@@ -7,6 +7,7 @@ import {
   bracketBand,
   DANCHEONG as D,
   glazedStone,
+  coarseRoof,
   hexRoof,
   lathe,
   makeParts,
@@ -436,7 +437,7 @@ export function KoreaHeritage() {
               key={i}
               position={p}
               scale={s}
-              geometry={stoneCap}
+              geometry={coarseRoof(stoneCap)}
               material={tiled}
               castShadow
               receiveShadow
@@ -460,7 +461,7 @@ export function KoreaHeritage() {
           <mesh
             position={[0, 1.86, 0]}
             scale={[1.95, 0.86, 1.95]}
-            geometry={hexRoof}
+            geometry={coarseRoof(hexRoof)}
             material={roofTiled}
             castShadow
             receiveShadow

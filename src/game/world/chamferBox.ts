@@ -1,4 +1,20 @@
 import * as THREE from "three";
+import { useStage } from "../../stage/contract";
+
+/** Below the high tier, small baked pieces drop their chamfer: a plain
+ * 12-triangle box instead of 44 (the bevel is under a pixel at medium's
+ * resolution; the bakes were the largest share of medium's triangles). */
+export const coarsePieces = () => (useStage.getState().tier ?? "high") !== "high";
+let plainUnit: THREE.BoxGeometry | null = null;
+/** Shared plain unit box (never dispose). */
+export const plainBox = () => (plainUnit ??= new THREE.BoxGeometry(1, 1, 1));
+/**
+ * Unit piece geometry for instanced batches: `chamfered` on high, the plain
+ * unit box on medium and low. Read at render time (the tier is chosen when
+ * the canvas is created, after modules load).
+ */
+export const pieceBox = (chamfered: THREE.BufferGeometry) =>
+  coarsePieces() ? plainBox() : chamfered;
 
 /**
  * A unit box with chamfered edges whose normals blend across each chamfer

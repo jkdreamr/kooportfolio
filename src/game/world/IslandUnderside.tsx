@@ -14,6 +14,7 @@ import type { WorldId } from "../core/worlds";
 import { sculptedMaterial } from "./Surface";
 import { crystalMaterial, gemGeometry, glassMaterial, gloss } from "./GlossKit";
 import { NaturalTrees } from "./TreeArt";
+import { useEnvTier } from "./env/tier";
 import {
   undersideDetail,
   type DetailPart,
@@ -68,8 +69,10 @@ function bounceLit(material: THREE.MeshStandardMaterial, key: string) {
   material.customProgramCacheKey = () => key;
   return material;
 }
+// Painted grain, not the block layer (R4): the strata's own facets and
+// colour bands are the rock; stone blocks read as cobbles at this scale.
 const rockMaterial = bounceLit(
-  sculptedMaterial({ vertexColors: true, roughness: 1 }, "stone"),
+  sculptedMaterial({ vertexColors: true, roughness: 1 }, "plain"),
   "island-underside-rock-v2",
 );
 const partMaterial = bounceLit(
@@ -318,6 +321,10 @@ export function IslandUnderside({
 }) {
   const reduced = useReducedMotion();
   const wheel = useRef<THREE.Group>(null);
+  // Medium's triangle budget: the fine dressing, lanterns, quartz and
+  // clouds are high-tier only (the rock, islets and falls stay).
+  const tier = useEnvTier();
+  const fine = detail && tier === "high";
   const dressing = undersideDetail(world);
   const active = useWorldActive();
   useFrame((_, delta) => {
@@ -346,11 +353,11 @@ export function IslandUnderside({
         dispose={null}
       />
       <DetailBatches parts={dressing.parts} />
-      {detail && <DetailBatches parts={dressing.fine} />}
-      {detail && dressing.lanterns.length > 0 && (
+      {fine && <DetailBatches parts={dressing.fine} />}
+      {fine && dressing.lanterns.length > 0 && (
         <Lanterns lanterns={dressing.lanterns} />
       )}
-      {detail && dressing.crystals.length > 0 && (
+      {fine && dressing.crystals.length > 0 && (
         <Parts
           parts={dressing.crystals}
           geometry={gemGeometry}
@@ -382,7 +389,7 @@ export function IslandUnderside({
         renderOrder={2}
         dispose={null}
       />
-      {detail && (
+      {fine && (
         <Parts
           parts={cloudParts(world)}
           geometry={cloudGeometry}

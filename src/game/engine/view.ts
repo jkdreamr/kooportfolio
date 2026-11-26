@@ -270,3 +270,130 @@ export function applyViewPose(
     camera.updateProjectionMatrix();
   }
 }
+
+/**
+ * Tree crowns (and the trunks under them) as a static spatial grid for the
+ * explore boom: built once per crown-set change, queried allocation-free.
+ * A crown is a sphere of radius `r` round (x, y, z); its trunk a column of
+ * radius TRUNK_RADIUS from the ground up to the crown centre.
+ */
+export interface TreeGrid {
+  cell: number;
+  minX: number;
+  minZ: number;
+  cols: number;
+  rows: number;
+  /** Per cell: first index into `items` (length cols·rows + 1). */
+  start: Int32Array;
+  /** Crown indices, grouped by cell. */
+  items: Int32Array;
+  /** x, y, z, r per crown. */
+  data: Float32Array;
+}
+/** Clearance kept round a crown and a trunk (camera near plane + leaf cards). */
+export const TREE_MARGIN = 0.7;
+export const TRUNK_RADIUS = 0.45;
+const TREE_CELL = 4;
+
+export function emptyTreeGrid(): TreeGrid {
+  return {
+    cell: TREE_CELL,
+    minX: 0,
+    minZ: 0,
+    cols: 0,
+    rows: 0,
+    start: new Int32Array(1),
+    items: new Int32Array(0),
+    data: new Float32Array(0),
+  };
+}
+
+/** Bin crowns ([x, y, z, radius] each) into a grid. Not for per-frame use. */
+export function buildTreeGrid(
+  crowns: readonly (readonly [number, number, number, number])[],
+  cell = TREE_CELL,
+): TreeGrid {
+  const grid = emptyTreeGrid();
+  grid.cell = cell;
+  if (!crowns.length) return grid;
+  let minX = Infinity,
+    minZ = Infinity,
+    maxX = -Infinity,
+    maxZ = -Infinity;
+  const reachOf = (r: number) => r + TREE_MARGIN;
+  for (const [x, , z, r] of crowns) {
+    const reach = reachOf(r);
+    minX = Math.min(minX, x - reach);
+    minZ = Math.min(minZ, z - reach);
+    maxX = Math.max(maxX, x + reach);
+    maxZ = Math.max(maxZ, z + reach);
+  }
+  const cols = Math.max(1, Math.ceil((maxX - minX) / cell));
+  const rows = Math.max(1, Math.ceil((maxZ - minZ) / cell));
+  const cellsOf = (x: number, z: number, r: number) => {
+    const reach = reachOf(r);
+    return [
+      Math.max(0, Math.floor((x - reach - minX) / cell)),
+      Math.min(cols - 1, Math.floor((x + reach - minX) / cell)),
+      Math.max(0, Math.floor((z - reach - minZ) / cell)),
+      Math.min(rows - 1, Math.floor((z + reach - minZ) / cell)),
+    ] as const;
+  };
+  const counts = new Int32Array(cols * rows + 1);
+  for (const [x, , z, r] of crowns) {
+    const [c0, c1, r0, r1] = cellsOf(x, z, r);
+    for (let row = r0; row <= r1; row++)
+      for (let col = c0; col <= c1; col++) counts[row * cols + col + 1]++;
+  }
+  for (let i = 1; i < counts.length; i++) counts[i] += counts[i - 1];
+  const items = new Int32Array(counts[counts.length - 1]);
+  const fill = counts.slice(0, -1);
+  const data = new Float32Array(crowns.length * 4);
+  crowns.forEach(([x, y, z, r], i) => {
+    data.set([x, y, z, r], i * 4);
+    const [c0, c1, r0, r1] = cellsOf(x, z, r);
+    for (let row = r0; row <= r1; row++)
+      for (let col = c0; col <= c1; col++) items[fill[row * cols + col]++] = i;
+  });
+  Object.assign(grid, { minX, minZ, cols, rows, start: counts, items, data });
+  return grid;
+}
+
+/**
+ * Is (x, y, z) inside a crown or a trunk (with TREE_MARGIN)? Crowns whose
+ * footprint covers (skipX, skipZ), i.e. the tree the player stands under,
+ * are ignored: the boom leaves that crown behind the player.
+ */
+export function treeBlocked(
+  grid: TreeGrid,
+  x: number,
+  z: number,
+  y: number,
+  skipX: number,
+  skipZ: number,
+) {
+  if (!grid.cols) return false;
+  const col = Math.floor((x - grid.minX) / grid.cell),
+    row = Math.floor((z - grid.minZ) / grid.cell);
+  if (col < 0 || row < 0 || col >= grid.cols || row >= grid.rows) return false;
+  const cellIndex = row * grid.cols + col;
+  const { data, items } = grid;
+  for (let i = grid.start[cellIndex]; i < grid.start[cellIndex + 1]; i++) {
+    const o = items[i] * 4;
+    const cx = data[o],
+      cy = data[o + 1],
+      cz = data[o + 2],
+      reach = data[o + 3] + TREE_MARGIN;
+    const sx = skipX - cx,
+      sz = skipZ - cz;
+    if (sx * sx + sz * sz < reach * reach) continue;
+    const dx = x - cx,
+      dy = y - cy,
+      dz = z - cz;
+    const flat = dx * dx + dz * dz;
+    if (flat + dy * dy < reach * reach) return true;
+    const trunk = TRUNK_RADIUS + TREE_MARGIN * 0.5;
+    if (dy < 0 && flat < trunk * trunk) return true;
+  }
+  return false;
+}

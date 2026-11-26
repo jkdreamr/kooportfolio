@@ -130,6 +130,12 @@ export class CameraRigRuntime {
     this.blend(seconds);
   }
 
+  /** True while a blend or a path still moves the rendered pose: an
+   * on-demand frame loop must keep rendering until it settles. */
+  get moving() {
+    return this.blendDuration > 0 || this.path !== null;
+  }
+
   /** Smooth from what is on screen now into whatever comes next. */
   blend(seconds: number) {
     if (!this.hasRendered || seconds <= 0) return;

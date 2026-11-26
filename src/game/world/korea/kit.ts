@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { sculptedMaterial } from "../Surface";
 import type { SceneryPart } from "../WorldSceneryParts";
+import { coarsePieces } from "../chamferBox";
 
 /**
  * Shared pieces for the Korea sights: the giwa roof (same profile as the
@@ -98,7 +99,32 @@ export function roofGeometry({
   geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
+  geometry.userData.roofOptions = {
+    corners,
+    profile,
+    color,
+    relief,
+    lift,
+    tilesPerSide,
+  } satisfies RoofOptions;
   return geometry;
+}
+
+const coarseRoofs = new WeakMap<THREE.BufferGeometry, THREE.BufferGeometry>();
+/**
+ * Below the high tier, a roof with half the tile ridges (half the
+ * triangles: a giwa roof is ~2.3k). Read at render time; cached per roof.
+ */
+export function coarseRoof(geometry: THREE.BufferGeometry) {
+  const options = geometry.userData.roofOptions as RoofOptions | undefined;
+  if (!options || !coarsePieces()) return geometry;
+  let coarse = coarseRoofs.get(geometry);
+  if (!coarse) {
+    const tiles = options.tilesPerSide ?? 16;
+    coarse = roofGeometry({ ...options, tilesPerSide: Math.max(2, Math.ceil(tiles / 2)) });
+    coarseRoofs.set(geometry, coarse);
+  }
+  return coarse;
 }
 
 const square = [

@@ -1,7 +1,7 @@
 import { StaticBatch } from "./StaticBatch";
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { chamferBoxGeometry } from "./chamferBox";
+import { chamferBoxGeometry, pieceBox } from "./chamferBox";
 import { campus } from "../core/campus";
 import { Ball, Box, Cylinder, Ring, Sign } from "./Models";
 import { GableRoof } from "./ArchitectureDetail";
@@ -151,7 +151,7 @@ function Masonry() {
   return (
     <instancedMesh
       ref={mesh}
-      args={[stone, matte, parts.length]}
+      args={[pieceBox(stone), matte, parts.length]}
       castShadow
       receiveShadow
       dispose={null}

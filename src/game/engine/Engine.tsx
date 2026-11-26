@@ -164,6 +164,10 @@ export function EngineRuntime({
           : 24,
       );
     rig.apply(camera, delta);
+    // A hand-off blend outlives the controller's own animation (the photo
+    // booth stops invalidating after 0.42 s): keep an on-demand loop
+    // rendering until the rendered pose (and its fov) has settled.
+    if (rig.moving) state.invalidate();
     // Interiors and activities keep a short fog (65–160 in view depth) tuned
     // for their own camera. While the rig blends in from the previous
     // scene's telephoto pose (2–3× farther away), that fog swallowed the

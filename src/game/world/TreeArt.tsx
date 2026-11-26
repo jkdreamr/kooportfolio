@@ -519,12 +519,15 @@ function TreeInstances({
   material,
   reflected = true,
   cast = true,
+  mirror,
 }: {
   parts: Part[];
   geometry: THREE.BufferGeometry;
   material: THREE.Material;
   reflected?: boolean;
   cast?: boolean;
+  /** Coarser geometry the water reflection draws instead (budget §1.5). */
+  mirror?: THREE.BufferGeometry;
 }) {
   const ref = useRef<THREE.InstancedMesh>(null);
   useLayoutEffect(() => {
@@ -548,15 +551,29 @@ function TreeInstances({
     let underside = false;
     for (let node: THREE.Object3D | null = mesh; node; node = node.parent)
       if (node.name === "island-underside") underside = true;
+    let proxy: THREE.InstancedMesh | null = null;
     if (reflected && !underside && parts.length) {
       mesh.updateWorldMatrix(true, false);
       const at = new THREE.Vector3(...parts[0].p).applyMatrix4(mesh.matrixWorld);
-      if (at.y > -3) mesh.layers.enable(REFLECT_LAYER);
+      if (at.y > -3) {
+        if (mirror && mirror !== geometry) {
+          // The reflection draws the same instances (shared attributes) with
+          // the low crown / trunk, on the reflection layer only.
+          proxy = new THREE.InstancedMesh(mirror, material, parts.length);
+          proxy.instanceMatrix = mesh.instanceMatrix;
+          proxy.instanceColor = mesh.instanceColor;
+          proxy.boundingSphere = mesh.boundingSphere?.clone() ?? null;
+          proxy.layers.set(REFLECT_LAYER);
+          proxy.raycast = () => undefined;
+          mesh.add(proxy);
+        } else mesh.layers.enable(REFLECT_LAYER);
+      }
     }
     return () => {
+      proxy?.removeFromParent();
       mesh.dispose();
     };
-  }, [parts, reflected]);
+  }, [parts, reflected, mirror, geometry, material]);
   return (
     <instancedMesh
       ref={ref}
@@ -582,10 +599,11 @@ export function NaturalTrees({
   castShadows?: boolean;
 }) {
   const low = lod === "low";
-  // Medium's shadow budget (§2): scenic groves' inner mass does not cast
-  // (their canopies still do, through the leaf shell). Fixed per mount.
+  // Medium's shadow budget (§2, 120k): below high no tree's inner mass or
+  // trunk casts; canopies still cast through the leaf shell. Fixed per
+  // mount (a tier change remounts through the key below).
   const tier = useStage((state) => state.tier);
-  const cast = castShadows && !(low && tier !== "high");
+  const cast = castShadows && (tier === "high" || tier === null);
   const world = lookWorld();
   const { wood, broad, pine, palms } = useMemo(() => {
     const wood: Part[] = [],
@@ -650,8 +668,10 @@ export function NaturalTrees({
     <group ref={anchor}>
       {wood.length > 0 && (
         <TreeInstances
+          key={`wood:${cast}`}
           parts={wood}
           geometry={low ? lowWoodGeometry : woodGeometry}
+          mirror={lowWoodGeometry}
           reflected={!low}
           cast={cast}
           material={barkMaterial}
@@ -659,8 +679,10 @@ export function NaturalTrees({
       )}
       {broad.length > 0 && (
         <TreeInstances
+          key={`broad:${cast}`}
           parts={inner.broad}
           geometry={low ? lowCrownGeometry : broadGeometry}
+          mirror={lowCrownGeometry}
           reflected={!low}
           cast={cast}
           material={leafMaterial}
@@ -668,8 +690,10 @@ export function NaturalTrees({
       )}
       {pine.length > 0 && (
         <TreeInstances
+          key={`pine:${cast}`}
           parts={inner.pine}
           geometry={low ? lowCrownGeometry : pineGeometry}
+          mirror={lowCrownGeometry}
           reflected={!low}
           cast={cast}
           material={leafMaterial}
@@ -677,6 +701,7 @@ export function NaturalTrees({
       )}
       {palms.length > 0 && (
         <TreeInstances
+          key={`palm:${cast}`}
           parts={palms}
           geometry={palmGeometry}
           material={leafMaterial}

@@ -90,6 +90,66 @@ function tuftGeometry(blades = BLADES, lod = 1, widthScale = 1) {
   return geometry;
 }
 
+/** A flower clump: four thin stalks (3 tris) each topped by a small
+ * crossed bloom (6 tris). The grass shader colours root → instance colour
+ * (the bloom's) → a pale tip, so the stalks stay green low and the heads
+ * take the flower colour. LOD tag 0: never faded by the near/far band. */
+function flowerGeometry() {
+  const positions: number[] = [],
+    normals: number[] = [],
+    uvs: number[] = [],
+    wide: number[] = [],
+    index: number[] = [];
+  const stems = 4;
+  for (let b = 0; b < stems; b++) {
+    const angle = (b / stems) * Math.PI * 2 + 0.4;
+    const reach = 0.05 + (b % 2) * 0.07;
+    const height = 0.34 + ((b * 29) % 5) * 0.045;
+    const ox = Math.cos(angle) * reach,
+      oz = Math.sin(angle) * reach;
+    const lean = 0.06 + (b % 3) * 0.03;
+    const tx = ox + Math.cos(angle) * lean,
+      tz = oz + Math.sin(angle) * lean;
+    const w = 0.014;
+    let base = positions.length / 3;
+    // Stalk: a thin two-row blade (uv 0 → 0.62).
+    positions.push(ox - w, 0, oz, ox + w, 0, oz, tx - w * 0.6, height * 0.6, tz, tx + w * 0.6, height * 0.6, tz, tx, height, tz);
+    uvs.push(0, 0, 1, 0, 0, 0.34, 1, 0.34, 0.5, 0.58);
+    for (let k = 0; k < 5; k++) normals.push(0, 1, 0);
+    wide.push(-w, 0, w, 0, -w * 0.6, 0, w * 0.6, 0, 0, 0);
+    index.push(base, base + 1, base + 2, base + 1, base + 3, base + 2, base + 2, base + 3, base + 4);
+    // Bloom: three crossed quads round the stalk top, at uv 0.58-0.6 (full
+    // instance colour, before the pale tip blend starts).
+    const r = 0.075 + (b % 2) * 0.025;
+    for (let q = 0; q < 3; q++) {
+      const a = angle + q * (Math.PI / 3);
+      const cx = Math.cos(a) * r,
+        cz = Math.sin(a) * r;
+      base = positions.length / 3;
+      positions.push(tx - cx, height - 0.02, tz - cz, tx + cx, height - 0.02, tz + cz, tx - cx * 0.7, height + r, tz - cz * 0.7, tx + cx * 0.7, height + r, tz + cz * 0.7);
+      uvs.push(0, 0.58, 1, 0.58, 0, 0.6, 1, 0.6);
+      for (let k = 0; k < 4; k++) normals.push(0, 1, 0);
+      wide.push(0, 0, 0, 0, 0, 0, 0, 0);
+      index.push(base, base + 1, base + 2, base + 1, base + 3, base + 2);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
+  geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setAttribute("aWide", new THREE.Float32BufferAttribute(wide, 2));
+  geometry.setAttribute("aLod", new THREE.Float32BufferAttribute(new Float32Array(positions.length / 3), 1));
+  geometry.setIndex(index);
+  return geometry;
+}
+
+/** Bloom colours per world (instance colours of the flower mesh). */
+const FLOWERS: Record<WorldId, readonly string[]> = {
+  home: ["#e8607f", "#f2c531", "#8f8ce8", "#a86fd6", "#ec7a3c"],
+  korea: ["#ec6f95", "#f2cd3c", "#b27ae0", "#e05a5a"],
+  stanford: ["#f0b42e", "#8f8ce8", "#d9619f", "#ea7a34"],
+};
+
 /** World-specific grass character: root, mid and tip colours. */
 const PALETTES: Record<WorldId, { root: string; lush: string; dry: string; tip: string }> = {
   home: { root: "#3b5626", lush: "#78a443", dry: "#a5b752", tip: "#dfe58f" },
@@ -178,14 +238,19 @@ function grassMaterial() {
         "#include <color_fragment>",
         `#include <color_fragment>
         vec3 grassBody = mix(uGrassRoot, diffuseColor.rgb, smoothstep(0.0, 0.55, vGrassT));
-        diffuseColor.rgb = mix(grassBody, uGrassTip, smoothstep(0.62, 1.0, vGrassT) * mix(0.55, 0.35, uGrassLod.w));`,
+        diffuseColor.rgb = mix(grassBody, uGrassTip, smoothstep(0.62, 1.0, vGrassT) * mix(0.55, 0.35, uGrassLod.w));
+        // Explore: a lighter, sunnier carpet (the low camera sees blades
+        // against the lawn, where the diorama's dark roots read as sockets).
+        diffuseColor.rgb *= 1.0 + 0.14 * uGrassLod.w * smoothstep(0.2, 0.9, vGrassT);`,
       )
       .replace(
         "#include <emissivemap_fragment>",
         `#include <emissivemap_fragment>
         vec3 grassView = normalize(cameraPosition - vGrassWorld);
         float grassBack = pow(saturate(dot(-grassView, uEnvSunDir)), 3.0);
-        totalEmissiveRadiance += diffuseColor.rgb * uEnvSunColor * (grassBack * 0.45 + 0.05) * vGrassT * (1.0 - uEnvNight);`,
+        totalEmissiveRadiance += diffuseColor.rgb * uEnvSunColor * (grassBack * 0.45 + 0.05) * vGrassT * (1.0 - uEnvNight);
+        // Sky fill on the shaded side of blades (explore only, via the blend).
+        totalEmissiveRadiance += diffuseColor.rgb * uEnvSky * 0.16 * uGrassLod.w * (0.4 + 0.6 * vGrassT);`,
       );
   };
   material.customProgramCacheKey = () => "env-grass-v2";
@@ -198,14 +263,32 @@ const farGeometry = tuftGeometry(3, 2, 1.7);
 /** Medium's only tuft: the far shape, tagged near (so it never fades out
  * inside the near radius). */
 const mediumGeometry = tuftGeometry(3, 1, 1.7);
+/** Explore-only flower clumps (high tier). */
+const flowerTuft = flowerGeometry();
+/** Visible flower clump cap (explore, high). */
+const FLOWER_CAP = 700;
+/** Flowers are drawn within this distance of the LOD centre. */
+const FLOWER_RADIUS = 20;
 /** Shared with the reed beds (same program, its own geometry). */
 export const grassMaterialShared = grassMaterial();
 const material = grassMaterialShared;
 const noRaycast = () => undefined;
 
+type Chunk = {
+  cx: number;
+  cz: number;
+  matrices: Float32Array;
+  colors: Float32Array;
+  count: number;
+  /** Leading base tufts (the diorama's and medium's field); the rest are
+   * the explore-only carpet. */
+  base: number;
+};
 type Field = {
   /** Packed per-chunk instance data. */
-  chunks: { cx: number; cz: number; matrices: Float32Array; colors: Float32Array; count: number }[];
+  chunks: Chunk[];
+  /** Explore-only flower clumps, chunked the same way. */
+  flowers: Chunk[];
   total: number;
 };
 const fields = new Map<string, Field>();
@@ -214,34 +297,55 @@ function packField(world: WorldId, tufts: GrassTuft[]): Field {
   const palette = PALETTES[world];
   const lush = new THREE.Color(palette.lush),
     dry = new THREE.Color(palette.dry),
+    tip = new THREE.Color(palette.tip),
     color = new THREE.Color();
-  const buckets = new Map<string, GrassTuft[]>();
-  for (const tuft of tufts) {
-    const key = `${Math.floor(tuft.x / CHUNK)},${Math.floor(tuft.z / CHUNK)}`;
-    const list = buckets.get(key);
-    if (list) list.push(tuft);
-    else buckets.set(key, [tuft]);
-  }
+  const blooms = FLOWERS[world].map((hex) => new THREE.Color(hex));
   const matrix = new THREE.Matrix4(),
     q = new THREE.Quaternion(),
     up = new THREE.Vector3(0, 1, 0),
     p = new THREE.Vector3(),
     s = new THREE.Vector3();
-  const chunks: Field["chunks"] = [];
-  for (const [key, list] of buckets) {
-    const [i, j] = key.split(",").map(Number);
-    const matrices = new Float32Array(list.length * 16),
-      colors = new Float32Array(list.length * 3);
-    list.forEach((tuft, n) => {
-      q.setFromAxisAngle(up, tuft.angle);
-      p.set(tuft.x, tuft.y, tuft.z);
-      s.set(tuft.scale, tuft.scale * (0.85 + tuft.shade * 0.4), tuft.scale);
-      matrix.compose(p, q, s).toArray(matrices, n * 16);
-      color.copy(lush).lerp(dry, tuft.shade).toArray(colors, n * 3);
-    });
-    chunks.push({ cx: (i + 0.5) * CHUNK, cz: (j + 0.5) * CHUNK, matrices, colors, count: list.length });
-  }
-  return { chunks, total: tufts.length };
+  const bucket = (list: readonly GrassTuft[], flowers: boolean): Chunk[] => {
+    const buckets = new Map<string, GrassTuft[]>();
+    for (const tuft of list) {
+      const key = `${Math.floor(tuft.x / CHUNK)},${Math.floor(tuft.z / CHUNK)}`;
+      const entry = buckets.get(key);
+      if (entry) entry.push(tuft);
+      else buckets.set(key, [tuft]);
+    }
+    const chunks: Chunk[] = [];
+    for (const [key, entry] of buckets) {
+      const [i, j] = key.split(",").map(Number);
+      const matrices = new Float32Array(entry.length * 16),
+        colors = new Float32Array(entry.length * 3);
+      let base = 0;
+      entry.forEach((tuft, n) => {
+        if (!tuft.extra) base = n + 1;
+        q.setFromAxisAngle(up, tuft.angle);
+        p.set(tuft.x, tuft.y, tuft.z);
+        if (flowers) {
+          s.setScalar(0.8 + tuft.shade * 0.5);
+          color.copy(blooms[Math.floor(tuft.shade * 977) % blooms.length]);
+        } else {
+          s.set(tuft.scale, tuft.scale * (0.85 + tuft.shade * 0.4), tuft.scale);
+          color.copy(lush).lerp(dry, tuft.shade);
+          // The explore carpet carries a lighter, wider tint range.
+          if (tuft.extra) color.lerp(tip, 0.18 * ((tuft.shade * 7.3) % 1));
+        }
+        matrix.compose(p, q, s).toArray(matrices, n * 16);
+        color.toArray(colors, n * 3);
+      });
+      chunks.push({ cx: (i + 0.5) * CHUNK, cz: (j + 0.5) * CHUNK, matrices, colors, count: entry.length, base });
+    }
+    return chunks;
+  };
+  // Rank order puts every base tuft before the explore extras, so each
+  // chunk's base tufts lead it.
+  return {
+    chunks: bucket(tufts.filter((tuft) => !tuft.flower), false),
+    flowers: bucket(tufts.filter((tuft) => tuft.flower), true),
+    total: tufts.length,
+  };
 }
 
 function fieldFor(world: WorldId, max: number) {
@@ -284,12 +388,13 @@ const focus = new THREE.Vector3(),
 
 type Mesh = THREE.InstancedMesh | null;
 /** Copy chunk prefixes into the front of a mesh's instance buffers. */
-function fill(mesh: THREE.InstancedMesh, picks: readonly (readonly [Field["chunks"][number], number])[], cap: number) {
+function fill(mesh: THREE.InstancedMesh, picks: readonly (readonly [Chunk, number])[], cap: number, baseOnly = false) {
   const matrices = mesh.instanceMatrix.array as Float32Array;
   const colors = mesh.instanceColor!.array as Float32Array;
   let n = 0;
   for (const [chunk, keep] of picks) {
-    const take = Math.min(chunk.count, Math.ceil(chunk.count * keep), cap - n);
+    const count = baseOnly ? chunk.base : chunk.count;
+    const take = Math.min(count, Math.ceil(count * keep), cap - n);
     if (take <= 0) continue;
     matrices.set(chunk.matrices.subarray(0, take * 16), n * 16);
     colors.set(chunk.colors.subarray(0, take * 3), n * 3);
@@ -320,6 +425,7 @@ export function Grass({ world }: { world: WorldId }) {
   const active = useWorldActive();
   const ref = useRef<Mesh>(null);
   const farRef = useRef<Mesh>(null);
+  const flowerRef = useRef<Mesh>(null);
   // Never place synchronously in render: until the sliced placement lands
   // (normally already done by the warm task) the mesh simply draws nothing.
   const key = `${world}:${max}`;
@@ -340,12 +446,13 @@ export function Grass({ world }: { world: WorldId }) {
     grassUniforms.uGrassRoot.value.set(palette.root);
     grassUniforms.uGrassTip.value.set(palette.tip);
     last.current.key = "";
-    for (const mesh of [ref.current, farRef.current]) if (mesh) mesh.count = 0;
+    for (const mesh of [ref.current, farRef.current, flowerRef.current]) if (mesh) mesh.count = 0;
   }, [world, field]);
   useEffect(() => () => void (last.current.key = ""), []);
   useFrame(({ camera }) => {
     const mesh = ref.current,
-      far = farRef.current;
+      far = farRef.current,
+      flowers = flowerRef.current;
     if (!mesh || !far || !active || !field) return;
     const blend = viewRuntime.blend;
     const explore = blend > 0.5;
@@ -381,14 +488,18 @@ export function Grass({ world }: { world: WorldId }) {
         .map((chunk) => ({ chunk, d: Math.hypot(chunk.cx - focus.x, chunk.cz - focus.z) }))
         .filter(({ d }) => d < radius + CHUNK * 0.75)
         .sort((a, b) => a.d - b.d);
-      const inRange = near.reduce((sum, { chunk }) => sum + chunk.count, 0);
+      const inRange = near.reduce((sum, { chunk }) => sum + chunk.base, 0);
       // Overview: thinner, so lawns read as soft texture rather than speckle.
       const cap = Math.round(visibleCap * THREE.MathUtils.clamp(zoom / 3, 0.3, 1));
       const keep = Math.min(1, cap / Math.max(1, inRange));
-      fill(mesh, near.map(({ chunk }) => [chunk, keep] as const), cap);
+      // The diorama draws the base field only (as before the carpet).
+      fill(mesh, near.map(({ chunk }) => [chunk, keep] as const), cap, true);
       far.count = 0;
+      if (flowers) flowers.count = 0;
       return;
     }
+    // The explore carpet and the flowers are high-tier only (budget §2).
+    const carpet = tier === "high";
     // Explore: chunks in front of the camera only, near then far.
     const cx = camera.position.x,
       cz = camera.position.z;
@@ -402,14 +513,31 @@ export function Grass({ world }: { world: WorldId }) {
       .sort((a, b) => a.d - b.d);
     const reach = CHUNK * 0.75;
     const nearPicks = ranked.filter(({ d }) => d < NEAR_RADIUS + reach).map(({ chunk }) => [chunk, 1] as const);
-    const placed = fill(mesh, nearPicks, exploreCap);
+    const placed = fill(mesh, nearPicks, exploreCap, !carpet);
     const farPicks = ranked
       .filter(({ d }) => d > NEAR_RADIUS - reach)
       .map(({ chunk, d }) => {
         const k = THREE.MathUtils.clamp((d - NEAR_RADIUS) / (FAR_RADIUS - NEAR_RADIUS), 0, 1);
-        return [chunk, THREE.MathUtils.lerp(1, 0.25, k)] as const;
+        return [chunk, THREE.MathUtils.lerp(1, carpet ? 0.35 : 0.25, k)] as const;
       });
-    fill(far, farPicks, Math.max(0, exploreCap - placed));
+    fill(far, farPicks, Math.max(0, exploreCap - placed), !carpet);
+    if (flowers) {
+      if (!carpet) flowers.count = 0;
+      else
+        fill(
+          flowers,
+          field.flowers
+            .map((chunk) => ({ chunk, d: Math.hypot(chunk.cx - focus.x, chunk.cz - focus.z) }))
+            .filter(
+              ({ chunk, d }) =>
+                d < FLOWER_RADIUS + reach &&
+                (chunk.cx - cx) * forward.x + (chunk.cz - cz) * forward.z > -CHUNK,
+            )
+            .sort((a, b) => a.d - b.d)
+            .map(({ chunk }) => [chunk, 1] as const),
+          FLOWER_CAP,
+        );
+    }
   });
   return (
     <group name="env-grass-lods">
@@ -435,6 +563,18 @@ export function Grass({ world }: { world: WorldId }) {
         }}
         name="env-grass-far"
         args={[farGeometry, material, exploreCap]}
+        receiveShadow
+        frustumCulled={false}
+        raycast={noRaycast}
+        dispose={null}
+      />
+      <instancedMesh
+        ref={(mesh) => {
+          flowerRef.current = mesh;
+          attach(FLOWER_CAP)(mesh);
+        }}
+        name="env-grass-flowers"
+        args={[flowerTuft, material, FLOWER_CAP]}
         receiveShadow
         frustumCulled={false}
         raycast={noRaycast}

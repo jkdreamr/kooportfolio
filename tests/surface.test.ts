@@ -25,7 +25,7 @@ describe("surface kinds", () => {
   it("guesses only clear cases from colour", () => {
     expect(surfaceKindForColor("#7a5236")).toBe("wood");
     expect(surfaceKindForColor("#8b5a2b")).toBe("wood");
-    expect(surfaceKindForColor("#8f8f8c")).toBe("stone");
+    expect(surfaceKindForColor("#8f8f8c")).toBe("plain");
     expect(surfaceKindForColor("#f2ece0")).toBe("plaster");
     expect(surfaceKindForColor("#3f7f3a")).toBe("plain");
     expect(surfaceKindForColor("#2a6fc9")).toBe("plain");

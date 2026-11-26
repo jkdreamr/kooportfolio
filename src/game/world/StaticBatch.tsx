@@ -14,6 +14,7 @@ import {
   type SurfaceKind,
 } from "./Surface";
 import { useWorldActive } from "../engine/active";
+import { useStage, type Tier } from "../../stage/contract";
 
 /**
  * Self-correcting static batcher.
@@ -70,11 +71,24 @@ export const CHUNK_MIN_EXTENT = 48;
 export const CHUNK_CELL = 32;
 /** Pieces whose largest dimension is below this cast no shadow. */
 export const MIN_CASTER_SIZE = 0.25;
-/** When the light's frustum is island-wide (overview: a shadow texel is
- * several centimetres), only pieces at least this big cast. */
-export const MIN_WIDE_CASTER_SIZE = 0.6;
 /** Shadow frustum width (world units) above which it counts as wide. */
 export const WIDE_SHADOW_FRUSTUM = 90;
+/**
+ * Per tier: the smallest piece that casts in a follow (explore / zoomed-in)
+ * and in an island-wide shadow frustum (overview: a shadow texel is several
+ * centimetres), and the smallest piece drawn at all in the colour passes
+ * (0 = everything). High draws every piece and drops only the casters whose
+ * shadow is a few pixels; medium (120k shadow budget, 450k main) casts from
+ * walls, roofs and blocks only and drops the finger-sized trim.
+ */
+export const BAKE_TIER_SIZES: Record<
+  Tier,
+  { follow: number; wide: number; draw: number }
+> = {
+  high: { follow: 0.4, wide: 1, draw: 0 },
+  medium: { follow: 1.6, wide: 2.4, draw: 0.1 },
+  low: { follow: 1.6, wide: 2.4, draw: 0.14 },
+};
 
 const cache = new Map<
   string,
@@ -305,6 +319,8 @@ export type BakerOptions = {
   chunk?: boolean;
   /** Bake contact AO into vertex colours (default false; hub bakes on). */
   ao?: boolean;
+  /** Caster and draw cut-offs (default: the stage's tier, else high). */
+  tier?: Tier;
 };
 
 export class Baker {
@@ -312,6 +328,7 @@ export class Baker {
   id: string;
   chunk: boolean;
   ao: boolean;
+  sizes: (typeof BAKE_TIER_SIZES)[Tier];
   entries: Entry[] = [];
   meshes: THREE.Mesh[] = [];
   live = new WeakSet<THREE.Object3D>();
@@ -327,6 +344,8 @@ export class Baker {
     this.id = id;
     this.chunk = options.chunk ?? true;
     this.ao = options.ao ?? false;
+    this.sizes =
+      BAKE_TIER_SIZES[options.tier ?? useStage.getState().tier ?? "high"];
   }
 
   collect() {
@@ -487,18 +506,25 @@ export class Baker {
       group.items.push(i);
     });
     for (const { bucket, items: members } of buckets.values()) {
-      // Big casters, then small casters, then the rest: the shadow pass
-      // draws only a prefix.
-      const rank = (i: number) =>
-        items[i].cast ? (items[i].extent >= MIN_WIDE_CASTER_SIZE ? 0 : 1) : 2;
-      members.sort((a, b) => rank(a) - rank(b));
+      // Casters (largest first), then the rest (largest first): every
+      // size cut-off is a prefix, so the shadow pass (and, below high, the
+      // colour passes) draw a prefix of one index buffer.
+      members.sort((a, b) => {
+        const A = items[a],
+          B = items[b];
+        if (A.cast !== B.cast) return A.cast ? -1 : 1;
+        return B.extent - A.extent;
+      });
       const merged = this.merge(bucket, items, members, field);
       if (!merged) continue;
       const mesh = new THREE.Mesh(merged.geometry, bakeMaterial(bucket));
+      const all = merged.geometry.index!.count;
+      if (merged.drawIndices < all)
+        merged.geometry.drawRange.count = merged.drawIndices;
       mesh.castShadow = merged.castIndices > 0;
       if (
         mesh.castShadow &&
-        (merged.castIndices < merged.geometry.index!.count ||
+        (merged.castIndices < Math.min(all, merged.drawIndices) ||
           merged.wideIndices < merged.castIndices)
       )
         castPrefix(mesh, merged.castIndices, merged.wideIndices);
@@ -533,7 +559,9 @@ export class Baker {
     let vertices = 0,
       indices = 0,
       castIndices = 0,
-      wideIndices = 0;
+      wideIndices = 0,
+      drawIndices = 0;
+    const { follow, wide, draw } = this.sizes;
     for (const i of members) {
       const { entry, k, matrix, cast, extent } = items[i];
       const { object, material, geometry } = entry;
@@ -541,8 +569,9 @@ export class Baker {
       const ic = geometry.index ? geometry.index.count : vc;
       vertices += vc;
       indices += ic;
-      if (cast) castIndices += ic;
-      if (cast && extent >= MIN_WIDE_CASTER_SIZE) wideIndices += ic;
+      if (cast && extent >= follow) castIndices += ic;
+      if (cast && extent >= wide) wideIndices += ic;
+      if (cast || extent >= draw) drawIndices += ic;
       hash = mix(hash, vc);
       hash = mix(hash, ic);
       const pos = geometry.attributes.position.array as ArrayLike<number>;
@@ -565,7 +594,7 @@ export class Baker {
     if (hit) {
       hit.users++;
       this.cacheKeys.push(key);
-      return { geometry: hit.geometry, castIndices, wideIndices };
+      return { geometry: hit.geometry, castIndices, wideIndices, drawIndices };
     }
     const position = new Float32Array(vertices * 3),
       normal = new Float32Array(vertices * 3),
@@ -655,7 +684,7 @@ export class Baker {
     geometry.computeBoundingBox();
     cache.set(key, { geometry, users: 1 });
     this.cacheKeys.push(key);
-    return { geometry, castIndices, wideIndices };
+    return { geometry, castIndices, wideIndices, drawIndices };
   }
 
   tick() {

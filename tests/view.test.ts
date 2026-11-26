@@ -8,6 +8,7 @@ import {
   EXPLORE_FOV,
   applyViewPose,
   azimuthOf,
+  buildTreeGrid,
   clearBoom,
   dioramaPose,
   easeView,
@@ -16,6 +17,7 @@ import {
   makeViewPose,
   mixView,
   stepViewProgress,
+  treeBlocked,
 } from "../src/game/engine/view";
 import { ISLAND_CAMERA_OFFSET } from "../src/game/core/islandView";
 import {
@@ -147,6 +149,28 @@ describe("boom safety", () => {
     expect(out.elevation).toBeGreaterThan(EXPLORE_ELEVATION);
     const boxed = clearBoom({ distance: 0, elevation: 0 }, target, azimuth, 10, () => true);
     expect(boxed).toEqual({ distance: BOOM_MIN_DISTANCE, elevation: BOOM_MAX_ELEVATION });
+  });
+  it("stays out of tree crowns and trunks, but not the crown over the player", () => {
+    const dir = { x: Math.sin(azimuth), z: Math.cos(azimuth) };
+    // A crown (radius 1.6, centre 3 m up) right where the full boom ends.
+    const camera = cameraPosition(explorePose(makeViewPose(), { x: 0, y: 0.18, z: 0 }, offset, 10, EXPLORE_FOV));
+    const over: [number, number, number, number] = [0, 3.4, 0, 1.8];
+    const grid = buildTreeGrid([[camera.x, camera.y, camera.z, 1.6], over]);
+    expect(treeBlocked(grid, camera.x, camera.z, camera.y, 0, 0)).toBe(true);
+    // Trunk below the crown centre, clear above and beside it.
+    expect(treeBlocked(grid, camera.x, camera.z, 0.5, 0, 0)).toBe(true);
+    expect(treeBlocked(grid, camera.x + 4, camera.z, camera.y, 0, 0)).toBe(false);
+    // The crown over the player's own head is ignored.
+    expect(treeBlocked(grid, 0, 0, 3.4, 0, 0)).toBe(false);
+    expect(treeBlocked(grid, 0, 0, 3.4, 30, 30)).toBe(true);
+    const out = clearBoom({ distance: 0, elevation: 0 }, target, azimuth, 10, (x, z, y) =>
+      treeBlocked(grid, x, z, y, target.x, target.z),
+    );
+    expect(out.distance).toBeLessThan(10);
+    expect(out.distance).toBeGreaterThanOrEqual(BOOM_MIN_DISTANCE);
+    // Far away from every tree: an empty cell answers false.
+    expect(treeBlocked(grid, dir.x * 200, dir.z * 200, 2, 0, 0)).toBe(false);
+    expect(treeBlocked(buildTreeGrid([]), 0, 0, 0, 9, 9)).toBe(false);
   });
 });
 

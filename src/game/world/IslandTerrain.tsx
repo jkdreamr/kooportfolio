@@ -4,7 +4,8 @@ import { hash01, type P2 } from "../core/coast";
 import { TERRAIN, terrainTierLoop, type TerrainFeature } from "../core/terrain";
 import type { WorldId } from "../core/worlds";
 import { sculptedMaterial } from "./Surface";
-import { reflect } from "./env/reflection";
+import { ReflectionProxy } from "./env/ReflectionProxy";
+import { useEnvTier } from "./env/tier";
 import { NaturalTrees, type TreePlacement } from "./TreeArt";
 
 // Relief art for the land nobody walks on: terraces, knolls, granite and the
@@ -65,7 +66,7 @@ const lift = (loop: readonly P2[], y: number | ((i: number) => number)): V3[] =>
   loop.map(([x, z], i) => [x, typeof y === "number" ? y : y(i), z]);
 
 /** Upright dry-stone or earth walls in courses, with a flat planted top. */
-function stepped(out: Builder, feature: TerrainFeature, tiers: number[]) {
+function stepped(out: Builder, feature: TerrainFeature, tiers: number[], coarse = false) {
   const { seed, rock, cap: grass } = feature;
   tiers.forEach((tier, order) => {
     const loop = terrainTierLoop(feature, tier);
@@ -74,7 +75,7 @@ function stepped(out: Builder, feature: TerrainFeature, tiers: number[]) {
     const foot = order
       ? feature.tiers[tiers[order - 1]].y - 0.06
       : feature.baseY;
-    const courses = Math.max(1, Math.min(6, Math.round((top - foot) / 0.48)));
+    const courses = coarse ? 1 : Math.max(1, Math.min(6, Math.round((top - foot) / 0.48)));
     for (let row = 0; row < courses; row++) {
       const y0 = foot + ((top - foot) * row) / courses,
         y1 = foot + ((top - foot) * (row + 1)) / courses;
@@ -145,17 +146,18 @@ function sloped(out: Builder, feature: TerrainFeature, tiers: number[]) {
     );
 }
 
-function buildTerrain(world: WorldId, detail: boolean) {
+/** `coarse`: the water reflection's stand-in (halved steps, one wall course). */
+function buildTerrain(world: WorldId, detail: boolean, coarse = false) {
   const out: Builder = { positions: [], colors: [] };
   for (const feature of TERRAIN[world]) {
     const all = feature.tiers.map((_, i) => i);
     // Low quality halves the steps; the footprint and the summit stay put.
     const tiers =
-      detail || all.length < 3
+      (detail && !coarse) || all.length < 3
         ? all
         : all.filter((i) => i === all.length - 1 || i % 2 === 0);
     if (feature.kind === "terrace" || feature.kind === "shelf")
-      stepped(out, feature, tiers);
+      stepped(out, feature, tiers, coarse);
     else sloped(out, feature, tiers);
   }
   const geometry = new THREE.BufferGeometry();
@@ -173,10 +175,10 @@ function buildTerrain(world: WorldId, detail: boolean) {
 }
 
 const geometries = new Map<string, THREE.BufferGeometry>();
-function terrainGeometry(world: WorldId, detail: boolean) {
-  const key = `${world}:${detail}`;
+function terrainGeometry(world: WorldId, detail: boolean, coarse = false) {
+  const key = `${world}:${detail}:${coarse}`;
   let geometry = geometries.get(key);
-  if (!geometry) geometries.set(key, (geometry = buildTerrain(world, detail)));
+  if (!geometry) geometries.set(key, (geometry = buildTerrain(world, detail, coarse)));
   return geometry;
 }
 const material = sculptedMaterial(
@@ -214,22 +216,31 @@ export function IslandTerrain({
   world: WorldId;
   detail?: boolean;
 }) {
+  const tier = useEnvTier();
+  // Below high: halved steps, and the relief does not cast (medium's 120k
+  // shadow budget). castShadow is fixed per mount: the key remounts it.
+  const high = tier === "high";
   const geometry = useMemo(
-    () => terrainGeometry(world, detail),
-    [world, detail],
+    () => terrainGeometry(world, detail && high),
+    [world, detail, high],
   );
+  const coarse = useMemo(() => terrainGeometry(world, false, true), [world]);
   const placed = terrainTrees(world);
+  // The water mirrors a coarser, cell-split stand-in (env/ReflectionProxy);
+  // the terrain trees put themselves in the reflection (TreeArt).
   return (
-    <group name="island-terrain" ref={reflect}>
+    <group name="island-terrain">
       <mesh
+        key={`relief:${high}`}
         geometry={geometry}
         material={material}
         raycast={noRaycast}
-        castShadow
+        castShadow={high}
         receiveShadow
         dispose={null}
       />
       {placed.length > 0 && <NaturalTrees trees={placed} />}
+      <ReflectionProxy geometry={coarse} material={material} cell={24} />
     </group>
   );
 }

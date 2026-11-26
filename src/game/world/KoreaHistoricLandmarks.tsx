@@ -2,6 +2,7 @@ import { StaticBatch } from "./StaticBatch";
 import * as THREE from "three";
 import { BUKCHON_HOMES, KOREA_LANDMARKS } from "../core/koreaLandmarks";
 import { sculptedMaterial } from "./Surface";
+import { coarsePieces } from "./chamferBox";
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
 
 type Vec3 = SceneryPart["p"];
@@ -13,7 +14,7 @@ const timber = "#624236";
 const darkTile = "#414947";
 const stone = "#b6ab94";
 
-function giwaGeometry() {
+function giwaGeometry(tileScale = 1) {
   const positions: number[] = [],
     colors: number[] = [],
     indices: number[] = [];
@@ -35,7 +36,7 @@ function giwaGeometry() {
   for (let side = 0; side < corners.length; side++) {
     const [ax, az] = corners[side];
     const [bx, bz] = corners[(side + 1) % corners.length];
-    const tiles = ax === bx ? 12 : 24;
+    const tiles = (ax === bx ? 12 : 24) * tileScale;
     const intervals = tiles * 4;
     const start = positions.length / 3;
     profile.forEach(([w, y, d], row) => {
@@ -70,6 +71,10 @@ function giwaGeometry() {
 }
 
 const giwa = giwaGeometry();
+let giwaCoarse: THREE.BufferGeometry | null = null;
+/** Below high: half the tile ridges (the roof is ~2.3k triangles). */
+const giwaFor = () =>
+  coarsePieces() ? (giwaCoarse ??= giwaGeometry(0.5)) : giwa;
 const palaceParts: SceneryPart[] = [],
   villageParts: SceneryPart[] = [],
   palacePaving: SceneryPart[] = [],
@@ -352,7 +357,7 @@ function TiledRoofs({ roofs }: { roofs: Roof[] }) {
       key={p.join(",")}
       position={p}
       scale={s}
-      geometry={giwa}
+      geometry={giwaFor()}
       material={tileMaterial}
       castShadow
       receiveShadow

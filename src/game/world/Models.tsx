@@ -7,7 +7,7 @@ import * as THREE from "three";
 import { useGame } from "../core/store";
 import { GableRoof, StoneFooting, WindowDetail } from "./ArchitectureDetail";
 import { sculptedMaterial, surfaceKindForColor, type SurfaceKind } from "./Surface";
-import { chamferBoxSizedShared } from "./chamferBox";
+import { chamferBoxSizedShared, coarsePieces } from "./chamferBox";
 import { NationalFlag } from "./NationalFlag";
 import { TreeArt } from "./TreeArt";
 import { GlazedPanel } from "./GlazedPanel";
@@ -54,12 +54,15 @@ export function Box({
   k,
   sharp = false,
 }: Props & { sharp?: boolean }) {
+  // Below high, thin pieces (trim, planks, posts: min side < 0.5, bevel
+  // ≤ 0.11) are plain boxes; walls and blocks keep their chamfer.
+  const plain = sharp || (coarsePieces() && Math.min(...s) < 0.5);
   return (
     <mesh
-      geometry={sharp ? box : roundedGeometry(s)}
+      geometry={plain ? box : roundedGeometry(s)}
       material={material(c, k)}
       position={p}
-      scale={sharp ? s : undefined}
+      scale={plain ? s : undefined}
       rotation={r}
       castShadow
       receiveShadow

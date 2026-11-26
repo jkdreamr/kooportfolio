@@ -5,6 +5,7 @@ import { runtime, useGame, walkTo } from "../../core/store";
 import { useWorldActive } from "../../engine/active";
 import { PlayerMarker } from "../PlayerMarker";
 import { exposeQa, qaEnabled } from "../../../stage/qa";
+import { useStage } from "../../../stage/contract";
 import { createGait, stepGait, type Gait, type Pose } from "./locomotion";
 import {
   DEFAULT_PALETTE,
@@ -86,7 +87,11 @@ export function RigMeshes({
   onPointerDown?: (kind: Kind, event: ThreeEvent<PointerEvent>) => void;
   shadows?: boolean;
 }) {
-  const geometries = rigGeometries(batch.lod);
+  // Below high, the distant crowd rig is coarser again (few pixels tall).
+  const geometries = rigGeometries(
+    batch.lod,
+    (useStage.getState().tier ?? "high") !== "high",
+  );
   return (
     <>
       {KINDS.map((kind) => (

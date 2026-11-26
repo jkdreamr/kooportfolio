@@ -204,11 +204,12 @@ describe("StaticBatch baker: chunks, casters, kind, AO (PLAN2 §2, §1.2, §1.4)
     quiet.position.set(2, 0, 0);
     root.add(quiet);
     const knob = new THREE.Mesh(box, stone);
-    knob.scale.setScalar(0.4);
+    knob.scale.setScalar(0.5);
     knob.position.set(-2, 0, 0);
     knob.castShadow = true;
     root.add(knob);
-    const baker = new Baker(root, "test-cast");
+    big.scale.setScalar(1.2);
+    const baker = new Baker(root, "test-cast", { tier: "high" });
     baker.bake();
     expect(baker.meshes.length).toBe(1);
     const mesh = baker.meshes[0];
@@ -230,6 +231,50 @@ describe("StaticBatch baker: chunks, casters, kind, AO (PLAN2 §2, §1.2, §1.4)
     // Bake output joins the reflection layer as well as the main one.
     expect(mesh.layers.isEnabled(0) && mesh.layers.isEnabled(1)).toBe(true);
     baker.dispose();
+  });
+
+  it("casts only big pieces and skips micro trim below high (medium tier)", () => {
+    const root = new THREE.Group();
+    const wall = new THREE.Mesh(box, stone);
+    wall.scale.set(2.6, 2.6, 0.3);
+    wall.castShadow = true;
+    root.add(wall);
+    const post = new THREE.Mesh(box, stone);
+    post.scale.set(0.2, 1.9, 0.2);
+    post.position.set(3, 0, 0);
+    post.castShadow = true;
+    root.add(post);
+    const sill = new THREE.Mesh(box, stone);
+    sill.scale.setScalar(0.4);
+    sill.position.set(-3, 0, 0);
+    sill.castShadow = true;
+    root.add(sill);
+    const rivet = new THREE.Mesh(box, stone);
+    rivet.scale.setScalar(0.05);
+    rivet.position.set(0, 2, 0);
+    root.add(rivet);
+    const medium = new Baker(root, "test-tier-medium", { tier: "medium" });
+    medium.bake();
+    const mesh = medium.meshes[0];
+    const geometry = mesh.geometry;
+    const piece = geometry.index!.count / 4;
+    // Colour passes: everything but the rivet. Shadow: ≥1.6 follow, ≥2.4 wide.
+    expect(geometry.drawRange.count).toBe(piece * 3);
+    const shadow = (camera: THREE.OrthographicCamera) => {
+      mesh.onBeforeShadow(null as never, null as never, null as never, camera, geometry, null as never, null as never);
+      const drawn = geometry.drawRange.count;
+      mesh.onAfterShadow(null as never, null as never, null as never, camera, geometry, null as never, null as never);
+      expect(geometry.drawRange.count).toBe(piece * 3);
+      return drawn;
+    };
+    expect(shadow(new THREE.OrthographicCamera(-26, 26, 24, -24))).toBe(piece * 2);
+    expect(shadow(new THREE.OrthographicCamera(-70, 70, 60, -60))).toBe(piece);
+    medium.dispose();
+    // High keeps every piece in the colour passes.
+    const high = new Baker(root, "test-tier-high", { tier: "high" });
+    high.bake();
+    expect(high.meshes[0].geometry.drawRange.count).toBe(Infinity);
+    high.dispose();
   });
 
   it("lets an instanced mesh cast from its first `castCount` instances only", () => {

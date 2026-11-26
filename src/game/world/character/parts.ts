@@ -10,21 +10,28 @@ import { sculptedMaterial } from "../Surface";
 export type Shape = "sphere" | "cone" | "box" | "capsule";
 export const SHAPES: Shape[] = ["sphere", "cone", "box", "capsule"];
 
-let geometries: Record<Shape, THREE.BufferGeometry> | null = null;
-export function shapeGeometries() {
-  if (geometries) return geometries;
-  const capsule = new THREE.CapsuleGeometry(0.5, 1, 3, 8);
+const geometries: Partial<Record<"high" | "low", Record<Shape, THREE.BufferGeometry>>> = {};
+/** Shared unit shapes. "low" (medium/low tiers): sphere 8×6, capsule (2, 6),
+ * cone 6: the menagerie is a few pixels tall at those resolutions. */
+export function shapeGeometries(lod: "high" | "low" = "high") {
+  const hit = geometries[lod];
+  if (hit) return hit;
+  const low = lod === "low";
+  const capsule = new THREE.CapsuleGeometry(0.5, 1, low ? 2 : 3, low ? 6 : 8);
   capsule.scale(2, 0.5, 2); // unit radius, total height ≈ 1 (−0.5..0.5) before caps
-  geometries = {
+  const set: Record<Shape, THREE.BufferGeometry> = {
     // 10×8 (140 tris): creatures are under a metre tall; 14×10 doubled the
     // menagerie's main and shadow triangles for no visible gain.
-    sphere: new THREE.SphereGeometry(1, 10, 8),
-    cone: new THREE.ConeGeometry(1, 1, 8),
+    sphere: low
+      ? new THREE.SphereGeometry(1, 8, 6)
+      : new THREE.SphereGeometry(1, 10, 8),
+    cone: new THREE.ConeGeometry(1, 1, low ? 6 : 8),
     box: new THREE.BoxGeometry(1, 1, 1),
     capsule,
   };
-  for (const g of Object.values(geometries)) g.deleteAttribute("uv");
-  return geometries;
+  for (const g of Object.values(set)) g.deleteAttribute("uv");
+  geometries[lod] = set;
+  return set;
 }
 let material: THREE.MeshStandardMaterial | null = null;
 export const partMaterial = () =>

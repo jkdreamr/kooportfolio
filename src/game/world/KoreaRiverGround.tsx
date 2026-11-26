@@ -4,6 +4,7 @@ import { KOREA_APRON_Y } from "../core/terrain";
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
 import { sculptedMaterial } from "./Surface";
 import { reflect } from "./env/reflection";
+import { useEnvTier } from "./env/tier";
 import type { GroundFootprint } from "../core/scenery";
 
 const river = { left: -12, right: 62, near: 22, far: 44 };
@@ -76,13 +77,17 @@ walls.push({ p: [25, -3.4, 33], s: [74, 1, 22], c: "#52655c", shape: "block" });
 
 /** Replaces ALL Korea base ground layers/tiles. Do not mount over uncut ground. */
 export function KoreaRiverGround() {
+  // Medium's shadow budget: the carved banks cast on high only (fixed per
+  // mount; the key remounts on a tier change).
+  const cast = useEnvTier() === "high";
   return (
     <group name="korea-carved-river-ground" ref={reflect}>
       <mesh
+        key={`banks:${cast}`}
         geometry={terrain}
         material={terrainMaterials}
         receiveShadow
-        castShadow
+        castShadow={cast}
         dispose={null}
       />
       <mesh

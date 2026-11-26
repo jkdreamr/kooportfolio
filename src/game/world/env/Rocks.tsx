@@ -5,7 +5,8 @@ import type { WorldId } from "../../core/worlds";
 import { noiseUniform } from "./noise";
 import { ENV_UNIFORMS_GLSL, bindEnvUniforms } from "./uniforms";
 import { rockField, type RockPiece } from "./placement";
-import { reflect } from "./reflection";
+import { ReflectionProxy } from "./ReflectionProxy";
+import { useEnvTier } from "./tier";
 import { surfaceSky, SURFACE_NOISE_FN, SURFACE_WORLD_VERTEX } from "../Surface";
 
 /**
@@ -198,23 +199,38 @@ export function rockGeometry(world: WorldId) {
   return baked.get(world)!;
 }
 
+/** The water mirrors only the larger rocks (budget §1.5), cell-split. */
+const mirrored = new Map<WorldId, THREE.BufferGeometry | null>();
+function mirroredRocks(world: WorldId) {
+  if (!mirrored.has(world))
+    mirrored.set(world, bakeRocks(world, rockField(world).filter((rock) => rock.size * Math.max(1, rock.height) >= 0.9)));
+  return mirrored.get(world)!;
+}
+
 export function Rocks({ world }: { world: WorldId }) {
   const geometry = useMemo(() => rockGeometry(world), [world]);
+  const reflected = useMemo(() => mirroredRocks(world), [world]);
+  const cast = useEnvTier() === "high";
   useMemo(() => {
     rockUniforms.uRockMoss.value.set(TONES[world].moss);
     rockUniforms.uRockMossAmount.value = TONES[world].mossAmount;
   }, [world]);
   if (!geometry) return null;
   return (
-    <mesh
-      ref={reflect}
-      name="env-rocks"
-      geometry={geometry}
-      material={rockMaterialShared}
-      castShadow
-      receiveShadow
-      raycast={noRaycast}
-      dispose={null}
-    />
+    <>
+      <mesh
+        // Medium's 120k shadow budget: rocks cast on high only (their
+        // contact blobs stay). Fixed per mount: the key remounts on a change.
+        key={`rocks:${cast}`}
+        name="env-rocks"
+        geometry={geometry}
+        material={rockMaterialShared}
+        castShadow={cast}
+        receiveShadow
+        raycast={noRaycast}
+        dispose={null}
+      />
+      <ReflectionProxy geometry={reflected} material={rockMaterialShared} cell={16} />
+    </>
   );
 }

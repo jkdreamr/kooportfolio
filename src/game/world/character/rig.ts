@@ -267,9 +267,15 @@ const lathe = (points: [number, number][], segments = 14) =>
  * no face/shoe detail, no shadows); see VillageNpcs. */
 export type RigLod = "high" | "low";
 
-function buildGeometries(lod: RigLod): Record<Kind, THREE.BufferGeometry> {
+function buildGeometries(
+  lod: RigLod,
+  coarse = false,
+): Record<Kind, THREE.BufferGeometry> {
   const low = lod === "low";
-  const sphere = new THREE.SphereGeometry(1, low ? 8 : 14, low ? 6 : 10);
+  // Coarse (low rig below the high tier): fewer segments again.
+  const seg = (high: number, lowSeg: number, coarseSeg: number) =>
+    !low ? high : coarse ? coarseSeg : lowSeg;
+  const sphere = new THREE.SphereGeometry(1, seg(14, 8, 6), seg(10, 6, 4));
   const limb = lathe(
     low
       ? [
@@ -290,7 +296,7 @@ function buildGeometries(lod: RigLod): Record<Kind, THREE.BufferGeometry> {
           [0.55, 0.085],
           [0, 0.1],
         ],
-    low ? 6 : 10,
+    seg(10, 6, 5),
   );
   const torso = lathe(
     low
@@ -313,12 +319,18 @@ function buildGeometries(lod: RigLod): Record<Kind, THREE.BufferGeometry> {
           [0.06, 0.55],
           [0, 0.552],
         ],
-    low ? 8 : 16,
+    seg(16, 8, 6),
   );
   torso.scale(1, 1, 0.8);
-  const hair = low
-    ? new THREE.SphereGeometry(1, 8, 5, 0, Math.PI * 2, 0, 1.78)
-    : new THREE.SphereGeometry(1, 14, 9, 0, Math.PI * 2, 0, 1.78);
+  const hair = new THREE.SphereGeometry(
+    1,
+    seg(14, 8, 6),
+    seg(9, 5, 4),
+    0,
+    Math.PI * 2,
+    0,
+    1.78,
+  );
   hair.rotateX(-0.52);
   const brim = lathe(
     low
@@ -339,7 +351,7 @@ function buildGeometries(lod: RigLod): Record<Kind, THREE.BufferGeometry> {
           [0.2, -0.01],
           [0.2, 0.03],
         ],
-    low ? 8 : 18,
+    seg(18, 8, 6),
   );
   const crown = lathe(
     low
@@ -359,9 +371,9 @@ function buildGeometries(lod: RigLod): Record<Kind, THREE.BufferGeometry> {
           [0.15, 0.222],
           [0, 0.225],
         ],
-    low ? 8 : 18,
+    seg(18, 8, 6),
   );
-  const band = new THREE.CylinderGeometry(1, 1.02, 1, low ? 8 : 18, 1, true);
+  const band = new THREE.CylinderGeometry(1, 1.02, 1, seg(18, 8, 6), 1, true);
   for (const g of [sphere, limb, torso, hair, brim, crown, band]) {
     g.deleteAttribute("uv");
     g.computeBoundingSphere();
@@ -369,9 +381,13 @@ function buildGeometries(lod: RigLod): Record<Kind, THREE.BufferGeometry> {
   return { sphere, limb, torso, hair, brim, crown, band };
 }
 
-const geometries: Partial<Record<RigLod, Record<Kind, THREE.BufferGeometry>>> =
-  {};
-export function rigGeometries(lod: RigLod = "high") {
+const geometries: Partial<
+  Record<RigLod | "low-coarse", Record<Kind, THREE.BufferGeometry>>
+> = {};
+/** `coarse` (low rig only): the medium/low-tier crowd, a few pixels tall. */
+export function rigGeometries(lod: RigLod = "high", coarse = false) {
+  if (lod === "low" && coarse)
+    return (geometries["low-coarse"] ??= buildGeometries(lod, true));
   return (geometries[lod] ??= buildGeometries(lod));
 }
 let material: THREE.MeshStandardMaterial | null = null;
