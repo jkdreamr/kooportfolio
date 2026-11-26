@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { viewRuntime } from "../../core/worldView";
 
 /**
  * Height + distance atmosphere through the shared fog hook.
@@ -96,5 +97,6 @@ export function driveAtmosphere(scene: THREE.Scene, camera: THREE.Camera) {
     ? THREE.MathUtils.lerp(focusSmoothed, focus, 0.2)
     : focus;
   fog.near = Math.max(1, focusSmoothed - atmosphere.clear);
-  fog.far = fog.near + atmosphere.span;
+  // The explore view sees to the horizon: thicker depth haze (260 → 140).
+  fog.far = fog.near + atmosphere.span * (1 - viewRuntime.blend * (120 / 260));
 }

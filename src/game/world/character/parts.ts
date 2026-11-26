@@ -13,10 +13,12 @@ export const SHAPES: Shape[] = ["sphere", "cone", "box", "capsule"];
 let geometries: Record<Shape, THREE.BufferGeometry> | null = null;
 export function shapeGeometries() {
   if (geometries) return geometries;
-  const capsule = new THREE.CapsuleGeometry(0.5, 1, 4, 10);
+  const capsule = new THREE.CapsuleGeometry(0.5, 1, 3, 8);
   capsule.scale(2, 0.5, 2); // unit radius, total height ≈ 1 (−0.5..0.5) before caps
   geometries = {
-    sphere: new THREE.SphereGeometry(1, 14, 10),
+    // 10×8 (140 tris): creatures are under a metre tall; 14×10 doubled the
+    // menagerie's main and shadow triangles for no visible gain.
+    sphere: new THREE.SphereGeometry(1, 10, 8),
     cone: new THREE.ConeGeometry(1, 1, 8),
     box: new THREE.BoxGeometry(1, 1, 1),
     capsule,

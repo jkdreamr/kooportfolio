@@ -17,6 +17,7 @@ import { waterMaterial } from "./GlossKit";
 import { MicroDetail } from "./MicroDetail";
 import { STANFORD_WALKS } from "../core/stanfordLayout";
 import { setLookWorld } from "./env/look";
+import { attachReflection } from "./env/reflection";
 
 const pondDisc = new THREE.CircleGeometry(1, 48);
 const pondWater = waterMaterial({
@@ -139,6 +140,7 @@ export function Landscape({ world = "stanford" }: { world?: WorldId }) {
       {/* Glossy pool: one flat disc at the old water surface height, so the
           bed below and the lawn around it keep their depth intervals. */}
       <mesh
+        ref={(mesh: THREE.Mesh | null) => void (mesh && attachReflection(mesh))}
         geometry={pondDisc}
         material={pondWater}
         position={[

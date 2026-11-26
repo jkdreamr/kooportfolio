@@ -6,6 +6,8 @@ export const MAX_WORLD_ZOOM = 14;
 /** Explore (walk) view: third-person camera behind the player. */
 export const MIN_EXPLORE_DISTANCE = 6;
 export const MAX_EXPLORE_DISTANCE = 16;
+/** Measured at 1440×900: the character (with hat) spans ~16.3% of the
+ * viewport height at 10 (target 14–18%). */
 export const DEFAULT_EXPLORE_DISTANCE = 10;
 
 export type WorldViewMode = "diorama" | "explore";

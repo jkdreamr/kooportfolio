@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { canWalk, doorsInWorld } from "../src/game/core/world";
+import { insidePolygon } from "../src/game/core/coast";
 import type { WorldId } from "../src/game/core/worlds";
 import {
   grassField,
@@ -9,6 +10,7 @@ import {
   rockField,
   shoreField,
   touchesWalkable,
+  understoryField,
 } from "../src/game/world/env/placement";
 
 const worlds: WorldId[] = ["home", "korea", "stanford"];
@@ -49,6 +51,20 @@ describe("environment placement", () => {
       const spreadX = Math.max(...few.map((t) => t.x)) - Math.min(...few.map((t) => t.x));
       expect(spreadX).toBeGreaterThan(30);
     }, 30_000);
+
+    it(`${world}: understory stays off walkable ground, doorways and water`, () => {
+      const clumps = understoryField(world);
+      expect(clumps.length).toBeGreaterThan(150);
+      expect(clumps.filter(({ x, z }) => canWalk(x, z, world))).toEqual([]);
+      for (const door of doors)
+        expect(clumps.some(({ x, z }) => Math.hypot(x - door.x, z - door.z) < 2.9)).toBe(false);
+      for (const lake of lakesFor(world))
+        expect(clumps.some(({ x, z }) => insidePolygon(x, z, lake.outline))).toBe(false);
+      // Every kind is used, and a prefix spreads over the island.
+      expect(new Set(clumps.map((c) => c.kind)).size).toBe(4);
+      const few = clumps.slice(0, 60);
+      expect(Math.max(...few.map((c) => c.x)) - Math.min(...few.map((c) => c.x))).toBeGreaterThan(30);
+    }, 60_000);
 
     it(`${world}: lakes and their lips sit on unwalkable land`, () => {
       for (const lake of lakesFor(world)) {

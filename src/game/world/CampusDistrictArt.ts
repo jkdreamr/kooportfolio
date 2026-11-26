@@ -17,8 +17,9 @@ function part(
   s: CampusPart["s"],
   c: string,
   r?: CampusPart["r"],
+  k?: CampusPart["k"],
 ) {
-  parts.push({ shape, p, s, c, r });
+  parts.push({ shape, p, s, c, r, ...(k ? { k } : {}) });
 }
 function box(
   x: number,
@@ -30,7 +31,9 @@ function box(
   c: string,
   angle = 0,
 ) {
-  part("stone", [x, y, z], [w, h, d], c, [0, angle, 0]);
+  // Thin bars (muntins, rails) have a sub-centimetre bevel: plain block.
+  const thin = [w, h, d].filter((v) => v < 0.15).length >= 2;
+  part(thin ? "block" : "stone", [x, y, z], [w, h, d], c, [0, angle, 0]);
 }
 function roof(
   x: number,
@@ -46,12 +49,14 @@ function roof(
     py,
     z - px * Math.sin(turn) + pz * Math.cos(turn),
   ];
-  part("roof", [x, y, z], [width, rise, depth], tiles[0], [0, turn, 0]);
+  part("roof", [x, y, z], [width, rise, depth], tiles[0], [0, turn, 0], "shingle");
   // Broad, overlapping ceramic rows: readable relief without tiny noisy tiles.
+  // Runs of ~1.8 units along the eave (they were 0.9): the row relief reads
+  // the same, at half the pieces (roof tiles were 2/3 of the campus bake).
   const run = width / 2,
     pitch = Math.atan2(rise, run),
     rows = Math.ceil(run / 0.7);
-  const cols = Math.ceil(depth / 0.9);
+  const cols = Math.ceil(depth / 1.8);
   for (const side of [-1, 1])
     for (let row = 0; row < rows; row++)
       for (let col = 0; col < cols; col++) {
@@ -66,6 +71,7 @@ function roof(
           [(Math.hypot(run, rise) / rows) * 1.06, 0.12, (depth / cols) * 0.96],
           tiles[(col + row * 3) % tiles.length],
           [0, turn, side * pitch],
+          "shingle",
         );
       }
   for (let col = 0; col < cols; col++)
@@ -75,6 +81,7 @@ function roof(
       [0.38, 0.25, (depth / cols) * 1.04],
       tiles[(col + 1) % tiles.length],
       [0, turn, 0],
+      "shingle",
     );
 }
 function footing(x: number, z: number, w: number, d: number) {

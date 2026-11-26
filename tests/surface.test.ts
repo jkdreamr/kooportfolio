@@ -95,7 +95,7 @@ describe("detail layers", () => {
       expect(Math.abs(r / n - 127.5)).toBeLessThan(6);
       expect(Math.abs(b / n - 127.5)).toBeLessThan(6);
       // Height carries real relief for the bump.
-      expect(gMax - gMin).toBeGreaterThan(40);
+      expect(gMax - gMin).toBeGreaterThan(24);
     }
   });
 

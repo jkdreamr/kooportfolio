@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { waterMaterial } from "./GlossKit";
+import { attachReflection } from "./env/reflection";
 import {
   KOREA_GARDEN_WALKS,
   KOREA_LANDMARKS,
@@ -188,11 +189,12 @@ const riverMaterial = waterMaterial({
         totalEmissiveRadiance += bridgeRainbow * bridgeGlow * uGlossNight * .25;`,
     );
   };
-  riverMaterial.customProgramCacheKey = () => "gloss-water-han-v1";
+  riverMaterial.customProgramCacheKey = () => "gloss-water-han-v2";
 }
 function HangangWater() {
   return (
     <mesh
+      ref={(mesh: THREE.Mesh | null) => void (mesh && attachReflection(mesh))}
       geometry={riverGeometry}
       material={riverMaterial}
       rotation={[-Math.PI / 2, 0, 0]}

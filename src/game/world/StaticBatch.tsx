@@ -7,7 +7,12 @@ import {
 } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { sculptedMaterial } from "./Surface";
+import {
+  SCULPT_KIND_VERTEX,
+  SURFACE_KIND_INDEX,
+  sculptedMaterial,
+  type SurfaceKind,
+} from "./Surface";
 import { useWorldActive } from "../engine/active";
 
 /**
@@ -53,6 +58,8 @@ type Item = {
   /** Root-local bounds. */
   box: THREE.Box3;
   cast: boolean;
+  /** Largest root-local dimension. */
+  extent: number;
   /** Loose bounds (rotated piece): not used as an AO occluder. */
   loose: boolean;
 };
@@ -63,6 +70,11 @@ export const CHUNK_MIN_EXTENT = 48;
 export const CHUNK_CELL = 32;
 /** Pieces whose largest dimension is below this cast no shadow. */
 export const MIN_CASTER_SIZE = 0.25;
+/** When the light's frustum is island-wide (overview: a shadow texel is
+ * several centimetres), only pieces at least this big cast. */
+export const MIN_WIDE_CASTER_SIZE = 0.6;
+/** Shadow frustum width (world units) above which it counts as wide. */
+export const WIDE_SHADOW_FRUSTUM = 90;
 
 const cache = new Map<
   string,
@@ -87,13 +99,14 @@ function bakeMaterial(bucket: { side: THREE.Side; flat: boolean }) {
       side: bucket.side,
       flatShading: bucket.flat,
     });
+    // Per-vertex surface kind (detail layer) instead of the uniform: the
+    // sculpted chunk reads the `vSculptKind` varying under this define.
+    const withDefines = material as unknown as {
+      defines?: Record<string, string>;
+    };
+    withDefines.defines = { ...withDefines.defines, SCULPT_KIND_VARYING: "" };
     const sculpt = material.onBeforeCompile;
     material.onBeforeCompile = (shader, renderer) => {
-      // Per-vertex surface kind (detail layer) instead of a uniform: the
-      // sculpted chunk reads it from a flat varying under this define.
-      shader.vertexShader = "#define SCULPT_KIND_VARYING\n" + shader.vertexShader;
-      shader.fragmentShader =
-        "#define SCULPT_KIND_VARYING\n" + shader.fragmentShader;
       sculpt(shader, renderer);
       shader.vertexShader = shader.vertexShader
         .replace(
@@ -199,12 +212,20 @@ function hashMatrix(h: number, m: THREE.Matrix4) {
 }
 const mix = (h: number, x: number) => Math.imul(h ^ x, 16777619) >>> 0;
 
-/** Draw only the shadow-casting prefix of a baked mesh in the shadow pass. */
-function castPrefix(mesh: THREE.Mesh, count: number) {
+/**
+ * Draw only the shadow-casting prefix of a baked mesh in the shadow pass
+ * (index order: big casters, small casters, non-casters). An island-wide
+ * light frustum draws only the big casters. `castShadow` never changes.
+ */
+function castPrefix(mesh: THREE.Mesh, count: number, wideCount: number) {
   let saved = Infinity;
-  mesh.onBeforeShadow = (_r, _o, _c, _s, geometry) => {
+  mesh.onBeforeShadow = (_r, _o, _c, shadowCamera, geometry) => {
     saved = geometry.drawRange.count;
-    geometry.drawRange.count = count;
+    const ortho = shadowCamera as THREE.OrthographicCamera;
+    const wide =
+      ortho.isOrthographicCamera &&
+      (ortho.right - ortho.left) / ortho.zoom > WIDE_SHADOW_FRUSTUM;
+    geometry.drawRange.count = wide ? wideCount : count;
   };
   mesh.onAfterShadow = (_r, _o, _c, _s, geometry) => {
     geometry.drawRange.count = saved;
@@ -409,6 +430,12 @@ export class Baker {
         Math.max(1e-6, local.max.y - local.min.y) *
         Math.max(1e-6, local.max.z - local.min.z);
       const count = inst.isInstancedMesh ? inst.count : 1;
+      // Optional: only the first `castCount` instances cast (e.g. a roof's
+      // underlay casts, the shingles on top of it do not).
+      const castCount =
+        typeof object.userData.castCount === "number"
+          ? (object.userData.castCount as number)
+          : Infinity;
       for (let k = 0; k < count; k++) {
         const matrix = new THREE.Matrix4();
         if (inst.isInstancedMesh) {
@@ -420,13 +447,17 @@ export class Baker {
         bounds.union(box);
         const volume = size.x * size.y * size.z;
         const tight = Math.abs(matrix.determinant()) * localVolume;
+        const extent = Math.max(size.x, size.y, size.z);
         items.push({
           entry,
           k: inst.isInstancedMesh ? k : -1,
           matrix,
           box,
+          extent,
           cast:
-            object.castShadow && Math.max(size.x, size.y, size.z) >= MIN_CASTER_SIZE,
+            object.castShadow &&
+            extent >= MIN_CASTER_SIZE &&
+            Math.max(0, k) < castCount,
           loose: volume > tight * 1.6 + 1e-4,
         });
       }
@@ -456,19 +487,27 @@ export class Baker {
       group.items.push(i);
     });
     for (const { bucket, items: members } of buckets.values()) {
-      // Casters first: the shadow pass draws only that prefix.
-      members.sort((a, b) => Number(items[b].cast) - Number(items[a].cast));
+      // Big casters, then small casters, then the rest: the shadow pass
+      // draws only a prefix.
+      const rank = (i: number) =>
+        items[i].cast ? (items[i].extent >= MIN_WIDE_CASTER_SIZE ? 0 : 1) : 2;
+      members.sort((a, b) => rank(a) - rank(b));
       const merged = this.merge(bucket, items, members, field);
       if (!merged) continue;
       const mesh = new THREE.Mesh(merged.geometry, bakeMaterial(bucket));
       mesh.castShadow = merged.castIndices > 0;
-      if (mesh.castShadow && merged.castIndices < merged.geometry.index!.count)
-        castPrefix(mesh, merged.castIndices);
+      if (
+        mesh.castShadow &&
+        (merged.castIndices < merged.geometry.index!.count ||
+          merged.wideIndices < merged.castIndices)
+      )
+        castPrefix(mesh, merged.castIndices, merged.wideIndices);
       mesh.receiveShadow = true;
       mesh.raycast = noRaycast;
       // Layer 1: the planar water reflection renders bakes (WS-B).
       mesh.layers.enable(1);
       mesh.userData.bakeOutput = true;
+      mesh.userData.bakeAo = this.ao;
       mesh.name = `${this.id}-baked`;
       this.root.add(mesh);
       this.meshes.push(mesh);
@@ -493,15 +532,17 @@ export class Baker {
     let hash = 2166136261;
     let vertices = 0,
       indices = 0,
-      castIndices = 0;
+      castIndices = 0,
+      wideIndices = 0;
     for (const i of members) {
-      const { entry, k, matrix, cast } = items[i];
+      const { entry, k, matrix, cast, extent } = items[i];
       const { object, material, geometry } = entry;
       const vc = geometry.attributes.position.count;
       const ic = geometry.index ? geometry.index.count : vc;
       vertices += vc;
       indices += ic;
       if (cast) castIndices += ic;
+      if (cast && extent >= MIN_WIDE_CASTER_SIZE) wideIndices += ic;
       hash = mix(hash, vc);
       hash = mix(hash, ic);
       const pos = geometry.attributes.position.array as ArrayLike<number>;
@@ -524,7 +565,7 @@ export class Baker {
     if (hit) {
       hit.users++;
       this.cacheKeys.push(key);
-      return { geometry: hit.geometry, castIndices };
+      return { geometry: hit.geometry, castIndices, wideIndices };
     }
     const position = new Float32Array(vertices * 3),
       normal = new Float32Array(vertices * 3),
@@ -614,7 +655,7 @@ export class Baker {
     geometry.computeBoundingBox();
     cache.set(key, { geometry, users: 1 });
     this.cacheKeys.push(key);
-    return { geometry, castIndices };
+    return { geometry, castIndices, wideIndices };
   }
 
   tick() {

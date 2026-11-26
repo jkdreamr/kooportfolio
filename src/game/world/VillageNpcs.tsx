@@ -1,9 +1,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { useWorldActive } from "../engine/active";
 import { RigBatch, RigMeshes } from "./character/CharacterRig";
 import { createGait, seatPose, stepGait } from "./character/locomotion";
-import { DEFAULT_PALETTE, type Palette } from "./character/rig";
+import { DEFAULT_PALETTE, NEAR_RIG, nearRig, type Palette } from "./character/rig";
 import * as THREE from "three";
 import { movement } from "../core/input";
 import { runtime, useGame } from "../core/store";
@@ -18,6 +18,8 @@ import {
   type NpcEntry,
 } from "../core/npcState";
 import type { WorldId } from "../core/worlds";
+import { useWorldView, viewRuntime } from "../core/worldView";
+import { useStage } from "../../stage/contract";
 
 const HAIR = ["#3e3632", "#5b4030", "#2d2a2a", "#8a5a3a", "#c49a62", "#6b6460"];
 const PANTS = ["#3a4547", "#4b4a5e", "#6b5844", "#36485a", "#5f6b55"];
@@ -50,9 +52,25 @@ const base = new THREE.Matrix4(),
   size = new THREE.Vector3(NPC_SCALE, NPC_SCALE, NPC_SCALE);
 const up = new THREE.Vector3(0, 1, 0);
 
-/** The whole crowd as one instanced rig: ≈7 draws for every villager. */
+/** The whole crowd as two instanced rigs (full near the camera, low-poly and
+ * shadowless beyond it): ≈14 draws for every villager. */
 function CrowdRig({ crowd }: { crowd: NpcEntry[] }) {
-  const batch = useMemo(() => new RigBatch(Math.max(1, crowd.length)), [crowd]);
+  const near = useMemo(
+    () => new RigBatch(Math.max(1, crowd.length), "high"),
+    [crowd],
+  );
+  const far = useMemo(
+    () => new RigBatch(Math.max(1, crowd.length), "low"),
+    [crowd],
+  );
+  const slots = useMemo(
+    () => ({
+      near: new Int32Array(Math.max(1, crowd.length)),
+      far: new Int32Array(Math.max(1, crowd.length)),
+      isNear: new Uint8Array(Math.max(1, crowd.length)),
+    }),
+    [crowd],
+  );
   const gaits = useMemo(
     () => crowd.map((entry) => createGait(hashId(entry.npc.id) % 997)),
     [crowd],
@@ -63,11 +81,19 @@ function CrowdRig({ crowd }: { crowd: NpcEntry[] }) {
   );
   const last = useRef<Float32Array | null>(null);
   const active = useWorldActive();
-  const write = (dt: number) => {
+  const write = (dt: number, camera?: THREE.Camera) => {
     const game = useGame.getState();
     const prev = (last.current ??= new Float32Array(crowd.length * 2).fill(
       NaN,
     ));
+    const tier = useStage.getState().tier ?? "medium";
+    // The whole-island diorama shows only tiny walkers: all low.
+    const overview =
+      viewRuntime.blend === 0 && useWorldView.getState().zoom < 3;
+    const radius = overview || !camera ? 0 : NEAR_RIG[tier];
+    const fov = (camera as THREE.PerspectiveCamera | undefined)?.fov ?? 42;
+    let nearCount = 0,
+      farCount = 0;
     crowd.forEach(({ actor }, i) => {
       const seated = actor.seat ? actor.posture : 0;
       const x =
@@ -101,25 +127,48 @@ function CrowdRig({ crowd }: { crowd: NpcEntry[] }) {
       );
       turn.setFromAxisAngle(up, actor.heading);
       base.compose(at, turn, size);
-      batch.write(i, pose, base, palettes[i]);
+      const close =
+        radius > 0 &&
+        nearRig(
+          camera!.position.distanceTo(at),
+          fov,
+          radius,
+          slots.isNear[i] === 1,
+        );
+      slots.isNear[i] = close ? 1 : 0;
+      if (close) {
+        slots.near[nearCount] = i;
+        near.write(nearCount++, pose, base, palettes[i]);
+      } else {
+        slots.far[farCount] = i;
+        far.write(farCount++, pose, base, palettes[i]);
+      }
     });
-    batch.commit(crowd.length);
+    near.commit(nearCount);
+    far.commit(farCount);
   };
   useLayoutEffect(() => write(0));
-  useFrame((_, delta) => {
+  useFrame(({ camera }, delta) => {
     if (!active) return;
-    write(Math.min(delta, 0.05));
+    write(Math.min(delta, 0.05), camera);
   });
+  const talk =
+    (batch: RigBatch, slot: Int32Array) =>
+    (kind: Parameters<RigBatch["characterAt"]>[0], event: ThreeEvent<PointerEvent>) => {
+      event.stopPropagation();
+      if (event.instanceId === undefined) return;
+      const entry = crowd[slot[batch.characterAt(kind, event.instanceId)]];
+      if (entry) talkToNpc(entry.actor.id);
+    };
   return (
-    <RigMeshes
-      batch={batch}
-      onPointerDown={(kind, event) => {
-        event.stopPropagation();
-        if (event.instanceId === undefined) return;
-        const entry = crowd[batch.characterAt(kind, event.instanceId)];
-        if (entry) talkToNpc(entry.actor.id);
-      }}
-    />
+    <>
+      <RigMeshes batch={near} onPointerDown={talk(near, slots.near)} />
+      <RigMeshes
+        batch={far}
+        shadows={false}
+        onPointerDown={talk(far, slots.far)}
+      />
+    </>
   );
 }
 

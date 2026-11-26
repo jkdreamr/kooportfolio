@@ -3,6 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import { Box3, Vector3, type Camera, type Object3D } from "three";
 import { runtime, useGame, walkTo } from "../core/store";
 import { destinationsInWorld } from "../core/world";
+import { viewRuntime } from "../core/worldView";
 
 const elements = new Map<string, HTMLButtonElement>();
 const projected = new Vector3();
@@ -88,7 +89,7 @@ function labelSize(element: HTMLElement) {
   return size;
 }
 const CONTROLS =
-  ".context-action.visible, .time-of-day-control, .world-zoom, .island-rail-controls, .world-toolbar, .joystick";
+  ".context-action.visible, .time-of-day-control, .world-zoom, .world-view-toggle, .island-rail-controls, .world-toolbar, .joystick";
 let controlRects: LabelRect[] = [];
 let controlsReadAt = -Infinity;
 function readControls(now: number) {
@@ -164,6 +165,7 @@ export function LabelProjection({ active = true }: { active?: boolean }) {
     }
     occupied.push(...readControls(now));
     const compact = size.height < 500;
+    const explore = viewRuntime.blend > 0.5;
     const distance = (door: { x: number; z: number }) =>
       Math.hypot(door.x - runtime.x, door.z - runtime.z);
     const placements: [HTMLElement, string, boolean][] = [];
@@ -183,6 +185,11 @@ export function LabelProjection({ active = true }: { active?: boolean }) {
         const visible =
           Math.abs(projected.z) <= 1 &&
           distance(door) < (compact ? 25 : 36) &&
+          // Explore view: only the plaques near the low camera.
+          (!explore ||
+            camera.position.distanceTo(
+              projected.set(door.anchor[0], door.anchor[1], door.anchor[2]),
+            ) < 45) &&
           x > w / 2 + 10 &&
           x < size.width - w / 2 - 10 &&
           y > (compact ? 75 : 100) &&

@@ -22,6 +22,8 @@ export type Crown = {
   r: readonly [number, number, number];
   color: string;
   kind: CrownKind;
+  /** Scenic grove crown (unwalkable land): thinned first on medium. */
+  scenic?: boolean;
 };
 
 /* --------------------------------------------------------------- registry */
@@ -92,14 +94,25 @@ const cardsFor = (crown: Crown) => {
   return Math.max(9, Math.min(22, Math.round(8 + area * 10)));
 };
 
-export function layoutCards(crowns: readonly Crown[], small = false): Card[] {
+/**
+ * Leaf cards for a set of crowns. `density` scales each crown's card count
+ * and `salt` reseeds the layout: the explore view's extra cards are a second
+ * layout (density 0.5, another salt) over the same crowns.
+ */
+export function layoutCards(
+  crowns: readonly Crown[],
+  small = false,
+  density = 1,
+  salt = 0,
+  scenicDensity = 1,
+): Card[] {
   const cards: Card[] = [];
   const tint = new THREE.Color();
   for (const crown of crowns) {
-    const count = cardsFor(crown);
+    const count = Math.round(cardsFor(crown) * density * (crown.scenic ? scenicDensity : 1));
     if (!count) continue;
     const rand = random(
-      Math.round(crown.p[0] * 131 + crown.p[1] * 71 + crown.p[2] * 977),
+      Math.round(crown.p[0] * 131 + crown.p[1] * 71 + crown.p[2] * 977) + salt,
     );
     euler.set(crown.r[0], crown.r[1], crown.r[2]);
     crownQ.setFromEuler(euler);
@@ -353,6 +366,13 @@ export function leafMaterial() {
         "#include <alphatest_fragment>",
         `vec4 leafTexel = texture2D(uLeafAtlas, vLeafUv);
         if (leafTexel.a < 0.5) discard;
+        // Explore camera: dither leaves out within 2.5 units of the lens, so
+        // a canopy or bush never blanks the low camera.
+        float leafCam = distance(cameraPosition, vLeafWorld);
+        if (uEnvCamFade > 0.0 && leafCam < 2.5) {
+          float leafDither = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+          if (leafDither > mix(1.0, smoothstep(0.7, 2.5, leafCam), uEnvCamFade)) discard;
+        }
         diffuseColor.rgb *= leafTexel.rgb * 1.08;`,
       )
       .replace(
@@ -371,7 +391,7 @@ export function leafMaterial() {
         totalEmissiveRadiance += uEnvSky * diffuseColor.rgb * leafRim * 0.22;`,
       );
   };
-  material.customProgramCacheKey = () => "env-leaf-v1";
+  material.customProgramCacheKey = () => "env-leaf-v2";
   return material;
 }
 

@@ -12,6 +12,8 @@ import type { SceneryPart } from "../WorldSceneryParts";
 
 export type V3 = [number, number, number];
 export const tiled = sculptedMaterial({ vertexColors: true });
+/** Giwa roofs: the shingle detail layer. */
+export const roofTiled = sculptedMaterial({ vertexColors: true }, "shingle");
 export const glazedStone = sculptedMaterial({
   vertexColors: true,
   roughness: 0.5,

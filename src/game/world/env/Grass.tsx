@@ -2,12 +2,14 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { WorldId } from "../../core/worlds";
-import { useWorldView } from "../../core/worldView";
+import { useWorldView, viewRuntime } from "../../core/worldView";
+import { runtime } from "../../core/store";
 import { useWorldActive } from "../../engine/active";
 import { registerWarmup } from "../../../stage/contract";
 import { ENV_UNIFORMS_GLSL, bindEnvUniforms } from "./uniforms";
 import { grassField, grassFieldAsync, type GrassTuft } from "./placement";
 import { envBudget, useEnvTier } from "./tier";
+import { nextSlice } from "./slice";
 
 /**
  * Instanced grass tufts: tapered blades with a root→tip gradient, wind, a
@@ -16,22 +18,34 @@ import { envBudget, useEnvTier } from "./tier";
  * chunks; each time the camera's focus moves to another chunk, the chunks in
  * range are copied to the front of the instance buffer and `mesh.count` is
  * set — one draw, no material or define changes at run time.
+ *
+ * Explore view (PLAN2 §1.3): two tuft LODs share the material — near (7
+ * blades, 21 tris) within 12 units of the player, far (3 wide blades, 9 tris)
+ * out to 30 units, thinned 1 → 0.25 with distance; the two cross-fade over a
+ * 3-unit band in the vertex shader. Blades widen ×1.4, roots take the lawn's
+ * colour and the tip highlight softens, all driven by the view blend (a
+ * uniform). The diorama keeps today's single mesh, caps and look.
  */
 
 const BLADES = 7;
 const CHUNK = 8;
+/** Explore LOD radii (world units from the LOD centre). */
+const NEAR_RADIUS = 12;
+const FAR_RADIUS = 30;
 
-/** Five tapered blades (3 triangles each), fanning from one root. */
-function tuftGeometry() {
+/** Tapered blades (3 triangles each), fanning from one root. `lod` is the
+ * per-vertex LOD tag (1 near, 2 far; reeds carry none = 0, never faded). */
+function tuftGeometry(blades = BLADES, lod = 1, widthScale = 1) {
   const positions: number[] = [],
     normals: number[] = [],
     uvs: number[] = [],
+    wide: number[] = [],
     index: number[] = [];
-  for (let b = 0; b < BLADES; b++) {
-    const angle = (b / BLADES) * Math.PI * 2 + b * 0.7;
+  for (let b = 0; b < blades; b++) {
+    const angle = (b / blades) * Math.PI * 2 + b * 0.7;
     const lean = 0.16 + (b % 3) * 0.09;
     const height = 0.28 + ((b * 37) % 7) * 0.04;
-    const width = 0.06 + (b % 2) * 0.016;
+    const width = (0.06 + (b % 2) * 0.016) * widthScale;
     const reach = 0.04 + (b % 4) * 0.035;
     const ox = Math.cos(angle) * reach,
       oz = Math.sin(angle) * reach;
@@ -52,10 +66,12 @@ function tuftGeometry() {
         positions.push(cx - sx * w, y, cz - sz * w, cx + sx * w, y, cz + sz * w);
         uvs.push(0, t, 1, t);
         normals.push(dx * 0.35, 1, dz * 0.35, dx * 0.35, 1, dz * 0.35);
+        wide.push(-sx * w, -sz * w, sx * w, sz * w);
       } else {
         positions.push(cx, y, cz);
         uvs.push(0.5, 1);
         normals.push(dx * 0.35, 1, dz * 0.35);
+        wide.push(0, 0);
       }
     });
     index.push(base, base + 1, base + 2, base + 1, base + 3, base + 2, base + 2, base + 3, base + 4);
@@ -64,6 +80,11 @@ function tuftGeometry() {
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
   geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setAttribute("aWide", new THREE.Float32BufferAttribute(wide, 2));
+  geometry.setAttribute(
+    "aLod",
+    new THREE.Float32BufferAttribute(new Float32Array(positions.length / 3).fill(lod), 1),
+  );
   geometry.setIndex(index);
   geometry.normalizeNormals();
   return geometry;
@@ -76,11 +97,22 @@ const PALETTES: Record<WorldId, { root: string; lush: string; dry: string; tip: 
   stanford: { root: "#5a5a2e", lush: "#8e9a44", dry: "#c4ad5a", tip: "#ecd892" },
 };
 
+/** Explore-view root colour: the lawn's own ground tone, so tufts grow out
+ * of the turf instead of from dark sockets. */
+const LAWN_ROOT: Record<WorldId, string> = {
+  home: "#5a7440",
+  korea: "#66705a",
+  stanford: "#6b7a3c",
+};
+
 export const grassUniforms = {
   uGrassRoot: { value: new THREE.Color() },
   uGrassTip: { value: new THREE.Color() },
   /** Camera focus (x, z) and the fade radius (z = radius). */
   uGrassFocus: { value: new THREE.Vector3(0, 0, 60) },
+  /** LOD centre (x, y = z), near radius (z; huge = no LOD) and the explore
+   * softness (w, the view blend: wider blades, softer tips). */
+  uGrassLod: { value: new THREE.Vector4(0, 0, 1e5, 0) },
 };
 
 function grassMaterial() {
@@ -99,15 +131,21 @@ function grassMaterial() {
         `#include <common>
         ${ENV_UNIFORMS_GLSL}
         uniform vec3 uGrassFocus;
+        uniform vec4 uGrassLod;
+        attribute vec2 aWide;
+        attribute float aLod;
         varying float vGrassT;
         varying vec3 vGrassWorld;`,
       )
       .replace(
         "#include <begin_vertex>",
         `vec3 transformed = vec3(position);
+        transformed.xz += aWide * 0.4 * uGrassLod.w;
         vGrassT = uv.y;
         vec4 grassRoot = instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
         float grassFade = 1.0 - smoothstep(uGrassFocus.z * 0.78, uGrassFocus.z, distance(grassRoot.xz, uGrassFocus.xy));
+        float grassBand = smoothstep(uGrassLod.z - 1.5, uGrassLod.z + 1.5, distance(grassRoot.xz, uGrassLod.xy));
+        grassFade *= aLod < 0.5 ? 1.0 : aLod < 1.5 ? 1.0 - grassBand : grassBand;
         transformed *= grassFade;`,
       )
       .replace(
@@ -132,6 +170,7 @@ function grassMaterial() {
         ${ENV_UNIFORMS_GLSL}
         uniform vec3 uGrassRoot;
         uniform vec3 uGrassTip;
+        uniform vec4 uGrassLod;
         varying float vGrassT;
         varying vec3 vGrassWorld;`,
       )
@@ -139,7 +178,7 @@ function grassMaterial() {
         "#include <color_fragment>",
         `#include <color_fragment>
         vec3 grassBody = mix(uGrassRoot, diffuseColor.rgb, smoothstep(0.0, 0.55, vGrassT));
-        diffuseColor.rgb = mix(grassBody, uGrassTip, smoothstep(0.62, 1.0, vGrassT) * 0.55);`,
+        diffuseColor.rgb = mix(grassBody, uGrassTip, smoothstep(0.62, 1.0, vGrassT) * mix(0.55, 0.35, uGrassLod.w));`,
       )
       .replace(
         "#include <emissivemap_fragment>",
@@ -149,11 +188,16 @@ function grassMaterial() {
         totalEmissiveRadiance += diffuseColor.rgb * uEnvSunColor * (grassBack * 0.45 + 0.05) * vGrassT * (1.0 - uEnvNight);`,
       );
   };
-  material.customProgramCacheKey = () => "env-grass-v1";
+  material.customProgramCacheKey = () => "env-grass-v2";
   return material;
 }
 
 const geometry = tuftGeometry();
+/** Far LOD: three wide blades (9 tris). */
+const farGeometry = tuftGeometry(3, 2, 1.7);
+/** Medium's only tuft: the far shape, tagged near (so it never fades out
+ * inside the near radius). */
+const mediumGeometry = tuftGeometry(3, 1, 1.7);
 /** Shared with the reed beds (same program, its own geometry). */
 export const grassMaterialShared = grassMaterial();
 const material = grassMaterialShared;
@@ -222,23 +266,6 @@ function fieldAsync(world: WorldId, max: number) {
   }
   return job;
 }
-// Yield a macrotask (not a whole frame): input and paint get their turn
-// between slices, yet the placement still finishes in about its CPU time.
-const sliceChannel = typeof MessageChannel === "function" ? new MessageChannel() : null;
-const sliceQueue: (() => void)[] = [];
-if (sliceChannel) {
-  sliceChannel.port1.onmessage = () => sliceQueue.shift()?.();
-  // Node (tests): never keep the process alive for this port.
-  for (const port of [sliceChannel.port1, sliceChannel.port2])
-    (port as MessagePort & { unref?: () => void }).unref?.();
-}
-const nextSlice = () =>
-  new Promise<void>((resolve) => {
-    if (!sliceChannel) return void setTimeout(resolve, 0);
-    sliceQueue.push(resolve);
-    sliceChannel.port2.postMessage(0);
-  });
-
 // Placement walks the walkable map: do it during the hidden warmup, in
 // slices, not on a visible frame. Each island is cached for every later visit.
 for (const world of ["home", "korea", "stanford"] as const)
@@ -251,13 +278,48 @@ for (const world of ["home", "korea", "stanford"] as const)
   });
 
 const focus = new THREE.Vector3(),
-  forward = new THREE.Vector3();
+  forward = new THREE.Vector3(),
+  rootColor = new THREE.Color(),
+  lawnRoot = new THREE.Color();
+
+type Mesh = THREE.InstancedMesh | null;
+/** Copy chunk prefixes into the front of a mesh's instance buffers. */
+function fill(mesh: THREE.InstancedMesh, picks: readonly (readonly [Field["chunks"][number], number])[], cap: number) {
+  const matrices = mesh.instanceMatrix.array as Float32Array;
+  const colors = mesh.instanceColor!.array as Float32Array;
+  let n = 0;
+  for (const [chunk, keep] of picks) {
+    const take = Math.min(chunk.count, Math.ceil(chunk.count * keep), cap - n);
+    if (take <= 0) continue;
+    matrices.set(chunk.matrices.subarray(0, take * 16), n * 16);
+    colors.set(chunk.colors.subarray(0, take * 3), n * 3);
+    n += take;
+    if (n >= cap) break;
+  }
+  // Empty = 0 instances (no draw), never `visible = false`: the program
+  // stays compiled from warmup.
+  mesh.count = n;
+  mesh.instanceMatrix.clearUpdateRanges();
+  mesh.instanceMatrix.addUpdateRange(0, n * 16);
+  mesh.instanceMatrix.needsUpdate = true;
+  mesh.instanceColor!.clearUpdateRanges();
+  mesh.instanceColor!.addUpdateRange(0, n * 3);
+  mesh.instanceColor!.needsUpdate = true;
+  return n;
+}
+const attach = (count: number) => (mesh: THREE.InstancedMesh | null) => {
+  if (mesh && !mesh.instanceColor)
+    mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(count * 3), 3);
+};
 
 export function Grass({ world }: { world: WorldId }) {
   const tier = useEnvTier();
-  const max = envBudget(tier).grassInstances;
+  const budget = envBudget(tier);
+  const max = budget.grassInstances;
+  const exploreCap = Math.min(max, budget.grassVisible);
   const active = useWorldActive();
-  const ref = useRef<THREE.InstancedMesh>(null);
+  const ref = useRef<Mesh>(null);
+  const farRef = useRef<Mesh>(null);
   // Never place synchronously in render: until the sliced placement lands
   // (normally already done by the warm task) the mesh simply draws nothing.
   const key = `${world}:${max}`;
@@ -278,62 +340,106 @@ export function Grass({ world }: { world: WorldId }) {
     grassUniforms.uGrassRoot.value.set(palette.root);
     grassUniforms.uGrassTip.value.set(palette.tip);
     last.current.key = "";
-    const mesh = ref.current;
-    if (mesh) mesh.count = 0;
+    for (const mesh of [ref.current, farRef.current]) if (mesh) mesh.count = 0;
   }, [world, field]);
   useEffect(() => () => void (last.current.key = ""), []);
   useFrame(({ camera }) => {
-    const mesh = ref.current;
-    if (!mesh || !active || !field) return;
+    const mesh = ref.current,
+      far = farRef.current;
+    if (!mesh || !far || !active || !field) return;
+    const blend = viewRuntime.blend;
+    const explore = blend > 0.5;
+    // Softer explore look, eased with the blend (uniforms only).
+    rootColor.set(PALETTES[world].root).lerp(lawnRoot.set(LAWN_ROOT[world]), blend);
+    grassUniforms.uGrassRoot.value.copy(rootColor);
     camera.getWorldDirection(forward);
-    const t = forward.y < -0.05 ? camera.position.y / -forward.y : 100;
-    focus.copy(camera.position).addScaledVector(forward, t);
     const zoom = useWorldView.getState().zoom;
-    const radius = THREE.MathUtils.clamp(78 / Math.max(0.8, zoom), 16, 80);
+    let radius: number;
+    if (explore) {
+      // Centred just ahead of the player: the low camera sees from ~5 m
+      // behind the player to the horizon.
+      const fx = forward.x,
+        fz = forward.z,
+        fl = Math.hypot(fx, fz) || 1;
+      focus.set(runtime.x + (fx / fl) * 2, 0, runtime.z + (fz / fl) * 2);
+      radius = FAR_RADIUS;
+      grassUniforms.uGrassLod.value.set(focus.x, focus.z, NEAR_RADIUS, blend);
+    } else {
+      const t = forward.y < -0.05 ? camera.position.y / -forward.y : 100;
+      focus.copy(camera.position).addScaledVector(forward, t);
+      radius = THREE.MathUtils.clamp(78 / Math.max(0.8, zoom), 16, 80);
+      grassUniforms.uGrassLod.value.set(focus.x, focus.z, 1e5, blend);
+    }
     grassUniforms.uGrassFocus.value.set(focus.x, focus.z, radius);
-    const key = `${Math.floor(focus.x / CHUNK)},${Math.floor(focus.z / CHUNK)},${Math.round(radius / 4)},${Math.round(zoom * 4)}`;
+    const key = explore
+      ? `e:${Math.floor(focus.x / 4)},${Math.floor(focus.z / 4)},${Math.round(Math.atan2(forward.x, forward.z) * 4)}`
+      : `${Math.floor(focus.x / CHUNK)},${Math.floor(focus.z / CHUNK)},${Math.round(radius / 4)},${Math.round(zoom * 4)}`;
     if (key === last.current.key) return;
     last.current.key = key;
-    const near = field.chunks
-      .map((chunk) => ({ chunk, d: Math.hypot(chunk.cx - focus.x, chunk.cz - focus.z) }))
-      .filter(({ d }) => d < radius + CHUNK * 0.75)
-      .sort((a, b) => a.d - b.d);
-    const inRange = near.reduce((sum, { chunk }) => sum + chunk.count, 0);
-    // Overview: thinner, so lawns read as soft texture rather than speckle.
-    const cap = Math.round(visibleCap * THREE.MathUtils.clamp(zoom / 3, 0.3, 1));
-    const keep = Math.min(1, cap / Math.max(1, inRange));
-    const matrices = mesh.instanceMatrix.array as Float32Array;
-    const colors = mesh.instanceColor!.array as Float32Array;
-    let n = 0;
-    for (const { chunk } of near) {
-      const take = Math.min(chunk.count, Math.ceil(chunk.count * keep), cap - n);
-      if (take <= 0) break;
-      matrices.set(chunk.matrices.subarray(0, take * 16), n * 16);
-      colors.set(chunk.colors.subarray(0, take * 3), n * 3);
-      n += take;
+    if (!explore) {
+      const near = field.chunks
+        .map((chunk) => ({ chunk, d: Math.hypot(chunk.cx - focus.x, chunk.cz - focus.z) }))
+        .filter(({ d }) => d < radius + CHUNK * 0.75)
+        .sort((a, b) => a.d - b.d);
+      const inRange = near.reduce((sum, { chunk }) => sum + chunk.count, 0);
+      // Overview: thinner, so lawns read as soft texture rather than speckle.
+      const cap = Math.round(visibleCap * THREE.MathUtils.clamp(zoom / 3, 0.3, 1));
+      const keep = Math.min(1, cap / Math.max(1, inRange));
+      fill(mesh, near.map(({ chunk }) => [chunk, keep] as const), cap);
+      far.count = 0;
+      return;
     }
-    mesh.count = n;
-    mesh.instanceMatrix.clearUpdateRanges();
-    mesh.instanceMatrix.addUpdateRange(0, n * 16);
-    mesh.instanceMatrix.needsUpdate = true;
-    mesh.instanceColor!.clearUpdateRanges();
-    mesh.instanceColor!.addUpdateRange(0, n * 3);
-    mesh.instanceColor!.needsUpdate = true;
+    // Explore: chunks in front of the camera only, near then far.
+    const cx = camera.position.x,
+      cz = camera.position.z;
+    const ranked = field.chunks
+      .map((chunk) => ({ chunk, d: Math.hypot(chunk.cx - focus.x, chunk.cz - focus.z) }))
+      .filter(
+        ({ chunk, d }) =>
+          d < FAR_RADIUS + CHUNK * 0.75 &&
+          (chunk.cx - cx) * forward.x + (chunk.cz - cz) * forward.z > -CHUNK,
+      )
+      .sort((a, b) => a.d - b.d);
+    const reach = CHUNK * 0.75;
+    const nearPicks = ranked.filter(({ d }) => d < NEAR_RADIUS + reach).map(({ chunk }) => [chunk, 1] as const);
+    const placed = fill(mesh, nearPicks, exploreCap);
+    const farPicks = ranked
+      .filter(({ d }) => d > NEAR_RADIUS - reach)
+      .map(({ chunk, d }) => {
+        const k = THREE.MathUtils.clamp((d - NEAR_RADIUS) / (FAR_RADIUS - NEAR_RADIUS), 0, 1);
+        return [chunk, THREE.MathUtils.lerp(1, 0.25, k)] as const;
+      });
+    fill(far, farPicks, Math.max(0, exploreCap - placed));
   });
   return (
-    <instancedMesh
-      key={max}
-      ref={(mesh) => {
-        ref.current = mesh;
-        if (mesh && !mesh.instanceColor)
-          mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(max * 3), 3);
-      }}
-      name="env-grass"
-      args={[geometry, material, max]}
-      receiveShadow
-      frustumCulled={false}
-      raycast={noRaycast}
-      dispose={null}
-    />
+    <group name="env-grass-lods">
+      <instancedMesh
+        key={`${max}:${tier}`}
+        ref={(mesh) => {
+          ref.current = mesh;
+          attach(max)(mesh);
+        }}
+        name="env-grass"
+        // Medium draws the 9-tri tuft everywhere (budget §2).
+        args={[tier === "medium" ? mediumGeometry : geometry, material, max]}
+        receiveShadow
+        frustumCulled={false}
+        raycast={noRaycast}
+        dispose={null}
+      />
+      <instancedMesh
+        key={`far-${exploreCap}`}
+        ref={(mesh) => {
+          farRef.current = mesh;
+          attach(exploreCap)(mesh);
+        }}
+        name="env-grass-far"
+        args={[farGeometry, material, exploreCap]}
+        receiveShadow
+        frustumCulled={false}
+        raycast={noRaycast}
+        dispose={null}
+      />
+    </group>
   );
 }

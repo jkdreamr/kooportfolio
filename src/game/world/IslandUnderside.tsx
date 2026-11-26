@@ -69,7 +69,7 @@ function bounceLit(material: THREE.MeshStandardMaterial, key: string) {
   return material;
 }
 const rockMaterial = bounceLit(
-  sculptedMaterial({ vertexColors: true, roughness: 1 }),
+  sculptedMaterial({ vertexColors: true, roughness: 1 }, "stone"),
   "island-underside-rock-v2",
 );
 const partMaterial = bounceLit(

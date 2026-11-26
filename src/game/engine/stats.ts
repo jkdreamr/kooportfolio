@@ -14,6 +14,7 @@ declare global {
       programs?: number;
       links?: number;
       linksAfterReady?: number;
+      prewarmLinks?: number;
       tier?: string;
       dpr?: number;
     };
@@ -30,6 +31,9 @@ export const stats = {
   linksAfterReady: 0,
   linksAtReady: 0,
   contextLosses: 0,
+  /** Links made by the idle prewarm (engine/prewarm.ts), a subset of
+   * linksAfterReady reported separately. */
+  prewarmLinks: 0,
   /** The ?perf=1 benchmark's per-frame sink (null when not recording). */
   recorder: null as null | ((ms: number, dpr: number) => void),
   frame(ms: number, state: RootState) {
@@ -54,11 +58,20 @@ export const stats = {
     perf.programs = gl.info.programs?.length ?? 0;
     perf.links = this.links;
     perf.linksAfterReady = this.linksAfterReady;
+    perf.prewarmLinks = this.prewarmLinks;
     perf.tier = this.tier ?? "";
     perf.dpr = state.viewport.dpr;
     // A driver query can synchronize the GPU. Read it once, not every frame.
-    if (!perf.renderer)
-      perf.renderer = String(gl.getContext().getParameter(gl.getContext().RENDERER));
+    if (!perf.renderer) {
+      const context = gl.getContext();
+      // The unmasked GPU name where the browser still offers it (the
+      // benchmark's results are only useful with the real device).
+      const debug = context.getExtension("WEBGL_debug_renderer_info");
+      perf.renderer = String(
+        (debug && context.getParameter(debug.UNMASKED_RENDERER_WEBGL)) ||
+          context.getParameter(context.RENDERER),
+      );
+    }
   },
 };
 

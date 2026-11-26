@@ -5,6 +5,7 @@ import type { WorldId } from "../../core/worlds";
 import { noiseUniform } from "./noise";
 import { ENV_UNIFORMS_GLSL, bindEnvUniforms } from "./uniforms";
 import { rockField, type RockPiece } from "./placement";
+import { reflect } from "./reflection";
 import { surfaceSky, SURFACE_NOISE_FN, SURFACE_WORLD_VERTEX } from "../Surface";
 
 /**
@@ -206,6 +207,7 @@ export function Rocks({ world }: { world: WorldId }) {
   if (!geometry) return null;
   return (
     <mesh
+      ref={reflect}
       name="env-rocks"
       geometry={geometry}
       material={rockMaterialShared}

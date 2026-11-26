@@ -6,7 +6,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useGame } from "../core/store";
 import { GableRoof, StoneFooting, WindowDetail } from "./ArchitectureDetail";
-import { sculptedMaterial } from "./Surface";
+import { sculptedMaterial, surfaceKindForColor, type SurfaceKind } from "./Surface";
 import { chamferBoxSizedShared } from "./chamferBox";
 import { NationalFlag } from "./NationalFlag";
 import { TreeArt } from "./TreeArt";
@@ -30,27 +30,34 @@ function torusGeometry(radius: number, tube: number) {
   return tori.get(key)!;
 }
 const mats = new Map<string, THREE.MeshStandardMaterial>();
-function material(color: string) {
-  if (!mats.has(color)) mats.set(color, sculptedMaterial({ color }));
-  return mats.get(color)!;
+/** Shared sculpted material per colour and surface kind (detail layer);
+ * the kind defaults to a conservative guess from the colour. */
+function material(color: string, kind: SurfaceKind = surfaceKindForColor(color)) {
+  const key = `${color}|${kind}`;
+  let m = mats.get(key);
+  if (!m) mats.set(key, (m = sculptedMaterial({ color }, kind)));
+  return m;
 }
 type Props = {
   p?: [number, number, number];
   s?: [number, number, number];
   c?: string;
   r?: [number, number, number];
+  /** Surface kind (detail layer); default guessed from `c`. */
+  k?: SurfaceKind;
 };
 export function Box({
   p = [0, 0, 0],
   s = [1, 1, 1],
   c = "#eee5cc",
   r = [0, 0, 0],
+  k,
   sharp = false,
 }: Props & { sharp?: boolean }) {
   return (
     <mesh
       geometry={sharp ? box : roundedGeometry(s)}
-      material={material(c)}
+      material={material(c, k)}
       position={p}
       scale={sharp ? s : undefined}
       rotation={r}
@@ -78,11 +85,12 @@ export function Cylinder({
   s = [1, 1, 1],
   c = "#8c7057",
   r = [0, 0, 0],
+  k,
 }: Props) {
   return (
     <mesh
       geometry={cyl}
-      material={material(c)}
+      material={material(c, k)}
       position={p}
       scale={s}
       rotation={r}

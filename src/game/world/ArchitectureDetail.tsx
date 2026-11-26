@@ -15,17 +15,27 @@ const ceramic = sculptedMaterial({
   roughness: 0.67,
   metalness: 0.02,
 });
-const stone = sculptedMaterial({ roughness: 0.9 });
-const timber = sculptedMaterial({ roughness: 0.85 });
+/** Roof tiles: the same glaze on the shingle detail layer. */
+const ceramicTile = sculptedMaterial(
+  { roughness: 0.67, metalness: 0.02 },
+  "shingle",
+);
+const stone = sculptedMaterial({ roughness: 0.9 }, "stone");
+const timber = sculptedMaterial({ roughness: 0.85 }, "wood");
 
 function Pieces({
   pieces,
   masonry = false,
   wood = false,
+  roof = false,
+  castCount,
 }: {
   pieces: Piece[];
   masonry?: boolean;
   wood?: boolean;
+  roof?: boolean;
+  /** Only the first `castCount` pieces cast a shadow once baked. */
+  castCount?: number;
 }) {
   const ref = useRef<THREE.InstancedMesh>(null);
   useLayoutEffect(() => {
@@ -44,11 +54,19 @@ function Pieces({
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     mesh.computeBoundingSphere();
-  }, [pieces]);
+    // Mutated, never passed as a `userData` prop: R3F would replace the whole
+    // object on re-render and drop the baker's own `baked` mark.
+    if (castCount === undefined) delete mesh.userData.castCount;
+    else mesh.userData.castCount = castCount;
+  }, [pieces, castCount]);
   return (
     <instancedMesh
       ref={ref}
-      args={[clay, masonry ? stone : wood ? timber : ceramic, pieces.length]}
+      args={[
+        clay,
+        masonry ? stone : wood ? timber : roof ? ceramicTile : ceramic,
+        pieces.length,
+      ]}
       castShadow
       receiveShadow
       dispose={null}
@@ -120,7 +138,7 @@ export function RoofShingles({
   color: string;
   hip?: boolean;
 }) {
-  const pieces = useMemo(() => {
+  const { pieces, castCount } = useMemo(() => {
     const out: Piece[] = [],
       base = new THREE.Color(color),
       moss = new THREE.Color("#7d8a4f");
@@ -155,6 +173,9 @@ export function RoofShingles({
           c: `#${base.clone().multiplyScalar(0.62).getHexString()}`,
         });
       }
+    // The underlay alone carries the roof's silhouette: the shingles and
+    // caps on top of it cast no shadow (see StaticBatch `castCount`).
+    const castCount = out.length;
     for (const side of [-1, 1])
       for (let row = -1; row < rows; row++) {
         // Row -1 is the eave course hanging past the wall.
@@ -249,9 +270,9 @@ export function RoofShingles({
         s: [0.46, 0.3, (ridge / caps) * 1.06],
         c: shade(i + 4),
       });
-    return out;
+    return { pieces: out, castCount };
   }, [width, depth, y, rise, color, hip]);
-  return <Pieces pieces={pieces} />;
+  return <Pieces pieces={pieces} roof castCount={castCount} />;
 }
 
 /** Staggered rounded masonry gives buildings a visible, weight-bearing base. */

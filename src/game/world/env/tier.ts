@@ -12,6 +12,6 @@ export const envBudget = (tier: Tier) => TIER_BUDGETS[tier];
 /** Fraction of each environment layer kept on a tier. */
 export const ENV_DENSITY: Record<Tier, { leaves: number; grass: number; detail: number }> = {
   high: { leaves: 1, grass: 1, detail: 1 },
-  medium: { leaves: 0.75, grass: 1, detail: 0.7 },
+  medium: { leaves: 0.6, grass: 1, detail: 0.7 },
   low: { leaves: 0.45, grass: 1, detail: 0.4 },
 };

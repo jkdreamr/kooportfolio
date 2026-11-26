@@ -4,6 +4,7 @@ import type { P2 } from "../../core/coast";
 import type { WorldId } from "../../core/worlds";
 import { bakeShoreMap, waterMaterial } from "../GlossKit";
 import { sculptedMaterial } from "../Surface";
+import { attachReflection, reflect } from "./reflection";
 import { lakesFor, lipLoop, type Lake } from "./placement";
 
 /**
@@ -61,7 +62,10 @@ function lips(lakes: readonly Lake[]) {
   return geometry;
 }
 
-const lipMaterial = sculptedMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.9 });
+const lipMaterial = sculptedMaterial(
+  { vertexColors: true, side: THREE.DoubleSide, roughness: 0.9 },
+  "stone",
+);
 const noRaycast = () => undefined;
 
 type Built = { lakes: { geometry: THREE.BufferGeometry; material: THREE.Material }[]; lip: THREE.BufferGeometry | null };
@@ -101,6 +105,7 @@ export function Lakes({ world }: { world: WorldId }) {
           geometry={geometry}
           material={material}
           receiveShadow
+          ref={(mesh: THREE.Mesh | null) => void (mesh && attachReflection(mesh))}
           raycast={noRaycast}
           dispose={null}
         />
@@ -109,6 +114,7 @@ export function Lakes({ world }: { world: WorldId }) {
         <mesh
           geometry={lip}
           material={lipMaterial}
+          ref={reflect}
           castShadow
           receiveShadow
           raycast={noRaycast}

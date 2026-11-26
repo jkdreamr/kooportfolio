@@ -62,6 +62,8 @@ export class RigBatch {
       const mesh = this.meshes[kind];
       if (!mesh) continue;
       mesh.count = count * this.perKind[kind];
+      // An empty LOD batch issues no draw at all.
+      mesh.visible = count > 0;
       mesh.instanceMatrix.needsUpdate = true;
     }
   }

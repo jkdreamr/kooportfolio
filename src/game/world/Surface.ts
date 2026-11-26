@@ -135,6 +135,13 @@ const KIND_VERTEX = `
 #ifdef SCULPT_KIND_VARYING
   varying float vSculptKind;
 #endif`;
+/** GLSL for a vertex shader that carries the kind per vertex: assigns
+ * `vSculptKind` from `expr` (a float layer index) when the material has
+ * `SCULPT_KIND_VARYING`, and is a no-op otherwise. */
+export const SCULPT_KIND_VERTEX = (expr: string) => `
+#ifdef SCULPT_KIND_VARYING
+  vSculptKind = ${expr};
+#endif`;
 const KIND_FRAGMENT = `
 #ifdef SCULPT_KIND_VARYING
   varying float vSculptKind;

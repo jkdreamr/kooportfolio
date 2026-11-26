@@ -29,7 +29,7 @@ import { WorldActiveContext } from "./engine/active";
 import { usePresented } from "./engine/presented";
 import { PerfOverlay } from "./engine/PerfOverlay";
 import { installGradeToneMapping } from "./engine/grade";
-import { legacyQuality, pickTier } from "./engine/tier";
+import { legacyQuality, pickTier, resolveAo } from "./engine/tier";
 import { Hub } from "./world/Hub";
 import { Interior } from "./scenes/Interior";
 import { Rowing } from "./scenes/Rowing";
@@ -44,7 +44,8 @@ import { daylightClock, useTimeOfDay } from "./core/timeOfDay";
 import { sampleDaylight } from "./core/daylight";
 import { islandFollow } from "./core/islandCamera";
 import { islandForWorld } from "./core/homeIsland";
-import { useWorldView } from "./core/worldView";
+import { useWorldView, viewRuntime } from "./core/worldView";
+import { ISLAND_CAMERA_OFFSET } from "./core/islandView";
 import { updateGloss } from "./world/GlossKit";
 import { WORLDS } from "./core/worlds";
 import { runtime, useGame, type Scene } from "./core/store";
@@ -130,6 +131,12 @@ export function sunDirectionFor(hour: number, out = sunDirection) {
     Math.sin(azimuth) * Math.cos(elevation),
   );
 }
+/** Horizontal view direction of both hub views (toward -ISLAND_CAMERA_OFFSET). */
+const EXPLORE_AHEAD = (() => {
+  const [ox, , oz] = ISLAND_CAMERA_OFFSET;
+  const length = Math.hypot(ox, oz);
+  return [-ox / length, -oz / length] as const;
+})();
 const lightRight = new THREE.Vector3(),
   lightUp = new THREE.Vector3(),
   worldUp = new THREE.Vector3(0, 1, 0),
@@ -161,12 +168,24 @@ function Sun({ tier }: { tier: Tier }) {
     x = THREE.MathUtils.lerp(island.centerX, x, follow);
     z = THREE.MathUtils.lerp(island.centerZ, z, follow);
     // Tight follow frustum when walking; island-wide only at the overview.
-    const halfRight = THREE.MathUtils.lerp(reach * Math.SQRT1_2, 26, follow);
-    const halfUp = THREE.MathUtils.lerp(reach / Math.sqrt(3), 24, follow);
+    let halfRight = THREE.MathUtils.lerp(reach * Math.SQRT1_2, 26, follow);
+    let halfUp = THREE.MathUtils.lerp(reach / Math.sqrt(3), 24, follow);
     // Roofs and towers lean toward the top of the light's view.
-    const top = halfUp + 14 * (1 - follow);
+    let top = halfUp + 14 * (1 - follow);
+    // Explore view: a 45-unit frustum centred 18 units ahead of the player
+    // along the view direction, mixed in with the view blend.
+    const explore = hub ? viewRuntime.blend : 0;
+    if (explore > 0) {
+      x = THREE.MathUtils.lerp(x, runtime.x + EXPLORE_AHEAD[0] * 18, explore);
+      z = THREE.MathUtils.lerp(z, runtime.z + EXPLORE_AHEAD[1] * 18, explore);
+      halfRight = THREE.MathUtils.lerp(halfRight, 45, explore);
+      halfUp = THREE.MathUtils.lerp(halfUp, 45, explore);
+      top = THREE.MathUtils.lerp(top, 45, explore);
+    }
     const sun = light.current;
     if (sun) {
+      // PCF radius is a uniform: softer explore shadows cost no relink.
+      sun.shadow.radius = 3 + explore;
       const view = sun.shadow.camera;
       if (
         view.right !== halfRight ||
@@ -598,7 +617,8 @@ export default function Game({ autoEnter = true }: { autoEnter?: boolean } = {})
               gl.clear();
               const chosen = useStage.getState().tier ?? pickTier(gl);
               gl.toneMapping =
-                TIER_BUDGETS[chosen].grade && TIER_BUDGETS[chosen].ao !== "full"
+                TIER_BUDGETS[chosen].grade &&
+                resolveAo(TIER_BUDGETS[chosen].ao, gl) === "none"
                   ? THREE.CustomToneMapping
                   : THREE.ACESFilmicToneMapping;
               gl.toneMappingExposure = 0.98;

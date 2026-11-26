@@ -1,3 +1,4 @@
+import { useLayoutEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { WorldId } from "../../core/worlds";
@@ -16,6 +17,15 @@ import { ShoreDetail } from "./ShoreDetail";
 import { Ripples } from "./Ripples";
 import { Lakes } from "./Lakes";
 import { Groves } from "./Groves";
+import { Understory } from "./Understory";
+import { ContactShadows } from "./ContactShadows";
+import { Clouds } from "./Clouds";
+import { tickReflection } from "./reflection";
+import { surfaceDetail } from "../Surface";
+import { useEnvTier } from "./tier";
+import { exposeQa } from "../../../stage/qa";
+import { viewRuntime } from "../../core/worldView";
+import { detailStats } from "./detail";
 
 /**
  * Environment layer (W3): foliage shells, grass, rocks, shoreline, atmosphere.
@@ -31,16 +41,24 @@ import { Groves } from "./Groves";
  *   hidden while an interior is shown).
  */
 export function Environment({ world }: { world: WorldId }) {
+  const tier = useEnvTier();
+  // Surface detail is a continuous knob (a uniform): low drops it entirely.
+  useLayoutEffect(() => {
+    surfaceDetail.value = tier === "low" ? 0 : 1;
+  }, [tier]);
   return (
     <group name="env">
       <EnvironmentDriver />
       <LeafShell />
       <Grass world={world} />
+      <Understory world={world} />
       <Lakes world={world} />
       <Groves world={world} />
       <Rocks world={world} />
       <ShoreDetail world={world} />
       <Ripples world={world} />
+      <ContactShadows world={world} />
+      <Clouds />
     </group>
   );
 }
@@ -49,6 +67,8 @@ export function Environment({ world }: { world: WorldId }) {
 // atlas re-upload lazily) but loses render-target content: rebake the gloss
 // environment on the next frame.
 onContextRestored(() => invalidateGlossEnvironment());
+// QA builds only: the view blend (read-only here) and the detail bake stats.
+exposeQa({ viewRuntime, envDetail: detailStats });
 
 const reducedMotion =
   typeof matchMedia === "function"
@@ -63,6 +83,7 @@ function EnvironmentDriver() {
   const active = useWorldActive();
   useFrame(({ scene, camera }, delta) => {
     if (!active) return;
+    tickReflection();
     if (import.meta.env.DEV)
       (window as unknown as { __w3scene?: THREE.Scene }).__w3scene = scene;
     const paused = useGame.getState().paused;
@@ -90,6 +111,7 @@ function EnvironmentDriver() {
         .copy(hemisphere.color)
         .multiplyScalar(Math.min(1.1, 0.35 + hemisphere.intensity * 0.7));
     envUniforms.uEnvNight.value = gloss.night.value;
+    envUniforms.uEnvCamFade.value = viewRuntime.blend;
     envUniforms.uEnvPlayer.value.set(runtime.x, 0, runtime.z, 1.15);
     const weather = sampleWeather(daylightClock.hour);
     envUniforms.uEnvWind.value = THREE.MathUtils.lerp(

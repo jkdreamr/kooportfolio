@@ -20,6 +20,8 @@ export const envUniforms = {
   uEnvPlayer: { value: new THREE.Vector4(0, 0, 0, 1.1) },
   /** Wind strength 0..1 (weather + gentle base breeze). */
   uEnvWind: { value: 0.35 },
+  /** 0..1: foliage near the camera dithers out (the explore view blend). */
+  uEnvCamFade: { value: 0 },
 };
 export type EnvUniforms = typeof envUniforms;
 
@@ -34,4 +36,5 @@ uniform vec3 uEnvSunColor;
 uniform vec3 uEnvSky;
 uniform float uEnvNight;
 uniform vec4 uEnvPlayer;
-uniform float uEnvWind;`;
+uniform float uEnvWind;
+uniform float uEnvCamFade;`;

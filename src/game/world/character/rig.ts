@@ -606,3 +606,25 @@ export function writeCharacter(
     emit(part.kind, partMatrix, index);
   });
 }
+
+/* --- Crowd LOD ----------------------------------------------------------- */
+/** Beyond this screen-size-equivalent distance (explore lens, fov 42°) a
+ * villager is drawn with the low rig. Medium keeps the full rig closer in. */
+export const NEAR_RIG = { high: 25, medium: 12, low: 0 } as const;
+const TAN_EXPLORE = Math.tan(THREE.MathUtils.degToRad(21));
+const HYSTERESIS = 1.5;
+
+/** Should a villager at camera distance `distance` use the full rig?
+ * `fov` is the camera's vertical fov: a telephoto lens makes far things
+ * big, so distances are compared at the explore lens's scale. */
+export function nearRig(
+  distance: number,
+  fov: number,
+  radius: number,
+  wasNear: boolean,
+) {
+  const equivalent =
+    (distance * Math.tan(THREE.MathUtils.degToRad(fov / 2))) / TAN_EXPLORE;
+  return equivalent < radius + (wasNear ? HYSTERESIS : 0);
+}
+

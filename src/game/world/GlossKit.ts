@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { surfaceSky } from "./Surface";
 import { noiseUniform } from "./env/noise";
+import { reflectionUniforms, reflectMixUniform } from "./env/reflection";
 
 /** Shared gloss rig. One frame driver (Game's Sun) feeds every glossy
  * material; nothing here adds a light, a post pass or a scene environment. */
@@ -328,9 +329,15 @@ export function waterMaterial({
   const boundsUniform = {
     value: new THREE.Vector4(...(shoreMap?.bounds ?? [0, 0, 1, 1])),
   };
+  // Planar reflection (env/reflection.ts): a sky-coloured 1×1 fallback is
+  // bound from the start, so turning the mirror on never changes the program.
+  const reflectMix = reflectMixUniform(material);
   material.onBeforeCompile = (shader) => {
     shared(shader);
     worldVarying(shader);
+    shader.uniforms.uWaterReflection = reflectionUniforms.uWaterReflection;
+    shader.uniforms.uWaterReflectMatrix = reflectionUniforms.uWaterReflectMatrix;
+    shader.uniforms.uWaterReflectMix = reflectMix;
     shader.uniforms.uWaterDeep = { value: deepColor };
     shader.uniforms.uWaterShallow = { value: shallowColor };
     shader.uniforms.uWaterBank = { value: bankColor };
@@ -346,6 +353,7 @@ export function waterMaterial({
         `#include <common>\n${sharedHeader}
         varying vec2 vWaterUv; uniform vec3 uWaterDeep; uniform vec3 uWaterShallow; uniform vec3 uWaterBank;
         uniform sampler2D uWaterShore; uniform vec4 uWaterBounds; uniform sampler2D uWaterNoise;
+        uniform sampler2D uWaterReflection; uniform mat4 uWaterReflectMatrix; uniform float uWaterReflectMix;
         float waterCrest; float waterFoam; float waterEdge; vec2 waterSlope; float waterShallow;`,
       )
       .replace(
@@ -413,15 +421,20 @@ export function waterMaterial({
         float waterNearBank = smoothstep(0.55, 0.97, waterEdge);
         vec3 waterReflect = mix(uGlossSky, uWaterBank * (0.75 + 0.5 * waterStreak.g), waterNearBank * (0.55 + 0.45 * waterStreak.b));
         waterReflect *= 0.75 + 0.5 * waterStreak.r;
+        // Projected planar reflection, rippled by the slope (explore only).
+        vec4 waterProj = uWaterReflectMatrix * vec4(vGlossWorld, 1.0);
+        vec2 waterMirrorUv = waterProj.xy / max(1e-4, waterProj.w) + waterSlope * 0.02;
+        vec3 waterMirror = texture2D(uWaterReflection, waterMirrorUv).rgb;
+        waterReflect = mix(waterReflect, waterMirror, uWaterReflectMix);
         float waterGlint = smoothstep(0.88, 0.985, waterCrest) * (1.0 - waterFoam);
-        vec3 waterSky = waterReflect * (0.05 + 0.36 * waterFresnel) * (1.0 - 0.85 * uGlossNight);
+        vec3 waterSky = waterReflect * mix(0.05 + 0.36 * waterFresnel, 0.16 + 0.6 * waterFresnel, uWaterReflectMix) * (1.0 - 0.85 * uGlossNight);
         totalEmissiveRadiance += waterSky * (1.0 - waterFoam * 0.6);
         totalEmissiveRadiance += mix(uGlossSky * 0.4, uGlossWarm * 0.22, uGlossNight) * waterGlint;
         totalEmissiveRadiance += uGlossWarm * uGlossNight * (0.02 + 0.05 * waterShallow * (0.6 + 0.4 * waterCrest));`,
       );
   };
   material.customProgramCacheKey = () =>
-    `gloss-water-v3:${shore}:${scale}:${flow.join(",")}:${foam}`;
+    `gloss-water-v4:${shore}:${scale}:${flow.join(",")}:${foam}`;
   return material;
 }
 

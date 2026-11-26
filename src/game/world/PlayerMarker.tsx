@@ -3,6 +3,7 @@ import { Billboard } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { viewZoom } from "../engine/camera";
+import { viewRuntime } from "../core/worldView";
 
 // A small, solid-cut arrow: the point stays anchored above the hat while the
 // rest grows upward at overview zoom. No texture or scene-transmission pass.
@@ -72,6 +73,9 @@ export function PlayerMarker() {
   useFrame(({ camera }) => {
     const group = marker.current;
     if (!group?.parent) return;
+    // The explore camera sits right behind the player: no locator arrow.
+    group.visible = viewRuntime.blend < 0.5;
+    if (!group.visible) return;
     group.parent.getWorldScale(worldScale.current);
     // Remain legible on a whole-island/mobile view, without changing the
     // avatar, camera or collision size. Facing the camera prevents edge-on turns.

@@ -636,3 +636,170 @@ export function groveField(world: WorldId): GroveTree[] {
   }
   return trees;
 }
+
+/* -------------------------------------------------------------- understory */
+
+/** 0 bush, 1 fern, 2 flower clump, 3 tall-grass clump. */
+export type UnderstoryKind = 0 | 1 | 2 | 3;
+export type UnderstoryClump = {
+  x: number;
+  y: number;
+  z: number;
+  kind: UnderstoryKind;
+  /** Height in world units (width follows the kind). */
+  size: number;
+  angle: number;
+  /** 0..1 colour pick within the kind's palette. */
+  tone: number;
+};
+
+const understoryCache = new Map<WorldId, UnderstoryClump[]>();
+/** Understory for a world, ranked so that any prefix is an even thinning. */
+export function understoryField(world: WorldId): UnderstoryClump[] {
+  let all = understoryCache.get(world);
+  if (!all) {
+    const steps = placeUnderstory(world);
+    let step = steps.next();
+    while (!step.done) step = steps.next();
+    understoryCache.set(world, (all = step.value));
+  }
+  return all;
+}
+/** The same placement, time-sliced (yields to `pause` every `budgetMs`). */
+export async function understoryFieldAsync(
+  world: WorldId,
+  pause: () => Promise<unknown>,
+  budgetMs = 6,
+): Promise<UnderstoryClump[]> {
+  if (!understoryCache.has(world)) {
+    const steps = placeUnderstory(world);
+    let since = performance.now();
+    let step = steps.next();
+    while (!step.done) {
+      if (performance.now() - since > budgetMs) {
+        await pause();
+        if (understoryCache.has(world)) break;
+        since = performance.now();
+      }
+      step = steps.next();
+    }
+    if (step.done && !understoryCache.has(world)) understoryCache.set(world, step.value);
+  }
+  return understoryField(world);
+}
+
+/**
+ * Bushes, ferns, flower clumps and tall grass where the ground meets
+ * something: the rim of non-walkable land along paths and lawns (building
+ * bases, terraces, hedges, the cliff verge), lake rims and grove feet. Never
+ * on walkable ground, near a doorway, on paving, in water or on a rail; tiny
+ * solids (lamps, benches) are skipped, so only real edges get planted.
+ */
+function* placeUnderstory(world: WorldId): Generator<void, UnderstoryClump[]> {
+  const out: (UnderstoryClump & { rank: number })[] = [];
+  const doors = doorAvoid(world);
+  // Paving under a solid is a building base (planted); only open water
+  // footprints (the Han's channel) are excluded outright.
+  const water: readonly Rect[] = world === "korea" ? [[25, 33, 76, 24]] : [];
+  const rails: readonly P2[] =
+    world === "home" ? HOME_RAIL_POINTS : world === "stanford" ? STANFORD_RAIL_POINTS : [];
+  const pond = pondFor(world);
+  const lakes = lakesFor(world);
+  // Taken spots on a 1 m grid (gaps are < 1 m, so 3×3 cells suffice).
+  const taken = new Map<number, number[]>();
+  const cellKey = (i: number, j: number) => i * 8192 + j;
+  const clear = (x: number, z: number, gap: number) => {
+    const i = Math.floor(x),
+      j = Math.floor(z);
+    for (let a = -1; a <= 1; a++)
+      for (let b = -1; b <= 1; b++) {
+        const list = taken.get(cellKey(i + a, j + b));
+        if (!list) continue;
+        for (let k = 0; k < list.length; k += 2)
+          if (Math.abs(list[k] - x) < gap && Math.abs(list[k + 1] - z) < gap) return false;
+      }
+    return true;
+  };
+  const ok = (x: number, z: number) => {
+    if (canWalk(x, z, world)) return false;
+    if (!LAND[world](x, z, 0.4)) return false;
+    if (doors.some(([dx, dz]) => Math.hypot(x - dx, z - dz) < 3)) return false;
+    if (water.some((rect) => inRect(x, z, rect, 0.6))) return false;
+    if (pond && ((x - pond.x) / (pond.radiusX + 0.6)) ** 2 + ((z - pond.z) / (pond.radiusZ + 0.6)) ** 2 < 1) return false;
+    if (lakes.some((lake) => insidePolygon(x, z, lake.outline))) return false;
+    if (rails.length && minDistanceToLoop(x, z, rails) < 2.4) return false;
+    return true;
+  };
+  const push = (x: number, y: number, z: number, kind: UnderstoryKind, scale: number) => {
+    const k = cellKey(Math.floor(x), Math.floor(z));
+    const list = taken.get(k);
+    if (list) list.push(x, z);
+    else taken.set(k, [x, z]);
+    out.push({
+      x,
+      y,
+      z,
+      kind,
+      size: scale * (0.8 + fhash(x, z, 211) * 0.45),
+      angle: fhash(x, z, 213) * Math.PI,
+      tone: fhash(x, z, 217),
+      rank: fhash(x, z, 219),
+    });
+  };
+  const heightAt = (x: number, z: number) => {
+    const h = terrainHeightAt(x, z, world);
+    return h === 0 ? (world === "korea" && !LAND.korea(x, z, 0) ? KOREA_APRON_Y : 0.14) : h;
+  };
+  // Edges of non-walkable land next to walkable ground.
+  const { minX, maxX, minZ, maxZ } = bounds(SHORE[world]);
+  const spacing = 0.8;
+  for (let gx = minX; gx <= maxX; gx += spacing) {
+    yield;
+    for (let gz = minZ; gz <= maxZ; gz += spacing) {
+      const x = gx + (fhash(gx, gz, 201) - 0.5) * spacing * 0.8,
+        z = gz + (fhash(gx, gz, 203) - 0.5) * spacing * 0.8;
+      if (clump(x, z, 4.5, 205) < 0.3) continue;
+      if (!ok(x, z)) continue;
+      // Within 1.3 of walkable ground, and part of a real mass of
+      // non-walkable land (≥3 of 8 probes at 1.4 also blocked).
+      if (!touchesWalkable(x, z, 1.3, world)) continue;
+      let blocked = 0;
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        if (!canWalk(x + Math.cos(a) * 1.4, z + Math.sin(a) * 1.4, world)) blocked++;
+      }
+      if (blocked < 3) continue;
+      if (!clear(x, z, 0.7)) continue;
+      const pick = fhash(x, z, 207);
+      const kind: UnderstoryKind = pick < 0.42 ? 0 : pick < 0.62 ? 3 : pick < 0.82 ? 2 : 1;
+      push(x, heightAt(x, z), z, kind, kind === 0 ? 0.85 : kind === 3 ? 0.95 : kind === 2 ? 0.45 : 0.7);
+    }
+  }
+  yield;
+  // Lake rims: ferns and tall grass in the damp ground round the lip.
+  for (const lake of lakes) {
+    const rim = resampleLoop(lipLoop(lake.outline, 0.95), Math.max(12, Math.round(lake.outline.length * 0.6)));
+    rim.forEach(([x, z], i) => {
+      if (clump(x, z, 3.5, 221) < 0.35 || !ok(x, z) || !clear(x, z, 0.9)) return;
+      const kind: UnderstoryKind = i % 3 === 0 ? 1 : i % 3 === 1 ? 3 : 0;
+      push(x, lake.floorY + 0.3, z, kind, kind === 1 ? 0.75 : kind === 3 ? 1 : 0.8);
+    });
+    yield;
+  }
+  // Grove feet: a fern or bush or two round each scenic trunk.
+  for (const tree of groveField(world)) {
+    const [tx, ty, tz] = tree.p;
+    for (let k = 0; k < 2; k++) {
+      const a = fhash(tx, tz, 231 + k) * Math.PI * 2;
+      const r = 0.9 + fhash(tz, tx, 233 + k) * 0.9;
+      const x = tx + Math.cos(a) * r,
+        z = tz + Math.sin(a) * r;
+      if (!ok(x, z) || !clear(x, z, 0.7)) continue;
+      const kind: UnderstoryKind = fhash(x, z, 235) < 0.55 ? 1 : 0;
+      push(x, ty, z, kind, kind === 1 ? 0.7 : 0.8);
+    }
+  }
+  yield;
+  out.sort((a, b) => a.rank - b.rank);
+  return out.map(({ rank: _rank, ...clump }) => clump);
+}

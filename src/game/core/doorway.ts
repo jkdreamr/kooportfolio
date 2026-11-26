@@ -29,10 +29,14 @@ export function leaveRoom() {
  * with the intent set leaves at once (no E). Walking onto the mat by hand
  * keeps the E prompt. Any movement input, a new walk target, a scene change,
  * a panel or a game opening cancels the intent, as does a game overlay that
- * has not closed within 6 s; a walk that has not arrived within 4 s (no path, the skate park's own controller) leaves
- * directly under the veil. */
+ * has not closed within 6 s. When the player is not on the mat 4 s after the
+ * walk began and is not walking (no path; the skate park's own controller),
+ * or 12 s have passed in any case, it leaves directly under the veil. */
 export const EXIT_INTENT_MS = 6000;
 export const EXIT_ARRIVE_MS = 4000;
+/** A walk still under way when EXIT_ARRIVE_MS passes keeps going until this
+ * hard cap (very slow frames), so movement input can still cancel it. */
+export const EXIT_WALK_CAP_MS = 12000;
 type ExitIntent = {
   scene: Scene;
   at: number;
@@ -86,7 +90,13 @@ function tickExitIntent() {
   )
     return cancelExit();
   if (!intent.walkAt) return;
-  if (g.near === "exit" || now - intent.walkAt > EXIT_ARRIVE_MS) {
+  const walking = runtime.target !== null && g.scene !== "skate";
+  const waited = now - intent.walkAt;
+  if (
+    g.near === "exit" ||
+    (waited > EXIT_ARRIVE_MS && !walking) ||
+    waited > EXIT_WALK_CAP_MS
+  ) {
     cancelExit();
     leaveRoom();
   }

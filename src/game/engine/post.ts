@@ -2,11 +2,16 @@ import * as THREE from "three";
 import { GRADE_GLSL } from "./grade";
 import type { Tier } from "../../stage/contract";
 import { TIER_BUDGETS } from "../../stage/contract";
+import { resolveAo } from "./tier";
 
 /**
- * High-tier composer: scene → half-res N8AO → one effect pass (ACES + grade).
- * Loaded lazily, only for tiers that use it, inside a warm task. Medium/low
- * render straight to the canvas with the grade folded into tone mapping.
+ * Composer: scene → half-res N8AO → one effect pass (ACES + grade).
+ * - "full" (high): 12 AO samples, 6 denoise samples, MSAA ×4.
+ * - "lite" (medium on a hardware, fine-pointer GPU): 6 samples, 4 denoise
+ *   samples, no MSAA.
+ * Loaded lazily inside a warm task (so its programs compile in warmup) and
+ * never toggled later. Without AO the scene renders straight to the canvas
+ * with the grade folded into tone mapping.
  */
 export interface StagePost {
   render: (delta: number) => void;
@@ -38,7 +43,9 @@ export async function createStagePost(
   camera: THREE.Camera,
   tier: Tier,
 ): Promise<StagePost | null> {
-  if (TIER_BUDGETS[tier].ao !== "full") return null;
+  const mode = resolveAo(TIER_BUDGETS[tier].ao, gl);
+  if (mode === "none") return null;
+  const lite = mode === "lite";
   const [pp, n8] = await Promise.all([import("postprocessing"), import("n8ao")]);
   const { EffectComposer, RenderPass, EffectPass, Effect, BlendFunction } = pp;
   class GradeEffect extends Effect {
@@ -56,7 +63,7 @@ export async function createStagePost(
   const size = gl.getDrawingBufferSize(new THREE.Vector2());
   const composer = new EffectComposer(gl, {
     frameBufferType: THREE.HalfFloatType,
-    multisampling: Math.min(4, gl.capabilities.maxSamples),
+    multisampling: lite ? 0 : Math.min(4, gl.capabilities.maxSamples),
   });
   const render = new RenderPass(scene, camera);
   const ao = new n8.N8AOPostPass(scene, camera, size.x, size.y);
@@ -66,8 +73,8 @@ export async function createStagePost(
     aoRadius: 2.2,
     distanceFalloff: 1.2,
     intensity: 2.2,
-    aoSamples: 12,
-    denoiseSamples: 6,
+    aoSamples: lite ? 6 : 12,
+    denoiseSamples: lite ? 4 : 6,
     denoiseRadius: 10,
     color: new THREE.Color("#1c2a3a"),
     gammaCorrection: false,

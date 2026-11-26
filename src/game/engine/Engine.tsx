@@ -18,7 +18,7 @@ import { createStagePost, type StagePost } from "./post";
 import { stats } from "./stats";
 import { usePresented } from "./presented";
 import { islandFollow } from "../core/islandCamera";
-import { useWorldView } from "../core/worldView";
+import { useWorldView, viewRuntime } from "../core/worldView";
 
 const liveCamera = new THREE.Vector3(),
   liveForward = new THREE.Vector3(),
@@ -127,7 +127,8 @@ export function EngineRuntime({
     if (renderer.shadowMap.enabled) {
       const overview =
         usePresented.getState().scene === "hub" &&
-        islandFollow(useWorldView.getState().zoom) === 0;
+        islandFollow(useWorldView.getState().zoom) === 0 &&
+        viewRuntime.blend === 0;
       const every = overview
         ? 12
         : budget.shadowUpdate === "every"

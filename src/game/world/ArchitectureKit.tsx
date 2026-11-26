@@ -30,9 +30,9 @@ const geometries = {
 };
 for (const g of Object.values(geometries)) g.deleteAttribute("uv");
 const materials = {
-  wood: sculptedMaterial({ roughness: 0.86 }),
-  stone: sculptedMaterial({ roughness: 0.94 }),
-  metal: sculptedMaterial({ roughness: 0.45, metalness: 0.55 }),
+  wood: sculptedMaterial({ roughness: 0.86 }, "wood"),
+  stone: sculptedMaterial({ roughness: 0.94 }, "stone"),
+  metal: sculptedMaterial({ roughness: 0.45, metalness: 0.55 }, "metal"),
   paint: sculptedMaterial({ roughness: 0.62 }),
 };
 export type KitMaterial = keyof typeof materials;

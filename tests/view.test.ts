@@ -1,0 +1,186 @@
+import { afterEach, describe, expect, it } from "vitest";
+import { PerspectiveCamera, Vector3 } from "three";
+import { aimCamera } from "../src/game/engine/camera";
+import {
+  BOOM_MAX_ELEVATION,
+  BOOM_MIN_DISTANCE,
+  EXPLORE_ELEVATION,
+  EXPLORE_FOV,
+  applyViewPose,
+  azimuthOf,
+  clearBoom,
+  dioramaPose,
+  easeView,
+  exploreLens,
+  explorePose,
+  makeViewPose,
+  mixView,
+  stepViewProgress,
+} from "../src/game/engine/view";
+import { ISLAND_CAMERA_OFFSET } from "../src/game/core/islandView";
+import {
+  DEFAULT_EXPLORE_DISTANCE,
+  MAX_EXPLORE_DISTANCE,
+  MIN_EXPLORE_DISTANCE,
+  dollyExplore,
+  setView,
+  toggleView,
+  useWorldView,
+} from "../src/game/core/worldView";
+import { freshSave, parseSave } from "../src/shared/save";
+
+const offset = new Vector3(...ISLAND_CAMERA_OFFSET);
+const cameraPosition = (pose: ReturnType<typeof makeViewPose>) =>
+  pose.target.clone().addScaledVector(pose.direction, pose.distance);
+
+afterEach(() =>
+  useWorldView.setState({
+    zoom: 1,
+    view: "diorama",
+    exploreDistance: DEFAULT_EXPLORE_DISTANCE,
+  }),
+);
+
+describe("diorama pose", () => {
+  it.each([1, 2.4, 4.5, 14])(
+    "is bit-identical to aimCamera at zoom %s",
+    (zoom) => {
+      const look = new Vector3(-6.25, 0.7, -18.125);
+      const camera = new PerspectiveCamera(20, 1440 / 900, 0.1, 1000);
+      aimCamera(camera, look, offset, zoom * 9.3, 900);
+      const pose = dioramaPose(makeViewPose(), look, offset, zoom * 9.3, 900);
+      const mixed = mixView(makeViewPose(), pose, makeViewPose(), 0);
+      // The Walker path at blend 0 is aimCamera itself; the pose maths match.
+      expect(cameraPosition(pose).toArray()).toEqual(camera.position.toArray());
+      expect(mixed.distance).toBe(camera.userData.viewDistance);
+      expect(mixed.fov).toBe(20);
+    },
+  );
+});
+
+describe("explore pose", () => {
+  it("keeps the diorama azimuth and sits low behind the player", () => {
+    const pose = explorePose(
+      makeViewPose(),
+      { x: 4, y: 0.18, z: 9 },
+      offset,
+      10,
+      EXPLORE_FOV,
+    );
+    expect(Math.atan2(pose.direction.x, pose.direction.z)).toBeCloseTo(
+      azimuthOf(offset),
+      12,
+    );
+    expect(Math.asin(pose.direction.y)).toBeCloseTo(EXPLORE_ELEVATION, 12);
+    expect(pose.target.y).toBeCloseTo(0.18 + 1.4, 12);
+    // Shifted to screen-right: the player sits left of centre.
+    const right = new Vector3(Math.cos(azimuthOf(offset)), 0, -Math.sin(azimuthOf(offset)));
+    expect(pose.target.clone().sub(new Vector3(4, 1.58, 9)).dot(right)).toBeCloseTo(0.8, 9);
+    expect(cameraPosition(pose).y).toBeGreaterThan(3);
+  });
+  it("uses a wider lens and longer boom on a phone in portrait", () => {
+    expect(exploreLens(390, 844)).toEqual({ fov: 50, distanceScale: 1.1 });
+    expect(exploreLens(1440, 900)).toEqual({ fov: 42, distanceScale: 1 });
+    expect(exploreLens(844, 390).fov).toBe(42);
+  });
+  it("frames the character at 14–18% of the viewport height by default", () => {
+    // Measured on 1440×900 renders: the character with its hat spans 16.2–16.4%
+    // of the height at the default 10-unit boom, i.e. ~1.26 world units.
+    const visible = 2 * DEFAULT_EXPLORE_DISTANCE * Math.tan((EXPLORE_FOV * Math.PI) / 360);
+    expect(1.26 / visible).toBeGreaterThan(0.14);
+    expect(1.26 / visible).toBeLessThan(0.18);
+  });
+});
+
+describe("view blend", () => {
+  const diorama = dioramaPose(
+    makeViewPose(),
+    new Vector3(-6, 0.7, -18),
+    offset,
+    9.3,
+    900,
+  );
+  const explore = explorePose(makeViewPose(), { x: 3, y: 0.18, z: 6 }, offset, 10, 42);
+  it("returns each end exactly", () => {
+    const out = makeViewPose();
+    mixView(out, diorama, explore, 1);
+    expect(out).toEqual(explore);
+    mixView(out, diorama, explore, 0);
+    expect(out).toEqual(diorama);
+  });
+  it("changes framed size monotonically and never dips under the ground", () => {
+    const out = makeViewPose();
+    let previous = Infinity;
+    for (let i = 0; i <= 100; i++) {
+      mixView(out, diorama, explore, easeView(i / 100));
+      const framed = out.distance * Math.tan((out.fov * Math.PI) / 360);
+      expect(framed).toBeLessThanOrEqual(previous + 1e-9);
+      previous = framed;
+      expect(cameraPosition(out).y).toBeGreaterThan(1);
+    }
+  });
+  it("reverses mid-blend without a jump", () => {
+    let p = 0;
+    for (let i = 0; i < 20; i++) p = stepViewProgress(p, 1, 1 / 60, 0.9);
+    const mid = p;
+    const back = stepViewProgress(p, 0, 1 / 60, 0.9);
+    expect(mid - back).toBeCloseTo(1 / 54, 9);
+    expect(easeView(mid) - easeView(back)).toBeLessThan(0.04);
+    expect(stepViewProgress(0.99, 1, 1, 0.9)).toBe(1);
+  });
+});
+
+describe("boom safety", () => {
+  const target = { x: 0, y: 1.6, z: 0 };
+  const azimuth = azimuthOf(offset);
+  it("keeps the full boom when nothing is in the way", () => {
+    const out = clearBoom({ distance: 0, elevation: 0 }, target, azimuth, 10, () => false);
+    expect(out).toEqual({ distance: 10, elevation: EXPLORE_ELEVATION });
+  });
+  it("comes closer and rises behind a wall, never under the minimum", () => {
+    // A wall 6 units behind the player along the boom.
+    const wall = (x: number, z: number) =>
+      x * Math.sin(azimuth) + z * Math.cos(azimuth) > 6;
+    const out = clearBoom({ distance: 0, elevation: 0 }, target, azimuth, 10, wall);
+    expect(out.distance).toBeLessThan(6.5);
+    expect(out.distance).toBeGreaterThanOrEqual(BOOM_MIN_DISTANCE);
+    expect(out.elevation).toBeGreaterThan(EXPLORE_ELEVATION);
+    const boxed = clearBoom({ distance: 0, elevation: 0 }, target, azimuth, 10, () => true);
+    expect(boxed).toEqual({ distance: BOOM_MIN_DISTANCE, elevation: BOOM_MAX_ELEVATION });
+  });
+});
+
+describe("camera write", () => {
+  it("records a view zoom the marker and the rig can read", () => {
+    const camera = new PerspectiveCamera(20, 1.6, 0.1, 1000);
+    const pose = explorePose(makeViewPose(), { x: 0, y: 0.18, z: 0 }, offset, 10, 42);
+    applyViewPose(camera, pose, 900);
+    expect(camera.fov).toBe(42);
+    expect(camera.userData.viewDistance).toBe(10);
+    expect(camera.position.distanceTo(pose.target)).toBeCloseTo(10, 9);
+    expect(camera.userData.viewZoom).toBeCloseTo(900 / (2 * Math.tan((21 * Math.PI) / 180) * 10), 9);
+  });
+});
+
+describe("view state", () => {
+  it("toggles and dollies the explore boom within 6–16", () => {
+    toggleView();
+    expect(useWorldView.getState().view).toBe("explore");
+    for (let i = 0; i < 30; i++) dollyExplore(1.25);
+    expect(useWorldView.getState().exploreDistance).toBe(MIN_EXPLORE_DISTANCE);
+    for (let i = 0; i < 30; i++) dollyExplore(0.8);
+    expect(useWorldView.getState().exploreDistance).toBe(MAX_EXPLORE_DISTANCE);
+    setView("diorama");
+    expect(useWorldView.getState().view).toBe("diorama");
+    expect(useWorldView.getState().zoom).toBe(1);
+  });
+  it("persists the view in the save; old and invalid values still parse", () => {
+    const old = freshSave();
+    expect(parseSave(JSON.stringify(old))).toEqual(old);
+    const chosen = { ...freshSave(), view: "explore" as const };
+    expect(parseSave(JSON.stringify(chosen))).toEqual(chosen);
+    expect(parseSave(JSON.stringify({ ...freshSave(), view: "orbit" }))).toEqual(
+      freshSave(),
+    );
+  });
+});

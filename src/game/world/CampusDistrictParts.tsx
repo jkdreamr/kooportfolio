@@ -1,7 +1,11 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { chamferBoxGeometry } from "./chamferBox";
-import { sculptedMaterial } from "./Surface";
+import {
+  sculptedMaterial,
+  surfaceKindForColor,
+  type SurfaceKind,
+} from "./Surface";
 
 export type CampusShape =
   | "stone"
@@ -17,6 +21,8 @@ export type CampusPart = {
   s: [number, number, number];
   c: string;
   r?: [number, number, number];
+  /** Surface kind (detail layer); default: sandstone → stone, else guessed. */
+  k?: SurfaceKind;
 };
 
 const wedge = new THREE.BufferGeometry();
@@ -43,15 +49,35 @@ const shapes: Record<CampusShape, THREE.BufferGeometry> = {
   roof: wedge,
   dome: new THREE.SphereGeometry(1, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2),
 };
-const matte = sculptedMaterial({ roughness: 0.86, metalness: 0 });
+const mattes = new Map<SurfaceKind, THREE.MeshStandardMaterial>();
+const matte = (kind: SurfaceKind) => {
+  let m = mattes.get(kind);
+  if (!m)
+    mattes.set(kind, (m = sculptedMaterial({ roughness: 0.86, metalness: 0 }, kind)));
+  return m;
+};
+const scratch = new THREE.Color();
+/** Warm, light sandstone tints read as cut stone. */
+export function campusKind(part: CampusPart): SurfaceKind {
+  if (part.k) return part.k;
+  const hsl = scratch.set(part.c).getHSL({ h: 0, s: 0, l: 0 });
+  if (hsl.h >= 0.07 && hsl.h <= 0.15 && hsl.l >= 0.45 && hsl.s >= 0.15)
+    return "stone";
+  return surfaceKindForColor(part.c);
+}
 
 /** One draw call per shape, not per tile, arch, leaf or sandstone block. */
 function Batch({
   parts,
   geometry,
+  kind,
+  bakedShadow = true,
 }: {
   parts: CampusPart[];
   geometry: THREE.BufferGeometry;
+  kind: SurfaceKind;
+  /** false: casts nothing once baked (tiles on a roof wedge that casts). */
+  bakedShadow?: boolean;
 }) {
   const ref = useRef<THREE.InstancedMesh>(null);
   useLayoutEffect(() => {
@@ -70,11 +96,14 @@ function Batch({
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     mesh.computeBoundingSphere();
-  }, [parts]);
+    // Mutated, never a `userData` prop (R3F would drop the baker's mark).
+    if (bakedShadow) delete mesh.userData.castCount;
+    else mesh.userData.castCount = 0;
+  }, [parts, bakedShadow]);
   return (
     <instancedMesh
       ref={ref}
-      args={[geometry, matte, parts.length]}
+      args={[geometry, matte(kind), parts.length]}
       castShadow
       receiveShadow
       dispose={null}
@@ -83,15 +112,28 @@ function Batch({
 }
 
 export function CampusDistrictParts({ parts }: { parts: CampusPart[] }) {
-  const batches = useMemo(
-    () =>
-      (Object.keys(shapes) as CampusShape[]).map((shape) => ({
-        shape,
-        parts: parts.filter((part) => part.shape === shape),
-      })),
-    [parts],
-  );
-  return batches.map(({ shape, parts: batch }) => (
-    <Batch key={shape} geometry={shapes[shape]} parts={batch} />
+  const batches = useMemo(() => {
+    const groups = new Map<
+      string,
+      { shape: CampusShape; kind: SurfaceKind; parts: CampusPart[] }
+    >();
+    for (const part of parts) {
+      const kind = campusKind(part);
+      const key = `${part.shape}:${kind}`;
+      let group = groups.get(key);
+      if (!group) groups.set(key, (group = { shape: part.shape, kind, parts: [] }));
+      group.parts.push(part);
+    }
+    return [...groups.entries()];
+  }, [parts]);
+  return batches.map(([key, { shape, kind, parts: batch }]) => (
+    <Batch
+      key={key}
+      geometry={shapes[shape]}
+      kind={kind}
+      parts={batch}
+      // Roof tiles sit on the solid roof wedge, which casts the same shadow.
+      bakedShadow={!(shape === "stone" && kind === "shingle")}
+    />
   ));
 }

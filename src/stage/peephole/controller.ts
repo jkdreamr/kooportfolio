@@ -574,6 +574,7 @@ export class PeepholeController {
     if (this.phase === "game") return;
     this.phase = "game";
     this.savedZoom = null;
+    this.savedView = null;
     const st = useStage.getState();
     st.setMode("game");
     revealHud();
@@ -593,7 +594,11 @@ export class PeepholeController {
   /** Reduced motion (or forward navigation): a 400 ms dissolve, never a cut. */
   dissolveToGame() {
     if (this.phase === "game") return;
-    // No zoom change here: a camera glide after the dissolve is motion.
+    // No zoom change here: a camera glide after the dissolve is motion. The
+    // landing view still applies (a first visit lands in explore); its
+    // reduced-motion blend is 150 ms, inside the dissolve.
+    if (this.savedZoom === null && useWorldView.getState().savedView === null)
+      useWorldView.setState({ view: "explore" });
     this.phase = "flying";
     cameraRig.live(0);
     const st = useStage.getState();

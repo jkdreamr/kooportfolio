@@ -11,5 +11,5 @@ export function Groves({ world }: { world: WorldId }) {
     if (!value) cache.set(world, (value = groveField(world)));
     return value;
   }, [world]);
-  return trees.length ? <NaturalTrees trees={trees} /> : null;
+  return trees.length ? <NaturalTrees trees={trees} lod="low" /> : null;
 }

@@ -10,6 +10,7 @@ import {
   hexRoof,
   lathe,
   makeParts,
+  roofTiled,
   stoneCap,
   tiled,
   type V3,
@@ -25,7 +26,7 @@ import { Roofs } from "./Roofs";
  */
 
 const S = KOREA_SIGHTS;
-const granite = sculptedMaterial({ color: "#bdb29d" });
+const granite = sculptedMaterial({ color: "#bdb29d" }, "stone");
 
 /* ---------------------------------------------------------- throne hall */
 const hall = makeParts();
@@ -460,7 +461,7 @@ export function KoreaHeritage() {
             position={[0, 1.86, 0]}
             scale={[1.95, 0.86, 1.95]}
             geometry={hexRoof}
-            material={tiled}
+            material={roofTiled}
             castShadow
             receiveShadow
             dispose={null}

@@ -33,6 +33,7 @@ import { SKATE_EXIT } from "../core/skate";
 import { RoomStory } from "./RoomStory";
 import { exitWalkStarted, requestExit, useExitIntent } from "../core/doorway";
 import { usePresented } from "../engine/presented";
+import { startIdlePrewarm } from "../engine/prewarm";
 import type { PlaceId } from "../core/world";
 import { npcName } from "../core/npcState";
 import { TravelMap } from "./TravelMap";
@@ -659,6 +660,8 @@ export function Hud({ interact }: { interact: () => void }) {
       useGame.setState({ overlayLocked: false });
     };
   }, []);
+  // Idle shader prewarm for rooms and game stages (by proxy, never mounted).
+  useEffect(() => startIdlePrewarm(), []);
   const g = useGame();
   const leaving = useExitIntent(g.scene);
   useSceneFocus(hudMotion !== "hidden");

@@ -1,6 +1,8 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { sculptedMaterial } from "./Surface";
+import { REFLECT_LAYER } from "./env/reflection";
 import { lookWorld } from "./env/look";
 import type { WorldId } from "../core/worlds";
 import { registerCrowns, type Crown } from "./env/foliage";
@@ -253,6 +255,38 @@ function palmFrondGeometry() {
 const broadGeometry = leafGeometry(false, 5);
 const pineGeometry = leafGeometry(true, 5);
 const palmGeometry = palmFrondGeometry();
+
+/** Grove LOD (scenic groves on unwalkable land): a 20-tri inner crown and a
+ * 12-tri open trunk. The leaf shell carries their silhouettes, so the inner
+ * mass only has to fill the gaps between cards. */
+function whiteColors(geometry: THREE.BufferGeometry, tone = 1) {
+  const count = geometry.getAttribute("position").count;
+  geometry.setAttribute(
+    "color",
+    new THREE.Float32BufferAttribute(new Float32Array(count * 3).fill(tone), 3),
+  );
+  return geometry;
+}
+const lowCrownGeometry = (() => {
+  // Smooth-shaded (shared vertices), so the low crown reads as one soft mass.
+  const ico = new THREE.IcosahedronGeometry(0.86, 0);
+  ico.deleteAttribute("uv");
+  const merged = mergeVertices(ico);
+  merged.computeVertexNormals();
+  return whiteColors(merged, 0.88);
+})();
+const lowWoodGeometry = (() => {
+  const geometry = new THREE.CylinderGeometry(0.62, 1, 1, 6, 1, true);
+  const positions = geometry.getAttribute("position");
+  const colors: number[] = [];
+  for (let i = 0; i < positions.count; i++) {
+    const angle = Math.atan2(positions.getZ(i), positions.getX(i));
+    const shade = 0.82 + (Math.sin(angle * 5) + 1) * 0.09;
+    colors.push(shade, shade * 0.94, shade * 0.86);
+  }
+  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  return geometry;
+})();
 const woodGeometry = new THREE.CylinderGeometry(0.62, 1, 1, 7);
 const barkColors = [];
 const barkPositions = woodGeometry.getAttribute("position");
@@ -265,7 +299,7 @@ woodGeometry.setAttribute(
   "color",
   new THREE.Float32BufferAttribute(barkColors, 3),
 );
-const barkMaterial = sculptedMaterial({ roughness: 0.98, vertexColors: true });
+const barkMaterial = sculptedMaterial({ roughness: 0.98, vertexColors: true }, "bark");
 const leafMaterial = sculptedMaterial({ roughness: 0.91, vertexColors: true });
 const up = new THREE.Vector3(0, 1, 0);
 
@@ -482,10 +516,12 @@ function TreeInstances({
   parts,
   geometry,
   material,
+  reflected = true,
 }: {
   parts: Part[];
   geometry: THREE.BufferGeometry;
   material: THREE.Material;
+  reflected?: boolean;
 }) {
   const ref = useRef<THREE.InstancedMesh>(null);
   useLayoutEffect(() => {
@@ -503,23 +539,43 @@ function TreeInstances({
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     mesh.computeBoundingSphere();
+    // Village trunks and inner crowns appear in the water's planar
+    // reflection; scenic groves (their canopies are in the reflected leaf
+    // shell) and the hanging underside islets stay out of it (budget §1.5).
+    let underside = false;
+    for (let node: THREE.Object3D | null = mesh; node; node = node.parent)
+      if (node.name === "island-underside") underside = true;
+    if (reflected && !underside && parts.length) {
+      mesh.updateWorldMatrix(true, false);
+      const at = new THREE.Vector3(...parts[0].p).applyMatrix4(mesh.matrixWorld);
+      if (at.y > -3) mesh.layers.enable(REFLECT_LAYER);
+    }
     return () => {
       mesh.dispose();
     };
-  }, [parts]);
+  }, [parts, reflected]);
   return (
     <instancedMesh
       ref={ref}
       args={[geometry, material, parts.length]}
       castShadow
-      receiveShadow={geometry === woodGeometry}
+      receiveShadow={geometry === woodGeometry || geometry === lowWoodGeometry}
       dispose={null}
     />
   );
 }
 
-/** Three opaque grove batches, plus one when palms are present. Placement stays external. */
-export function NaturalTrees({ trees }: { trees: readonly TreePlacement[] }) {
+/** Three opaque grove batches, plus one when palms are present. Placement
+ * stays external. `lod="low"` (scenic groves) swaps in the 20-tri crown and
+ * 12-tri trunk; village trees keep the full geometry. */
+export function NaturalTrees({
+  trees,
+  lod = "full",
+}: {
+  trees: readonly TreePlacement[];
+  lod?: "full" | "low";
+}) {
+  const low = lod === "low";
   const world = lookWorld();
   const { wood, broad, pine, palms } = useMemo(() => {
     const wood: Part[] = [],
@@ -572,33 +628,37 @@ export function NaturalTrees({ trees }: { trees: readonly TreePlacement[] }) {
         r: [e.x, e.y, e.z],
         color: part.c,
         kind,
+        scenic: low,
       };
     };
     return registerCrowns([
       ...broad.map((part) => place(part, "broad")),
       ...pine.map((part) => place(part, "pine")),
     ]);
-  }, [broad, pine]);
+  }, [broad, pine, low]);
   return (
     <group ref={anchor}>
       {wood.length > 0 && (
         <TreeInstances
           parts={wood}
-          geometry={woodGeometry}
+          geometry={low ? lowWoodGeometry : woodGeometry}
+          reflected={!low}
           material={barkMaterial}
         />
       )}
       {broad.length > 0 && (
         <TreeInstances
           parts={inner.broad}
-          geometry={broadGeometry}
+          geometry={low ? lowCrownGeometry : broadGeometry}
+          reflected={!low}
           material={leafMaterial}
         />
       )}
       {pine.length > 0 && (
         <TreeInstances
           parts={inner.pine}
-          geometry={pineGeometry}
+          geometry={low ? lowCrownGeometry : pineGeometry}
+          reflected={!low}
           material={leafMaterial}
         />
       )}

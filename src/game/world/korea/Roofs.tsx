@@ -1,4 +1,4 @@
-import { tiled, type Roof } from "./kit";
+import { roofTiled, type Roof } from "./kit";
 
 /** Individual roof meshes; the surrounding StaticBatch merges them. */
 export function Roofs({ roofs }: { roofs: readonly Roof[] }) {
@@ -10,7 +10,7 @@ export function Roofs({ roofs }: { roofs: readonly Roof[] }) {
       // A rotated roof keeps `s` in world axes: its ridge runs along z.
       scale={rotY ? [s[2], s[1], s[0]] : s}
       geometry={geometry}
-      material={tiled}
+      material={roofTiled}
       castShadow
       receiveShadow
       dispose={null}

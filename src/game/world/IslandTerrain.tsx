@@ -4,6 +4,7 @@ import { hash01, type P2 } from "../core/coast";
 import { TERRAIN, terrainTierLoop, type TerrainFeature } from "../core/terrain";
 import type { WorldId } from "../core/worlds";
 import { sculptedMaterial } from "./Surface";
+import { reflect } from "./env/reflection";
 import { NaturalTrees, type TreePlacement } from "./TreeArt";
 
 // Relief art for the land nobody walks on: terraces, knolls, granite and the
@@ -178,11 +179,14 @@ function terrainGeometry(world: WorldId, detail: boolean) {
   if (!geometry) geometries.set(key, (geometry = buildTerrain(world, detail)));
   return geometry;
 }
-const material = sculptedMaterial({
-  vertexColors: true,
-  flatShading: true,
-  roughness: 0.94,
-});
+const material = sculptedMaterial(
+  {
+    vertexColors: true,
+    flatShading: true,
+    roughness: 0.94,
+  },
+  "ground",
+);
 const trees = new Map<WorldId, TreePlacement[]>();
 function terrainTrees(world: WorldId) {
   let placed = trees.get(world);
@@ -216,7 +220,7 @@ export function IslandTerrain({
   );
   const placed = terrainTrees(world);
   return (
-    <group name="island-terrain">
+    <group name="island-terrain" ref={reflect}>
       <mesh
         geometry={geometry}
         material={material}

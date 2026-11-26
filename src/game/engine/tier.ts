@@ -42,7 +42,7 @@ export function pickTier(gl: THREE.WebGLRenderer): Tier {
   const small = Math.min(screen.width, screen.height) < 600;
   // Software rasterisers: keep the readable mid look rather than a bare one;
   // the adaptive resolution knob absorbs the rest.
-  if (/swiftshader|llvmpipe|software|basic render/i.test(name)) return "medium";
+  if (isSoftwareRenderer(gl)) return "medium";
   if (memory <= 2 || cores <= 2 || gl.capabilities.maxTextureSize < 4096)
     return "low";
   if (coarse || small) {
@@ -58,3 +58,30 @@ export function pickTier(gl: THREE.WebGLRenderer): Tier {
 
 /** Legacy two-level quality the world builders still read. */
 export const legacyQuality = (tier: Tier) => (tier === "low" ? "low" : "high");
+
+/** Software rasterisers (SwiftShader, llvmpipe, WARP). */
+export const isSoftwareRenderer = (gl: THREE.WebGLRenderer) =>
+  /swiftshader|llvmpipe|software|basic render/i.test(rendererName(gl));
+
+export type AoMode = "full" | "lite" | "none";
+const AO_MODES: readonly AoMode[] = ["full", "lite", "none"];
+
+/**
+ * The screen-space AO this session runs, decided once at boot (the composer
+ * and the tone-mapping path depend on it; it never toggles later).
+ * `?ao=full|lite|none` forces it for QA. "lite" (medium tier) needs a
+ * hardware GPU and a fine pointer: software renderers and phones keep the
+ * baked AO and contact blobs only.
+ */
+export function resolveAo(budgetAo: AoMode, gl: THREE.WebGLRenderer): AoMode {
+  try {
+    const forced = new URLSearchParams(location.search).get("ao");
+    if (forced && (AO_MODES as string[]).includes(forced)) return forced as AoMode;
+  } catch {
+    // No location (tests): fall through.
+  }
+  if (budgetAo !== "lite") return budgetAo;
+  const coarse =
+    typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches;
+  return coarse || isSoftwareRenderer(gl) ? "none" : "lite";
+}

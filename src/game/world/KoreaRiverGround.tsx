@@ -3,6 +3,7 @@ import { KOREA_COAST, KOREA_SHORE } from "../core/koreaDistrict";
 import { KOREA_APRON_Y } from "../core/terrain";
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
 import { sculptedMaterial } from "./Surface";
+import { reflect } from "./env/reflection";
 import type { GroundFootprint } from "../core/scenery";
 
 const river = { left: -12, right: 62, near: 22, far: 44 };
@@ -32,8 +33,8 @@ const terrain = new THREE.ExtrudeGeometry(land, {
 terrain.rotateX(Math.PI / 2);
 terrain.translate(0, 0.14, 0);
 terrain.computeVertexNormals();
-const groundMaterial = sculptedMaterial({ color: "#8b9480", roughness: 0.96 });
-const soilMaterial = sculptedMaterial({ color: "#6f7569", roughness: 0.96 });
+const groundMaterial = sculptedMaterial({ color: "#8b9480", roughness: 0.96 }, "ground");
+const soilMaterial = sculptedMaterial({ color: "#6f7569", roughness: 0.96 }, "ground");
 const terrainMaterials = [groundMaterial, soilMaterial];
 // The streets end at a stone edge; a rounded, mossy apron of unwalkable rock
 // lies a step below it and carries the pine hillside and the granite ridge.
@@ -52,8 +53,8 @@ apron.rotateX(Math.PI / 2);
 apron.translate(0, KOREA_APRON_Y, 0);
 apron.computeVertexNormals();
 const apronMaterials = [
-  sculptedMaterial({ color: "#7f8c6c", roughness: 0.96 }),
-  sculptedMaterial({ color: "#8f9087", roughness: 0.96 }),
+  sculptedMaterial({ color: "#7f8c6c", roughness: 0.96 }, "stone"),
+  sculptedMaterial({ color: "#8f9087", roughness: 0.96 }, "stone"),
 ];
 const walls: SceneryPart[] = [];
 for (let x = -11; x < 62; x += 2.4) {
@@ -76,7 +77,7 @@ walls.push({ p: [25, -3.4, 33], s: [74, 1, 22], c: "#52655c", shape: "block" });
 /** Replaces ALL Korea base ground layers/tiles. Do not mount over uncut ground. */
 export function KoreaRiverGround() {
   return (
-    <group name="korea-carved-river-ground">
+    <group name="korea-carved-river-ground" ref={reflect}>
       <mesh
         geometry={terrain}
         material={terrainMaterials}

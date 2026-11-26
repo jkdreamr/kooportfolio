@@ -17,7 +17,7 @@ import { nextSlice, sliceBudget } from "./slice";
  *
  * Size: 176² on high/medium (8 layers × 176² × 4 B = 0.99 MB, 1.32 MB with
  * mips; 256² would be 2.8 MB, over the 1.4 MB budget), 64² on low. Made in
- * ≤12 ms slices during warmup; until it lands the texture holds a neutral
+ * small slices during warmup; until it lands the texture holds a neutral
  * grey (no detail), never an unbound sampler, so programs never change.
  */
 export const DETAIL_LAYERS = 8;
@@ -235,14 +235,15 @@ const LAYERS: Texel[] = [
     o[2] = 0.5 + (strokes - 0.5) * 0.4 - (broad - 0.5) * 0.2;
     o[3] = pits;
   },
-  // 5 ground: soil mottling and flecks; blade strokes are splatted on top in
-  // `groundStrokes`.
+  // 5 ground: broad soil-and-turf mottling, mid clumps and a few soft
+  // flecks; short blade strokes are splatted on top in `groundStrokes`.
   (u, v, o) => {
-    const soil = fbm2(u, v, 5, 5, 4, 601);
-    const fleck = 1 - step(0.0, 0.11, voronoi(u, v, 18, 18, 607).f1);
-    o[0] = 0.5 + (soil - 0.5) * 0.45 - fleck * 0.3;
-    o[1] = 0.35 + (soil - 0.5) * 0.2 - fleck * 0.15;
-    o[2] = 0.56 + (soil - 0.5) * 0.15 + fleck * 0.1;
+    const soil = fbm2(u, v, 4, 4, 4, 601);
+    const clumps = fbm2(u, v, 10, 10, 3, 603);
+    const fleck = 1 - step(0.0, 0.07, voronoi(u, v, 9, 9, 607).f1);
+    o[0] = 0.5 + (soil - 0.5) * 0.4 + (clumps - 0.5) * 0.18 - fleck * 0.08;
+    o[1] = 0.4 + (clumps - 0.5) * 0.15 + (soil - 0.5) * 0.08 - fleck * 0.05;
+    o[2] = 0.56 + (soil - 0.5) * 0.15 + fleck * 0.06;
     o[3] = 0;
   },
   // 6 bark: vertical plates (cells 5:1.5 tall) split by deep furrows.
@@ -268,28 +269,45 @@ const LAYERS: Texel[] = [
   },
 ];
 
-/** Short grass blades on the "ground" layer: bright, raised strokes. */
+/** Short grass blades on the "ground" layer: soft, raised strokes about
+ * 2 px wide and 4–10 cm long, then a box blur so nothing reads as pixel
+ * noise at gameplay distance. */
 function groundStrokes(size: number, r: Float32Array, g: Float32Array, b: Float32Array, a: Float32Array) {
-  const count = Math.round(size * size * 0.035);
+  const count = Math.round(size * size * 0.01);
   for (let s = 0; s < count; s++) {
     const x0 = hash(s, 1, 613) * size,
       y0 = hash(s, 2, 613) * size;
-    const angle = -Math.PI / 2 + (hash(s, 3, 613) - 0.5) * 2.2;
-    const length = size * (0.008 + hash(s, 4, 613) * 0.02);
+    const angle = -Math.PI / 2 + (hash(s, 3, 613) - 0.5) * 1.6;
+    const length = size * (0.018 + hash(s, 4, 613) * 0.03);
     const lift = 0.5 + hash(s, 5, 613) * 0.5;
     const steps = Math.max(2, Math.ceil(length));
     for (let k = 0; k <= steps; k++) {
       const t = k / steps;
-      const x = Math.round(x0 + Math.cos(angle) * length * t),
-        y = Math.round(y0 + Math.sin(angle) * length * t);
-      const i = (((y % size) + size) % size) * size + (((x % size) + size) % size);
-      const w = lift * (0.55 + 0.45 * t);
-      r[i] = Math.max(r[i], 0.55 + 0.4 * w);
-      g[i] = Math.max(g[i], 0.45 + 0.5 * w * t);
-      b[i] = Math.min(b[i], 0.5 - 0.2 * w);
-      a[i] = Math.max(a[i], w);
+      const w = lift * (0.45 + 0.55 * t);
+      for (let side = 0; side < 2; side++) {
+        const x = Math.round(x0 + Math.cos(angle) * length * t + side),
+          y = Math.round(y0 + Math.sin(angle) * length * t);
+        const i = (((y % size) + size) % size) * size + (((x % size) + size) % size);
+        r[i] = Math.max(r[i], 0.5 + 0.14 * w);
+        g[i] = Math.max(g[i], 0.42 + 0.16 * w * t);
+        b[i] = Math.min(b[i], 0.52 - 0.1 * w);
+        a[i] = Math.max(a[i], w);
+      }
     }
   }
+  for (const channel of [r, g, b]) blur(channel, size);
+}
+/** One 3×3 box-blur pass with wrap-around (keeps the tile seamless). */
+function blur(values: Float32Array, size: number) {
+  const copy = values.slice();
+  for (let y = 0; y < size; y++)
+    for (let x = 0; x < size; x++) {
+      let sum = 0;
+      for (let j = -1; j <= 1; j++)
+        for (let i = -1; i <= 1; i++)
+          sum += copy[(((y + j + size) % size) * size) + ((x + i + size) % size)];
+      values[y * size + x] = sum / 9;
+    }
 }
 
 function stretch(values: Float32Array) {
@@ -341,6 +359,7 @@ export async function buildDetailLayer(
     }
   } else {
     if (layer === 5) groundStrokes(size, ch[0], ch[1], ch[2], ch[3]);
+    if (layer === 4) for (let c = 0; c < 3; c++) blur(ch[c], size);
     centre(ch[0]);
     centre(ch[2]);
   }
@@ -398,13 +417,16 @@ export function generateDetail(tier?: Tier | null) {
   return job!;
 }
 
-/** Fill the layers in ≤12 ms slices, then upload once. */
+/** Fill the layers in small slices (≤8 ms, and at most 6 rows each, ~1–2
+ * ms of CPU), then upload once. */
 function fill(target: THREE.DataArrayTexture, size: number) {
   return (async () => {
-    const budget = sliceBudget(12);
+    const budget = sliceBudget(8);
     let sliceStart = performance.now();
+    let rows = 0;
     const pause = async () => {
-      if (!budget.over()) return;
+      if (++rows < 6 && !budget.over()) return;
+      rows = 0;
       const spent = performance.now() - sliceStart;
       detailStats.cpuMs += spent;
       detailStats.longestSliceMs = Math.max(detailStats.longestSliceMs, spent);

@@ -7,8 +7,8 @@ import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
 type Vec3 = SceneryPart["p"];
 type Roof = { p: Vec3; s: Vec3 };
 
-const tileMaterial = sculptedMaterial({ vertexColors: true });
-const granite = sculptedMaterial({ color: "#bcb29e" });
+const tileMaterial = sculptedMaterial({ vertexColors: true }, "shingle");
+const granite = sculptedMaterial({ color: "#bcb29e" }, "stone");
 const timber = "#624236";
 const darkTile = "#414947";
 const stone = "#b6ab94";
