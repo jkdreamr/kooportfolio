@@ -192,7 +192,7 @@ function ProgramPanel({
     () =>
       needle
         ? program.filter((film) =>
-            `${film.title}\u0000${film.episode}`.toLowerCase().includes(needle),
+            `${film.title} ${film.episode}`.toLowerCase().includes(needle),
           )
         : [],
     [needle, program],
