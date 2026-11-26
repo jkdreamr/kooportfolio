@@ -2,8 +2,7 @@ import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { advanceHour, DAYLIGHT_KEYS, sampleDaylight } from "../core/daylight";
-import { daylightClock, useTimeOfDay } from "../core/timeOfDay";
-import { readWorldHour } from "../core/worldTime";
+import { autoHour, daylightClock, useTimeOfDay } from "../core/timeOfDay";
 import { runtime, useGame } from "../core/store";
 import { isInterior } from "../core/world";
 import { usePresented } from "../engine/presented";
@@ -110,7 +109,7 @@ export function TimeOfDayLighting({ dimmed = false }: { dimmed?: boolean }) {
         daylightClock.hour,
         delta,
         time.mode,
-        time.mode === "auto" ? readWorldHour(time.timeZone) : undefined,
+        time.mode === "auto" ? autoHour(time.timeZone) : undefined,
       );
       displayedAt.current += Math.min(delta, 0.1);
       if (displayedAt.current >= 0.25) {
