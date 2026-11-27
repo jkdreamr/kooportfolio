@@ -1,6 +1,5 @@
 import type { Villager } from "../../core/npcs";
-import { compileOutfit, shade, type Outfit } from "./wardrobe";
-import type { Look } from "./rig";
+import { shade, type Outfit } from "./outfit";
 
 /**
  * Who wears what. Every villager's outfit follows who they are and what they
@@ -729,10 +728,3 @@ export function casualOutfit(npc: Villager): Outfit {
 export const outfitFor = (npc: Villager): Outfit =>
   CAST[npc.id]?.make(npc) ?? casualOutfit(npc);
 
-const looks = new Map<string, Look>();
-/** Compiled (cached) look for a villager. */
-export function lookFor(npc: Villager): Look {
-  let look = looks.get(npc.id);
-  if (!look) looks.set(npc.id, (look = compileOutfit(outfitFor(npc), `npc:${npc.id}`)));
-  return look;
-}

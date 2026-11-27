@@ -1,13 +1,24 @@
-import * as THREE from "three";
 import {
   makeLook,
-  type Hold,
   type Joint,
   type Look,
   type Palette,
   type Part,
   type Vec3,
 } from "./rig";
+import { SK } from "./skeleton";
+import {
+  mix,
+  outfitFromPalette,
+  shade,
+  type HairStyle,
+  type HeadKind,
+  type Hold,
+  type Outfit,
+} from "./outfit";
+import { outfitFor } from "./cast";
+import type { Villager } from "../../core/npcs";
+export * from "./outfit";
 
 /**
  * Data-driven wardrobe: an `Outfit` says what a character is made of and
@@ -21,132 +32,6 @@ import {
  * elbows −0.255 below, hands −0.245 below that, hips at pelvis (±0.118,
  * −0.035), knees −0.345, ankles −0.325 (ankle ≈ 0.065 above the ground).
  */
-
-export type HairStyle =
-  | "crop"
-  | "buzz"
-  | "side"
-  | "bob"
-  | "long"
-  | "ponytail"
-  | "bun"
-  | "curly"
-  | "topknot";
-export type TopKind =
-  | "tee"
-  | "shirt"
-  | "polo"
-  | "jersey"
-  | "tank"
-  | "hoodie"
-  | "turtleneck"
-  | "sweater"
-  | "jeogori"
-  | "chef";
-export type BottomKind =
-  | "trousers"
-  | "shorts"
-  | "skirt"
-  | "long-skirt"
-  | "chima"
-  | "baji";
-export type OuterKind =
-  | "jacket"
-  | "blazer"
-  | "vest"
-  | "labcoat"
-  | "durumagi"
-  | "apron"
-  | "cardigan"
-  | "overalls";
-export type HeadKind =
-  | "straw"
-  | "gat"
-  | "cap"
-  | "cap-back"
-  | "bucket"
-  | "beanie"
-  | "hardhat"
-  | "chef"
-  | "visor"
-  | "headband"
-  | "helmet"
-  | "beret"
-  | "flatcap"
-  | "ranger"
-  | "headscarf";
-export type FootKind = "shoes" | "sneakers" | "boots" | "flats";
-export type ExtraKind =
-  | "glasses"
-  | "sunglasses"
-  | "scarf"
-  | "lanyard"
-  | "backpack"
-  | "satchel"
-  | "tote"
-  | "camera"
-  | "book"
-  | "clipboard"
-  | "flag"
-  | "ball"
-  | "racket"
-  | "drumsticks"
-  | "rod"
-  | "guitar"
-  | "watering-can"
-  | "lightstick"
-  | "pole"
-  | "map"
-  | "headphones"
-  | "cup"
-  | "basket"
-  | "envelope"
-  | "rope"
-  | "pencil"
-  | "towel"
-  | "whistle"
-  | "binyeo"
-  | "roll"
-  | "number"
-  | "goreum";
-export type Extra = { kind: ExtraKind; color?: string; color2?: string };
-
-export type Outfit = {
-  /** Height (uniform scale) and width (torso/limb girth), both ≈1. */
-  build?: { height?: number; width?: number };
-  skin: string;
-  /** Iris colour. */
-  eyes?: string;
-  hair: { style: HairStyle; color: string };
-  top: {
-    kind: TopKind;
-    color: string;
-    trim?: string;
-    sleeves?: "long" | "short" | "none" | "rolled";
-  };
-  bottom: { kind: BottomKind; color: string; trim?: string };
-  outer?: { kind: OuterKind; color: string; trim?: string };
-  belt?: { color: string; buckle?: string; pouch?: string };
-  head?: { kind: HeadKind; color: string; band?: string };
-  feet: { kind: FootKind; color: string; sole?: string };
-  gloves?: string;
-  extras?: Extra[];
-};
-
-// --- Colour helpers ----------------------------------------------------------
-const tmp = new THREE.Color(),
-  tmp2 = new THREE.Color();
-/** Lighten (>0) or darken (<0) a hex colour, in linear-ish sRGB space. */
-export function shade(hex: string, amount: number) {
-  tmp.set(hex);
-  if (amount >= 0) tmp.lerp(tmp2.set("#ffffff"), amount);
-  else tmp.multiplyScalar(1 + amount);
-  return `#${tmp.getHexString()}`;
-}
-export function mix(a: string, b: string, t: number) {
-  tmp.set(a).lerp(tmp2.set(b), t);
-  return `#${tmp.getHexString()}`;
-}
 
 const mirrorJoint = (j: Joint): Joint =>
   j.endsWith("L") ? ((j.slice(0, -1) + "R") as Joint) : j;
@@ -799,6 +684,37 @@ const COVERS_HAIR: ReadonlySet<HeadKind> = new Set([
   "hardhat",
 ]);
 
+/** The part offsets above were laid out on the original (taller) skeleton;
+ * rescale them per joint to the chunky proportions in skeleton.ts. */
+const RETARGET: Partial<Record<Joint, number>> = {
+  chest: SK.neckUp / 0.5,
+  shoulderL: SK.upperArm / 0.255,
+  shoulderR: SK.upperArm / 0.255,
+  elbowL: SK.foreArm / 0.245,
+  elbowR: SK.foreArm / 0.245,
+  hipL: SK.thigh / 0.345,
+  hipR: SK.thigh / 0.345,
+  kneeL: SK.shin / 0.325,
+  kneeR: SK.shin / 0.325,
+};
+function retarget(parts: Part[]): Part[] {
+  return parts.map((part) => {
+    if (part.joint === "head") {
+      const k = 1.08;
+      return { ...part, p: [part.p[0] * k, part.p[1] * k, part.p[2] * k], s: [part.s[0] * k, part.s[1] * k, part.s[2] * k] };
+    }
+    const f = RETARGET[part.joint];
+    const legScale = part.kind === "skirt" ? 0.8 : 1;
+    if (!f) return part.kind === "skirt" ? { ...part, s: [part.s[0], part.s[1] * legScale, part.s[2]] } : part;
+    const stretch = part.kind === "limb" || part.kind === "torso" || part.kind === "skirt";
+    return {
+      ...part,
+      p: [part.joint === "chest" ? part.p[0] * (SK.shoulder[0] / 0.268) : part.p[0], part.p[1] * f, part.p[2]],
+      s: [part.s[0], part.s[1] * (stretch ? f * (part.kind === "skirt" ? legScale / f : 1) : 1), part.s[2]],
+    };
+  });
+}
+
 /** Compile an outfit to the rig's part list. Deterministic: equal outfits
  * give equal keys, so batches recolour only on change. */
 export function compileOutfit(o: Outfit, key = JSON.stringify(o)): Look {
@@ -839,21 +755,7 @@ export function compileOutfit(o: Outfit, key = JSON.stringify(o)): Look {
     );
   headwear(c, o);
   const holds = extras(c, o);
-  return makeLook(key, parts, { ...holds, scale: o.build?.height ?? 1 });
-}
-
-/** The classic look (player, scene extras): shirt colour, trousers, shoes,
- * straw hat or short hair, upgraded with the face, hand and trim detail. */
-export function outfitFromPalette(p: Palette): Outfit {
-  return {
-    skin: p.skin,
-    hair: { style: "crop", color: p.hair },
-    top: { kind: "tee", color: p.shirt, trim: shade(p.shirt, -0.18) },
-    bottom: { kind: "trousers", color: p.pants },
-    belt: { color: "#6a4a33", buckle: "#c8a24e" },
-    head: p.hasHat ? { kind: "straw", color: p.hat, band: p.band } : undefined,
-    feet: { kind: "shoes", color: p.shoe },
-  };
+  return makeLook(key, retarget(parts), { ...holds, scale: o.build?.height ?? 1 });
 }
 
 const paletteLooks = new Map<string, Look>();
@@ -867,5 +769,13 @@ export function lookFromPalette(p: Palette): Look {
     if (paletteLooks.size > 64) paletteLooks.clear();
     paletteLooks.set(key, (look = compileOutfit(outfitFromPalette(p), `palette:${key}`)));
   }
+  return look;
+}
+
+const npcLooks = new Map<string, Look>();
+/** Compiled (cached) primitive look for a villager. */
+export function lookFor(npc: Villager): Look {
+  let look = npcLooks.get(npc.id);
+  if (!look) npcLooks.set(npc.id, (look = compileOutfit(outfitFor(npc), `npc:${npc.id}`)));
   return look;
 }

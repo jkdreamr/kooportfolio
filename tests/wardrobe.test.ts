@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
 import { villagers } from "../src/game/core/npcs";
-import { CAST, lookFor, outfitFor } from "../src/game/world/character/cast";
+import { CAST, outfitFor } from "../src/game/world/character/cast";
 import {
   DEFAULT_PALETTE,
   FAR_KINDS,
@@ -10,7 +10,7 @@ import {
   writeLook,
   type Kind,
 } from "../src/game/world/character/rig";
-import { compileOutfit, lookFromPalette } from "../src/game/world/character/wardrobe";
+import { compileOutfit, lookFor, lookFromPalette } from "../src/game/world/character/wardrobe";
 import { createGait, stepGait, FULL_STRIDE_SPEED } from "../src/game/world/character/locomotion";
 
 describe("wardrobe and cast (F3)", () => {

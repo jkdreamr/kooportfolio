@@ -105,10 +105,10 @@ function softTuftGeometry(blades: number, lod: number, spread = 1) {
     const angle = (b / blades) * Math.PI * 2 + ((b * 53) % 11) * 0.21;
     // Inner blades stand taller, outer ones splay low: a dome silhouette.
     const ring = (b % 3) / 2;
-    const reach = (0.015 + ring * 0.07) * spread;
-    const height = 0.2 - ring * 0.07 + ((b * 37) % 5) * 0.012;
-    const lean = (0.04 + ring * 0.085) * spread;
-    const width = (0.054 + (b % 2) * 0.014) * spread;
+    const reach = (0.012 + ring * 0.05) * spread;
+    const height = 0.21 - ring * 0.055 + ((b * 37) % 5) * 0.01;
+    const lean = (0.03 + ring * 0.065) * spread;
+    const width = (0.058 + (b % 2) * 0.014) * spread;
     const dx = Math.cos(angle),
       dz = Math.sin(angle);
     const ox = dx * reach,
@@ -172,7 +172,7 @@ function flowerGeometry() {
     wide.push(0, 0, 0, 0, 0, 0);
     index.push(base, base + 1, base + 2);
     // Bloom: a centre and five petals, each a kite (centre, side, tip, side).
-    const r = 0.042 + (b % 2) * 0.012;
+    const r = 0.05 + (b % 2) * 0.012;
     const tilt = 0.55; // cupped: petal tips rise, so the low camera sees the face
     const spin = angle * 1.7;
     base = positions.length / 3;
@@ -339,7 +339,7 @@ function grassMaterial() {
         // Explore: lawn root → body → a long, light tip; flower centres
         // (uv.x = 2) cream-yellow.
         vec3 grassSoft = mix(uGrassRoot, grassInst, smoothstep(0.0, 0.4, vGrassT));
-        grassSoft = mix(grassSoft, uGrassTip, smoothstep(0.3, 1.0, vGrassT) * 0.5);
+        grassSoft = mix(grassSoft, uGrassTip, smoothstep(0.3, 1.0, vGrassT) * 0.38);
         grassSoft = mix(grassSoft, vec3(1.0, 0.86, 0.36), smoothstep(1.5, 1.9, vGrassU));
         diffuseColor.rgb = mix(grassBody, grassSoft, uGrassStyle);
         // Explore: a lighter, sunnier carpet (the low camera sees blades

@@ -445,10 +445,11 @@ export function writeLook(
   emit: (kind: Kind, matrix: THREE.Matrix4, partIndex: number) => void,
 ) {
   const posed = applyHold(pose, look);
+  let joints;
   if (look.scale !== 1) {
     sized.makeScale(look.scale, look.scale, look.scale).premultiply(base);
-    solveJoints(posed, sized);
-  } else solveJoints(posed, base);
+    joints = solveJoints(posed, sized);
+  } else joints = solveJoints(posed, base);
   // Stride spread (0 standing … ≈1 at full stride) drives cloth flare.
   const stride = Math.min(1.2, Math.abs(posed.hipL - posed.hipR));
   const slots = look.slot[lod];

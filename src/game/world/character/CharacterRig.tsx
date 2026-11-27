@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, type RefObject } from "react";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
 import { runtime, useGame, walkTo } from "../../core/store";
@@ -20,6 +20,11 @@ import {
   type RigLod,
 } from "./rig";
 import { compileOutfit, lookFromPalette, type Outfit } from "./wardrobe";
+import { SculptBatch } from "./sculpt/runtime";
+import { PLAYER_SCULPT, sculptPaletteFor, useCast } from "./sculpt/useSculpt";
+import { registerSculptWarmup } from "./sculpt/warm";
+
+registerSculptWarmup();
 
 const isLook = (x: Look | Palette): x is Look => "parts" in x;
 const zeroKinds = () =>
@@ -198,6 +203,24 @@ export function Character({
     [outfit, pal],
   );
   const batch = useMemo(() => new RigBatch([look]), [look]);
+  // In the hub, the baked sculpted figure (hero on high, mid on medium)
+  // replaces the primitive rig once the cast has loaded.
+  const cast = useCast();
+  const scene = useGame((s) => s.scene);
+  const tier = useStage((s) => s.tier) ?? "high";
+  const sculptLod = !cast || outfit || scene !== "hub" || tier === "low" || !cast.has(PLAYER_SCULPT.hat) ? null : tier === "high" ? "hero" : "mid";
+  const sculpt = useMemo(() => {
+    if (!cast || !sculptLod) return null;
+    const chars = [PLAYER_SCULPT.hat, PLAYER_SCULPT.bare].map((id) => ({ id, palette: sculptPaletteFor(DEFAULT_PALETTE), holds: {}, scale: 1 }));
+    return new SculptBatch(cast, chars, sculptLod);
+  }, [cast, sculptLod]);
+  useEffect(() => () => sculpt?.dispose(), [sculpt]);
+  useEffect(() => {
+    if (!sculpt) return;
+    const p = sculptPaletteFor(pal);
+    sculpt.setPalette(0, p);
+    sculpt.setPalette(1, p);
+  }, [sculpt, pal]);
   const write = (dt: number) => {
     const g = root.current;
     if (!g) return;
@@ -225,13 +248,18 @@ export function Character({
       still: forced === false,
     });
     scaled.makeScale(1, 1, 1);
+    if (sculpt) {
+      sculpt.write(pal.hasHat ? 0 : 1, pose, scaled);
+      sculpt.hide(pal.hasHat ? 1 : 0);
+      return;
+    }
     batch.write(0, pose, scaled, look);
     batch.commit(1);
   };
   useLayoutEffect(() => {
     // First pose immediately so the figure never flashes in a T-pose.
     write(0);
-  }, [batch]);
+  }, [batch, sculpt]);
   useFrame(({ camera, size, scene, gl }, delta) => {
     if (!active) return;
     if (player && root.current && qaEnabled()) {
@@ -261,7 +289,11 @@ export function Character({
   return (
     <group scale={scale}>
       <group ref={root} name="character-rig">
-        <RigMeshes batch={batch} />
+        {sculpt ? (
+          <primitive object={sculpt.mesh} castShadow receiveShadow />
+        ) : (
+          <RigMeshes batch={batch} />
+        )}
       </group>
       {player && !npc && <PlayerMarker />}
     </group>

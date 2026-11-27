@@ -13,15 +13,16 @@ export const surfaceDetail = { value: 1 };
  * richer, warmer green and every sculpted surface a slightly warmer sun and
  * cooler, lower shade — sun/shade contrast without a post pass. */
 export const surfaceExplore = { value: 0 };
-const LAWN_TINT = [0.92, 1.12, 0.74] as const;
+const LAWN_TINT = [0.95, 1.07, 0.8] as const;
+const LAWN_SAT = 1.22;
 /** The lawn grade as the shader applies it (exported so grass roots match). */
 export function lawnGrade(color: THREE.Color, amount: number) {
   const green = THREE.MathUtils.smoothstep(color.g - Math.max(color.r, color.b), 0, 0.04) * amount;
   if (green <= 0) return color;
   const l = color.r * 0.2126 + color.g * 0.7152 + color.b * 0.0722;
-  const r = l + (color.r - l) * 1.45,
-    g = l + (color.g - l) * 1.45,
-    b = l + (color.b - l) * 1.45;
+  const r = l + (color.r - l) * LAWN_SAT,
+    g = l + (color.g - l) * LAWN_SAT,
+    b = l + (color.b - l) * LAWN_SAT;
   return color.setRGB(
     THREE.MathUtils.lerp(color.r, r * LAWN_TINT[0], green),
     THREE.MathUtils.lerp(color.g, g * LAWN_TINT[1], green),
@@ -264,7 +265,7 @@ export function sculptedMaterial(
           float sculptGreen = smoothstep(0.0, 0.04, sculptC.g - max(sculptC.r, sculptC.b))
             * (1.0 - step(0.5, abs(sculptKind - 5.0))) * smoothstep(0.55, 0.85, sculptN.y) * uSurfaceExplore;
           float sculptL = dot(sculptC, vec3(0.2126, 0.7152, 0.0722));
-          diffuseColor.rgb = mix(sculptC, (sculptL + (sculptC - sculptL) * 1.45) * vec3(${LAWN_TINT.join(", ")}), sculptGreen);
+          diffuseColor.rgb = mix(sculptC, (sculptL + (sculptC - sculptL) * ${LAWN_SAT.toFixed(2)}) * vec3(${LAWN_TINT.join(", ")}), sculptGreen);
         }`,
       )
       .replace(
