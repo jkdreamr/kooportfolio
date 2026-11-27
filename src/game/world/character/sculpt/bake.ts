@@ -12,7 +12,7 @@ import { outfitFromPalette, type Outfit } from "../outfit";
 import { restPose, solveJoints, makeJoints, SK, JOINTS } from "../skeleton";
 import { buildFigure, PIECE_JOINT, type Figure, type PieceId } from "./figure";
 import { evalOps, pieceBounds, pad, SLOT, type Hit, type Mat, type V3 } from "./sdf";
-import { cutByLabel, decimateLabeled, dropIslands, project, surfaceNets, type LabMesh } from "./mesher";
+import { cutByLabel, decimate, decimateLabeled, dropIslands, project, surfaceNets, type LabMesh, type RawMesh } from "./mesher";
 import { appendMesh, brows, ears, emptyMesh, eyes, glasses, headSkin, mouth, vertexNormals, type AttrMesh, type MouthKind } from "./head";
 import { hairMesh, type HairSeg } from "./hair";
 
@@ -26,7 +26,9 @@ const TARGET: Record<string, [number, number]> = {
 const CELL: Record<string, number> = {
   head: 0.005, eyes: 0.0032, chest: 0.0056, pelvis: 0.007, skirt: 0.007, upper: 0.006, fore: 0.005, thigh: 0.008, shin: 0.008, foot: 0.0055, mouth: 0.003,
 };
-const base = (id: PieceId) => (id.startsWith("mouth") ? "mouth" : id.replace(/[LR]$/, ""));
+const base = (id: PieceId) => (id.startsWith("mouth") ? "mouth" : id === "pointR" ? "fore" : id.replace(/[LR]$/, ""));
+/** Pieces drawn instead of another (talking mouths, the pointing hand). */
+const alternate = (id: PieceId) => (id.startsWith("mouth") && id !== "mouth0") || id === "pointR";
 const env = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
 /** BAKE_FAST=1: coarser grid for quick previews (not for shipping). */
 const FAST = env.BAKE_FAST ? 1.5 : 1;
@@ -107,7 +109,7 @@ export function bakePart(ids: string[], log: (s: string) => void = console.log):
       for (const lod of [0, 1]) {
         let total = 0, adjT = 0;
         for (const [pid, i] of Object.entries(part.chars[id].p) as [PieceId, number][]) {
-          if (pid.startsWith("mouth") && pid !== "mouth0") continue;
+          if (alternate(pid)) continue;
           const t = part.shapes[i][lod].idx.length / 3;
           total += t;
           if (ADJUSTABLE.has(base(pid))) adjT += t;
@@ -144,7 +146,7 @@ function budgetPlan(fig: Figure, entries: [PieceId, { ops: unknown[] }][]): { sc
     if (fig.glasses) fixed += tris(glasses(fig.HC, fig.face.eye, fig.glasses.slot, fig.glasses.sun, hi));
     if (fig.ears) fixed += tris(ears(fig.HC, hi));
     for (const [pid, piece] of entries) {
-      if (!piece.ops.length || pid.startsWith("mouth") || pid === "eyes") continue;
+      if (!piece.ops.length || pid.startsWith("mouth") || pid === "eyes" || pid === "pointR") continue;
       const t = TARGET[base(pid)][lod];
       if (ADJUSTABLE.has(base(pid))) adj += t;
       else fixed += t;
@@ -238,11 +240,15 @@ function meshPiece(pid: PieceId, ops: Parameters<typeof evalOps>[0], fig: Figure
     const meshes = ([[h, Math.round(ht * scale[0])], [h * midCell, Math.round(mt * scale[1])]] as const).map(([cell, target], lod) => {
       const raw = surfaceNets(f, bb.min, bb.max, cell);
       project(f, raw.pos, cell * 0.5, 1);
+      // Mid LOD budgets are too small for border lines (regions would shrink
+      // onto them): plain geometric decimation, then one flat material per
+      // face, sampled at its centre (borders follow triangle edges).
+      if (lod) return midLabeled(raw, target, (x, y, z) => weight(x, y, z), labelAt);
       const vlab = new Int32Array(raw.pos.length / 3);
       for (let i = 0; i < vlab.length; i++) vlab[i] = labelAt(raw.pos[i * 3], raw.pos[i * 3 + 1], raw.pos[i * 3 + 2]);
       const cut = cutByLabel(raw, vlab, labelAt);
       // Specks smaller than a few triangles cannot be drawn cleanly.
-      dropIslands(cut, lod ? 2.2e-4 : 2.5e-5);
+      dropIslands(cut, 2.5e-5);
       const cloth = new Uint8Array(cut.pos.length / 3);
       for (let t = 0; t < cut.lab.length; t++) if (isCloth(mats[cut.lab[t]].slot)) for (let c = 0; c < 3; c++) cloth[cut.tri[t * 3 + c]] = 1;
       const w2 = (x: number, y: number, z: number, i: number) => weight(x, y, z) * (cloth[i] ? 0.6 : 1);
@@ -308,7 +314,7 @@ function toRest(pid: PieceId, m: AttrMesh, rest: Record<string, THREE.Matrix4>) 
     blends.push({ bone: JOINTS.indexOf(bone as never), at: [at.x, at.y, at.z], axis: [ax.x, ax.y, ax.z], r });
   };
   const side = pid.endsWith("L") ? "L" : "R";
-  const kind = pid.replace(/[LR]$/, "");
+  const kind = pid === "pointR" ? "fore" : pid.replace(/[LR]$/, "");
   switch (kind) {
     case "upper": jb("chest", P(`shoulder${side}`), P(`elbow${side}`), 0.05); jb(`elbow${side}`, P(`elbow${side}`), P(`shoulder${side}`), 0.055); break;
     case "fore": jb(`shoulder${side}`, P(`elbow${side}`), P(`hand${side}`), 0.055); break;
@@ -399,6 +405,29 @@ function taubin(pos: Float64Array, tri: Uint32Array, iters: number) {
     }
     pos.set(tmp);
   }
+}
+
+/** Mid LOD: geometric decimation, then a flat material per face. */
+function midLabeled(raw: RawMesh, target: number, weight: (x: number, y: number, z: number) => number, labelAt: (x: number, y: number, z: number) => number): LabMesh {
+  const m = raw.tri.length / 3 > target ? decimate(raw, [target], weight)[0] : raw;
+  const lab = new Int32Array(m.tri.length / 3);
+  const votes = new Map<number, number>();
+  for (let t = 0; t < lab.length; t++) {
+    // Majority of the centre and the three corners pulled toward it.
+    votes.clear();
+    const c = [0, 0, 0];
+    for (let k = 0; k < 3; k++) for (let d = 0; d < 3; d++) c[d] += m.pos[m.tri[t * 3 + k] * 3 + d] / 3;
+    const pts = [c, ...[0, 1, 2].map((k) => [0, 1, 2].map((d) => c[d] * 0.5 + m.pos[m.tri[t * 3 + k] * 3 + d] * 0.5))];
+    let best = -1, bn = 0;
+    pts.forEach((p, i) => {
+      const l = labelAt(p[0], p[1], p[2]);
+      const n = (votes.get(l) ?? 0) + (i === 0 ? 1.5 : 1);
+      votes.set(l, n);
+      if (n > bn) { bn = n; best = l; }
+    });
+    lab[t] = best;
+  }
+  return { pos: m.pos, tri: m.tri, lab };
 }
 
 /** Nearest hair lock segment: root→tip parameter and strand direction. */

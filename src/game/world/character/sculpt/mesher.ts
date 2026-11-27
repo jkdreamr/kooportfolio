@@ -537,7 +537,7 @@ export function dropIslands(m: LabMesh, minArea: number) {
  * borders alone block the budget, a last pass lets them move (faces keep
  * their labels, so colours stay flat; the line just gets coarser).
  */
-export function decimateLabeled(mesh: LabMesh, target: number, weight: (x: number, y: number, z: number, v: number) => number, seamW = 6): LabMesh {
+export function decimateLabeled(mesh: LabMesh, target: number, weight: (x: number, y: number, z: number, v: number) => number, seamW = 40): LabMesh {
   const nV = mesh.pos.length / 3;
   const P = Float64Array.from(mesh.pos);
   const T = Int32Array.from(mesh.tri);
@@ -575,8 +575,6 @@ export function decimateLabeled(mesh: LabMesh, target: number, weight: (x: numbe
     }
   }
   // Border constraint planes (through the edge, across the surface).
-  const sharp = new Uint8Array(nV);
-  const bn: number[][] = [];
   {
     const em = new Map<number, number>();
     for (let t = 0; t < nT; t++)
@@ -596,19 +594,9 @@ export function decimateLabeled(mesh: LabMesh, target: number, weight: (x: numbe
         const w = seamW * (ex * ex + ey * ey + ez * ez);
         addPlane(a, cx, cy, cz, d, w);
         addPlane(b, cx, cy, cz, d, w);
-        (bn[a] ??= []).push(b);
-        (bn[b] ??= []).push(a);
       }
-    // Sharp turns of a border (pocket and patch corners) stay put.
-    for (let v = 0; v < nV; v++) {
-      const nb = bn[v];
-      if (!nb || nb.length !== 2) continue;
-      const [p0, p1] = nb;
-      const ax = P[v * 3] - P[p0 * 3], ay = P[v * 3 + 1] - P[p0 * 3 + 1], az = P[v * 3 + 2] - P[p0 * 3 + 2];
-      const bx = P[p1 * 3] - P[v * 3], by = P[p1 * 3 + 1] - P[v * 3 + 1], bz = P[p1 * 3 + 2] - P[v * 3 + 2];
-      const c = (ax * bx + ay * by + az * bz) / (Math.hypot(ax, ay, az) * Math.hypot(bx, by, bz) || 1);
-      if (c < 0.72) sharp[v] = 1;
-    }
+    // (Corners need no flag: the two borders' constraint planes meet there,
+    // so moving a corner costs more than anything along a straight run.)
   }
   let relaxed = false;
   const labs = (v: number, out: number[]) => {
@@ -640,8 +628,7 @@ export function decimateLabeled(mesh: LabMesh, target: number, weight: (x: numbe
   };
   const la: number[] = [], lb: number[] = [], ef: number[] = [];
   /** 0 free, 1 keep a's position, 2 keep b's, 3 slide along the border, −1 forbidden. */
-  const mode = (a: number, b: number): number => {
-    if (relaxed) return 0;
+  const strictMode = (a: number, b: number): number => {
     labs(a, la); labs(b, lb);
     const sa = la.length > 1, sb = lb.length > 1;
     if (!sa && !sb) return 0;
@@ -649,7 +636,7 @@ export function decimateLabeled(mesh: LabMesh, target: number, weight: (x: numbe
     if (!sa && sb) return 2;
     edgeFaces(a, b, ef);
     if (ef.length !== 2 || L[ef[0]] === L[ef[1]]) return -1;
-    const ca = la.length > 2 || sharp[a] === 1 || seamDeg(a) !== 2, cb = lb.length > 2 || sharp[b] === 1 || seamDeg(b) !== 2;
+    const ca = la.length > 2 || seamDeg(a) !== 2, cb = lb.length > 2 || seamDeg(b) !== 2;
     if (ca && cb) return -1;
     if (ca) return lb.every((l) => la.includes(l)) ? 1 : -1;
     if (cb) return la.every((l) => lb.includes(l)) ? 2 : -1;
@@ -658,7 +645,8 @@ export function decimateLabeled(mesh: LabMesh, target: number, weight: (x: numbe
   const opt = [0, 0, 0];
   const q = new Array(10);
   const edgeCost = (a: number, b: number): number => {
-    const md = mode(a, b);
+    const strict = strictMode(a, b);
+    const md = relaxed && strict < 0 ? 0 : strict;
     if (md < 0) return Infinity;
     for (let i = 0; i < 10; i++) q[i] = Q[a * 10 + i] + Q[b * 10 + i];
     const err = (x: number, y: number, z: number) =>
@@ -673,12 +661,13 @@ export function decimateLabeled(mesh: LabMesh, target: number, weight: (x: numbe
     const det = A[0] * (A[4] * A[8] - A[5] * A[7]) - A[1] * (A[3] * A[8] - A[5] * A[6]) + A[2] * (A[3] * A[7] - A[4] * A[6]);
     const mx = (P[a * 3] + P[b * 3]) / 2, my = (P[a * 3 + 1] + P[b * 3 + 1]) / 2, mz = (P[a * 3 + 2] + P[b * 3 + 2]) / 2;
     let best = Infinity;
-    if (Math.abs(det) > 1e-12) {
+    // (A relaxed border collapse only picks an end or the midpoint.)
+    if (Math.abs(det) > 1e-12 && strict >= 0) {
       const bx = -q[3], by = -q[6], bz = -q[8];
       const x = (bx * (A[4] * A[8] - A[5] * A[7]) - A[1] * (by * A[8] - A[5] * bz) + A[2] * (by * A[7] - A[4] * bz)) / det;
       const y = (A[0] * (by * A[8] - A[5] * bz) - bx * (A[3] * A[8] - A[5] * A[6]) + A[2] * (A[3] * bz - by * A[6])) / det;
       const z = (A[0] * (A[4] * bz - by * A[7]) - A[1] * (A[3] * bz - by * A[6]) + bx * (A[3] * A[7] - A[4] * A[6])) / det;
-      if (Math.hypot(x - mx, y - my, z - mz) < Math.sqrt(len2) * (md === 3 ? 0.8 : 1.5)) {
+      if (Math.hypot(x - mx, y - my, z - mz) < Math.sqrt(len2) * (md === 3 ? 0.8 : 1.2)) {
         best = err(x, y, z);
         opt[0] = x; opt[1] = y; opt[2] = z;
       }
@@ -702,12 +691,6 @@ export function decimateLabeled(mesh: LabMesh, target: number, weight: (x: numbe
       if (cost !== Infinity) heap.push(cost, v, u, stamp[v], stamp[u]);
     }
   };
-  for (let v = 0; v < nV; v++)
-    for (const u of neighbours(v)) {
-      if (u <= v) continue;
-      const c = edgeCost(v, u);
-      if (c !== Infinity) heap.push(c, v, u, 0, 0);
-    }
   let faces = nT;
   let flipMin = 0.25;
   const nOld = [0, 0, 0], nNew = [0, 0, 0];
@@ -718,12 +701,13 @@ export function decimateLabeled(mesh: LabMesh, target: number, weight: (x: numbe
     tries.set(key, n);
     if (n <= 4) heap.push(cost * 2 + 1e-9, a, b, stamp[a], stamp[b]);
   };
-  const tryCollapse = (a: number, b: number, cost: number): boolean => {
+  const tryCollapse = (a: number, b: number, cost: number, keepA = false): boolean => {
     const na = neighbours(a), nb = neighbours(b);
     let common = 0;
     for (const u of na) if (nb.has(u)) common++;
-    if (common !== 2) { retry(a, b, cost); return false; }
-    if (edgeCost(a, b) === Infinity) return false;
+    if (common !== 2) { if (!keepA) retry(a, b, cost); return false; }
+    if (keepA) { opt[0] = P[a * 3]; opt[1] = P[a * 3 + 1]; opt[2] = P[a * 3 + 2]; }
+    else if (edgeCost(a, b) === Infinity) return false;
     const nx = opt[0], ny = opt[1], nz = opt[2];
     for (const v of [a, b]) {
       for (const t of vf[v]) {
@@ -736,12 +720,11 @@ export function decimateLabeled(mesh: LabMesh, target: number, weight: (x: numbe
         const l = faceN(t, nNew);
         P[v * 3] = sx; P[v * 3 + 1] = sy; P[v * 3 + 2] = sz;
         const lo = Math.hypot(nOld[0], nOld[1], nOld[2]);
-        if (l < 1e-14 || (nOld[0] * nNew[0] + nOld[1] * nNew[1] + nOld[2] * nNew[2]) / (lo * l) < flipMin) { retry(a, b, cost); return false; }
+        if (l < 1e-14 || (nOld[0] * nNew[0] + nOld[1] * nNew[1] + nOld[2] * nNew[2]) / (lo * l) < flipMin) { if (!keepA) retry(a, b, cost); return false; }
       }
     }
     P[a * 3] = nx; P[a * 3 + 1] = ny; P[a * 3 + 2] = nz;
     for (let i = 0; i < 10; i++) Q[a * 10 + i] += Q[b * 10 + i];
-    if (sharp[b]) sharp[a] = 1;
     vAlive[b] = 0;
     for (const t of vf[b]) {
       if (!alive[t]) continue;
@@ -757,6 +740,52 @@ export function decimateLabeled(mesh: LabMesh, target: number, weight: (x: numbe
     for (const u of neighbours(a)) { stamp[u]++; pushEdges(u); }
     return true;
   };
+  // Phase A: thin out the borders first. The dense cut borders would
+  // otherwise hold most of the budget (cheap interior collapses go first and
+  // starve the surface). Vertices on nearly straight stretches are removed
+  // until border segments reach about the target edge length; corners and
+  // curves keep their vertices.
+  {
+    let area = 0;
+    for (let t = 0; t < nT; t++) area += faceN(t, n3) * 0.5;
+    const lt = 1.52 * Math.sqrt(area / Math.max(1, target));
+    const min2 = (0.65 * lt) ** 2;
+    const bnb: number[] = [];
+    for (let pass = 0; pass < 12; pass++) {
+      let changed = 0;
+      for (let b = 0; b < nV; b++) {
+        if (!vAlive[b]) continue;
+        labs(b, lb);
+        if (lb.length !== 2) continue;
+        bnb.length = 0;
+        for (const u of neighbours(b)) {
+          edgeFaces(b, u, ef);
+          if (ef.length === 2 && L[ef[0]] !== L[ef[1]]) bnb.push(u);
+        }
+        if (bnb.length !== 2) continue;
+        const [p0, p1] = bnb;
+        const ax = P[b * 3] - P[p0 * 3], ay = P[b * 3 + 1] - P[p0 * 3 + 1], az = P[b * 3 + 2] - P[p0 * 3 + 2];
+        const bx = P[p1 * 3] - P[b * 3], by = P[p1 * 3 + 1] - P[b * 3 + 1], bz = P[p1 * 3 + 2] - P[b * 3 + 2];
+        const cosT = (ax * bx + ay * by + az * bz) / (Math.hypot(ax, ay, az) * Math.hypot(bx, by, bz) || 1);
+        if (cosT < 0.9) continue;
+        const a = dist2(P, p0, b) < dist2(P, p1, b) ? p0 : p1;
+        if (dist2(P, a, b) > min2) continue;
+        const md = strictMode(a, b);
+        if (md !== 1 && md !== 3) continue;
+        if (tryCollapse(a, b, 0, true)) changed++;
+      }
+      if (!changed) break;
+    }
+  }
+  heap.size = 0;
+  for (let v = 0; v < nV; v++) {
+    if (!vAlive[v]) continue;
+    for (const u of neighbours(v)) {
+      if (u <= v) continue;
+      const c = edgeCost(v, u);
+      if (c !== Infinity) heap.push(c, v, u, stamp[v], stamp[u]);
+    }
+  }
   const run = () => {
     while (faces > target) {
       const e = heap.pop();
@@ -771,15 +800,17 @@ export function decimateLabeled(mesh: LabMesh, target: number, weight: (x: numbe
     for (let v = 0; v < nV; v++) if (vAlive[v]) { stamp[v]++; pushEdges(v); }
   };
   run();
-  for (const fm of [0.05, -0.2]) {
-    if (faces <= target * 1.02) break;
-    flipMin = fm;
+  // Stalled on dense detail: accept stronger normal turns (never folds).
+  if (faces > target * 1.02) {
+    flipMin = 0.05;
     restart();
     run();
   }
-  if (faces > target * 1.02) {
+  // Still blocked by borders: let them move at their quadric cost, but
+  // only while that costs no more than a small fraction of the surface.
+  if (faces > target * 1.06) {
     relaxed = true;
-    flipMin = 0.05;
+    flipMin = 0.25;
     restart();
     run();
   }

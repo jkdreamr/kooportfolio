@@ -57,6 +57,8 @@ export type Pose = {
   /** Mouth open 0..1 while speaking (written by callers, e.g. a villager
    * in conversation). */
   talk: number;
+  /** Pointing while talking (> 0.5 shows the pointing hand). */
+  point?: number;
 };
 
 export type Gait = {
@@ -310,11 +312,22 @@ export function stepGait(
     p.armL = lerpN(p.armL, 0.45 + 0.2 * Math.sin(t * 2.2 + 1), k * beat * both);
     p.elbowL = lerpN(p.elbowL, 1.25 + 0.2 * Math.sin(t * 2.9 + 2), k * beat * both);
     p.spreadL = lerpN(p.spreadL, 0.24, k * beat * both);
-  }
+    // Now and then a beat becomes a point: arm forward, index out.
+    const pt = k * beat * smoothN(0.35, 0.6, Math.sin(t * 0.41 + gait.seed * 3));
+    p.armR = lerpN(p.armR, 0.95, pt);
+    p.elbowR = lerpN(p.elbowR, 0.55, pt);
+    p.spreadR = lerpN(p.spreadR, 0.12, pt);
+    p.point = pt;
+  } else p.point = 0;
   return p;
 }
 
 /** Fold a seated blend (0..1) into a pose: thighs forward, shins down. */
+function smoothN(a: number, b: number, x: number) {
+  const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+}
+
 export function seatPose(p: Pose, seated: number) {
   if (seated <= 0) return p;
   const k = Math.min(1, seated);

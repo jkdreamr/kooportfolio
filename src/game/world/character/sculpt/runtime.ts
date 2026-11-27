@@ -13,11 +13,13 @@ import { EYE_Y, PIECE_JOINT, type PieceId } from "./figure";
 
 export const PIECES: PieceId[] = [
   "pelvis", "chest", "head", "eyes", "upperL", "upperR", "foreL", "foreR",
-  "thighL", "thighR", "shinL", "shinR", "footL", "footR", "skirt",
+  "thighL", "thighR", "shinL", "shinR", "footL", "footR", "skirt", "pointR",
   "mouth0", "mouth1", "mouth2", "mouth3",
 ];
 /** PIECES index of the first mouth shape (one of four is shown at a time). */
 const MOUTH0 = PIECES.indexOf("mouth0");
+/** The right forearm and its pointing variant (one is shown at a time). */
+const FORE_R = PIECES.indexOf("foreR"), POINT_R = PIECES.indexOf("pointR");
 export type SculptLod = "hero" | "mid";
 type ShapeMeta = { n: number; i: number; v0: number; i0: number; bb: number[] };
 export type CastManifest = {
@@ -104,8 +106,9 @@ export class Cast {
   triangles(id: string, lod: SculptLod) {
     const c = this.manifest.chars[id];
     let n = 0;
-    // Only one mouth shape is drawn at a time: count the resting one.
-    for (const [pid, v] of Object.entries(c.p)) if (v && (pid === "mouth0" || !pid.startsWith("mouth"))) n += this.manifest.shapes[v[lod === "hero" ? 0 : 1]].i / 3;
+    // Only one mouth shape and one right hand are drawn at a time: count the
+    // resting ones.
+    for (const [pid, v] of Object.entries(c.p)) if (v && pid !== "pointR" && (pid === "mouth0" || !pid.startsWith("mouth"))) n += this.manifest.shapes[v[lod === "hero" ? 0 : 1]].i / 3;
     return n;
   }
 }
@@ -456,6 +459,7 @@ export class SculptBatch {
   private joints: JointMatrices = makeJoints();
   private shown: Uint8Array;
   private mouth: Int8Array;
+  private pointing: Int8Array;
   constructor(public cast: Cast, public chars: SculptChar[], public lod: SculptLod) {
     const L = lod === "hero" ? 0 : 1;
     const shapes = new Map<number, number>();
@@ -498,6 +502,7 @@ export class SculptBatch {
     });
     this.shown = new Uint8Array(chars.length);
     this.mouth = new Int8Array(chars.length);
+    this.pointing = new Int8Array(chars.length);
     this.mesh.visible = false;
   }
   setPalette(ci: number, hexes: string[], glow?: number[]) {
@@ -533,6 +538,9 @@ export class SculptBatch {
     const talk = posed.talk ?? 0;
     const mouth = talk < 0.08 ? 0 : talk < 0.32 ? 1 : (Math.floor(talk * 23) % 3 === 0 ? 3 : 2);
     const prevMouth = this.mouth[ci];
+    // Talking point: the pointing forearm replaces the right forearm.
+    const point = ids[POINT_R] >= 0 && (posed.point ?? 0) > 0.5 ? 1 : 0;
+    const prevPoint = this.pointing[ci];
     for (let k = 0; k < PIECES.length; k++) {
       const id = ids[k];
       if (id < 0) continue;
@@ -543,6 +551,12 @@ export class SculptBatch {
         const want = k - MOUTH0 === mouth;
         if (want) this.mesh.setMatrixAt(id, jm);
         if (!this.shown[ci] || prevMouth !== mouth) this.mesh.setVisibleAt(id, want);
+        continue;
+      }
+      if (k === FORE_R || k === POINT_R) {
+        const want = (k === POINT_R) === (point === 1);
+        if (want) this.mesh.setMatrixAt(id, jm);
+        if (!this.shown[ci] || prevPoint !== point) this.mesh.setVisibleAt(id, want);
         continue;
       }
       if (pid === "chest" && posed.breath !== 1) {
@@ -578,6 +592,7 @@ export class SculptBatch {
       if (!this.shown[ci]) this.mesh.setVisibleAt(id, true);
     }
     this.mouth[ci] = mouth;
+    this.pointing[ci] = point;
     if (!this.shown[ci]) {
       this.shown[ci] = 1;
       this.visibleCount++;

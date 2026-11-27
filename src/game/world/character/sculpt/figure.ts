@@ -19,14 +19,14 @@ export type PieceId =
   | "pelvis" | "chest" | "head" | "eyes"
   | "upperL" | "upperR" | "foreL" | "foreR"
   | "thighL" | "thighR" | "shinL" | "shinR" | "footL" | "footR"
-  | "skirt"
+  | "skirt" | "pointR"
   | "mouth0" | "mouth1" | "mouth2" | "mouth3";
 export const MOUTHS = ["mouth0", "mouth1", "mouth2", "mouth3"] as const;
 export const PIECE_JOINT: Record<PieceId, Joint> = {
   pelvis: "pelvis", chest: "chest", head: "head", eyes: "head",
   upperL: "shoulderL", upperR: "shoulderR", foreL: "elbowL", foreR: "elbowR",
   thighL: "hipL", thighR: "hipR", shinL: "kneeL", shinR: "kneeR",
-  footL: "ankleL", footR: "ankleR", skirt: "pelvis",
+  footL: "ankleL", footR: "ankleR", skirt: "pelvis", pointR: "elbowR",
   mouth0: "head", mouth1: "head", mouth2: "head", mouth3: "head",
 };
 /** Head-frame eye line (the eyes piece scales about it to blink). */
@@ -104,9 +104,11 @@ function extraColorSlot(o: Outfit, kind: string, second = false) {
 }
 const has = (o: Outfit, kind: string) => (o.extras ?? []).some((e) => e.kind === kind);
 const folds = (amp: number, c: V3 = [0, 0, 0], freq = 7): Node["disp"] => ({ kind: "folds", amp, freq, c });
-/** Fine compression wrinkles are not drawn: at these budgets they alias
- * into blotches (soft fold geometry is modelled where it reads instead). */
-const band = (..._: unknown[]): Node["disp"] => undefined;
+/** Garment relief. Fine compression wrinkles alias into blotches at these
+ * budgets, so cloth gets a few broad, soft drape folds instead (low
+ * frequency around the limb or torso: they survive decimation and read as
+ * fabric rather than plastic). */
+const band = (amp: number, ..._: unknown[]): Node["disp"] => ({ kind: "folds", amp: amp * 0.8, freq: 5, c: [0, 0, 0] });
 
 export function buildFigure(o: Outfit): Figure {
   const w = o.build?.width ?? 1;
@@ -517,22 +519,38 @@ export function buildFigure(o: Outfit): Figure {
     // Hands slightly oversized (stylised), modelled about the wrist.
     const HSc = 1.15;
     const hp = (x: number, y: number, z: number): V3 => [x * HSc, hy + (y - hy) * HSc, z * HSc];
-    const hand: Op[] = [add(box(hp(-s * 0.003, hy - 0.048, 0.004), [0.017 * HSc, 0.042 * HSc, 0.038 * HSc], 0.016 * HSc, handMat))];
-    const fingers: [number, number, number][] = [[0.027, 0.04, 0.0115], [0.009, 0.044, 0.0118], [-0.009, 0.041, 0.0114], [-0.025, 0.033, 0.0104]];
-    fingers.forEach(([z, lenF, r], i) => {
-      const k0 = hp(-s * 0.002, hy - 0.086, z);
-      const k1 = hp(-s * 0.012, hy - 0.086 - lenF * 0.95, z * 1.02);
-      const k2 = hp(-s * 0.03, hy - 0.086 - lenF * 1.55, z * 1.02);
-      hand.push(add(cap(k0, k1, r * HSc, handMat), i === 0 ? 0.004 : 0.008));
-      hand.push(add(cone(k1, k2, r * 0.95 * HSc, r * 0.82 * HSc, handMat), 0.004));
-    });
-    hand.push(add(cone(hp(-s * 0.012, hy - 0.022, 0.03), hp(-s * 0.026, hy - 0.058, 0.052), 0.016 * HSc, 0.013 * HSc, handMat), 0.012));
-    hand.push(add(cone(hp(-s * 0.026, hy - 0.058, 0.052), hp(-s * 0.034, hy - 0.083, 0.05), 0.013 * HSc, 0.011 * HSc, handMat), 0.004));
-    fore.push(add(grp(hand, handMat), 0.018));
+    const palm = -s;
+    /** Hand poses: relaxed (soft curl), grip (a fist round a handle) and
+     * point (index out, the rest curled; swapped in while talking). */
+    const handOps = (pose: "relaxed" | "grip" | "point"): Op => {
+      const hand: Op[] = [add(box(hp(-s * 0.003, hy - 0.048, 0.004), [0.017 * HSc, 0.042 * HSc, 0.038 * HSc], 0.016 * HSc, handMat))];
+      const fingers: [number, number, number][] = [[0.027, 0.04, 0.0115], [0.009, 0.044, 0.0118], [-0.009, 0.041, 0.0114], [-0.025, 0.033, 0.0104]];
+      fingers.forEach(([z, lenF, r], i) => {
+        const [c1, c2] = pose === "relaxed" ? [0.26 + 0.05 * i, 0.68 + 0.08 * i] : pose === "point" && i === 0 ? [0.04, 0.08] : [1.35, 2.65];
+        const k0: V3 = [palm * 0.002, hy - 0.086, z];
+        const k1: V3 = [k0[0] + palm * Math.sin(c1) * lenF * 0.95, k0[1] - Math.cos(c1) * lenF * 0.95, z * 1.02];
+        const k2: V3 = [k1[0] + palm * Math.sin(c2) * lenF * 0.62, k1[1] - Math.cos(c2) * lenF * 0.62, z * 1.02];
+        hand.push(add(cap(hp(...k0), hp(...k1), r * HSc, handMat), i === 0 ? 0.004 : 0.008));
+        hand.push(add(cone(hp(...k1), hp(...k2), r * 0.95 * HSc, r * 0.82 * HSc, handMat), 0.004));
+      });
+      if (pose === "relaxed") {
+        hand.push(add(cone(hp(-s * 0.012, hy - 0.022, 0.03), hp(-s * 0.026, hy - 0.058, 0.052), 0.016 * HSc, 0.013 * HSc, handMat), 0.012));
+        hand.push(add(cone(hp(-s * 0.026, hy - 0.058, 0.052), hp(-s * 0.034, hy - 0.083, 0.05), 0.013 * HSc, 0.011 * HSc, handMat), 0.004));
+      } else {
+        // The thumb closes over the curled fingers.
+        hand.push(add(cone(hp(-s * 0.012, hy - 0.022, 0.03), hp(palm * 0.02, hy - 0.06, 0.05), 0.016 * HSc, 0.013 * HSc, handMat), 0.012));
+        hand.push(add(cone(hp(palm * 0.02, hy - 0.06, 0.05), hp(palm * 0.036, hy - 0.088, 0.03), 0.013 * HSc, 0.011 * HSc, handMat), 0.004));
+      }
+      return add(grp(hand, handMat), 0.018);
+    };
+    const gripKinds = side === "R" ? ["flag", "lightstick", "rod", "racket", "cup", "pole", "drumsticks", "map"] : ["book", "clipboard", "envelope", "map", "watering-can", "basket", "drumsticks"];
+    const grips = (o.extras ?? []).some((e) => gripKinds.includes(e.kind));
+    // The talking point: a variant of the free right forearm.
+    if (side === "R" && !grips) pieces.pointR = { ops: [...fore, handOps("point")] };
+    fore.push(handOps(grips ? "grip" : "relaxed"));
     // Props held in this hand. With a hold pose the fore frame's −y points
     // forward and +z up, so props are modelled upright along +z.
     const H = (p: V3): V3 => [p[0], p[1] + hy, p[2]];
-    const palm = -s;
     for (const e of o.extras ?? []) {
       const A = M.gloss(extraColorSlot(o, e.kind), 0.45);
       const L2 = M.leather(extraColorSlot(o, e.kind));
@@ -552,8 +570,22 @@ export function buildFigure(o: Outfit): Figure {
         }
       }
       if (!right && e.kind === "map") {
-        fore.push(add(box(H([palm * 0.22, -0.07, 0.05]), [0.22, 0.004, 0.13], 0.004, M.fab(extraColorSlot(o, "map")), [0.25, 0, 0]), 0.0));
-        fore.push(add(box(H([palm * 0.18, -0.074, 0.07]), [0.06, 0.003, 0.05], 0.003, M.fab(extraColorSlot(o, "map", true)), [0.25, 0, 0]), 0.0));
+        // An unfolded map held open between the hands: accordion panels in
+        // the paper colour with painted land, a river and a dotted route.
+        const paper = M.fab(extraColorSlot(o, "map"), 0.8);
+        const n = 4, pw = 0.056;
+        for (let i = 0; i < n; i++) {
+          const x = palm * (0.02 + pw * (2 * i + 1));
+          const zig = i % 2 ? 1 : -1;
+          fore.push(add(box(H([x, -0.075 + zig * 0.008, 0.06]), [pw, 0.0068, 0.12], 0.003, paper, [0.22, 0, zig * 0.28 * palm]), 0.002));
+        }
+        const mx = (u: number) => palm * (0.02 + u * 2 * pw * n);
+        const land = M.fab(SLOT.accent + 4, 0.8), water = M.fab(SLOT.accent + 5, 0.6), route = M.fab(SLOT.accent + 7, 0.6);
+        const paintN = (nn: Node): Op => ({ op: "paint", k: 0, n: nn });
+        fore.push(paintN(ell(H([mx(0.22), -0.075, 0.1]), [0.06, 0.05, 0.05], land)), paintN(ell(H([mx(0.7), -0.075, 0.02]), [0.07, 0.05, 0.045], land)));
+        const riv: V3[] = [0, 1, 2, 3, 4].map((k) => H([mx(0.08 + k * 0.21), -0.075, 0.14 - k * 0.05 + (k % 2) * 0.03]));
+        for (let k = 0; k < riv.length - 1; k++) fore.push(paintN(cap(riv[k], riv[k + 1], 0.009, water)));
+        for (let k = 0; k < 6; k++) fore.push(paintN(sph(H([mx(0.15 + k * 0.13), -0.075, -0.02 + 0.025 * Math.sin(k * 1.3)]), 0.0085, route)));
       }
       if (!right && e.kind === "ball") fore.push(add({ ...sph(H([palm * 0.105, -0.05, 0.02]), 0.11, M.gloss(extraColorSlot(o, "ball"), 0.55)), disp: { kind: "rib", amp: 0.0018, freq: 2, c: H([palm * 0.105, -0.05, 0.02]) } }, 0.0));
       if (right && e.kind === "flag") {
@@ -850,6 +882,8 @@ export function outfitPalette(o: Outfit, mixFn: (a: string, b: string, t: number
     pal[SLOT.accent + i * 2 + 1] = e.color2 ?? shadeFn(c, -0.25);
   });
   pal[SLOT.accent + 6] = o.belt?.pouch ?? "#7a5136";
+  // A map's land and water (in free accent slots).
+  if (has(o, "map") && (o.extras ?? []).length <= 2) { pal[SLOT.accent + 4] = "#86b06e"; pal[SLOT.accent + 5] = "#5e95c8"; }
   // accent+7: small fixed details (pencils, lens, drumsticks, seals).
   if ((o.extras ?? []).length < 4) pal[SLOT.accent + 7] = has(o, "pencil") ? "#e8c34a" : has(o, "camera") ? "#7fa3c4" : has(o, "drumsticks") ? "#d8b98a" : "#b5463a";
   return pal;

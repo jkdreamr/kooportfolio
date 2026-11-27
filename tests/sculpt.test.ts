@@ -7,13 +7,13 @@ import { mix, shade } from "../src/game/world/character/outfit";
 import { buildFigure, outfitPalette } from "../src/game/world/character/sculpt/figure";
 import { evalOps, pieceBounds } from "../src/game/world/character/sculpt/sdf";
 import { eyes, headSkin, mouth, type AttrMesh } from "../src/game/world/character/sculpt/head";
-import { decimate, surfaceNets } from "../src/game/world/character/sculpt/mesher";
+import { cutByLabel, decimate, decimateLabeled, surfaceNets } from "../src/game/world/character/sculpt/mesher";
 import { Cast, PIECES } from "../src/game/world/character/sculpt/runtime";
 import { hairMesh } from "../src/game/world/character/sculpt/hair";
 
 const castFile = "public/characters/cast-v1.bin";
 
-describe("sculpted characters (F3/F5)", () => {
+describe("sculpted characters (F3/F5/F6)", () => {
   it("builds a figure and a full palette for every villager", () => {
     for (const v of villagers) {
       const o = outfitFor(v);
@@ -87,6 +87,39 @@ describe("sculpted characters (F3/F5)", () => {
     const [low] = decimate(raw, [300], () => 1);
     expect(low.tri.length / 3).toBeLessThanOrEqual(300);
     for (let i = 0; i < low.pos.length; i += 3) expect(Math.abs(Math.hypot(low.pos[i], low.pos[i + 1], low.pos[i + 2]) - 0.2)).toBeLessThan(0.02);
+  });
+
+  it("keeps colour borders crisp: faces carry one label and the border stays a clean line", () => {
+    const sphere = (x: number, y: number, z: number) => Math.hypot(x, y, z) - 0.2;
+    const raw = surfaceNets(sphere, [-0.25, -0.25, -0.25], [0.25, 0.25, 0.25], 0.01);
+    // Two materials split by the plane y = 0.03.
+    const labelAt = (_x: number, y: number) => (y > 0.03 ? 1 : 0);
+    const vlab = new Int32Array(raw.pos.length / 3);
+    for (let i = 0; i < vlab.length; i++) vlab[i] = labelAt(raw.pos[i * 3], raw.pos[i * 3 + 1]);
+    const cut = cutByLabel(raw, vlab, labelAt);
+    const low = decimateLabeled(cut, 400, () => 1);
+    expect(low.tri.length / 3).toBeLessThanOrEqual(420);
+    expect(low.lab.length).toBe(low.tri.length / 3);
+    // Every border vertex (shared by both labels) lies on the border plane.
+    const seen = new Map<number, Set<number>>();
+    for (let t = 0; t < low.lab.length; t++)
+      for (let c = 0; c < 3; c++) {
+        const v = low.tri[t * 3 + c];
+        if (!seen.has(v)) seen.set(v, new Set());
+        seen.get(v)!.add(low.lab[t]);
+      }
+    let border = 0;
+    for (const [v, ls] of seen) {
+      if (ls.size < 2) continue;
+      border++;
+      expect(Math.abs(low.pos[v * 3 + 1] - 0.03)).toBeLessThan(0.004);
+    }
+    expect(border).toBeGreaterThan(8);
+    // Each face is entirely on its own side.
+    for (let t = 0; t < low.lab.length; t++) {
+      const cy = (low.pos[low.tri[t * 3] * 3 + 1] + low.pos[low.tri[t * 3 + 1] * 3 + 1] + low.pos[low.tri[t * 3 + 2] * 3 + 1]) / 3;
+      expect(cy > 0.03 ? 1 : 0).toBe(low.lab[t]);
+    }
   });
 
   it.skipIf(!existsSync(castFile))("ships a baked cast within budget for every villager and the player", () => {

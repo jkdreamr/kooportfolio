@@ -205,7 +205,7 @@ export function buildHair(style: HairStyle, mat: Mat, hatClip: Node[], hatted: b
       // converge on it (a centre parting with locks for braids).
       flow = { w: norm3([tie[0] - HC[0], tie[1] - HC[1], tie[2] - HC[2]]), locks: 18, amp: 0.6, swirl: 0 };
       if (braids) {
-        flow = { w: sdir(PI, 1.45), locks: 18, amp: 0.55, swirl: 0 };
+        flow = { w: sdir(0, 0.18), locks: 18, amp: 0.55, swirl: 0 };
         for (let i = 0; i < 10; i++) {
           const th = -PI + (i + 0.5) * (2 * PI / 10);
           if (Math.abs(th) > 2.4) continue;
@@ -262,7 +262,7 @@ export function buildHair(style: HairStyle, mat: Mat, hatClip: Node[], hatted: b
       // an even rounded shape; smaller and lower at the hairline.
       flow = { w: sdir(PI, 0.45), locks: 20, amp: 0.4, swirl: 0.3 };
       coils = [];
-      const N = 78;
+      const N = 66;
       for (let i = 0; i < N; i++) {
         const y = 1 - ((i + 0.5) / N) * 2;
         const ph = Math.acos(Math.max(-1, Math.min(1, y)));
@@ -270,7 +270,7 @@ export function buildHair(style: HairStyle, mat: Mat, hatClip: Node[], hatted: b
         const lim = hlPhi(knots, th);
         if (ph > lim + 0.02) continue;
         const edge = smoothf(lim - 0.32, lim + 0.02, ph);
-        const r = (0.074 - 0.02 * edge) * (0.94 + 0.12 * Math.abs(Math.sin(i * 3.7)));
+        const r = (0.096 - 0.03 * edge) * (0.94 + 0.12 * Math.abs(Math.sin(i * 3.7)));
         coils.push({ d: sdir(th, ph), r: +r.toFixed(4) });
         segs.push({ a: S(th, ph, thick), b: S(th, ph, thick + r), t0: 0.35 + 0.3 * edge, t1: 0.7, ra: r, rb: r });
       }
@@ -365,7 +365,9 @@ export function hairMesh(h: HairBuild, hi: boolean, hat: (p: V3) => number, leve
     // Under a hat: start at the last ring still inside it (hidden end).
     let s0 = 0;
     for (let r = 0; r < R; r++) if (inside(P[r], wid(r / (R - 1)) * 0.2)) s0 = r;
-    if (s0 >= R - 2) continue;
+    // A clump mostly hidden under headwear would show only a stub: the
+    // grooved cap already covers that hair.
+    if (s0 >= R - 2 || (s0 > 0 && R - s0 < R * 0.6)) continue;
     const K = hi ? KH : level >= 2 ? 3 : 4;
     const m = emptyMesh();
     const ringIds: number[][] = [];
@@ -595,24 +597,25 @@ function hoodMesh(h: HairBuild, hi: boolean, level: number, inside: (p: V3, m?: 
 function coilMesh(h: HairBuild, hi: boolean, level: number, inside: (p: V3, m?: number) => boolean): AttrMesh {
   const m = emptyMesh();
   const segs = hi ? (level === 0 ? 8 : 7) : 5;
-  const polar = hi ? (level === 0 ? [0, 0.28, 0.52, 0.76] : [0, 0.34, 0.76]) : [0, 0.4, 0.76];
+  const polar = hi ? (level === 0 ? [0, 0.22, 0.42, 0.62] : [0, 0.3, 0.62]) : [0, 0.34, 0.62];
   for (const c of h.coils ?? []) {
     const d = norm3(c.d);
-    const ctr: V3 = [HC[0] + d[0] * (ellR(d) + h.cap.thick * 0.55 + c.r * 0.42), HC[1] + d[1] * (ellR(d) + h.cap.thick * 0.55 + c.r * 0.42), HC[2] + d[2] * (ellR(d) + h.cap.thick * 0.55 + c.r * 0.42)];
+    const ctr: V3 = [HC[0] + d[0] * (ellR(d) + h.cap.thick * 0.5 + c.r * 0.3), HC[1] + d[1] * (ellR(d) + h.cap.thick * 0.5 + c.r * 0.3), HC[2] + d[2] * (ellR(d) + h.cap.thick * 0.5 + c.r * 0.3)];
     if (inside(ctr, -0.01)) continue;
     const [u, v] = frameOf(d);
     const ring = (a: number) => {
       const ids: number[] = [];
       for (let k = 0; k < (a === 0 ? 1 : segs); k++) {
-        const b = (k / segs) * Math.PI * 2 + (a * 3);
+        const b = (k / segs) * Math.PI * 2 + (a > 0.5 ? Math.PI / segs : 0);
         const sa = Math.sin(a * Math.PI), ca = Math.cos(a * Math.PI);
         const rad: V3 = [(u[0] * Math.cos(b) + v[0] * Math.sin(b)), (u[1] * Math.cos(b) + v[1] * Math.sin(b)), (u[2] * Math.cos(b) + v[2] * Math.sin(b))];
         const n = norm3([d[0] * ca + rad[0] * sa, d[1] * ca + rad[1] * sa, d[2] * ca + rad[2] * sa]);
-        const p: V3 = [ctr[0] + rad[0] * sa * c.r + d[0] * ca * c.r * 1.06, ctr[1] + rad[1] * sa * c.r + d[1] * ca * c.r * 1.06, ctr[2] + rad[2] * sa * c.r + d[2] * ca * c.r * 1.06];
-        // Strand direction circles the bulb: the highlight reads as a coil.
-        const tan = norm3(cross3(d, rad));
+        const p: V3 = [ctr[0] + rad[0] * sa * c.r + d[0] * ca * c.r * 0.92, ctr[1] + rad[1] * sa * c.r + d[1] * ca * c.r * 0.92, ctr[2] + rad[2] * sa * c.r + d[2] * ca * c.r * 0.92];
+        // Strand direction runs over the bulb: its highlight is a soft ring
+        // (a rounded curl), never a streak down to a point.
+        const tan = norm3([rad[0] * ca - d[0] * sa, rad[1] * ca - d[1] * sa, rad[2] * ca - d[2] * sa]);
         ids.push(m.pos.length / 3);
-        pushHair(m, p, n, 0.55 - 0.25 * a, 1 - 0.38 * a, h.rough, a === 0 ? u : tan);
+        pushHair(m, p, n, 0.5 - 0.15 * a, 1 - 0.22 * a, h.rough, a === 0 ? u : tan);
       }
       return ids;
     };
@@ -651,7 +654,7 @@ function compactMesh(m: AttrMesh): AttrMesh {
 export function hairAO(h: HairBuild): Op[] {
   const ops: Op[] = [{ op: "add", k: 0, n: { t: "ell", c: HC, r: [SR[0] + h.cap.thick * 0.6, SR[1] + h.cap.thick * 0.6, SR[2] + h.cap.thick * 0.6] } }];
   for (const c of h.coils ?? []) {
-    const d = norm3(c.d), r = ellR(d) + h.cap.thick * 0.55 + c.r * 0.42;
+    const d = norm3(c.d), r = ellR(d) + h.cap.thick * 0.5 + c.r * 0.3;
     ops.push({ op: "add", k: 0, n: { t: "sph", c: r3([HC[0] + d[0] * r, HC[1] + d[1] * r, HC[2] + d[2] * r]), r: +(c.r * 0.8).toFixed(4) } });
   }
   if (h.hood) {
