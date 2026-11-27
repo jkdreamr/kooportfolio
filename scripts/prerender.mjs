@@ -72,7 +72,14 @@ const manifestPath = `${root}/.vite/manifest.json`;
 let preload = [];
 if (existsSync(manifestPath)) {
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-  const engineKey = Object.keys(manifest).find((k) => /src\/game\/engine\/index\.tsx$/.test(k));
+  // Keyed by its facade module, or (once rollup merged that re-export-only
+  // module into the shared chunk) by its file name, which vite.config pins
+  // to engine-<hash>.js.
+  const engineKey =
+    Object.keys(manifest).find((k) => /src\/game\/engine\/index\.tsx$/.test(k)) ??
+    Object.keys(manifest).find(
+      (k) => manifest[k].isDynamicEntry && /^assets\/engine-[\w-]+\.js$/.test(manifest[k].file),
+    );
   if (!engineKey) throw new Error("prerender: engine chunk missing from the manifest");
   const seen = new Set();
   const walk = (key) => {

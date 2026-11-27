@@ -1,4 +1,3 @@
-import catalogue from "./stargazing-catalogue.json";
 import { sampleDaylight, sampleSkyPalette, wrapHour, type Rgb } from "./daylight";
 
 export type SkyWorld = "stanford" | "home" | "korea";
@@ -58,7 +57,8 @@ export type ObservedStar = Horizontal & {
   color: string;
 };
 // HYG v4.1 subset, CC BY-SA 4.0; provenance and tuple schema in /stargazing-data.txt.
-type CatalogueStar = [
+/** [id, ra (h), dec (deg), magnitude, B-V | null, name, pmra, pmdec (mas/yr)] */
+export type CatalogueStar = [
   number,
   number,
   number,
@@ -68,7 +68,26 @@ type CatalogueStar = [
   number,
   number,
 ];
-export const STAR_CATALOGUE = catalogue as CatalogueStar[];
+/**
+ * C7: the star catalogue (~5,000 stars, ~117 KB gzip) is its own chunk, out
+ * of the engine's critical path. `loadCatalogue()` fetches it once per
+ * session (a failed fetch retries on the next call); the game warms it when
+ * the player walks within 8 m of the telescope and before the view opens.
+ * `loadedCatalogue()` is what has arrived so far (empty until then).
+ */
+let catalogue: Promise<CatalogueStar[]> | null = null;
+let loaded: readonly CatalogueStar[] = [];
+export function loadCatalogue(): Promise<readonly CatalogueStar[]> {
+  catalogue ??= import("./stargazing-catalogue.json").then(
+    (module) => (loaded = module.default as CatalogueStar[]),
+    (error) => {
+      catalogue = null;
+      throw error;
+    },
+  );
+  return catalogue;
+}
+export const loadedCatalogue = (): readonly CatalogueStar[] => loaded;
 export const julianDate = (date: Date) => date.getTime() / DAY + 2440587.5;
 
 /** USNO approximate GMST in degrees; UTC used as UT1 (<1 second discrepancy). */
@@ -213,9 +232,15 @@ export function lunarPosition(date: Date, location: SkyLocation): MoonPosition {
     waxing: wrapDegrees(longitude - sun.longitude) < 180,
   };
 }
-export function observeSky(date: Date, location: SkyLocation): ObservedStar[] {
+/** Every catalogue star's place in the sky. `catalogue` defaults to the
+ * loaded one (see loadCatalogue); tests pass the JSON directly. */
+export function observeSky(
+  date: Date,
+  location: SkyLocation,
+  catalogue: readonly CatalogueStar[] = loadedCatalogue(),
+): ObservedStar[] {
   const years = (julianDate(date) - 2451545) / 365.25;
-  return STAR_CATALOGUE.map(
+  return catalogue.map(
     ([id, ra, dec, magnitude, bv, name, pmra, pmdec]) => {
       // HYG RA proper motion includes cos(dec), milliarcseconds/year.
       const movedRA =

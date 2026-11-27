@@ -1,5 +1,7 @@
 import {
   Component,
+  Suspense,
+  lazy,
   useCallback,
   useEffect,
   useMemo,
@@ -30,7 +32,6 @@ import {
 import { EngineRuntime, pinPrograms, rig } from "./engine/Engine";
 import { WorldActiveContext } from "./engine/active";
 import { usePresented } from "./engine/presented";
-import { PerfOverlay } from "./engine/PerfOverlay";
 import { installGradeToneMapping } from "./engine/grade";
 import { legacyQuality, pickTier, resolveAo } from "./engine/tier";
 import { setBoomObstacles } from "./engine/view";
@@ -60,10 +61,10 @@ import { FLIGHT_OBSTACLES } from "./core/heroSpots";
 import type { WorldId } from "../shared/worlds";
 import { useGym } from "./scenes/CognitionGym";
 import { interactWithNpc } from "./core/npcState";
-import { NpcDialog } from "./ui/NpcConversation";
 import { WorldAmbience } from "./world/WorldAmbience";
-import { PhotoBoothDialog, openPhotoBooth } from "./ui/PhotoBoothDialog";
-import { TelescopeView } from "./ui/TelescopeView";
+import { openPhotoBooth } from "./ui/photoBoothLauncher";
+import { loadCatalogue } from "./core/stargazing";
+import { destinationsInWorld } from "./core/world";
 import { SkateParkInterior } from "./scenes/SkatePark";
 import { useTheater } from "./scenes/MovieTheater";
 import {
@@ -74,6 +75,96 @@ import {
 } from "./core/hoover";
 import "./game.css";
 import "./game-mode.css";
+
+/* Panels that open on a visitor's action load on demand, out of the engine
+ * chunk (C7). Each is prefetched before it can be asked for (idle time, or
+ * walking up to it), so opening one never waits on the network in practice;
+ * if it does, the panel simply appears a moment later. */
+const loadTelescope = () => import("./ui/TelescopeView");
+const loadNpcDialog = () => import("./ui/NpcConversation");
+const loadPhotoBooth = () => import("./ui/PhotoBoothDialog");
+// The view mounts once the star catalogue is here too (observeSky reads the
+// loaded catalogue), so the chart is never drawn empty; a failed catalogue
+// fetch still opens the sky, and the next approach retries it.
+const TelescopeView = lazy(() =>
+  Promise.all([loadTelescope(), loadCatalogue().catch(() => [])]).then(([m]) => ({
+    default: m.TelescopeView,
+  })),
+);
+const NpcDialog = lazy(() => loadNpcDialog().then((m) => ({ default: m.NpcDialog })));
+const PhotoBoothDialog = lazy(() =>
+  loadPhotoBooth().then((m) => ({ default: m.PhotoBoothDialog })),
+);
+const PerfOverlay = lazy(() =>
+  import("./engine/PerfOverlay").then((m) => ({ default: m.PerfOverlay })),
+);
+const perfRequested = () => {
+  try {
+    return new URLSearchParams(location.search).get("perf") === "1";
+  } catch {
+    return false;
+  }
+};
+const ignore = () => {};
+/** The telescope's view and its star catalogue, fetched once the player is
+ * within 8 m of the telescope (or when it opens). */
+let telescopeWarmed = false;
+function warmTelescope() {
+  if (telescopeWarmed) return;
+  telescopeWarmed = true;
+  loadTelescope().catch(() => {
+    telescopeWarmed = false;
+  });
+  loadCatalogue().catch(ignore);
+}
+const TELESCOPE_WARM_RADIUS = 8;
+function useOnDemandPanels(world: WorldId, live: boolean) {
+  // Walking up to the telescope warms its chunks (C7: no catalogue request
+  // before the telescope is approached).
+  useEffect(() => {
+    if (!live) return;
+    const telescope = destinationsInWorld(world).find((place) => place.id === "stargazing");
+    if (!telescope) return;
+    const timer = window.setInterval(() => {
+      if (Math.hypot(runtime.x - telescope.x, runtime.z - telescope.z) < TELESCOPE_WARM_RADIUS)
+        warmTelescope();
+    }, 400);
+    return () => window.clearInterval(timer);
+  }, [world, live]);
+  // Conversation and booth panels are small: fetch them once the world has
+  // been on screen for a while and the main thread is idle.
+  useEffect(() => {
+    if (!live) return;
+    const idle = (window as Window & {
+      requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number;
+    }).requestIdleCallback;
+    const timer = window.setTimeout(() => {
+      const fetch = () => {
+        loadNpcDialog().catch(ignore);
+        loadPhotoBooth().catch(ignore);
+      };
+      if (idle) idle(fetch, { timeout: 4000 });
+      else fetch();
+    }, 4000);
+    return () => window.clearTimeout(timer);
+  }, [live]);
+}
+function NpcDialogGate() {
+  const open = useGame((game) => game.scene === "hub" && game.panel === "npc" && !game.paused);
+  return open ? (
+    <Suspense fallback={null}>
+      <NpcDialog />
+    </Suspense>
+  ) : null;
+}
+function PhotoBoothGate() {
+  const open = useGameMode((state) => state.active?.id === "photo-booth");
+  return open ? (
+    <Suspense fallback={null}>
+      <PhotoBoothDialog />
+    </Suspense>
+  ) : null;
+}
 
 class WorldBoundary extends Component<
   { children: ReactNode },
@@ -580,6 +671,9 @@ export default function Game({ autoEnter = true }: { autoEnter?: boolean } = {})
     worldVisible = useStage((s) => s.worldVisible);
   const gameMode = useGameMode((s) => s.active);
   const presentedScene = usePresented((s) => s.scene);
+  const [showPerf] = useState(perfRequested);
+  const currentWorld = useGame((s) => s.world);
+  useOnDemandPanels(currentWorld, ready && hudRevealed && mode === "game");
   const photoBooth = gameMode?.id === "photo-booth";
   const interact = useCallback(() => {
     const g = useGame.getState();
@@ -745,15 +839,21 @@ export default function Game({ autoEnter = true }: { autoEnter?: boolean } = {})
       {lost && <WorldFallback />}
       {!gameMode && !traveling && <TimeOfDayControls />}
       {!gameMode && <WorldZoomControls />}
-      <NpcDialog />
-      <PhotoBoothDialog />
+      <NpcDialogGate />
+      <PhotoBoothGate />
       {panel === "telescope" && !paused && (
-        <TelescopeView
-          worldId={useGame.getState().world}
-          onClose={() => useGame.setState({ panel: "none" })}
-        />
+        <Suspense fallback={null}>
+          <TelescopeView
+            worldId={useGame.getState().world}
+            onClose={() => useGame.setState({ panel: "none" })}
+          />
+        </Suspense>
       )}
-      <PerfOverlay />
+      {showPerf && (
+        <Suspense fallback={null}>
+          <PerfOverlay />
+        </Suspense>
+      )}
     </div>
   );
 }

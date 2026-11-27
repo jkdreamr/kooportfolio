@@ -33,7 +33,23 @@ export default defineConfig({
   },
   // The manifest lets the prerender find the engine chunk for /play's
   // modulepreload list; prerender deletes it before publishing.
-  build: { chunkSizeWarningLimit: 1100, manifest: true },
+  build: {
+    chunkSizeWarningLimit: 1100,
+    manifest: true,
+    rollupOptions: {
+      output: {
+        // The engine chunk keeps one stable name ("engine-<hash>"): the
+        // budget gate and the portfolio-route check look for it by name.
+        // Once the engine has lazy panels of its own, rollup merges
+        // engine/index.tsx (re-exports only) into the shared chunk without
+        // a facade and would name it "index"; it is the chunk holding Game.
+        chunkFileNames: (chunk) =>
+          chunk.moduleIds.some((id) => id.replace(/\\/g, "/").endsWith("/src/game/Game.tsx"))
+            ? "assets/engine-[hash].js"
+            : "assets/[name]-[hash].js",
+      },
+    },
+  },
   // The engine imports these lazily (high tier only). Pre-bundle them up
   // front so the dev server never re-optimises mid-session (a full reload and
   // a duplicated three.js instance).

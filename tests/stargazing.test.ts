@@ -13,10 +13,13 @@ import {
   projectStar,
   SKY_LOCATIONS,
   solarAltitude,
-  STAR_CATALOGUE,
   telescopeSkyTime,
   tonightAtLocation,
 } from "../src/game/core/stargazing";
+import type { CatalogueStar } from "../src/game/core/stargazing";
+import catalogue from "../src/game/core/stargazing-catalogue.json";
+
+const STAR_CATALOGUE = catalogue as CatalogueStar[];
 
 const epoch = new Date("2000-01-01T12:00:00Z");
 const instant = new Date("2026-11-24T06:00:00Z");
@@ -95,26 +98,26 @@ describe("real telescope sky", () => {
   });
 
   it("keeps Home and Stanford physically identical while Seoul differs at one UTC instant", () => {
-    const home = observeSky(instant, bay);
-    expect(home).toEqual(observeSky(instant, SKY_LOCATIONS.stanford));
-    expect(home).not.toEqual(observeSky(instant, SKY_LOCATIONS.korea));
+    const home = observeSky(instant, bay, STAR_CATALOGUE);
+    expect(home).toEqual(observeSky(instant, SKY_LOCATIONS.stanford, STAR_CATALOGUE));
+    expect(home).not.toEqual(observeSky(instant, SKY_LOCATIONS.korea, STAR_CATALOGUE));
     expect(home.every((star) => star.altitude > 0 && star.altitude <= 90)).toBe(
       true,
     );
     expect(home.some((star) => star.name === "Polaris")).toBe(true);
     expect(home.some((star) => star.name === "Acrux")).toBe(false);
-    expect(observeSky(instant, bay)).toEqual(home);
+    expect(observeSky(instant, bay, STAR_CATALOGUE)).toEqual(home);
   });
 
   it("changes the actual sky by hour, by date and by season", () => {
     const polaris = (date: Date) =>
-      observeSky(date, bay).find((star) => star.name === "Polaris")!;
+      observeSky(date, bay, STAR_CATALOGUE).find((star) => star.name === "Polaris")!;
     const now = polaris(instant);
     const tomorrow = polaris(new Date(instant.getTime() + 86400000));
     const hourLater = polaris(new Date(instant.getTime() + 3600000));
     expect(Math.abs(now.azimuth - tomorrow.azimuth)).toBeGreaterThan(0.001);
     expect(Math.abs(now.azimuth - hourLater.azimuth)).toBeGreaterThan(0.01);
-    const names = (date: Date) => observeSky(date, bay).map((star) => star.id);
+    const names = (date: Date) => observeSky(date, bay, STAR_CATALOGUE).map((star) => star.id);
     expect(names(new Date("2027-05-24T06:00:00Z"))).not.toEqual(names(instant));
   });
 
@@ -160,7 +163,7 @@ describe("real telescope sky", () => {
   });
 
   it("centers targets geometrically, excludes the far hemisphere, and bounds the controls", () => {
-    const sky = observeSky(instant, bay);
+    const sky = observeSky(instant, bay, STAR_CATALOGUE);
     const star = sky.find((s) => s.name === "Polaris")!;
     const center = projectStar(star, {
       ...INITIAL_AIM,
@@ -182,5 +185,17 @@ describe("real telescope sky", () => {
     expect(panSky(INITIAL_AIM, 190, 0).azimuth).toBe(10);
     expect(clampZoom(0)).toBe(MIN_ZOOM);
     expect(clampZoom(100)).toBe(MAX_ZOOM);
+  });
+});
+
+describe("catalogue on demand (C7)", () => {
+  it("observeSky draws nothing until the catalogue chunk has loaded, then all of it", async () => {
+    const { loadCatalogue, loadedCatalogue } = await import("../src/game/core/stargazing");
+    expect(observeSky(instant, bay)).toEqual([]);
+    const first = loadCatalogue();
+    expect(loadCatalogue()).toBe(first); // one request per session
+    expect(await first).toHaveLength(STAR_CATALOGUE.length);
+    expect(loadedCatalogue()).toHaveLength(STAR_CATALOGUE.length);
+    expect(observeSky(instant, bay)).toEqual(observeSky(instant, bay, STAR_CATALOGUE));
   });
 });

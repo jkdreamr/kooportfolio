@@ -7,7 +7,7 @@ import {
 } from "react";
 import type { PointerEvent } from "react";
 import { useGame } from "../core/store";
-import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
+import { endGameMode, useGameMode } from "../core/gameMode";
 import {
   borders,
   CAPTION_LIMIT,
@@ -38,16 +38,12 @@ import {
   textCheckCopy,
 } from "../../shared/writing";
 import { useApiStatus } from "./useApiAvailable";
+import { takeBoothLauncher } from "./photoBoothLauncher";
 import { cue } from "../core/audio/cues";
 import type { WallStrip } from "../../shared/booth";
 import "./photo-booth.css";
 
-let boothLauncher: HTMLElement | null = null;
-
-export function openPhotoBooth() {
-  const launcher = document.activeElement as HTMLElement | null;
-  if (startGameMode("photo-booth")) boothLauncher = launcher;
-}
+export { openPhotoBooth } from "./photoBoothLauncher";
 
 function closePhotoBooth() {
   endGameMode();
@@ -696,8 +692,7 @@ function BoothSession({ paused }: { paused: boolean }) {
   useEffect(
     () => () => {
       if (useGameMode.getState().active?.id === "photo-booth") return;
-      const launcher = boothLauncher;
-      boothLauncher = null;
+      const launcher = takeBoothLauncher();
       requestAnimationFrame(() => {
         if (launcher?.isConnected && !useGameMode.getState().active)
           launcher.focus({ preventScroll: true });

@@ -5,10 +5,13 @@ import {
   lunarPosition,
   NIGHT_MAGNITUDE_LIMIT,
   SKY_LOCATIONS,
-  STAR_CATALOGUE,
   starVisibility,
   telescopeSkyState,
 } from "../src/game/core/stargazing";
+import type { CatalogueStar } from "../src/game/core/stargazing";
+import catalogue from "../src/game/core/stargazing-catalogue.json";
+
+const STAR_CATALOGUE = catalogue as CatalogueStar[];
 import { rgbHex, sampleSkyPalette, TIME_PRESETS } from "../src/game/core/daylight";
 import { FIRST_VISIT_HOUR } from "../src/game/core/timeOfDay";
 
