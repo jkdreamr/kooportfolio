@@ -240,6 +240,18 @@ export class PeepholeController {
   intent() {
     this.wantEngine();
   }
+  /** The engine could not be loaded on a portfolio page: the letter goes
+   * back to being a toy (no gauge), and Play / activation navigate to /play,
+   * a fresh document that tries again. */
+  engineFailed() {
+    this.loadStartedAt = -1;
+    this.loadShown = 0;
+    if (this.button) {
+      delete this.button.dataset.loading;
+      this.button.style.setProperty("--pp-load", "0");
+    }
+    if (usePeephole.getState().announce === LOADING_ANNOUNCE) usePeephole.setState({ announce: "" });
+  }
   /** The engine module has arrived (Stage); warm-up progress follows. */
   engineLoaded() {
     this.engineIn = true;

@@ -131,6 +131,11 @@ export function Stage({ play }: { play: boolean }) {
           setEngine(m);
         }
         else if (play) setFailed(true);
+        else {
+          // Portfolio page: back to a toy letter; the next intent tries again.
+          peephole.engineFailed();
+          setAttempt((n) => n + 1);
+        }
       });
     };
     if (play) {
