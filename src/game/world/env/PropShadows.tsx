@@ -43,12 +43,15 @@ export function propBlobs(boxes: readonly PropBox[], gap = 0.08): PropBlob[] {
       b.maxX - b.minX < 4 &&
       b.maxZ - b.minZ < 4,
   );
+  // Sweep along x (pieces sorted by minX): only neighbours in x are tested.
+  pieces.sort((a, b) => a.minX - b.minX);
   const parent = pieces.map((_, i) => i);
   const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])));
   for (let i = 0; i < pieces.length; i++)
     for (let j = i + 1; j < pieces.length; j++) {
       const a = pieces[i], b = pieces[j];
-      if (a.minX - gap <= b.maxX && b.minX - gap <= a.maxX && a.minZ - gap <= b.maxZ && b.minZ - gap <= a.maxZ && a.minY - gap <= b.maxY && b.minY - gap <= a.maxY)
+      if (b.minX - gap > a.maxX) break;
+      if (a.minZ - gap <= b.maxZ && b.minZ - gap <= a.maxZ && a.minY - gap <= b.maxY && b.minY - gap <= a.maxY)
         parent[find(i)] = find(j);
     }
   const groups = new Map<number, PropBox>();
@@ -73,6 +76,7 @@ export function propBlobs(boxes: readonly PropBox[], gap = 0.08): PropBlob[] {
 }
 
 const box = new THREE.Box3();
+const instance = new THREE.Matrix4();
 export function PropShadows() {
   const ref = useRef<THREE.InstancedMesh>(null);
   const material = useMemo(() => contactBlobMaterial(OPACITY), []);
@@ -96,14 +100,27 @@ export function PropShadows() {
     if (!root) return;
     root.updateMatrixWorld(true);
     const boxes: PropBox[] = [];
+    const push = () => {
+      if (!box.isEmpty())
+        boxes.push({ minX: box.min.x, maxX: box.max.x, minY: box.min.y, maxY: box.max.y, minZ: box.min.z, maxZ: box.max.z });
+    };
     root.traverse((o) => {
       const m = o as THREE.Mesh;
-      if (!m.isMesh || m.userData.bakeOutput || (m as unknown as THREE.InstancedMesh).isInstancedMesh) return;
+      if (!m.isMesh || m.userData.bakeOutput || m === mesh) return;
       if (!m.geometry?.attributes.position) return;
       if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
+      const inst = m as unknown as THREE.InstancedMesh;
+      if (inst.isInstancedMesh) {
+        // Pieces drawn (or baked) as instances: one box per instance.
+        for (let i = 0; i < Math.min(inst.count, 4000); i++) {
+          inst.getMatrixAt(i, instance);
+          box.copy(m.geometry.boundingBox!).applyMatrix4(instance.premultiply(m.matrixWorld));
+          push();
+        }
+        return;
+      }
       box.copy(m.geometry.boundingBox!).applyMatrix4(m.matrixWorld);
-      if (box.isEmpty()) return;
-      boxes.push({ minX: box.min.x, maxX: box.max.x, minY: box.min.y, maxY: box.max.y, minZ: box.min.z, maxZ: box.max.z });
+      push();
     });
     const blobs = propBlobs(boxes);
     const matrix = new THREE.Matrix4();
