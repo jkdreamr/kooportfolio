@@ -19,6 +19,7 @@ export type SculptLod = "hero" | "mid";
 type ShapeMeta = { n: number; i: number; v0: number; i0: number; bb: number[] };
 export type CastManifest = {
   v: number;
+  q?: number;
   nv: number;
   ni: number;
   shapes: ShapeMeta[];
@@ -27,7 +28,7 @@ export type CastManifest = {
 
 export class Cast {
   manifest: CastManifest;
-  private pools: { pos: Int16Array; idx: Uint16Array; nrm: Int8Array; a: Uint8Array; b: Uint8Array };
+  private pools: { pos: Uint8Array; idx: Uint8Array; nrm: Int8Array; a: Uint8Array; b: Uint8Array };
   private geos = new Map<number, THREE.BufferGeometry>();
   constructor(buf: ArrayBuffer) {
     const view = new DataView(buf);
@@ -37,9 +38,9 @@ export class Cast {
     const { nv, ni } = this.manifest;
     const align = (x: number) => (x + 3) & ~3;
     let o = align(8 + jl);
-    const pos = new Int16Array(buf, o, nv * 3); o = align(o + nv * 6);
-    const idx = new Uint16Array(buf, o, ni); o = align(o + ni * 2);
-    const nrm = new Int8Array(buf, o, nv * 3); o = align(o + nv * 3);
+    const pos = new Uint8Array(buf, o, nv * 6); o = align(o + nv * 6);
+    const idx = new Uint8Array(buf, o, ni * 2); o = align(o + ni * 2);
+    const nrm = new Int8Array(buf, o, nv * 2); o = align(o + nv * 2);
     const a = new Uint8Array(buf, o, nv * 4); o = align(o + nv * 4);
     const b = new Uint8Array(buf, o, nv * 4);
     this.pools = { pos, idx, nrm, a, b };
@@ -53,23 +54,42 @@ export class Cast {
     if (g) return g;
     const s = this.manifest.shapes[shape];
     const { pos, idx, nrm, a, b } = this.pools;
+    const { nv, ni, q: Q = 4095 } = this.manifest;
+    // 12-bit zigzag deltas in split byte planes.
     const p = new Float32Array(s.n * 3);
-    const q = new Int16Array(3);
+    const acc = [0, 0, 0];
     for (let i = 0; i < s.n * 3; i++) {
+      const k = s.v0 * 3 + i;
+      const z = pos[k] | (pos[nv * 3 + k] << 8);
+      const d = z & 1 ? -((z + 1) >> 1) : z >> 1;
       const c = i % 3;
-      q[c] = i < 3 ? pos[s.v0 * 3 + i] : q[c] + pos[s.v0 * 3 + i]; // undo delta (wraps in int16)
-      p[i] = s.bb[c] + ((q[c] + 32767) / 65534) * (s.bb[c + 3] - s.bb[c]);
+      acc[c] = i < 3 ? d : acc[c] + d;
+      p[i] = s.bb[c] + (acc[c] / Q) * (s.bb[c + 3] - s.bb[c]);
     }
     const index = new Uint16Array(s.i);
     let hw = 0;
     for (let i = 0; i < s.i; i++) {
-      const v = hw - idx[s.i0 + i];
+      const k = s.i0 + i;
+      const v = hw - (idx[k] | (idx[ni + k] << 8));
       index[i] = v;
       if (v === hw) hw++;
     }
+    // Octahedral normals → int8 xyz.
+    const n3 = new Int8Array(s.n * 3);
+    for (let i = 0; i < s.n; i++) {
+      let x = nrm[(s.v0 + i) * 2] / 127, y = nrm[(s.v0 + i) * 2 + 1] / 127;
+      const z = 1 - Math.abs(x) - Math.abs(y);
+      if (z < 0) {
+        const px = x;
+        x = (1 - Math.abs(y)) * (px >= 0 ? 1 : -1);
+        y = (1 - Math.abs(px)) * (y >= 0 ? 1 : -1);
+      }
+      const l = Math.hypot(x, y, z) || 1;
+      n3[i * 3] = Math.round((x / l) * 127); n3[i * 3 + 1] = Math.round((y / l) * 127); n3[i * 3 + 2] = Math.round((z / l) * 127);
+    }
     g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.BufferAttribute(p, 3));
-    g.setAttribute("normal", new THREE.BufferAttribute(nrm.slice(s.v0 * 3, (s.v0 + s.n) * 3), 3, true));
+    g.setAttribute("normal", new THREE.BufferAttribute(n3, 3, true));
     g.setAttribute("rigA", new THREE.BufferAttribute(a.slice(s.v0 * 4, (s.v0 + s.n) * 4), 4, true));
     g.setAttribute("rigB", new THREE.BufferAttribute(b.slice(s.v0 * 4, (s.v0 + s.n) * 4), 4, true));
     g.setIndex(new THREE.BufferAttribute(index, 1));
@@ -153,9 +173,9 @@ const FRAG_COLOR = /* glsl */ `
     // Sclera with a soft shadow under the lash line.
     vec3 sclera = vec3(0.96, 0.95, 0.93) * (0.78 + 0.22 * smoothstep(0.95, 0.45, e.y));
     // Big warm iris: darker rim and top, glowing lower half.
-    vec3 iris = vRigColor * (0.5 + 0.8 * smoothstep(0.68, 0.1, r)) * (0.75 + 0.7 * smoothstep(0.25, -0.55, e.y));
-    rigCol = mix(iris, sclera, smoothstep(0.63, 0.69, r));
-    rigCol = mix(vec3(0.03, 0.02, 0.025), rigCol, smoothstep(0.27, 0.32, r));
+    vec3 iris = vRigColor * (0.5 + 0.8 * smoothstep(0.76, 0.1, r)) * (0.75 + 0.7 * smoothstep(0.25, -0.55, e.y));
+    rigCol = mix(iris, sclera, smoothstep(0.71, 0.77, r));
+    rigCol = mix(vec3(0.03, 0.02, 0.025), rigCol, smoothstep(0.3, 0.35, r));
     // Catchlights: a big one upper-left, a small one lower-right (screen).
     rigGlow = smoothstep(0.2, 0.15, length(e - vec2(-0.24, 0.27))) + 0.9 * smoothstep(0.09, 0.06, length(e - vec2(0.23, -0.25)));
     rigSkinF = 0.0;
@@ -285,13 +305,17 @@ export class SculptBatch {
       });
     });
     this.shown = new Uint8Array(chars.length);
+    this.mesh.visible = false;
   }
   setPalette(ci: number, hexes: string[], glow?: number[]) {
     for (const id of this.instances[ci]) if (id >= 0) writePalette(this.palette, id, hexes, glow);
   }
+  private visibleCount = 0;
   hide(ci: number) {
     if (!this.shown[ci]) return;
     this.shown[ci] = 0;
+    // An empty batch issues no draw at all.
+    if (--this.visibleCount === 0) this.mesh.visible = false;
     for (const id of this.instances[ci]) if (id >= 0) this.mesh.setVisibleAt(id, false);
   }
   /** Pose character `ci` under `base` (root transform) and show it. */
@@ -331,7 +355,11 @@ export class SculptBatch {
       this.mesh.setMatrixAt(id, pm);
       if (!this.shown[ci]) this.mesh.setVisibleAt(id, true);
     }
-    this.shown[ci] = 1;
+    if (!this.shown[ci]) {
+      this.shown[ci] = 1;
+      this.visibleCount++;
+      this.mesh.visible = true;
+    }
   }
   characterAt(instanceId: number) {
     return this.owner[instanceId] ?? -1;

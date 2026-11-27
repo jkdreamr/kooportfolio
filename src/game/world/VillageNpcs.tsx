@@ -47,9 +47,9 @@ const up = new THREE.Vector3(0, 1, 0);
 /** Sculpted tiers (character/sculpt): the nearest few villagers get the
  * hero bake, the rest of the near crowd the mid bake, and everyone beyond
  * the low primitive rig. Medium: mid and low only. Low: low only. */
-const HERO_MAX = 6;
+const HERO_MAX = 5;
 const HERO_RADIUS = 13;
-const MID_RADIUS = { high: 25, medium: 10, low: 0 } as const;
+const MID_RADIUS = { high: 20, medium: 10, low: 0 } as const;
 
 /** The whole crowd: hero + mid sculpted BatchedMeshes (one draw each) and
  * the low primitive rig (≤8 instanced draws). Before the bake loads, the

@@ -29,6 +29,7 @@ export type Figure = {
   /** Head centre (head frame) and the AO stand-in for the analytic skin. */
   HC: V3;
   headSkin: Op[];
+  glasses?: { slot: number; sun: boolean };
   face: { expr: Expression; flick: boolean; browLift: number; browRight: number; eye: EyeSpec };
   /** Blush centres (head frame). */
   cheeks: V3[];
@@ -495,7 +496,7 @@ export function buildFigure(o: Outfit): Figure {
   const HM: Mat = { slot: SLOT.hair, rough: 0.42, paint: "hair" };
   const locks = (amp: number, freq = 13): Node["disp"] => ({ kind: "locks", amp, freq, c: HC });
   if (hat !== "headscarf") {
-    const tight = style === "buzz" ? 0.012 : style === "crop" || style === "topknot" ? 0.025 : 0.035;
+    const tight = style === "buzz" ? 0.022 : style === "crop" || style === "topknot" ? 0.036 : 0.046;
     // Hairline: removes the face and, for short cuts, the nape.
     const nape = style === "bob" || style === "long" ? -0.5 : -0.2;
     const hairline = plane([0, -1, 0.55], -(HC[1] - 0.02 + 0.55 * HC[2]));
@@ -516,8 +517,10 @@ export function buildFigure(o: Outfit): Figure {
           : [hairline, above(HC[1] + nape)]),
         // Under a crowned hat only the hair below its rim shows.
         ...(hat && !["gat", "headband", "visor", "straw", "ranger", "bucket"].includes(hat) ? [below(HC[1] + 0.15)] : []),
+        // Brimmed hats: hair stays inside the crown.
+        ...(hat && ["straw", "ranger", "bucket"].includes(hat) ? [below(HC[1] + 0.27)] : []),
       ],
-      disp: style === "curly" ? { kind: "bumps", amp: 0.018, freq: 55 } : locks(style === "buzz" ? 0.003 : 0.012),
+      disp: style === "curly" ? { kind: "bumps", amp: 0.016, freq: 30 } : locks(style === "buzz" ? 0.002 : 0.008),
     };
     head.push(add(hairNode, 0.012));
     // Fringe clumps (under a hat brim only the side ones).
@@ -564,24 +567,23 @@ export function buildFigure(o: Outfit): Figure {
       case "cap":
       case "cap-back": {
         const back = o.head.kind === "cap-back";
-        head.push(add({ t: "shell", of: ell(at(0, 0.06, -0.02), [0.4, 0.36, 0.395]), d: 0, m: H, clip: [above(HC[1] + 0.1)] }, 0.0));
+        head.push(add({ t: "shell", of: ell(at(0, 0.06, -0.02), [0.418, 0.38, 0.412]), d: 0, m: H, clip: [above(HC[1] + 0.1)] }, 0.0));
         head.push(add(box(at(0, 0.12, back ? -0.38 : 0.38), [0.17, 0.012, 0.11], 0.012, B, [back ? -0.18 : 0.18, 0, 0]), 0.01));
         head.push(add(sph(at(0, 0.42, -0.02), 0.03, B), 0.008));
-        for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; head.push(sub(cap(at(Math.sin(a) * 0.38, 0.12, Math.cos(a) * 0.38), at(Math.sin(a) * 0.05, 0.42, Math.cos(a) * 0.05), 0.004), 0.004)); }
         break;
       }
       case "bucket":
-        head.push(add(cyl(at(0, 0.27, -0.01), 0.12, 0.34, 0.07, H), 0.02));
+        head.push(add(cyl(at(0, 0.27, -0.01), 0.12, 0.36, 0.07, H), 0.02));
         head.push(add({ t: "skirt", c: at(0, 0.17, -0.01), len: 0.11, rTop: 0.33, rHem: 0.5, zs: 1, thick: 0.012, wave: 0.01, waves: 6, m: H }, 0.01));
         head.push(add(tor(at(0, 0.18, -0.01), 0.34, 0.016, B), 0.005));
         break;
       case "beanie":
-        head.push(add({ t: "shell", of: ell(at(0, 0.06, -0.02), [0.4, 0.38, 0.4]), d: 0, m: H, clip: [above(HC[1] + 0.02)], disp: { kind: "rib", amp: 0.005, freq: 24, c: HC } }, 0.0));
+        head.push(add({ t: "shell", of: ell(at(0, 0.06, -0.02), [0.418, 0.395, 0.418]), d: 0, m: H, clip: [above(HC[1] + 0.02)], disp: { kind: "rib", amp: 0.005, freq: 24, c: HC } }, 0.0));
         head.push(add({ ...tor(at(0, 0.09, -0.02), 0.385, 0.04, B, [-0.15, 0, 0], 1, 1), disp: { kind: "rib", amp: 0.004, freq: 30, c: HC } }, 0.01));
         head.push(add(sph(at(0, 0.45, -0.04), 0.06, B), 0.02));
         break;
       case "hardhat":
-        head.push(add({ t: "shell", of: ell(at(0, 0.05, -0.01), [0.41, 0.4, 0.43]), d: 0, m: M.gloss(SLOT.hat, 0.35), clip: [above(HC[1] + 0.12)] }, 0.0));
+        head.push(add({ t: "shell", of: ell(at(0, 0.05, -0.01), [0.425, 0.41, 0.44]), d: 0, m: M.gloss(SLOT.hat, 0.35), clip: [above(HC[1] + 0.12)] }, 0.0));
         head.push(add(cyl(at(0, 0.13, 0.01), 0.008, 0.47, 0.008, M.gloss(SLOT.hat, 0.35)), 0.01));
         head.push(add(cap(at(0, 0.44, -0.3), at(0, 0.45, 0.3), 0.03, M.gloss(SLOT.hat, 0.35)), 0.02));
         break;
@@ -598,7 +600,7 @@ export function buildFigure(o: Outfit): Figure {
         head.push(add(tor(at(0, 0.14, 0), 0.382, 0.03, H, [-0.18, 0, 0]), 0.0));
         break;
       case "helmet":
-        head.push(add({ t: "shell", of: ell(at(0, 0.06, -0.04), [0.42, 0.38, 0.47]), d: 0, m: M.gloss(SLOT.hat, 0.3), clip: [above(HC[1] + 0.08)] }, 0.0));
+        head.push(add({ t: "shell", of: ell(at(0, 0.06, -0.04), [0.43, 0.395, 0.475]), d: 0, m: M.gloss(SLOT.hat, 0.3), clip: [above(HC[1] + 0.08)] }, 0.0));
         for (const x of [-0.12, 0, 0.12]) head.push(sub(cap(at(x, 0.41, 0.25), at(x * 1.2, 0.36, -0.35), 0.022, B), 0.01));
         for (const s of [1, -1]) head.push(add(cap(at(s * 0.33, 0.08, 0.02), at(s * 0.12, -0.27, 0.2), 0.01, M.fab(SLOT.dark)), 0.004));
         break;
@@ -607,7 +609,7 @@ export function buildFigure(o: Outfit): Figure {
         head.push(add(sph(at(0.04, 0.4, -0.02), 0.025, H), 0.01));
         break;
       case "flatcap":
-        head.push(add(ell(at(0, 0.24, 0.02), [0.4, 0.15, 0.44], H), 0.05));
+        head.push(add(ell(at(0, 0.24, 0.02), [0.415, 0.16, 0.45], H), 0.05));
         head.push(add(box(at(0, 0.15, 0.38), [0.17, 0.012, 0.08], 0.012, H, [0.3, 0, 0]), 0.02));
         break;
       case "ranger":
@@ -618,7 +620,7 @@ export function buildFigure(o: Outfit): Figure {
         head.push(add(tor(at(0, 0.23, -0.01), 0.282, 0.02, B), 0.005));
         break;
       case "headscarf":
-        head.push(add({ t: "shell", of: ell(at(0, 0.02, -0.02), [0.4, 0.39, 0.385]), d: 0, m: H, clip: [plane([0, -1, 0.55], -(HC[1] + 0.03 + 0.55 * HC[2]))], disp: { kind: "folds", amp: 0.004, freq: 9, c: HC } }, 0.01));
+        head.push(add({ t: "shell", of: ell(at(0, 0.02, -0.02), [0.415, 0.405, 0.4]), d: 0, m: H, clip: [plane([0, -1, 0.55], -(HC[1] + 0.03 + 0.55 * HC[2]))], disp: { kind: "folds", amp: 0.004, freq: 9, c: HC } }, 0.01));
         head.push(add(sph(at(0, 0.08, -0.38), 0.06, B), 0.02));
         for (const s of [1, -1]) head.push(add(cone(at(0, 0.08, -0.4), at(s * 0.08, -0.12, -0.42), 0.04, 0.025, H), 0.01));
         break;
@@ -626,16 +628,7 @@ export function buildFigure(o: Outfit): Figure {
   }
   // Head-mounted extras.
   for (const e of o.extras ?? []) {
-    const A = M.metal(extraColorSlot(o, e.kind));
-    if (e.kind === "glasses" || e.kind === "sunglasses") {
-      for (const s of [1, -1]) {
-        const E = at(s * 0.172, -0.065, 0.345);
-        head.push(add(tor(E, 0.106, 0.008, A, [Math.PI / 2, s * 0.35, 0], 1, 1.0), 0.0));
-        if (e.kind === "sunglasses") head.push(add({ t: "ell", c: E, r: [0.105, 0.095, 0.012], rot: [0, s * 0.35, 0], m: M.gloss(SLOT.dark, 0.1) }, 0.0));
-        head.push(add(cap(at(s * 0.27, -0.06, 0.31), at(s * 0.37, -0.03, 0.0), 0.007, A), 0.0));
-      }
-      head.push(add(cap(at(-0.068, -0.055, 0.36), at(0.068, -0.055, 0.36), 0.007, A), 0.0));
-    }
+    // Glasses are analytic tubes (head.ts) so the thin rims stay round.
     if (e.kind === "headphones") {
       head.push(add({ t: "shell", of: tor(at(0, 0.0, -0.02), 0.41, 0.025, M.fab(extraColorSlot(o, e.kind)), [0, 0, Math.PI / 2]), d: 0, m: M.gloss(extraColorSlot(o, e.kind), 0.4), clip: [above(HC[1] - 0.02)] }, 0.0));
       for (const s of [1, -1]) head.push(add(cyl(at(s * 0.38, -0.03, -0.01), 0.035, 0.08, 0.025, M.gloss(extraColorSlot(o, e.kind, true), 0.4), [0, 0, Math.PI / 2]), 0.01));
@@ -643,7 +636,7 @@ export function buildFigure(o: Outfit): Figure {
     if (e.kind === "pencil") head.push(add(cone(at(0.34, 0.06, 0.12), at(0.36, 0.05, -0.08), 0.012, 0.008, M.gloss(SLOT.accent + 7, 0.5)), 0.0));
   }
   // Hollow out the skull so hair and hat cut faces sit inside the skin.
-  head.push(sub(ell(HC, [0.358, 0.345, 0.335]), 0.008));
+  head.push(sub(ell(HC, [0.33, 0.318, 0.31]), 0.008));
   pieces.head = { ops: head };
 
   // ---------------------------------------------------------------- eyes
@@ -651,6 +644,9 @@ export function buildFigure(o: Outfit): Figure {
   return {
     pieces, skirtTop, cheeks, headSkin, HC,
     mouth: at(0, -0.226, 0.31),
+    glasses: (o.extras ?? []).some((e) => e.kind === "glasses" || e.kind === "sunglasses")
+      ? { slot: extraColorSlot(o, (o.extras ?? []).some((e) => e.kind === "glasses") ? "glasses" : "sunglasses"), sun: (o.extras ?? []).some((e) => e.kind === "sunglasses") }
+      : undefined,
     face: { expr, flick, browLift, browRight: expr === "thoughtful" ? 0.02 : 0, eye: { cx: 0.17, cy: -0.065, rx: 0.088, ry: 0.1, iris: [0.05, 0.03] } },
   };
 }

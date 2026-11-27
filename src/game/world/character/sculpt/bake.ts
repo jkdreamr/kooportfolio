@@ -13,21 +13,21 @@ import { restPose, solveJoints, makeJoints } from "../skeleton";
 import { buildFigure, PIECE_JOINT, type Figure, type PieceId } from "./figure";
 import { evalOps, pieceBounds, pad, SLOT, type Hit, type V3 } from "./sdf";
 import { decimate, project, surfaceNets, type RawMesh } from "./mesher";
-import { appendMesh, brows, emptyMesh, eyes, headSkin, mouth, vertexNormals, type AttrMesh } from "./head";
+import { appendMesh, brows, emptyMesh, eyes, glasses, headSkin, mouth, vertexNormals, type AttrMesh } from "./head";
 
 const DEFAULT = { shirt: "#6f8670", pants: "#3a4547", skin: "#efc5a0", hair: "#3e3632", shoe: "#efe2c8", hat: "#e0b86d", band: "#b0573a" };
 export const PLAYER_IDS = { hat: "player:hat", bare: "player:bare" } as const;
 
 const TARGET: Record<string, [number, number]> = {
-  head: [1200, 300], eyes: [0, 0], chest: [950, 230], pelvis: [340, 80], skirt: [540, 120],
-  upper: [210, 50], fore: [380, 95], thigh: [190, 45], shin: [170, 40], foot: [190, 45],
+  head: [1750, 340], eyes: [0, 0], chest: [800, 210], pelvis: [320, 80], skirt: [520, 120],
+  upper: [200, 50], fore: [340, 90], thigh: [180, 45], shin: [160, 40], foot: [160, 40],
 };
 const CELL: Record<string, number> = {
   head: 0.005, eyes: 0.0032, chest: 0.0062, pelvis: 0.008, skirt: 0.007, upper: 0.0065, fore: 0.0055, thigh: 0.009, shin: 0.009, foot: 0.006,
 };
 const base = (id: PieceId) => id.replace(/[LR]$/, "");
 
-type Shape = { pos: Int16Array; nrm: Int8Array; a: Uint8Array; b: Uint8Array; idx: Uint16Array; bb: number[] };
+type Shape = { pos: Uint16Array; nrm: Int8Array; a: Uint8Array; b: Uint8Array; idx: Uint16Array; bb: number[] };
 
 const smooth = (a: number, b: number, x: number) => {
   const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
@@ -65,7 +65,7 @@ export function bake(log: (s: string) => void = console.log, only?: string[]) {
     };
     manifest[id] = { p: {}, skirtTop: fig.skirtTop };
     for (const [pid, piece] of entries) {
-      const key = pid + JSON.stringify(piece.ops) + (pid === "head" || pid === "eyes" ? JSON.stringify(fig.face) : "");
+      const key = pid + JSON.stringify(piece.ops) + (pid === "head" || pid === "eyes" ? JSON.stringify(fig.face) + JSON.stringify(fig.glasses ?? null) : "");
       let ids = cache.get(key);
       if (!ids) {
         ids = meshPiece(pid, piece.ops, fig, rest[PIECE_JOINT[pid]], global, shapes);
@@ -109,7 +109,8 @@ function meshPiece(
       evalOps(ops, [raw.pos[i * 3], raw.pos[i * 3 + 1], raw.pos[i * 3 + 2]], hit);
       slots[i] = hit.m!.slot;
     }
-    const meshes = raw.tri.length / 3 > ht ? decimate(raw, [ht, mt], weight, slots) : [raw, ...decimate(raw, [mt], weight, slots)];
+    const env = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
+    const meshes = env.BAKE_NOSLOT ? decimate(raw, [ht, mt], weight) : raw.tri.length / 3 > ht ? decimate(raw, [ht, mt], weight, slots) : [raw, ...decimate(raw, [mt], weight, slots)];
     if ((globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.BAKE_DEBUG)
       console.log(`  ${pid}: raw ${raw.tri.length / 3} → ${meshes.map((m) => m.tri.length / 3).join(" / ")}`);
     meshes.forEach((m, lod) => appendMesh(lods[lod], sdfAttributes(ctx, m, ops, h, lod)));
@@ -127,9 +128,10 @@ function meshPiece(
           const lip = smooth(0.05, 0.015, Math.hypot((p[0] - m[0]) * 0.75, (p[1] - m[1]) * 1.6, p[2] - m[2]));
           return lip > bl ? { slotB: SLOT.lip, mix: lip * 0.55 } : { slotB: SLOT.blush, mix: bl * 0.85 };
         };
-        parts.push(headSkin(HC, hi ? 30 : 13, hi ? 38 : 16, paint));
+        parts.push(headSkin(HC, hi ? 26 : 12, hi ? 34 : 16, paint));
         parts.push(brows(HC, fig.face.browLift, fig.face.browRight, hi));
         parts.push(mouth(HC, fig.face.expr, hi));
+        if (fig.glasses) parts.push(glasses(HC, fig.face.eye, fig.glasses.slot, fig.glasses.sun, hi));
       } else parts.push(eyes(HC, fig.face.eye, fig.face.flick, hi));
       for (const m of parts) {
         bakeShade(ctx, m, lod);
@@ -196,7 +198,9 @@ function taubin(pos: Float64Array, tri: Uint32Array, iters: number) {
 function sdfAttributes(ctx: Ctx, m: RawMesh, ops: Parameters<typeof evalOps>[0], h: number, lod: number): AttrMesh {
   const f = (x: number, y: number, z: number) => evalOps(ops, [x, y, z], null);
   project(f, m.pos, h * 0.4, 2);
-  taubin(m.pos, m.tri, lod ? 1 : 2);
+  // Taubin smoothing removes decimation facets on bodies; the hollow hair
+  // shell is too thin for it (it would sink into the skin), so not there.
+  if (ctx.pid !== "head") taubin(m.pos, m.tri, lod ? 1 : 2);
   const out: AttrMesh = { pos: Array.from(m.pos), nrm: new Array(m.pos.length).fill(0), a: [], b: [], tri: Array.from(m.tri) };
   vertexNormals(out);
   const n = m.pos.length / 3;
@@ -228,6 +232,17 @@ function sdfAttributes(ctx: Ctx, m: RawMesh, ops: Parameters<typeof evalOps>[0],
   return out;
 }
 
+export const QMAX = 4095;
+function octEncode(x: number, y: number, z: number): [number, number] {
+  const l = Math.abs(x) + Math.abs(y) + Math.abs(z) || 1;
+  let u = x / l, v = y / l;
+  if (z < 0) {
+    const pu = u, pv = v;
+    u = (1 - Math.abs(pv)) * (pu >= 0 ? 1 : -1);
+    v = (1 - Math.abs(pu)) * (pv >= 0 ? 1 : -1);
+  }
+  return [Math.round(u * 127), Math.round(v * 127)];
+}
 /** Quantise and delta-code a mesh for the binary. */
 function finalize(m: AttrMesh): Shape {
   const n = m.pos.length / 3;
@@ -241,16 +256,23 @@ function finalize(m: AttrMesh): Shape {
     return remap[v];
   });
   for (let v = 0; v < n; v++) if (remap[v] < 0) { remap[v] = order.length; order.push(v); }
-  const pos = new Int16Array(n * 3), nrm = new Int8Array(n * 3), a = new Uint8Array(n * 4), b = new Uint8Array(n * 4);
+  // 12-bit positions in the shape's box, delta-coded in first-use order and
+  // zigzagged; octahedral normals (2 bytes). Byte planes are split in pack.
+  const pos = new Uint16Array(n * 3), nrm = new Int8Array(n * 2), a = new Uint8Array(n * 4), b = new Uint8Array(n * 4);
+  const q = new Int32Array(n * 3);
   order.forEach((v, i) => {
     for (let c = 0; c < 3; c++) {
       const span = mx[c] - mn[c] || 1;
-      pos[i * 3 + c] = Math.round(((m.pos[v * 3 + c] - mn[c]) / span) * 65534 - 32767);
-      nrm[i * 3 + c] = Math.round(Math.max(-1, Math.min(1, m.nrm[v * 3 + c])) * 127);
+      q[i * 3 + c] = Math.round(((m.pos[v * 3 + c] - mn[c]) / span) * QMAX);
     }
+    const oct = octEncode(m.nrm[v * 3], m.nrm[v * 3 + 1], m.nrm[v * 3 + 2]);
+    nrm[i * 2] = oct[0]; nrm[i * 2 + 1] = oct[1];
     for (let c = 0; c < 4; c++) { a[i * 4 + c] = m.a[v * 4 + c]; b[i * 4 + c] = m.b[v * 4 + c]; }
   });
-  for (let i = n * 3 - 1; i >= 3; i--) pos[i] = (pos[i] - pos[i - 3]) | 0;
+  for (let i = 0; i < n * 3; i++) {
+    const d = i < 3 ? q[i] : q[i] - q[i - 3];
+    pos[i] = d >= 0 ? d * 2 : -d * 2 - 1;
+  }
   const idx = new Uint16Array(tri.length);
   let hw = 0;
   for (let i = 0; i < tri.length; i++) {
@@ -261,29 +283,35 @@ function finalize(m: AttrMesh): Shape {
   return { pos, nrm, a, b, idx, bb: [...mn, ...mx] };
 }
 
-function pack(shapes: Shape[], chars: Record<string, unknown>) {
+const planes = (src: Uint16Array) => {
+  const out = new Uint8Array(src.length * 2);
+  for (let i = 0; i < src.length; i++) { out[i] = src[i] & 255; out[src.length + i] = src[i] >> 8; }
+  return out;
+};
+export function pack(shapes: Shape[], chars: Record<string, unknown>) {
   let nv = 0, ni = 0;
   for (const s of shapes) { nv += s.pos.length / 3; ni += s.idx.length; }
-  const pos = new Int16Array(nv * 3), idx = new Uint16Array(ni), nrm = new Int8Array(nv * 3), a = new Uint8Array(nv * 4), b = new Uint8Array(nv * 4);
+  const pos = new Uint16Array(nv * 3), idx = new Uint16Array(ni), nrm = new Int8Array(nv * 2), a = new Uint8Array(nv * 4), b = new Uint8Array(nv * 4);
   const meta: { n: number; i: number; v0: number; i0: number; bb: number[] }[] = [];
   let v0 = 0, i0 = 0;
   for (const s of shapes) {
     const n = s.pos.length / 3;
-    pos.set(s.pos, v0 * 3); nrm.set(s.nrm, v0 * 3); a.set(s.a, v0 * 4); b.set(s.b, v0 * 4); idx.set(s.idx, i0);
+    pos.set(s.pos, v0 * 3); nrm.set(s.nrm, v0 * 2); a.set(s.a, v0 * 4); b.set(s.b, v0 * 4); idx.set(s.idx, i0);
     meta.push({ n, i: s.idx.length, v0, i0, bb: s.bb.map((x) => +x.toFixed(5)) });
     v0 += n; i0 += s.idx.length;
   }
-  const json = new TextEncoder().encode(JSON.stringify({ v: 2, nv, ni, shapes: meta, chars }));
+  const json = new TextEncoder().encode(JSON.stringify({ v: 3, q: QMAX, nv, ni, shapes: meta, chars }));
   const align = (x: number) => (x + 3) & ~3;
   const head = 8, jsonEnd = align(head + json.length);
   const offs = [jsonEnd];
-  const parts = [pos, idx, nrm, a, b];
+  const parts = [planes(pos), planes(idx), nrm, a, b];
   for (const p of parts) offs.push(align(offs[offs.length - 1] + p.byteLength));
   const out = new Uint8Array(offs[offs.length - 1]);
   out.set([67, 72, 82, 49]); // "CHR1"
   new DataView(out.buffer).setUint32(4, json.length, true);
   out.set(json, head);
   parts.forEach((p, k) => out.set(new Uint8Array(p.buffer, p.byteOffset, p.byteLength), offs[k]));
-  const tris = ni / 3;
-  return { bytes: out, shapes: shapes.length, vertices: nv, triangles: tris };
+  return { bytes: out, shapes: shapes.length, vertices: nv, triangles: ni / 3 };
 }
+/** Re-encode an already decoded mesh (used to transcode older bakes). */
+export const finalizeMesh = (m: AttrMesh) => finalize(m);

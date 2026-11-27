@@ -111,8 +111,26 @@ export function headSkin(hc: V3, rings: number, segs: number, paint: (p: V3) => 
     }
   const last = vid[vid.length - 1];
   for (let j = 0; j < segs; j++) m.tri.push(back, last[j], last[(j + 1) % segs]);
+  for (let i = 0; i < m.pos.length; i += 3) {
+    const d = norm([m.pos[i] - hc[0], m.pos[i + 1] - hc[1], m.pos[i + 2] - hc[2]]);
+    m.nrm[i] = d[0]; m.nrm[i + 1] = d[1]; m.nrm[i + 2] = d[2];
+  }
+  orient(m);
   vertexNormals(m);
   return m;
+}
+
+/** Make every triangle face along its vertices' normals (outward). */
+function orient(m: AttrMesh) {
+  const P = m.pos, N = m.nrm;
+  for (let t = 0; t < m.tri.length; t += 3) {
+    const a = m.tri[t] * 3, b = m.tri[t + 1] * 3, c = m.tri[t + 2] * 3;
+    const ux = P[b] - P[a], uy = P[b + 1] - P[a + 1], uz = P[b + 2] - P[a + 2];
+    const vx = P[c] - P[a], vy = P[c + 1] - P[a + 1], vz = P[c + 2] - P[a + 2];
+    const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    const d = nx * (N[a] + N[b] + N[c]) + ny * (N[a + 1] + N[b + 1] + N[c + 1]) + nz * (N[a + 2] + N[b + 2] + N[c + 2]);
+    if (d < 0) { const k = m.tri[t + 1]; m.tri[t + 1] = m.tri[t + 2]; m.tri[t + 2] = k; }
+  }
 }
 
 /** Area-weighted smooth vertex normals. */
@@ -157,6 +175,7 @@ function decal(
       const a = j * (cols + 1) + i, b = a + 1, c = a + cols + 1, d = c + 1;
       m.tri.push(a, b, d, a, d, c);
     }
+  orient(m);
   return m;
 }
 
@@ -172,12 +191,12 @@ export function eyes(hc: V3, spec: EyeSpec, flick: boolean, hi: boolean): AttrMe
       (_, t) => 0.002 + 0.007 * (1 - t * t),
       (a, t) => {
         const ang = a * Math.PI * 2;
-        return [cx + Math.cos(ang) * spec.rx * t, spec.cy + Math.sin(ang) * spec.ry * t];
+        return [cx + s * Math.cos(ang) * spec.rx * t, spec.cy + Math.sin(ang) * spec.ry * t];
       },
       (a, t) => {
         const ang = a * Math.PI * 2;
         // Eye UV relative to the iris centre (nudged toward the nose).
-        const u = Math.cos(ang) * t + s * spec.iris[0];
+        const u = s * Math.cos(ang) * t + s * spec.iris[0];
         const v = Math.sin(ang) * t - spec.iris[1];
         const eu = Math.round(Math.max(0, Math.min(255, (u * 0.5 + 0.5) * 255)));
         const ev = Math.round(Math.max(0, Math.min(255, (v * 0.5 + 0.5) * 255)));
@@ -260,4 +279,63 @@ export function mouth(hc: V3, expr: Expression, hi: boolean): AttrMesh {
     },
     () => ({ a: [SLOT.mouth, SLOT.mouth, 0, 235], b: B(0.45) }),
   );
+}
+
+/** A round tube along a polyline-generated loop or path (analytic, smooth). */
+function tube(path: V3[], radius: number, closed: boolean, sides: number, slot: number, rough: number, metal: number): AttrMesh {
+  const m = emptyMesh();
+  const n = path.length;
+  for (let i = 0; i < n; i++) {
+    const p = path[i];
+    const q = path[closed ? (i + 1) % n : Math.min(n - 1, i + 1)], o = path[closed ? (i - 1 + n) % n : Math.max(0, i - 1)];
+    const t = norm([q[0] - o[0], q[1] - o[1], q[2] - o[2]]);
+    let a = norm([t[1] * 0 - t[2] * 1, t[2] * 0 - t[0] * 0, t[0] * 1 - t[1] * 0]);
+    if (Math.hypot(...a) < 0.5) a = [1, 0, 0];
+    const b = norm([t[1] * a[2] - t[2] * a[1], t[2] * a[0] - t[0] * a[2], t[0] * a[1] - t[1] * a[0]]);
+    a = norm([b[1] * t[2] - b[2] * t[1], b[2] * t[0] - b[0] * t[2], b[0] * t[1] - b[1] * t[0]]);
+    for (let j = 0; j < sides; j++) {
+      const ang = (j / sides) * Math.PI * 2;
+      const nx = a[0] * Math.cos(ang) + b[0] * Math.sin(ang), ny = a[1] * Math.cos(ang) + b[1] * Math.sin(ang), nz = a[2] * Math.cos(ang) + b[2] * Math.sin(ang);
+      m.pos.push(p[0] + nx * radius, p[1] + ny * radius, p[2] + nz * radius);
+      m.nrm.push(nx, ny, nz);
+      m.a.push(slot, slot, 0, 235);
+      m.b.push(...B(rough, metal));
+    }
+  }
+  const rings = closed ? n : n - 1;
+  for (let i = 0; i < rings; i++)
+    for (let j = 0; j < sides; j++) {
+      const a0 = i * sides + j, a1 = i * sides + ((j + 1) % sides), b0 = ((i + 1) % n) * sides + j, b1 = ((i + 1) % n) * sides + ((j + 1) % sides);
+      m.tri.push(a0, a1, b1, a0, b1, b0);
+    }
+  orient(m);
+  return m;
+}
+
+/** Round glasses floating just off the face (+ dark lenses for sunglasses). */
+export function glasses(hc: V3, spec: EyeSpec, slot: number, sun: boolean, hi: boolean): AttrMesh {
+  const out = emptyMesh();
+  const lift = 0.03;
+  const at = (x: number, y: number, extra = 0): V3 => {
+    const p = facePoint(x, y, hc), n = faceNormal(x, y, hc);
+    return [p[0] + n[0] * (lift + extra), p[1] + n[1] * (lift + extra), p[2] + n[2] * (lift + extra)];
+  };
+  const R = spec.ry * 1.12, segs = hi ? 22 : 10, sides = hi ? 5 : 3;
+  for (const s of [1, -1]) {
+    const loop: V3[] = [];
+    for (let i = 0; i < segs; i++) {
+      const a = (i / segs) * Math.PI * 2;
+      loop.push(at(s * spec.cx + Math.cos(a) * R, spec.cy + Math.sin(a) * R));
+    }
+    appendMesh(out, tube(loop, 0.0075, true, sides, slot, 0.25, 0.8));
+    if (sun)
+      appendMesh(out, decal(hc, segs, 2, () => lift, (q, t) => [s * spec.cx + Math.cos(q * Math.PI * 2) * R * t, spec.cy + Math.sin(q * Math.PI * 2) * R * t], () => ({ a: [SLOT.dark, SLOT.dark, 0, 200], b: B(0.08) })));
+    // Temple arm back toward the ear.
+    const o = at(s * (spec.cx + R), spec.cy + 0.01);
+    appendMesh(out, tube([o, [s * 0.33, hc[1] + spec.cy + 0.03, hc[2] + 0.12], [s * 0.37, hc[1] + spec.cy + 0.04, hc[2] - 0.04]], 0.006, false, sides, slot, 0.25, 0.8));
+  }
+  const bridge: V3[] = [];
+  for (let i = 0; i <= 6; i++) { const x = -spec.cx + R + (2 * (spec.cx - R)) * (i / 6); bridge.push(at(x, spec.cy + 0.02 + 0.012 * Math.sin(Math.PI * i / 6), 0.004)); }
+  appendMesh(out, tube(bridge, 0.0065, false, sides, slot, 0.25, 0.8));
+  return out;
 }
