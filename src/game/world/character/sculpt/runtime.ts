@@ -14,7 +14,10 @@ import { EYE_Y, PIECE_JOINT, type PieceId } from "./figure";
 export const PIECES: PieceId[] = [
   "pelvis", "chest", "head", "eyes", "upperL", "upperR", "foreL", "foreR",
   "thighL", "thighR", "shinL", "shinR", "footL", "footR", "skirt",
+  "mouth0", "mouth1", "mouth2", "mouth3",
 ];
+/** PIECES index of the first mouth shape (one of four is shown at a time). */
+const MOUTH0 = PIECES.indexOf("mouth0");
 export type SculptLod = "hero" | "mid";
 type ShapeMeta = { n: number; i: number; v0: number; i0: number; bb: number[] };
 export type CastManifest = {
@@ -101,7 +104,8 @@ export class Cast {
   triangles(id: string, lod: SculptLod) {
     const c = this.manifest.chars[id];
     let n = 0;
-    for (const v of Object.values(c.p)) if (v) n += this.manifest.shapes[v[lod === "hero" ? 0 : 1]].i / 3;
+    // Only one mouth shape is drawn at a time: count the resting one.
+    for (const [pid, v] of Object.entries(c.p)) if (v && (pid === "mouth0" || !pid.startsWith("mouth"))) n += this.manifest.shapes[v[lod === "hero" ? 0 : 1]].i / 3;
     return n;
   }
 }
@@ -129,10 +133,20 @@ attribute vec4 rigA;
 attribute vec4 rigB;
 uniform highp sampler2D rigPalette;
 varying vec3 vRigColor;
+varying vec3 vRigHi;
 varying vec2 vRigSurf;
 varying vec3 vRigEye;
 varying float vRigSkin;
+varying float vRigKind;
+varying vec3 vRigLocal;
+varying vec3 vRigNLocal;
+varying vec3 vRigTan;
 vec3 rigSlot(float s, int row) { return texelFetch(rigPalette, ivec2(int(s * 255.0 + 0.5), row), 0).rgb; }
+vec3 rigOct(vec2 e) {
+  vec3 v = vec3(e, 1.0 - abs(e.x) - abs(e.y));
+  if (v.z < 0.0) v.xy = (1.0 - abs(v.yx)) * vec2(v.x >= 0.0 ? 1.0 : -1.0, v.y >= 0.0 ? 1.0 : -1.0);
+  return normalize(v);
+}
 `;
 const VERT_MAIN = /* glsl */ `
 #ifdef USE_BATCHING
@@ -150,35 +164,80 @@ const VERT_MAIN = /* glsl */ `
   vRigSkin = (rigSlotA == 0.0 ? 1.0 - rigA.z : 0.0) + (rigSlotB == 0.0 ? rigA.z : 0.0)
     + (rigSlotA == 1.0 || rigSlotA == 2.0 ? 1.0 : 0.0);
   if (rigSlotA == 6.0) vRigColor = rigCa;
+  // Surface kind for the detail layer: 1 cloth, 2 leather/shoe, 3 hair, 0 none.
+  bool rigCloth = (rigSlotA >= 7.0 && rigSlotA <= 12.0) || rigSlotA == 17.0 || rigSlotA == 18.0 || rigSlotA == 19.0 || (rigSlotA >= 24.0 && rigB.x > 0.6);
+  vRigKind = rigSlotA == 3.0 ? 3.0 : rigCloth ? 1.0 : (rigSlotA == 13.0 || rigSlotA == 15.0 || rigSlotA == 14.0) ? 2.0 : 0.0;
+  vRigHi = rigSlot(4.0 / 255.0, rigRow);
+  vRigLocal = position;
+  vRigNLocal = normal;
+  vRigTan = vec3(0.0);
+  if (rigSlotA == 3.0) {
+    vec3 rigT = rigOct(rigB.zw * 2.0 - 1.0);
+#ifdef USE_BATCHING
+    rigT = mat3(batchingMatrix) * rigT;
+#endif
+    vRigTan = normalize(mat3(modelViewMatrix) * rigT);
+    vRigEye.xy = vec2(0.0);
+  }
 `;
 const FRAG_PARS = /* glsl */ `
 varying vec3 vRigColor;
+varying vec3 vRigHi;
 varying vec2 vRigSurf;
 varying vec3 vRigEye;
 varying float vRigSkin;
+varying float vRigKind;
+varying vec3 vRigLocal;
+varying vec3 vRigNLocal;
+varying vec3 vRigTan;
 uniform vec3 rigRim;
 uniform vec3 rigWarm;
+uniform sampler2D rigDetail;
 float rigSkinF;
 float rigGlow;
+float rigRoughMod;
+vec4 rigTri(vec3 p, vec3 n, float k) {
+  vec3 w = abs(n); w = w * w; w /= (w.x + w.y + w.z + 1e-4);
+  return texture2D(rigDetail, p.yz * k) * w.x + texture2D(rigDetail, p.xz * k) * w.y + texture2D(rigDetail, p.xy * k) * w.z;
+}
 `;
 const FRAG_COLOR = /* glsl */ `
   rigSkinF = vRigSkin;
   rigGlow = 0.0;
+  rigRoughMod = 0.0;
   vec3 rigCol = vRigColor;
   if (vRigEye.z > 0.5) {
-    // Procedural eye: sclera, iris with a darker rim and lighter lower half,
-    // pupil, two specular dots. Crisp at any mesh density.
+    // Procedural eye: sclera, iris (dark limbal ring, radial fibres, light
+    // lower half), pupil, two catchlights. Crisp at any mesh density.
     vec2 e = vRigEye.xy;
     float r = length(e);
-    // Sclera with a soft shadow under the lash line.
-    vec3 sclera = vec3(0.96, 0.95, 0.93) * (0.78 + 0.22 * smoothstep(0.95, 0.45, e.y));
-    // Big warm iris: darker rim and top, glowing lower half.
-    vec3 iris = vRigColor * (0.5 + 0.8 * smoothstep(0.76, 0.1, r)) * (0.75 + 0.7 * smoothstep(0.25, -0.55, e.y));
-    rigCol = mix(iris, sclera, smoothstep(0.71, 0.77, r));
-    rigCol = mix(vec3(0.03, 0.02, 0.025), rigCol, smoothstep(0.3, 0.35, r));
-    // Catchlights: a big one upper-left, a small one lower-right (screen).
-    rigGlow = smoothstep(0.2, 0.15, length(e - vec2(-0.24, 0.27))) + 0.9 * smoothstep(0.09, 0.06, length(e - vec2(0.23, -0.25)));
+    vec3 sclera = vec3(0.97, 0.96, 0.94) * (0.72 + 0.28 * smoothstep(0.98, 0.4, e.y));
+    float fib = 0.9 + 0.1 * sin(atan(e.y, e.x) * 23.0) * smoothstep(0.32, 0.5, r);
+    vec3 iris = vRigColor * (0.42 + 0.95 * smoothstep(0.74, 0.12, r)) * (0.7 + 0.75 * smoothstep(0.3, -0.6, e.y)) * fib;
+    iris = mix(iris, vRigColor * 0.25, smoothstep(0.6, 0.73, r));
+    rigCol = mix(iris, sclera, smoothstep(0.715, 0.765, r));
+    rigCol = mix(vec3(0.025, 0.018, 0.022), rigCol, smoothstep(0.29, 0.34, r));
+    rigGlow = smoothstep(0.2, 0.15, length(e - vec2(-0.24, 0.27))) + 0.85 * smoothstep(0.085, 0.055, length(e - vec2(0.23, -0.25)));
     rigSkinF = 0.0;
+  } else if (vRigKind > 0.5) {
+    vec3 rp = vRigLocal;
+    vec3 rn = normalize(vRigNLocal);
+    if (vRigKind < 1.5) {
+      // Cloth: woven texture and soft painted mottling.
+      vec4 d = rigTri(rp, rn, 7.0);
+      vec4 m = rigTri(rp, rn, 1.3);
+      rigCol *= 0.94 + 0.13 * d.r + 0.14 * (m.a - 0.5);
+      rigRoughMod = 0.08 * (d.r - 0.5);
+    } else if (vRigKind < 2.5) {
+      vec4 d = rigTri(rp, rn, 11.0);
+      rigCol *= 0.96 + 0.08 * d.g;
+      rigRoughMod = 0.16 * (d.g - 0.5);
+    } else {
+      // Hair: strands streak along the lock direction.
+      vec3 vt = vRigTan;
+      float strand = rigTri(rp * vec3(1.0, 0.18, 1.0), rn, 9.0).b;
+      rigCol *= 0.86 + 0.26 * strand;
+    }
   }
   diffuseColor.rgb *= rigCol;
 `;
@@ -187,9 +246,67 @@ const RIM = /* glsl */ `
     vec3 rigV = normalize(vViewPosition);
     float rigF = pow(1.0 - saturate(dot(normal, rigV)), 3.0);
     outgoingLight += rigRim * rigF * (diffuseColor.rgb * 0.7 + 0.12);
+#if NUM_DIR_LIGHTS > 0
+    if (vRigKind > 2.5) {
+      // Painted anisotropic highlight band along the strands (two lobes).
+      vec3 rigL = directionalLights[0].direction;
+      vec3 rigH = normalize(rigL + rigV);
+      vec3 rigT = normalize(vRigTan - normal * dot(vRigTan, normal) + 1e-4);
+      float jit = rigTri(vRigLocal * vec3(1.0, 0.18, 1.0), normalize(vRigNLocal), 9.0).b - 0.5;
+      vec3 t1 = normalize(rigT + normal * (0.18 + jit * 0.5));
+      vec3 t2 = normalize(rigT - normal * (0.12 - jit * 0.3));
+      float th1 = dot(t1, rigH), th2 = dot(t2, rigH);
+      float s1 = pow(sqrt(max(0.0, 1.0 - th1 * th1)), 90.0);
+      float s2 = pow(sqrt(max(0.0, 1.0 - th2 * th2)), 22.0);
+      float lit = saturate(dot(normal, rigL) * 0.6 + 0.4);
+      outgoingLight += directionalLights[0].color * lit * (s1 * 0.32 * mix(vec3(1.0), vRigHi, 0.5) + s2 * 0.14 * vRigHi);
+    }
+#endif
     outgoingLight = mix(outgoingLight, vec3(1.7), saturate(rigGlow));
   }
 `;
+/** Shared tileable detail texture, generated in code: R woven cloth, G fine
+ * grain, B strand streaks, A soft mottling. Mipmapped, wraps. */
+let detailTex: THREE.DataTexture | null = null;
+export function detailTexture() {
+  if (detailTex) return detailTex;
+  const N = 64;
+  const data = new Uint8Array(N * N * 4);
+  const h = (x: number, y: number, s: number) => {
+    const v = Math.sin(((x % N) + N) % N * 127.1 + (((y % N) + N) % N) * 311.7 + s * 74.7) * 43758.5453;
+    return v - Math.floor(v);
+  };
+  const vnoise = (x: number, y: number, cell: number, s: number) => {
+    const gx = x / cell, gy = y / cell, ix = Math.floor(gx), iy = Math.floor(gy), fx = gx - ix, fy = gy - iy;
+    const m = N / cell;
+    const c = (a: number, b: number) => h(((a % m) + m) % m * cell, ((b % m) + m) % m * cell, s);
+    const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+    return (c(ix, iy) * (1 - sx) + c(ix + 1, iy) * sx) * (1 - sy) + (c(ix, iy + 1) * (1 - sx) + c(ix + 1, iy + 1) * sx) * sy;
+  };
+  for (let y = 0; y < N; y++)
+    for (let x = 0; x < N; x++) {
+      const o = (y * N + x) * 4;
+      // Plain weave: alternating over/under threads.
+      const u = (x / N) * 16 * Math.PI * 2, v = (y / N) * 16 * Math.PI * 2;
+      const over = Math.sin(u / 2) * Math.sin(v / 2) > 0;
+      const weave = 0.5 + 0.5 * (over ? Math.abs(Math.sin(v)) * 0.8 + 0.2 * Math.sin(u) : Math.abs(Math.sin(u)) * 0.8 + 0.2 * Math.sin(v));
+      const grain = 0.6 * vnoise(x, y, 4, 1) + 0.4 * vnoise(x, y, 2, 2);
+      const strand = 0.55 * vnoise(x, y * 0.25, 2, 3) + 0.45 * vnoise(x, y * 0.25, 1, 4);
+      const mottle = 0.6 * vnoise(x, y, 16, 5) + 0.4 * vnoise(x, y, 8, 6);
+      data[o] = Math.round((0.75 * weave + 0.25 * grain) * 255);
+      data[o + 1] = Math.round(grain * 255);
+      data[o + 2] = Math.round(strand * 255);
+      data[o + 3] = Math.round(mottle * 255);
+    }
+  const t = new THREE.DataTexture(data, N, N, THREE.RGBAFormat, THREE.UnsignedByteType);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.magFilter = THREE.LinearFilter;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.generateMipmaps = true;
+  t.anisotropy = 4;
+  t.needsUpdate = true;
+  return (detailTex = t);
+}
 function lightsChunk() {
   const src = THREE.ShaderChunk.lights_physical_pars_fragment;
   const from = "float dotNL = saturate( dot( geometryNormal, directLight.direction ) );\n\n\tvec3 irradiance = dotNL * directLight.color;";
@@ -217,6 +334,7 @@ export function sculptMaterial(palette: THREE.DataTexture) {
     shader.uniforms.rigPalette = { value: palette };
     shader.uniforms.rigRim = sculptUniforms.rigRim;
     shader.uniforms.rigWarm = sculptUniforms.rigWarm;
+    shader.uniforms.rigDetail = { value: detailTexture() };
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", `#include <common>\n${VERT_PARS}`)
       .replace("#include <batching_vertex>", `#include <batching_vertex>\n${VERT_MAIN}`);
@@ -224,11 +342,11 @@ export function sculptMaterial(palette: THREE.DataTexture) {
       .replace("#include <common>", `#include <common>\n${FRAG_PARS}`)
       .replace("#include <lights_physical_pars_fragment>", lightsChunk())
       .replace("#include <color_fragment>", `#include <color_fragment>\n${FRAG_COLOR}`)
-      .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\n roughnessFactor = max(0.06, vRigSurf.x);")
+      .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\n roughnessFactor = clamp(vRigSurf.x + rigRoughMod, 0.06, 1.0);")
       .replace("#include <metalnessmap_fragment>", "#include <metalnessmap_fragment>\n metalnessFactor = vRigSurf.y;")
       .replace("#include <opaque_fragment>", `${RIM}\n#include <opaque_fragment>`);
   };
-  m.customProgramCacheKey = () => "rig-sculpt-v1";
+  m.customProgramCacheKey = () => "rig-sculpt-v2";
   m.userData.noBake = true;
   return m;
 }
@@ -266,6 +384,7 @@ export class SculptBatch {
   owner: Int32Array;
   private joints: JointMatrices = makeJoints();
   private shown: Uint8Array;
+  private mouth: Int8Array;
   constructor(public cast: Cast, public chars: SculptChar[], public lod: SculptLod) {
     const L = lod === "hero" ? 0 : 1;
     const shapes = new Map<number, number>();
@@ -305,6 +424,7 @@ export class SculptBatch {
       });
     });
     this.shown = new Uint8Array(chars.length);
+    this.mouth = new Int8Array(chars.length);
     this.mesh.visible = false;
   }
   setPalette(ci: number, hexes: string[], glow?: number[]) {
@@ -328,11 +448,29 @@ export class SculptBatch {
     const ids = this.instances[ci];
     const top = this.cast.manifest.chars[c.id]?.skirtTop ?? 0.12;
     const stride = Math.min(1.2, Math.abs(posed.hipL - posed.hipR));
+    // Mouth shape: the resting expression, or one of three talking shapes.
+    const talk = posed.talk ?? 0;
+    const mouth = talk < 0.08 ? 0 : talk < 0.32 ? 1 : (Math.floor(talk * 23) % 3 === 0 ? 3 : 2);
+    const prevMouth = this.mouth[ci];
     for (let k = 0; k < PIECES.length; k++) {
       const id = ids[k];
       if (id < 0) continue;
       const pid = PIECES[k];
       const jm = J[PIECE_JOINT[pid]];
+      if (k >= MOUTH0) {
+        const want = k - MOUTH0 === mouth;
+        if (want) this.mesh.setMatrixAt(id, jm);
+        if (!this.shown[ci] || prevMouth !== mouth) this.mesh.setVisibleAt(id, want);
+        continue;
+      }
+      if (pid === "chest" && posed.breath !== 1) {
+        // Breathing: the ribcage swells a touch.
+        const b = posed.breath - 1;
+        pm.makeScale(1 + b * 0.5, 1 + b * 0.25, 1 + b * 0.9).premultiply(jm);
+        this.mesh.setMatrixAt(id, pm);
+        if (!this.shown[ci]) this.mesh.setVisibleAt(id, true);
+        continue;
+      }
       if (pid === "eyes") {
         // Blink: squash the eyes (and lash line) about the eye line.
         pm.makeTranslation(0, EYE_Y, 0)
@@ -355,6 +493,7 @@ export class SculptBatch {
       this.mesh.setMatrixAt(id, pm);
       if (!this.shown[ci]) this.mesh.setVisibleAt(id, true);
     }
+    this.mouth[ci] = mouth;
     if (!this.shown[ci]) {
       this.shown[ci] = 1;
       this.visibleCount++;

@@ -9,44 +9,57 @@ import * as THREE from "three";
 import { villagers } from "../../../core/npcs";
 import { outfitFor } from "../cast";
 import { outfitFromPalette, type Outfit } from "../outfit";
-import { restPose, solveJoints, makeJoints } from "../skeleton";
+import { restPose, solveJoints, makeJoints, SK } from "../skeleton";
 import { buildFigure, PIECE_JOINT, type Figure, type PieceId } from "./figure";
 import { evalOps, pieceBounds, pad, SLOT, type Hit, type V3 } from "./sdf";
 import { decimate, project, surfaceNets, type RawMesh } from "./mesher";
-import { appendMesh, brows, emptyMesh, eyes, glasses, headSkin, mouth, vertexNormals, type AttrMesh } from "./head";
+import { appendMesh, brows, emptyMesh, eyes, glasses, headSkin, mouth, vertexNormals, type AttrMesh, type MouthKind } from "./head";
+import type { HairSeg } from "./hair";
 
 const DEFAULT = { shirt: "#6f8670", pants: "#3a4547", skin: "#efc5a0", hair: "#3e3632", shoe: "#efe2c8", hat: "#e0b86d", band: "#b0573a" };
 export const PLAYER_IDS = { hat: "player:hat", bare: "player:bare" } as const;
 
 const TARGET: Record<string, [number, number]> = {
-  head: [1750, 340], eyes: [0, 0], chest: [800, 210], pelvis: [320, 80], skirt: [520, 120],
-  upper: [200, 50], fore: [340, 90], thigh: [180, 45], shin: [160, 40], foot: [160, 40],
+  head: [2600, 560], eyes: [0, 0], chest: [880, 230], pelvis: [300, 80], skirt: [480, 120],
+  upper: [190, 48], fore: [360, 90], thigh: [170, 45], shin: [160, 40], foot: [170, 42], mouth: [0, 0],
 };
 const CELL: Record<string, number> = {
-  head: 0.005, eyes: 0.0032, chest: 0.0062, pelvis: 0.008, skirt: 0.007, upper: 0.0065, fore: 0.0055, thigh: 0.009, shin: 0.009, foot: 0.006,
+  head: 0.005, eyes: 0.0032, chest: 0.0056, pelvis: 0.007, skirt: 0.007, upper: 0.006, fore: 0.005, thigh: 0.008, shin: 0.008, foot: 0.0055, mouth: 0.003,
 };
-const base = (id: PieceId) => id.replace(/[LR]$/, "");
+const base = (id: PieceId) => (id.startsWith("mouth") ? "mouth" : id.replace(/[LR]$/, ""));
+const env = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
+/** BAKE_FAST=1: coarser grid for quick previews (not for shipping). */
+const FAST = env.BAKE_FAST ? 1.5 : 1;
 
-type Shape = { pos: Uint16Array; nrm: Int8Array; a: Uint8Array; b: Uint8Array; idx: Uint16Array; bb: number[] };
+export type Shape = { pos: Uint16Array; nrm: Int8Array; a: Uint8Array; b: Uint8Array; idx: Uint16Array; bb: number[] };
+export type CharManifest = { p: Partial<Record<PieceId, [number, number]>>; skirtTop: number };
+export type BakePart = { keys: string[]; shapes: [Shape, Shape][]; chars: Record<string, { p: Partial<Record<PieceId, number>>; skirtTop: number }> };
 
 const smooth = (a: number, b: number, x: number) => {
   const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
   return t * t * (3 - 2 * t);
 };
 
-export function bake(log: (s: string) => void = console.log, only?: string[]) {
+/** Every character the bake covers (player looks first, then villagers). */
+export function castList(only?: string[]) {
   let chars: { id: string; outfit: Outfit }[] = [
     { id: PLAYER_IDS.hat, outfit: outfitFromPalette({ ...DEFAULT, hasHat: true }) },
     { id: PLAYER_IDS.bare, outfit: outfitFromPalette({ ...DEFAULT, hasHat: false }) },
     ...villagers.map((v) => ({ id: v.id, outfit: outfitFor(v) })),
   ];
   if (only?.length) chars = chars.filter((c) => only.includes(c.id));
+  return chars;
+}
+
+/** Bake a subset of the cast into deduplicated shapes (keyed by content). */
+export function bakePart(ids: string[], log: (s: string) => void = console.log): BakePart {
+  const chars = castList(ids);
   const rest = solveJoints(restPose(), new THREE.Matrix4(), makeJoints());
   const inv = Object.fromEntries(Object.entries(rest).map(([k, m]) => [k, m.clone().invert()])) as Record<string, THREE.Matrix4>;
-  const shapes: Shape[] = [];
-  const cache = new Map<string, [number, number]>();
-  const manifest: Record<string, { p: Partial<Record<PieceId, [number, number]>>; skirtTop: number }> = {};
+  const part: BakePart = { keys: [], shapes: [], chars: {} };
+  const cache = new Map<string, number>();
   const v3 = new THREE.Vector3();
+  const only = env.BAKE_PIECES?.split(",");
   let t0 = Date.now();
   for (const { id, outfit } of chars) {
     const fig = buildFigure(outfit);
@@ -56,52 +69,81 @@ export function bake(log: (s: string) => void = console.log, only?: string[]) {
       let d = 1e9;
       for (const [pid, piece] of entries) {
         if (!piece.ops.length) continue;
-        v3.set(p[0], p[1], p[2]).applyMatrix4(inv[PIECE_JOINT[pid]]);
-        d = Math.min(d, evalOps(piece.ops, [v3.x, v3.y, v3.z], null));
+        const j = PIECE_JOINT[pid];
+        v3.set(p[0], p[1], p[2]).applyMatrix4(inv[j]);
+        d = Math.min(d, evalOps(piece.ops, [v3.x, v3.y, v3.z], null) * (j === "head" ? SK.headScale : 1));
       }
       v3.set(p[0], p[1], p[2]).applyMatrix4(inv.head);
-      d = Math.min(d, evalOps(fig.headSkin, [v3.x, v3.y, v3.z], null));
+      d = Math.min(d, evalOps(fig.headSkin, [v3.x, v3.y, v3.z], null) * SK.headScale);
       return d;
     };
-    manifest[id] = { p: {}, skirtTop: fig.skirtTop };
+    part.chars[id] = { p: {}, skirtTop: fig.skirtTop };
     for (const [pid, piece] of entries) {
-      const key = pid + JSON.stringify(piece.ops) + (pid === "head" || pid === "eyes" ? JSON.stringify(fig.face) + JSON.stringify(fig.glasses ?? null) : "");
-      let ids = cache.get(key);
-      if (!ids) {
-        ids = meshPiece(pid, piece.ops, fig, rest[PIECE_JOINT[pid]], global, shapes);
-        cache.set(key, ids);
+      if (only && !only.includes(base(pid)) && !only.includes(pid)) continue;
+      const key = pieceKey(pid, piece.ops, fig);
+      let idx = cache.get(key);
+      if (idx === undefined) {
+        const lods = meshPiece(pid, piece.ops, fig, rest[PIECE_JOINT[pid]], global);
+        idx = part.shapes.length;
+        part.shapes.push(lods.map(finalize) as [Shape, Shape]);
+        part.keys.push(key);
+        cache.set(key, idx);
       }
-      manifest[id].p[pid] = ids;
+      part.chars[id].p[pid] = idx;
     }
-    log(`${id}: ${entries.length} pieces, ${shapes.length} shapes so far (${((Date.now() - t0) / 1000).toFixed(1)}s)`);
+    log(`${id}: ${entries.length} pieces, ${part.shapes.length} shapes so far (${((Date.now() - t0) / 1000).toFixed(1)}s)`);
     t0 = Date.now();
   }
-  return pack(shapes, manifest);
+  return part;
 }
 
-function meshPiece(
-  pid: PieceId,
-  ops: Parameters<typeof evalOps>[0],
-  fig: Figure,
-  restM: THREE.Matrix4,
-  global: (p: V3) => number,
-  shapes: Shape[],
-): [number, number] {
+function pieceKey(pid: PieceId, ops: unknown, fig: Figure) {
+  if (pid.startsWith("mouth")) return pid + mouthKind(pid, fig);
+  if (pid === "eyes") return pid + JSON.stringify([fig.face.eye, fig.face.flick, fig.face.lashes]);
+  return pid + JSON.stringify(ops) + (pid === "head" ? JSON.stringify(fig.face) + JSON.stringify(fig.glasses ?? null) : "");
+}
+const mouthKind = (pid: PieceId, fig: Figure): MouthKind => (pid === "mouth0" ? fig.face.expr : (["talk1", "talk2", "talk3"] as const)[+pid.slice(5) - 1]);
+
+/** Merge baked parts (from workers) and pack the binary. */
+export function packParts(parts: BakePart[]) {
+  const shapes: Shape[] = [];
+  const at = new Map<string, [number, number]>();
+  const manifest: Record<string, CharManifest> = {};
+  for (const part of parts) {
+    const local = part.keys.map((k, i) => {
+      let ids = at.get(k);
+      if (!ids) {
+        shapes.push(part.shapes[i][0], part.shapes[i][1]);
+        ids = [shapes.length - 2, shapes.length - 1];
+        at.set(k, ids);
+      }
+      return ids;
+    });
+    for (const [id, c] of Object.entries(part.chars)) {
+      manifest[id] = { p: {}, skirtTop: c.skirtTop };
+      for (const [pid, i] of Object.entries(c.p)) manifest[id].p[pid as PieceId] = local[i as number];
+    }
+  }
+  // Keep the cast order stable (player first).
+  const order = castList().map((c) => c.id).filter((id) => manifest[id]);
+  return pack(shapes, Object.fromEntries(order.map((id) => [id, manifest[id]])));
+}
+
+export function bake(log: (s: string) => void = console.log, only?: string[]) {
+  return packParts([bakePart(castList(only).map((c) => c.id), log)]);
+}
+
+function meshPiece(pid: PieceId, ops: Parameters<typeof evalOps>[0], fig: Figure, restM: THREE.Matrix4, global: (p: V3) => number): [AttrMesh, AttrMesh] {
   const kind = base(pid);
   const ctx = { pid, fig, restM, global };
-  const lods: AttrMesh[] = [emptyMesh(), emptyMesh()];
+  const lods: [AttrMesh, AttrMesh] = [emptyMesh(), emptyMesh()];
   if (ops.length) {
-    const h = CELL[kind];
+    const h = CELL[kind] * FAST;
     const bb = pad(pieceBounds({ ops }), h * 3);
     const f = (x: number, y: number, z: number) => evalOps(ops, [x, y, z], null);
     const raw = surfaceNets(f, bb.min, bb.max, h);
     project(f, raw.pos, h * 0.5, 1);
     const [ht, mt] = TARGET[kind];
-    const weight = (x: number, y: number, z: number) => {
-      if (kind === "fore" && y < -0.2) return 4;
-      if (kind === "head" && z > 0.0 && y < fig.HC[1] + 0.25) return 3;
-      return 1;
-    };
     // Material per raw vertex (colour borders survive decimation).
     const hit: Hit = { d: 0, m: null };
     const slots = new Int32Array(raw.pos.length / 3);
@@ -109,57 +151,74 @@ function meshPiece(
       evalOps(ops, [raw.pos[i * 3], raw.pos[i * 3 + 1], raw.pos[i * 3 + 2]], hit);
       slots[i] = hit.m!.slot;
     }
-    const env = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
-    const meshes = env.BAKE_NOSLOT ? decimate(raw, [ht, mt], weight) : raw.tri.length / 3 > ht ? decimate(raw, [ht, mt], weight, slots) : [raw, ...decimate(raw, [mt], weight, slots)];
-    if ((globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.BAKE_DEBUG)
-      console.log(`  ${pid}: raw ${raw.tri.length / 3} → ${meshes.map((m) => m.tri.length / 3).join(" / ")}`);
+    const isCloth = (s: number) => s >= SLOT.top && s <= SLOT.outerTrim;
+    // Error weights: keep hands, hair locks and the face front; spend less
+    // on broad cloth.
+    const weight = (x: number, y: number, z: number) => {
+      if (kind === "fore" && y < -SK.foreArm + 0.01) return 4;
+      if (kind === "head") return z > 0.05 && y < fig.HC[1] + 0.25 ? 3 : 1.6;
+      return 1;
+    };
+    const vw = new Float32Array(slots.length);
+    for (let i = 0; i < slots.length; i++) vw[i] = isCloth(slots[i]) ? 0.6 : 1;
+    const w2 = (x: number, y: number, z: number, i?: number) => weight(x, y, z) * (i === undefined ? 1 : vw[i]);
+    const meshes = raw.tri.length / 3 > ht ? decimate(raw, [ht, mt], w2, slots) : [raw, ...decimate(raw, [mt], w2, slots)];
+    if (env.BAKE_DEBUG) console.log(`  ${pid}: raw ${raw.tri.length / 3} → ${meshes.map((m) => m.tri.length / 3).join(" / ")}`);
     meshes.forEach((m, lod) => appendMesh(lods[lod], sdfAttributes(ctx, m, ops, h, lod)));
   }
-  if (pid === "head" || pid === "eyes") {
-    const HC = fig.HC;
-    for (const lod of [0, 1]) {
-      const hi = lod === 0;
-      const parts: AttrMesh[] = [];
-      if (pid === "head") {
-        const paint = (p: V3) => {
-          let bl = 0;
-          for (const c of fig.cheeks) bl = Math.max(bl, smooth(0.1, 0.0, Math.hypot(p[0] - c[0], (p[1] - c[1]) * 1.3, p[2] - c[2])));
-          const m = fig.mouth;
-          const lip = smooth(0.05, 0.015, Math.hypot((p[0] - m[0]) * 0.75, (p[1] - m[1]) * 1.6, p[2] - m[2]));
-          return lip > bl ? { slotB: SLOT.lip, mix: lip * 0.55 } : { slotB: SLOT.blush, mix: bl * 0.85 };
-        };
-        parts.push(headSkin(HC, hi ? 26 : 12, hi ? 34 : 16, paint));
-        parts.push(brows(HC, fig.face.browLift, fig.face.browRight, hi));
-        parts.push(mouth(HC, fig.face.expr, hi));
-        if (fig.glasses) parts.push(glasses(HC, fig.face.eye, fig.glasses.slot, fig.glasses.sun, hi));
-      } else parts.push(eyes(HC, fig.face.eye, fig.face.flick, hi));
-      for (const m of parts) {
-        bakeShade(ctx, m, lod);
-        appendMesh(lods[lod], m);
-      }
+  const HC = fig.HC;
+  for (const lod of [0, 1]) {
+    const hi = lod === 0;
+    const parts: AttrMesh[] = [];
+    let ao = true;
+    if (pid === "head") {
+      const paint = (p: V3) => {
+        let bl = 0;
+        for (const c of fig.cheeks) bl = Math.max(bl, smooth(0.1, 0.0, Math.hypot(p[0] - c[0], (p[1] - c[1]) * 1.3, p[2] - c[2])));
+        const m = fig.mouth;
+        const lip = smooth(0.05, 0.015, Math.hypot((p[0] - m[0]) * 0.75, (p[1] - m[1]) * 1.6, p[2] - m[2]));
+        // Painted light: nose tip, cheekbones, forehead and chin catch light.
+        const rel: V3 = [p[0] - HC[0], p[1] - HC[1], p[2] - HC[2]];
+        const nose = Math.exp(-(((rel[0]) / 0.03) ** 2 + ((rel[1] + 0.135) / 0.03) ** 2)) * smooth(0.3, 0.36, rel[2]);
+        const cheek = Math.exp(-(((Math.abs(rel[0]) - 0.17) / 0.06) ** 2 + ((rel[1] + 0.1) / 0.04) ** 2)) * smooth(0.2, 0.3, rel[2]);
+        const brow = Math.exp(-(((rel[0]) / 0.1) ** 2 + ((rel[1] - 0.18) / 0.06) ** 2)) * smooth(0.25, 0.32, rel[2]);
+        const light = Math.min(1, nose * 1.0 + cheek * 0.7 + brow * 0.5);
+        return lip * 0.3 > bl ? { slotB: SLOT.lip, mix: lip * 0.3, light } : { slotB: SLOT.blush, mix: bl * 0.8, light };
+      };
+      parts.push(headSkin(HC, hi ? 24 : 12, hi ? 32 : 16, paint));
+      parts.push(brows(HC, fig.face.browLift, fig.face.browRight, hi));
+      if (fig.glasses) parts.push(glasses(HC, fig.face.eye, fig.glasses.slot, fig.glasses.sun, hi));
+    } else if (pid === "eyes") {
+      parts.push(eyes(HC, fig.face.eye, fig.face.flick, hi, fig.face.lashes));
+      ao = false;
+    } else if (pid.startsWith("mouth")) {
+      parts.push(mouth(HC, mouthKind(pid, fig), hi));
+      ao = false;
+    }
+    for (const m of parts) {
+      if (ao) bakeShade(ctx, m, lod);
+      appendMesh(lods[lod], m);
     }
   }
-  return lods.map((m) => {
-    shapes.push(finalize(m));
-    return shapes.length - 1;
-  }) as [number, number];
+  return lods;
 }
 
 type Ctx = { pid: PieceId; fig: Figure; restM: THREE.Matrix4; global: (p: V3) => number };
 const pc = new THREE.Vector3(), nc = new THREE.Vector3();
-/** Baked AO (whole figure) × height gradient, into rigA.w (keeps paint). */
+/** Baked AO (whole figure) × top-down light gradient, into rigA.w. */
 function shadeAt(ctx: Ctx, p: V3, n: V3, lod: number) {
   const nm = new THREE.Matrix3().getNormalMatrix(ctx.restM);
   pc.set(p[0], p[1], p[2]).applyMatrix4(ctx.restM);
   nc.set(n[0], n[1], n[2]).applyMatrix3(nm).normalize();
   let occ = 0;
-  const H = [0.012, 0.028, 0.05, 0.08, 0.12], W = [1, 0.8, 0.6, 0.45, 0.3];
+  const H = [0.01, 0.024, 0.045, 0.075, 0.12], W = [1, 0.85, 0.65, 0.45, 0.3];
   // The mid mesh's big triangles would smear small creases: broad AO only.
   for (let s = lod ? 2 : 0; s < H.length; s++) {
     const g = ctx.global([pc.x + nc.x * H[s], pc.y + nc.y * H[s], pc.z + nc.z * H[s]]);
     occ += (W[s] * Math.max(0, H[s] - g)) / H[s];
   }
-  return Math.max(0.3, 1 - (lod ? 0.5 : 0.34) * occ) * (0.8 + 0.2 * smooth(0.05, 1.7, pc.y));
+  // Painted look: lighter at the head and shoulders, darker toward the feet.
+  return Math.max(0.3, 1 - (lod ? 0.5 : 0.36) * occ) * (0.74 + 0.26 * smooth(0.0, 1.75, pc.y));
 }
 function bakeShade(ctx: Ctx, m: AttrMesh, lod: number) {
   for (let i = 0; i < m.pos.length / 3; i++) {
@@ -195,6 +254,26 @@ function taubin(pos: Float64Array, tri: Uint32Array, iters: number) {
   }
 }
 
+/** Nearest hair lock segment: root→tip parameter and strand direction. */
+function hairAt(segs: HairSeg[], p: V3): { t: number; dir: V3 } {
+  let best = Infinity, t = 0, dir: V3 = [0, -1, 0];
+  for (const s of segs) {
+    const bx = s.b[0] - s.a[0], by = s.b[1] - s.a[1], bz = s.b[2] - s.a[2];
+    const l2 = bx * bx + by * by + bz * bz || 1e-9;
+    const u = Math.max(0, Math.min(1, ((p[0] - s.a[0]) * bx + (p[1] - s.a[1]) * by + (p[2] - s.a[2]) * bz) / l2));
+    const d = Math.hypot(p[0] - s.a[0] - bx * u, p[1] - s.a[1] - by * u, p[2] - s.a[2] - bz * u) - (s.ra + (s.rb - s.ra) * u);
+    if (d < best) {
+      best = d;
+      t = s.t0 + (s.t1 - s.t0) * u;
+      const l = Math.sqrt(l2);
+      dir = [bx / l, by / l, bz / l];
+    }
+  }
+  // Far from any lock (the scalp cap): roots, combed downward.
+  if (best > 0.03) t = 0;
+  return { t, dir };
+}
+
 function sdfAttributes(ctx: Ctx, m: RawMesh, ops: Parameters<typeof evalOps>[0], h: number, lod: number): AttrMesh {
   const f = (x: number, y: number, z: number) => evalOps(ops, [x, y, z], null);
   project(f, m.pos, h * 0.4, 2);
@@ -206,7 +285,7 @@ function sdfAttributes(ctx: Ctx, m: RawMesh, ops: Parameters<typeof evalOps>[0],
   const n = m.pos.length / 3;
   const hit: Hit = { d: 0, m: null };
   const e = h * 0.5;
-  const HCy = ctx.fig.HC[1];
+  const ce = lod ? 0.02 : 0.012;
   for (let i = 0; i < n; i++) {
     const x = m.pos[i * 3], y = m.pos[i * 3 + 1], z = m.pos[i * 3 + 2];
     let gx = f(x + e, y, z) - f(x - e, y, z), gy = f(x, y + e, z) - f(x, y - e, z), gz = f(x, y, z + e) - f(x, y, z - e);
@@ -221,13 +300,22 @@ function sdfAttributes(ctx: Ctx, m: RawMesh, ops: Parameters<typeof evalOps>[0],
     const mat = hit.m!;
     let slotB = mat.slot, mixW = 0;
     let shade = shadeAt(ctx, [x, y, z], [gx, gy, gz], lod);
+    // Cavity (darker creases, seams) and a hint of lighter convex edges.
+    const lap = (f(x + ce, y, z) + f(x - ce, y, z) + f(x, y + ce, z) + f(x, y - ce, z) + f(x, y, z + ce) + f(x, y, z - ce)) / (6 * ce);
+    shade *= 1 + Math.max(-0.3, Math.min(0.06, lap * 1.6));
+    let eu = 128, ev = 128;
     if (mat.paint === "hair") {
-      const band = smooth(0.3, 0.55, gy) * (1 - smooth(0.72, 0.92, gy));
-      slotB = SLOT.hairLight; mixW = band * 0.7;
-      shade *= 0.82 + 0.18 * smooth(HCy - 0.35, HCy + 0.3, y);
+      // Root → tip: darker roots, lighter tips; strand direction for the
+      // shader's anisotropic highlight (head frame, octahedral bytes).
+      const hs = hairAt(ctx.fig.hair, [x, y, z]);
+      slotB = SLOT.hairLight;
+      mixW = 0.08 + 0.55 * Math.pow(hs.t, 1.3);
+      shade *= 0.8 + 0.2 * smooth(0, 0.5, hs.t);
+      const o = octEncode(hs.dir[0], hs.dir[1], hs.dir[2]);
+      eu = o[0] + 128; ev = o[1] + 128;
     }
     out.a.push(mat.slot, slotB, Math.round(mixW * 255), Math.round(Math.min(1, shade) * 255));
-    out.b.push(Math.round(mat.rough * 255), Math.round((mat.metal ?? 0) * 255), 128, 128);
+    out.b.push(Math.round(mat.rough * 255), Math.round((mat.metal ?? 0) * 255), eu, ev);
   }
   return out;
 }

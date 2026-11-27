@@ -11,7 +11,9 @@ export type HairStyle =
   | "ponytail"
   | "bun"
   | "curly"
-  | "topknot";
+  | "topknot"
+  | "braids"
+  | "layered";
 export type TopKind =
   | "tee"
   | "shirt"

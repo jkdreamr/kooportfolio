@@ -42,9 +42,12 @@ export function headRadius(d: V3) {
   r += 0.012 * Math.exp(-(((y + 0.78) / 0.16) ** 2)) * smooth(0.3, 0.9, z);
   // Very slight flattening of the face plane.
   r *= 1 - 0.03 * smooth(0.72, 1.0, z);
-  // Small soft button nose.
+  // Small soft button nose on a soft bridge.
   const ang = Math.acos(Math.max(-1, Math.min(1, x * NOSE_DIR[0] + y * NOSE_DIR[1] + z * NOSE_DIR[2])));
   r += 0.026 * Math.exp(-((ang / 0.08) ** 2));
+  r += 0.006 * Math.exp(-((x / 0.085) ** 2)) * smooth(-0.43, -0.35, y) * smooth(-0.07, -0.19, y) * smooth(0.8, 0.95, z);
+  // Soft cheekbones under the eyes.
+  r += 0.008 * Math.exp(-(((y + 0.3) / 0.13) ** 2)) * Math.exp(-(((Math.abs(x) - 0.5) / 0.16) ** 2)) * smooth(0.4, 0.8, z);
   return r;
 }
 const surfDir = (d: V3, hc: V3): V3 => {
@@ -73,7 +76,7 @@ export function faceNormal(x: number, y: number, hc: V3): V3 {
 const B = (rough: number, metal = 0, eu = 128, ev = 128) => [Math.round(rough * 255), Math.round(metal * 255), eu, ev];
 
 /** The head skin: rings around the nose, `rings` × `segs`. */
-export function headSkin(hc: V3, rings: number, segs: number, paint: (p: V3) => { slotB: number; mix: number }): AttrMesh {
+export function headSkin(hc: V3, rings: number, segs: number, paint: (p: V3) => { slotB: number; mix: number; light?: number }): AttrMesh {
   const m = emptyMesh();
   // Frame with the pole at the nose.
   const w = NOSE_DIR;
@@ -85,7 +88,7 @@ export function headSkin(hc: V3, rings: number, segs: number, paint: (p: V3) => 
     m.pos.push(...p);
     m.nrm.push(0, 0, 0);
     const pt = paint(p);
-    m.a.push(SLOT.skin, pt.slotB, Math.round(pt.mix * 255), 255);
+    m.a.push(SLOT.skin, pt.slotB, Math.round(pt.mix * 255), Math.round(232 + 23 * (pt.light ?? 0)));
     m.b.push(...B(0.5));
     return m.pos.length / 3 - 1;
   };
@@ -180,14 +183,30 @@ function decal(
 }
 
 export type EyeSpec = { cx: number; cy: number; rx: number; ry: number; iris: [number, number] };
-/** Both eyes (exact mirror, level): conforming domed caps + lash bands. */
-export function eyes(hc: V3, spec: EyeSpec, flick: boolean, hi: boolean): AttrMesh {
+/** A thin tapered band along an arc of the eye ellipse (angles in degrees,
+ * radius factors rr0 → rr1 across the band, `half(q)` its half-width). */
+function eyeArc(hc: V3, spec: EyeSpec, s: number, a0: number, a1: number, rr: number, half: (q: number) => number, slot: number, cols: number, lift: number, rough = 0.5, dy = (q: number) => 0 * q): AttrMesh {
+  const cx = s * spec.cx;
+  return decal(
+    hc, cols, 1, () => lift,
+    (q, t) => {
+      const ang = ((a0 + (a1 - a0) * q) * Math.PI) / 180;
+      const k = rr + (t - 0.5) * 2 * half(q);
+      return [cx + s * Math.cos(ang) * spec.rx * k, spec.cy + Math.sin(ang) * spec.ry * k + dy(q)];
+    },
+    () => ({ a: [slot, slot, 0, 235], b: B(rough) }),
+  );
+}
+/** Both eyes (exact mirror, level): domed caps shaded procedurally (iris
+ * gradient, pupil, two catchlights), an upper lash line that thickens to the
+ * outer corner (with a flick and lash tips on some characters), a soft lid
+ * crease above and a fine lower lash line. */
+export function eyes(hc: V3, spec: EyeSpec, flick: boolean, hi: boolean, lashes = 0): AttrMesh {
   const out = emptyMesh();
   for (const s of [1, -1]) {
     const cx = s * spec.cx;
-    // Eye cap: polar grid, slight glossy dome.
     const cap = decal(
-      hc, hi ? 24 : 10, hi ? 6 : 3,
+      hc, hi ? 22 : 10, hi ? 5 : 3,
       (_, t) => 0.002 + 0.007 * (1 - t * t),
       (a, t) => {
         const ang = a * Math.PI * 2;
@@ -195,7 +214,6 @@ export function eyes(hc: V3, spec: EyeSpec, flick: boolean, hi: boolean): AttrMe
       },
       (a, t) => {
         const ang = a * Math.PI * 2;
-        // Eye UV relative to the iris centre (nudged toward the nose).
         const u = s * Math.cos(ang) * t + s * spec.iris[0];
         const v = Math.sin(ang) * t - spec.iris[1];
         const eu = Math.round(Math.max(0, Math.min(255, (u * 0.5 + 0.5) * 255)));
@@ -204,38 +222,40 @@ export function eyes(hc: V3, spec: EyeSpec, flick: boolean, hi: boolean): AttrMe
       },
     );
     appendMesh(out, cap);
-    // Soft upper lash line: a tapered band over the top contour (+ flick).
-    const a0 = 172, a1 = flick ? -8 : 12;
-    const lash = decal(
-      hc, hi ? 22 : 8, 1,
-      () => 0.0105,
-      (q, t) => {
-        const deg = a0 + (a1 - a0) * q;
+    // Upper lash line: thin at the inner corner, bold at the outer one.
+    const a1 = flick ? -12 : 6;
+    appendMesh(out, eyeArc(hc, spec, s, 176, a1, 1.02, (q) => 0.03 + 0.1 * Math.pow(Math.sin(Math.PI * Math.min(1, q * 0.92)), 0.6) * (0.55 + 0.45 * q), SLOT.dark, hi ? 22 : 8, 0.0105, 0.55,
+      (q) => (flick && q > 0.86 ? (q - 0.86) * 0.12 : 0)));
+    if (lashes && hi)
+      for (const [deg, l] of [[30, 0.05], [14, 0.065], [0, 0.07]] as const) {
         const ang = (deg * Math.PI) / 180;
-        const taper = Math.pow(Math.sin(Math.PI * Math.min(1, q * 1.05)), 0.7);
-        const outer = flick && q > 0.85 ? (q - 0.85) * 1.2 : 0;
-        const rr = 1.0 + (t - 0.35) * 0.16 * taper + outer;
-        return [cx + s * Math.cos(ang) * spec.rx * rr, spec.cy + Math.sin(ang) * spec.ry * rr + outer * spec.ry * 0.35];
-      },
-      () => ({ a: [SLOT.dark, SLOT.dark, 0, 235], b: B(0.5) }),
-    );
-    appendMesh(out, lash);
+        const bx = cx + s * Math.cos(ang) * spec.rx * 1.06, by = spec.cy + Math.sin(ang) * spec.ry * 1.06;
+        const dx = s * Math.cos(ang) * 0.6 + s * 0.6, dy = Math.sin(ang) * 0.5 + 0.5;
+        const dl = Math.hypot(dx, dy);
+        appendMesh(out, decal(hc, 1, 3, () => 0.0105, (q, t) => {
+          const w = 0.006 * (1 - t);
+          return [bx + (dx / dl) * l * t + (q - 0.5) * 2 * w * (-dy / dl), by + (dy / dl) * l * t + (q - 0.5) * 2 * w * (dx / dl)];
+        }, () => ({ a: [SLOT.dark, SLOT.dark, 0, 235], b: B(0.55) })));
+      }
+    // Lid crease and a fine lower lash line (outer half).
+    appendMesh(out, eyeArc(hc, spec, s, 150, 32, 1.3, (q) => 0.022 * Math.sin(Math.PI * q), SLOT.skinShade, hi ? 14 : 6, 0.0035, 0.6));
+    appendMesh(out, eyeArc(hc, spec, s, -100, -12, 1.03, (q) => 0.028 * Math.sin(Math.PI * q), SLOT.brow, hi ? 12 : 5, 0.006, 0.6));
   }
   return out;
 }
 
-/** Brows: thin soft arches in the hair colour, inner end slightly up. */
+/** Brows: soft tapered arches in the hair colour, full at the inner end. */
 export function brows(hc: V3, lift: number, liftRight: number, hi: boolean): AttrMesh {
   const out = emptyMesh();
   for (const s of [1, -1]) {
     const l = lift + (s < 0 ? liftRight : 0);
     appendMesh(out, decal(
       hc, hi ? 14 : 6, 1,
-      () => 0.0025,
+      () => 0.0028,
       (q, t) => {
-        const x = s * (0.1 + 0.15 * q);
-        const y = 0.112 + l + 0.012 * Math.sin(Math.PI * q) - 0.02 * q;
-        const half = 0.009 * Math.pow(Math.sin(Math.PI * (0.15 + 0.85 * q)), 0.6);
+        const x = s * (0.095 + 0.16 * q);
+        const y = 0.112 + l + 0.016 * Math.sin(Math.PI * Math.min(1, q * 1.15)) - 0.024 * q;
+        const half = (0.0125 - 0.0075 * q) * Math.pow(Math.sin(Math.PI * (0.08 + 0.92 * q)), 0.35);
         return [x, y + (t - 0.5) * 2 * half];
       },
       () => ({ a: [SLOT.brow, SLOT.brow, 0, 240], b: B(0.6) }),
@@ -244,40 +264,66 @@ export function brows(hc: V3, lift: number, liftRight: number, hi: boolean): Att
   return out;
 }
 
-/** Mouth: flush smile band, or an open D-shaped grin with teeth and tongue. */
-export function mouth(hc: V3, expr: Expression, hi: boolean): AttrMesh {
+export type MouthKind = Expression | "talk1" | "talk2" | "talk3";
+/** Mouth decals (one per mouth piece, swapped while talking): a closed
+ * smile with defined lips, or an open mouth with lips, teeth and tongue. */
+export function mouth(hc: V3, kind: MouthKind, hi: boolean): AttrMesh {
   const MY = -0.222;
-  if (expr === "grin" || expr === "excited") {
-    const w = expr === "excited" ? 0.062 : 0.055;
-    const depth = expr === "excited" ? 0.05 : 0.042;
+  // Outline per kind: half width, smile curvature, opening depth, roundness.
+  const spec: Record<MouthKind, { w: number; up: number; depth: number; round?: number }> = {
+    smile: { w: 0.054, up: 0.016, depth: 0 },
+    proud: { w: 0.058, up: 0.022, depth: 0 },
+    thoughtful: { w: 0.044, up: 0.01, depth: 0 },
+    grin: { w: 0.056, up: 0.012, depth: 0.042 },
+    excited: { w: 0.062, up: 0.012, depth: 0.052 },
+    talk1: { w: 0.05, up: 0.01, depth: 0.022 },
+    talk2: { w: 0.05, up: 0.008, depth: 0.046 },
+    talk3: { w: 0.034, up: 0.002, depth: 0.04, round: 1 },
+  };
+  const m = spec[kind];
+  if (!m.depth) {
+    // Closed smile: dark line, thin upper lip, fuller lower lip, corner ticks.
     return decal(
-      hc, hi ? 18 : 8, hi ? 6 : 3,
-      () => 0.0018,
-      (q, t) => {
-        const x = (q * 2 - 1) * w;
-        const k = x / w;
-        const top = MY + 0.012 + 0.008 * k * k;
-        const bottom = top - depth * Math.sqrt(Math.max(0, 1 - k * k));
-        return [x, top + (bottom - top) * t];
-      },
+      hc, hi ? 20 : 8, hi ? 6 : 2,
+      () => 0.0016,
       (q, t) => {
         const k = q * 2 - 1;
-        const slot = t < 0.18 ? SLOT.white : t > 0.62 && Math.abs(k) < 0.55 ? SLOT.lip : SLOT.mouth;
-        return { a: [slot, slot, 0, 230], b: B(0.4) };
+        const x = k * (m.w + 0.006);
+        const line = MY + m.up * k * k - 0.004;
+        const upT = 0.006 * (1 - k * k * 0.8), loT = 0.011 * (1 - k * k) ;
+        return [x, line + upT - t * (upT + loT)];
+      },
+      (q, t) => {
+        const k = Math.abs(q * 2 - 1);
+        const upT = 0.006 * (1 - k * k * 0.8), loT = 0.011 * (1 - k * k);
+        const tl = upT / (upT + loT || 1);
+        const lineHalf = 0.12 + 0.25 * k;
+        const slot = Math.abs(t - tl) < lineHalf * 0.5 || k > 0.9 ? SLOT.mouth : SLOT.lip;
+        return { a: [slot, slot, 0, slot === SLOT.lip && t > tl + 0.2 && t < 0.8 && k < 0.5 ? 255 : 232], b: B(slot === SLOT.lip ? 0.35 : 0.45) };
       },
     );
   }
-  const w = 0.056, up = expr === "proud" ? 0.022 : 0.018;
+  // Open mouth: outline top/bottom curves, lips around a dark opening.
   return decal(
-    hc, hi ? 18 : 8, 1,
-    () => 0.0016,
+    hc, hi ? 20 : 8, hi ? 8 : 3,
+    () => 0.0018,
     (q, t) => {
       const k = q * 2 - 1;
-      const x = k * w;
-      const half = 0.0058 * (1 - 0.55 * k * k);
-      return [x, MY + up * k * k - 0.004 + (t - 0.5) * 2 * half];
+      const x = k * m.w;
+      const top = MY + 0.012 + m.up * k * k + (m.round ? 0.012 * (1 - k * k) : 0);
+      const bottom = top - m.depth * Math.pow(Math.max(0, 1 - k * k), m.round ? 0.5 : 0.62) - 0.004;
+      return [x, top + (bottom - top) * t];
     },
-    () => ({ a: [SLOT.mouth, SLOT.mouth, 0, 235], b: B(0.45) }),
+    (q, t) => {
+      const k = Math.abs(q * 2 - 1);
+      const edge = Math.min(t, 1 - t) * (m.depth / 0.04) + (1 - k) * 0.4;
+      let slot: number = SLOT.mouth;
+      if (t < 0.14 || t > 0.8 || k > 0.92 || edge < 0.1) slot = SLOT.lip;
+      else if (t < 0.32 && k < 0.78 && !m.round) slot = SLOT.white;
+      else if (t > 0.6 && k < 0.55) slot = SLOT.lip;
+      const tongue = slot === SLOT.lip && t > 0.6 && t <= 0.8 && k < 0.55;
+      return { a: [slot, tongue ? SLOT.mouth : slot, tongue ? 90 : 0, slot === SLOT.lip && t > 0.8 && k < 0.5 ? 255 : 232], b: B(slot === SLOT.white ? 0.3 : 0.4) };
+    },
   );
 }
 

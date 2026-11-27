@@ -174,7 +174,7 @@ class Heap {
 export function decimate(
   mesh: RawMesh,
   targets: number[],
-  weight: (x: number, y: number, z: number) => number,
+  weight: (x: number, y: number, z: number, v?: number) => number,
   /** Material id per vertex: colour borders are kept in place. */
   slots?: Int32Array,
 ): RawMesh[] {
@@ -214,7 +214,7 @@ export function decimate(
     const q = [a * a, a * b, a * c, a * d, b * b, b * c, b * d, c * c, c * d, d * d];
     for (let k = 0; k < 3; k++) {
       const v = T[t * 3 + k];
-      const vw = w * weight(P[v * 3], P[v * 3 + 1], P[v * 3 + 2]);
+      const vw = w * weight(P[v * 3], P[v * 3 + 1], P[v * 3 + 2], v);
       for (let i = 0; i < 10; i++) Q[v * 10 + i] += q[i] * vw;
     }
   }

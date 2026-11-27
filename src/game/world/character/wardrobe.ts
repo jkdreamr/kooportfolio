@@ -369,7 +369,8 @@ function face(c: Ctx, o: Outfit, earsHidden: boolean) {
 
 function hair(c: Ctx, o: Outfit, hatted: boolean) {
   const color = o.hair.color;
-  const style = o.hair.style;
+  // The primitive rig approximates the sculpt-only styles.
+  const style: HairStyle = o.hair.style === "braids" ? "ponytail" : o.hair.style === "layered" ? "bob" : o.hair.style;
   const lift = shade(color, 0.08);
   const lock = (p: Vec3, s: Vec3, rx = 0, rz = 0, ry?: number, near = true) =>
     c.add({
@@ -676,7 +677,7 @@ function extras(c: Ctx, o: Outfit) {
   return holds;
 }
 
-const HIDES_EARS: ReadonlySet<HairStyle> = new Set(["bob", "long"]);
+const HIDES_EARS: ReadonlySet<HairStyle> = new Set(["bob", "long", "layered"]);
 const COVERS_HAIR: ReadonlySet<HeadKind> = new Set([
   "beanie",
   "helmet",
