@@ -425,75 +425,6 @@ function env_nopen() {
  * one flat colour: no smeared per-vertex blends at seams. */
 export type LabMesh = { pos: Float64Array; tri: Uint32Array; lab: Int32Array };
 
-/**
- * Cut a dense mesh along its material borders: every edge whose ends have
- * different labels gets a vertex exactly on the border (bisection against
- * `labelAt`), and the triangles it crosses are split, so the border is a
- * clean polyline instead of a staircase of grid cells.
- */
-export function cutByLabel(mesh: RawMesh, vlab: Int32Array, labelAt: (x: number, y: number, z: number) => number): LabMesh {
-  const nV = mesh.pos.length / 3;
-  const P: number[] = Array.from(mesh.pos);
-  const edgePt = new Map<number, number>();
-  const tri: number[] = [], lab: number[] = [];
-  const point = (a: number, b: number) => {
-    const lo = Math.min(a, b), hi = Math.max(a, b);
-    const key = lo * nV + hi;
-    const hit = edgePt.get(key);
-    if (hit !== undefined) return hit;
-    const la = vlab[lo];
-    let ta = 0, tb = 1;
-    const x0 = P[lo * 3], y0 = P[lo * 3 + 1], z0 = P[lo * 3 + 2];
-    const dx = P[hi * 3] - x0, dy = P[hi * 3 + 1] - y0, dz = P[hi * 3 + 2] - z0;
-    for (let i = 0; i < 7; i++) {
-      const tm = (ta + tb) / 2;
-      if (labelAt(x0 + dx * tm, y0 + dy * tm, z0 + dz * tm) === la) ta = tm; else tb = tm;
-    }
-    const t = (ta + tb) / 2;
-    // Near an end: use that vertex (no sliver triangles).
-    if (t < 0.05 || t > 0.95) {
-      const id = t < 0.05 ? lo : hi;
-      edgePt.set(key, id);
-      return id;
-    }
-    const id = P.length / 3;
-    P.push(x0 + dx * t, y0 + dy * t, z0 + dz * t);
-    edgePt.set(key, id);
-    return id;
-  };
-  const T = mesh.tri;
-  // Lone vertex X (label lx) against Y, Z (label ly), winding X→Y→Z kept.
-  const two = (X: number, Y: number, Z: number, lx: number, ly: number) => {
-    const xy = point(X, Y), xz = point(X, Z);
-    tri.push(X, xy, xz); lab.push(lx);
-    tri.push(xy, Y, Z, xy, Z, xz); lab.push(ly, ly);
-  };
-  for (let t = 0; t < T.length; t += 3) {
-    const A = T[t], B = T[t + 1], C = T[t + 2];
-    const la = vlab[A], lb = vlab[B], lc = vlab[C];
-    if (la === lb && lb === lc) { tri.push(A, B, C); lab.push(la); continue; }
-    if (la === lb) two(C, A, B, lc, la);
-    else if (lb === lc) two(A, B, C, la, lb);
-    else if (la === lc) two(B, C, A, lb, la);
-    else {
-      const ab = point(A, B), bc = point(B, C), ca = point(C, A);
-      const g = P.length / 3;
-      P.push((P[A * 3] + P[B * 3] + P[C * 3]) / 3, (P[A * 3 + 1] + P[B * 3 + 1] + P[C * 3 + 1]) / 3, (P[A * 3 + 2] + P[B * 3 + 2] + P[C * 3 + 2]) / 3);
-      tri.push(A, ab, g, A, g, ca); lab.push(la, la);
-      tri.push(B, bc, g, B, g, ab); lab.push(lb, lb);
-      tri.push(C, ca, g, C, g, bc); lab.push(lc, lc);
-    }
-  }
-  // Drop the triangles that snapping made degenerate.
-  const T2: number[] = [], L2: number[] = [];
-  for (let t = 0; t < lab.length; t++) {
-    const a = tri[t * 3], b = tri[t * 3 + 1], c = tri[t * 3 + 2];
-    if (a === b || b === c || a === c) continue;
-    T2.push(a, b, c); L2.push(lab[t]);
-  }
-  return { pos: Float64Array.from(P), tri: Uint32Array.from(T2), lab: Int32Array.from(L2) };
-}
-
 /** Relabel colour islands smaller than `minArea` to their dominant
  * neighbour (specks a budget cannot draw cleanly). */
 export function dropIslands(m: LabMesh, minArea: number) {
@@ -547,7 +478,7 @@ export function dropIslands(m: LabMesh, minArea: number) {
 
 /**
  * Slide each vertex on a colour border onto the true border line (found by
- * bisection toward a neighbour across it), at most 45% of the way along that
+ * bisection toward a neighbour across it), at most 60% of the way along that
  * edge and never folding a face: the per-face colour borders then run
  * straight instead of zigzagging along triangle edges.
  */
@@ -564,19 +495,22 @@ export function straightenBorders(m: LabMesh, labelAt: (x: number, y: number, z:
     out[0] = uy * vz - uz * vy; out[1] = uz * vx - ux * vz; out[2] = ux * vy - uy * vx;
     return Math.hypot(out[0], out[1], out[2]);
   };
+  // Two passes: a vertex moved in the first can give its neighbours a
+  // clearer side to slide toward in the second.
+  for (let pass = 0; pass < 2; pass++)
   for (let v = 0; v < nV; v++) {
     const labs = new Set<number>();
     for (const t of vf[v]) labs.add(m.lab[t]);
     if (labs.size !== 2) continue;
     const x = P[v * 3], y = P[v * 3 + 1], z = P[v * 3 + 2];
     const own = labelAt(x, y, z);
-    // A neighbour whose faces are all of the other label.
-    const other = [...labs].find((l) => l !== own) ?? -1;
+    // The nearest neighbour truly on the other side of the border.
+    if (!labs.has(own)) continue;
     let best = -1, bd = Infinity;
     for (const t of vf[v])
       for (let c = 0; c < 3; c++) {
         const u = m.tri[t * 3 + c];
-        if (u === v || !vf[u].every((f) => m.lab[f] === (labs.has(own) ? other : m.lab[f]))) continue;
+        if (u === v) continue;
         if (labelAt(P[u * 3], P[u * 3 + 1], P[u * 3 + 2]) === own) continue;
         const d = (P[u * 3] - x) ** 2 + (P[u * 3 + 1] - y) ** 2 + (P[u * 3 + 2] - z) ** 2;
         if (d < bd) { bd = d; best = u; }
@@ -588,7 +522,7 @@ export function straightenBorders(m: LabMesh, labelAt: (x: number, y: number, z:
       const tm = (ta + tb) / 2;
       if (labelAt(x + (ux - x) * tm, y + (uy - y) * tm, z + (uz - z) * tm) === own) ta = tm; else tb = tm;
     }
-    const t = Math.min(0.45, (ta + tb) / 2);
+    const t = Math.min(0.6, (ta + tb) / 2);
     const nx = x + (ux - x) * t, ny = y + (uy - y) * t, nz = z + (uz - z) * t;
     let ok = true;
     for (const f of vf[v]) {

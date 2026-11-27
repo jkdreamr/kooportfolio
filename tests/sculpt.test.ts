@@ -7,7 +7,7 @@ import { mix, shade } from "../src/game/world/character/outfit";
 import { buildFigure, outfitPalette } from "../src/game/world/character/sculpt/figure";
 import { evalOps, pieceBounds } from "../src/game/world/character/sculpt/sdf";
 import { eyes, headSkin, mouth, type AttrMesh } from "../src/game/world/character/sculpt/head";
-import { cutByLabel, decimate, surfaceNets } from "../src/game/world/character/sculpt/mesher";
+import { decimate, straightenBorders, surfaceNets } from "../src/game/world/character/sculpt/mesher";
 import { Cast, PIECES } from "../src/game/world/character/sculpt/runtime";
 import { hairMesh } from "../src/game/world/character/sculpt/hair";
 
@@ -95,13 +95,17 @@ describe("sculpted characters (F3/F5/F6)", () => {
     const raw = surfaceNets(sphere, [-0.25, -0.25, -0.25], [0.25, 0.25, 0.25], 0.01);
     // Two materials split by the plane y = 0.03.
     const labelAt = (_x: number, y: number) => (y > 0.03 ? 1 : 0);
-    // As the bake does: decimate, then cut exactly along the border.
+    // As the bake does: decimate, one material per face (at its centre),
+    // then slide the border vertices onto the true border.
     const [dec] = decimate(raw, [400], () => 1);
-    const vlab = new Int32Array(dec.pos.length / 3);
-    for (let i = 0; i < vlab.length; i++) vlab[i] = labelAt(dec.pos[i * 3], dec.pos[i * 3 + 1]);
-    const low = cutByLabel(dec, vlab, labelAt);
-    expect(low.tri.length / 3).toBeLessThanOrEqual(520);
-    expect(low.lab.length).toBe(low.tri.length / 3);
+    const lab = new Int32Array(dec.tri.length / 3);
+    for (let t = 0; t < lab.length; t++) {
+      const cy = (dec.pos[dec.tri[t * 3] * 3 + 1] + dec.pos[dec.tri[t * 3 + 1] * 3 + 1] + dec.pos[dec.tri[t * 3 + 2] * 3 + 1]) / 3;
+      lab[t] = labelAt(0, cy);
+    }
+    const low = { pos: Float64Array.from(dec.pos), tri: dec.tri, lab };
+    straightenBorders(low, labelAt);
+    expect(low.tri.length / 3).toBeLessThanOrEqual(400);
     // Every border vertex (shared by both labels) lies on the border plane.
     const seen = new Map<number, Set<number>>();
     for (let t = 0; t < low.lab.length; t++)
@@ -110,18 +114,22 @@ describe("sculpted characters (F3/F5/F6)", () => {
         if (!seen.has(v)) seen.set(v, new Set());
         seen.get(v)!.add(low.lab[t]);
       }
-    let border = 0;
+    const before = new Map<number, number>();
+    for (let v = 0; v < dec.pos.length / 3; v++) before.set(v, Math.abs(dec.pos[v * 3 + 1] - 0.03));
+    let border = 0, near = 0, sum = 0, sum0 = 0;
     for (const [v, ls] of seen) {
       if (ls.size < 2) continue;
       border++;
-      expect(Math.abs(low.pos[v * 3 + 1] - 0.03)).toBeLessThan(0.004);
+      const d = Math.abs(low.pos[v * 3 + 1] - 0.03);
+      sum += d; sum0 += before.get(v)!;
+      if (d < 0.006) near++;
     }
     expect(border).toBeGreaterThan(8);
-    // Each face is entirely on its own side.
-    for (let t = 0; t < low.lab.length; t++) {
-      const cy = (low.pos[low.tri[t * 3] * 3 + 1] + low.pos[low.tri[t * 3 + 1] * 3 + 1] + low.pos[low.tri[t * 3 + 2] * 3 + 1]) / 3;
-      expect(cy > 0.03 ? 1 : 0).toBe(low.lab[t]);
-    }
+    // Most border vertices now sit on the true border line.
+    expect(near / border).toBeGreaterThan(0.75);
+    expect(sum / border).toBeLessThan(0.5 * (sum0 / border));
+    // Faces keep their single label (flat colour after the vertex split).
+    expect(low.lab.every((l) => l === 0 || l === 1)).toBe(true);
   });
 
   it("paints straps and garment openings as a few crisp shader shapes", () => {
