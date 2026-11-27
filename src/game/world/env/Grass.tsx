@@ -44,10 +44,12 @@ function tuftGeometry(blades = BLADES, lod = 1, widthScale = 1) {
     index: number[] = [];
   for (let b = 0; b < blades; b++) {
     const angle = (b / blades) * Math.PI * 2 + b * 0.7;
-    const lean = 0.16 + (b % 3) * 0.09;
-    const height = 0.28 + ((b * 37) % 7) * 0.04;
-    const width = (0.06 + (b % 2) * 0.016) * widthScale;
-    const reach = 0.04 + (b % 4) * 0.035;
+    // B4: fine blades (0.035–0.05 wide, 0.22–0.38 tall before the
+    // instance scale) that splay at most ±22° from upright, not a fan.
+    const lean = 0.07 + (b % 3) * 0.055;
+    const height = 0.22 + ((b * 37) % 7) * (0.16 / 6);
+    const width = (0.035 + (b % 2) * 0.015) * widthScale;
+    const reach = 0.03 + (b % 4) * 0.03;
     const ox = Math.cos(angle) * reach,
       oz = Math.sin(angle) * reach;
     const dx = Math.cos(angle),
@@ -108,7 +110,7 @@ function softTuftGeometry(blades: number, lod: number, spread = 1) {
     const reach = (0.012 + ring * 0.05) * spread;
     const height = 0.21 - ring * 0.055 + ((b * 37) % 5) * 0.01;
     const lean = (0.03 + ring * 0.065) * spread;
-    const width = (0.058 + (b % 2) * 0.014) * spread;
+    const width = (0.042 + (b % 2) * 0.01) * spread;
     const dx = Math.cos(angle),
       dz = Math.sin(angle);
     const ox = dx * reach,
@@ -299,9 +301,11 @@ function grassMaterial() {
         "#include <project_vertex>",
         `vec4 grassWorld = instanceMatrix * vec4(transformed, 1.0);
         float grassBendT = vGrassT * vGrassT;
-        float grassGust = sin(uEnvTime * 1.9 + grassWorld.x * 0.55 + grassWorld.z * 0.35)
-          + 0.5 * sin(uEnvTime * 3.3 + grassWorld.x * 1.7 - grassWorld.z * 1.1);
-        grassWorld.xz += vec2(0.7, 0.45) * grassGust * grassBendT * (0.04 + 0.11 * uEnvWind);
+        // B4: two octaves, 0.35 Hz and 0.9 Hz, phased by world position so
+        // waves travel across the field; about 5 cm at the tip.
+        float grassGust = sin(uEnvTime * 2.2 + grassWorld.x * 0.55 + grassWorld.z * 0.35)
+          + 0.5 * sin(uEnvTime * 5.65 + grassWorld.x * 1.7 - grassWorld.z * 1.1);
+        grassWorld.xz += vec2(0.84, 0.54) * grassGust * grassBendT * (0.024 + 0.03 * uEnvWind);
         vec2 grassAway = grassWorld.xz - uEnvPlayer.xz;
         float grassNear = 1.0 - smoothstep(0.0, uEnvPlayer.w, length(grassAway));
         grassWorld.xz += normalize(grassAway + 1e-4) * grassNear * grassBendT * 0.32;
@@ -372,9 +376,9 @@ function grassMaterial() {
 const geometry = tuftGeometry();
 /** Far LOD: three wide blades (9 tris). */
 const farGeometry = tuftGeometry(3, 2, 1.7);
-/** Medium's only tuft: the far shape, tagged near (so it never fades out
- * inside the near radius). */
-const mediumGeometry = tuftGeometry(3, 1, 1.7);
+/** Medium's only tuft: four fine blades (12 tris; B4 allowance +3 per tuft),
+ * tagged near (so it never fades out inside the near radius). */
+const mediumGeometry = tuftGeometry(4, 1, 1.15);
 /** Explore, high tier: the soft near tuft (12 blades, 24 tris) and the
  * soft far tuft (5 blades, 10 tris). Swapped in on the same meshes when the
  * view turns to explore (geometry only: same material and program). */

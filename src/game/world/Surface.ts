@@ -317,6 +317,15 @@ export function sculptedMaterial(
         sculptHeight = sculptFine.g;
         diffuseColor.rgb *= 1.0 + (sculptGrain - 0.5) * mix(0.14, 0.2, sculptTagged) * uSurfaceDetail;
         diffuseColor.rgb *= mix(vec3(1.0), mix(vec3(0.965, 0.985, 1.02), vec3(1.035, 1.01, 0.965), sculptBroad), uSurfaceDetail);
+        {
+          // B4: lawns ("ground", up-facing) get a low-contrast two-tone
+          // mottle, ±4% at ~3 m and ±2% at ~0.4 m, so bare lawn between
+          // tufts is not a flat plane.
+          float sculptLawn = (1.0 - step(0.5, abs(sculptKind - 5.0))) * smoothstep(0.7, 0.95, sculptN.y) * uSurfaceDetail;
+          float sculptMottle = (texture2D(uSurfaceNoise, vSculptWorld.xz * 0.083 + 0.19).g - 0.5) * 0.16
+            + (texture2D(uSurfaceNoise, vSculptWorld.xz * 0.62 + 0.53).r - 0.5) * 0.08;
+          diffuseColor.rgb *= 1.0 + sculptMottle * sculptLawn;
+        }
         if (uSurfaceExplore > 0.0) {
           // Explore lawn grade (mirrors lawnGrade()): green, up-facing ground.
           vec3 sculptC = diffuseColor.rgb;
