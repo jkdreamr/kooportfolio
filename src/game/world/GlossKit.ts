@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { exposeQa } from "../../stage/qa";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { surfaceSky } from "./Surface";
 import { noiseUniform } from "./env/noise";
@@ -278,6 +279,24 @@ export function bakeShoreMap(
 }
 
 
+/** B6: water Fresnel (Schlick) base reflectance and cap, and the planar-
+ * mirror body colours (shallow rim → deep middle). */
+export const WATER_F0 = 0.04;
+export const WATER_F_MAX = 0.75;
+const linear = (hex: string) =>
+  new THREE.Color(hex)
+    .toArray()
+    .map((v) => v.toFixed(4))
+    .join(", ");
+const WATER_SHALLOW_LINEAR = linear("#5fb4c8");
+const WATER_DEEP_LINEAR = linear("#1f5f8a");
+/** Pure (tests): the share of the reflection at a view angle (cos to the
+ * water's up axis). */
+export function waterFresnel(cos: number) {
+  const c = Math.min(1, Math.max(0, cos));
+  return Math.min(WATER_F_MAX, WATER_F0 + (1 - WATER_F0) * (1 - c) ** 5);
+}
+
 /** Stylised water on the standard lighting model: it receives shadows, fog and
  * tone mapping like everything else. Travelling sines bend the normal so the
  * baked sky slides over the surface; crests catch the sky by day and the warm
@@ -443,13 +462,17 @@ export function waterMaterial({
         vec3 waterImage = mix(waterOpenSky, waterMirror.rgb, waterMirror.a);
         waterReflect = mix(waterReflect, waterImage, uWaterReflectMix);
         float waterGlint = smoothstep(0.88, 0.985, waterCrest) * (1.0 - waterFoam);
-        float waterMirrorWeight = mix(0.16 + 0.5 * waterSchlick, 0.5 + 0.4 * waterSchlick, waterMirror.a) * (1.0 - waterFoam * 0.8);
-        float waterReflectWeight = mix(0.05 + 0.36 * waterFresnel, waterMirrorWeight, uWaterReflectMix) * (1.0 - 0.85 * uGlossNight);
+        // B6, mirror on: the reflection replaces a Fresnel share of the body,
+        // mix(body, reflection, F), Schlick with F0 = 0.04 clamped to 0.75 —
+        // never added on top of a full-strength body (that read as milky).
+        float waterF = clamp(${WATER_F0.toFixed(2)} + ${(1 - WATER_F0).toFixed(2)} * pow(1.0 - waterCos, 5.0), 0.0, ${WATER_F_MAX.toFixed(2)});
+        waterF *= 1.0 - waterFoam * 0.8;
+        float waterReflectWeight = mix(0.05 + 0.36 * waterFresnel, waterF, uWaterReflectMix) * (1.0 - 0.85 * uGlossNight);
         vec3 waterSky = waterReflect * waterReflectWeight;
-        // With the planar mirror on, the reflection replaces part of the lit
-        // water instead of stacking on it (stacking read as milky); the body
-        // left under it is the deep tint, so the mirror image keeps contrast.
-        diffuseColor.rgb = mix(diffuseColor.rgb, mix(diffuseColor.rgb, uWaterDeep, 0.55 * (1.0 - waterShallow)), uWaterReflectMix);
+        // The body under it deepens with a fake depth term (shallow rim →
+        // deep middle), so the mirror image keeps contrast.
+        vec3 waterBody = mix(vec3(${WATER_SHALLOW_LINEAR}), vec3(${WATER_DEEP_LINEAR}), smoothstep(0.0, 1.0, 1.0 - waterEdge));
+        diffuseColor.rgb = mix(diffuseColor.rgb, waterBody, uWaterReflectMix);
         diffuseColor.rgb *= 1.0 - saturate(waterReflectWeight) * uWaterReflectMix;
         totalEmissiveRadiance += waterSky * (1.0 - waterFoam * 0.6);
         totalEmissiveRadiance += mix(uGlossSky * 0.4, uGlossWarm * 0.22, uGlossNight) * waterGlint;
@@ -543,3 +566,7 @@ export const gemGeometry = (() => {
   crown.dispose();
   return merged;
 })();
+
+// QA builds only: the water material and its mirror uniforms, for the B6
+// pixel harness (a synthetic reflection on a small quad, read back).
+exposeQa({ water: { waterMaterial, reflectionUniforms, reflectMixUniform, THREE } });
