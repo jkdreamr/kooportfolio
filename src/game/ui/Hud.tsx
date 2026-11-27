@@ -598,20 +598,27 @@ function useSoundShortcut(hudShown: boolean) {
     return () => window.removeEventListener("keydown", key);
   }, []);
   useEffect(() => {
-    if (!hudShown || !takeSoundHint()) return;
-    const muted = useGame.getState().muted;
-    if (window.matchMedia?.("(pointer: coarse)").matches) {
-      setTouchHint(true);
-      const timer = window.setTimeout(() => setTouchHint(false), 4000);
-      return () => window.clearTimeout(timer);
-    }
-    showToast(
-      muted
-        ? "Sound is off · press M for sound"
-        : "Sound is on · press M to mute",
-    );
-    cue("toast");
+    if (!hudShown) return;
+    // A beat after the world appears, so the hint is not lost in the reveal.
+    const timer = window.setTimeout(() => {
+      if (!takeSoundHint()) return;
+      const muted = useGame.getState().muted;
+      if (window.matchMedia?.("(pointer: coarse)").matches) setTouchHint(true);
+      else
+        showToast(
+          muted
+            ? "Sound is off · press M for sound"
+            : "Sound is on · press M to mute",
+        );
+      cue("toast");
+    }, 600);
+    return () => window.clearTimeout(timer);
   }, [hudShown]);
+  useEffect(() => {
+    if (!touchHint) return;
+    const timer = window.setTimeout(() => setTouchHint(false), 4000);
+    return () => window.clearTimeout(timer);
+  }, [touchHint]);
   return touchHint;
 }
 /** Master switch and the two levels, as in Settings. */
@@ -992,7 +999,12 @@ export function Hud({ interact }: { interact: () => void }) {
   const listenOpen = useListen((s) => s.open);
   // The panel belongs to the village; leaving the scene closes it.
   useEffect(() => closeListen, [g.scene]);
-  const soundTouchHint = useSoundShortcut(hudMotion === "shown");
+  // The first-visit sound hint waits until the world is actually on screen
+  // (HUD revealed and the scene presented), so it is never spent unseen.
+  const presentedScene = usePresented((s) => s.scene);
+  const soundTouchHint = useSoundShortcut(
+    hudMotion === "shown" && presentedScene === g.scene,
+  );
   return (
     <div
       className={`game-ui scene-${g.scene} world-${g.world}${g.traveling ? " is-traveling" : ""}${g.paused ? " is-paused" : ""}`}
