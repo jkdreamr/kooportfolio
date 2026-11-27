@@ -12,7 +12,9 @@ import { shoreField, type ShorePiece } from "./placement";
  * the grass wind (one instanced draw sharing the grass program).
  */
 
-const pebble = new THREE.IcosahedronGeometry(1, 0).toNonIndexed();
+// Polyhedra are already non-indexed: converting them again only warns.
+const pebbleSource = new THREE.IcosahedronGeometry(1, 0);
+const pebble = pebbleSource.index ? pebbleSource.toNonIndexed() : pebbleSource;
 pebble.scale(1, 0.45, 0.8);
 pebble.deleteAttribute("uv");
 const lily = (() => {
@@ -25,7 +27,8 @@ const lily = (() => {
     shape.lineTo(Math.cos(a), Math.sin(a));
   }
   shape.closePath();
-  const g = new THREE.ShapeGeometry(shape).toNonIndexed();
+  const source = new THREE.ShapeGeometry(shape);
+  const g = source.index ? source.toNonIndexed() : source;
   g.rotateX(-Math.PI / 2);
   g.deleteAttribute("uv");
   const p = g.getAttribute("position");

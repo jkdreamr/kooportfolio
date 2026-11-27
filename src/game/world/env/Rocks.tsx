@@ -42,7 +42,7 @@ function slab(w: number, h: number, d: number, bevel: number) {
       position.setZ(i, z * (1 - (bevel / d) * 2 * Math.sign(Math.abs(z))));
     }
   }
-  return geometry.toNonIndexed();
+  return geometry.index ? geometry.toNonIndexed() : geometry;
 }
 
 /** Stack slabs into a stepped block, displace by seeded noise. */
@@ -67,7 +67,7 @@ function variant(kind: number) {
     // Rounded boulder: a squashed icosahedron.
     const g = new THREE.IcosahedronGeometry(0.8, 1);
     g.scale(1.2, 0.75, 1);
-    push(g.toNonIndexed(), 0, 0.5, 0, 0);
+    push(g.index ? g.toNonIndexed() : g, 0, 0.5, 0, 0);
   } else {
     // Two blocks leaning together.
     push(slab(1.1, 0.9, 1, 0.09), -0.45, 0.45, 0, 0.2);

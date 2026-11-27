@@ -62,8 +62,8 @@ function cliffGeometry() {
   );
   indexed.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
   indexed.setIndex(indices);
-  const geometry = indexed.toNonIndexed();
-  indexed.dispose();
+  const geometry = indexed.index ? indexed.toNonIndexed() : indexed;
+  if (geometry !== indexed) indexed.dispose();
   geometry.computeVertexNormals();
   return geometry;
 }

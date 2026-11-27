@@ -534,7 +534,10 @@ export function haloMaterial() {
 export const gemGeometry = (() => {
   const body = new THREE.CylinderGeometry(0.5, 0.5, 0.68, 6).translate(0, -0.16, 0);
   const crown = new THREE.ConeGeometry(0.5, 0.32, 6).translate(0, 0.34, 0);
-  const merged = mergeGeometries([body.toNonIndexed(), crown.toNonIndexed()])!;
+  const merged = mergeGeometries([
+    body.index ? body.toNonIndexed() : body,
+    crown.index ? crown.toNonIndexed() : crown,
+  ])!;
   merged.computeVertexNormals();
   body.dispose();
   crown.dispose();
