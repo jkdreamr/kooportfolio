@@ -38,7 +38,8 @@ export function interiorBackdrop(color: THREE.Color, out = new THREE.Color()) {
       color.g + (l - color.g) * INTERIOR_DESATURATE,
       color.b + (l - color.b) * INTERIOR_DESATURATE,
     )
-    .multiplyScalar(1 - INTERIOR_DARKEN);
+    // 55% darker as seen (sRGB), so white HUD text keeps 4.5:1 over it.
+    .multiplyScalar(Math.pow(1 - INTERIOR_DARKEN, 2.2));
 }
 
 const skyVertex = `
