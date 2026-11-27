@@ -87,10 +87,10 @@ export function bakePart(ids: string[], log: (s: string) => void = console.log):
         if (adjOnly && !adj) continue;
         const sc: [number, number] = adj ? plan.scale : [1, 1];
         const lv: [number, number] = pid === "head" ? plan.hair : [0, 0];
-        const key = pieceKey(pid, piece.ops, fig) + (adj ? `@${sc[0].toFixed(3)},${sc[1].toFixed(3)}` : "") + (pid === "head" ? `#${lv.join(",")}` : "");
+        const key = pieceKey(pid, piece.ops, fig) + (adj ? `@${sc[0].toFixed(3)},${sc[1].toFixed(3)},${plan.midCell.toFixed(2)}` : "") + (pid === "head" ? `#${lv.join(",")}` : "");
         let idx = cache.get(key);
         if (idx === undefined) {
-          const lods = meshPiece(pid, piece.ops, fig, rest[PIECE_JOINT[pid]], global, sc, lv);
+          const lods = meshPiece(pid, piece.ops, fig, rest[PIECE_JOINT[pid]], global, sc, lv, adj ? plan.midCell : 1.9);
           for (const m of lods) toRest(pid, m, rest);
           idx = part.shapes.length;
           part.shapes.push(lods.map(finalize) as [Shape, Shape]);
@@ -115,6 +115,8 @@ export function bakePart(ids: string[], log: (s: string) => void = console.log):
         if (total > (lod ? 2500 : 9000)) {
           over = true;
           plan.scale[lod] *= Math.max(0.1, (BUDGET[lod] - (total - adjT)) / Math.max(1, adjT)) * 0.95;
+          // Coarser grid for the mid unique pieces when decimation stalls.
+          if (lod && attempt > 0) plan.midCell *= 1.3;
         }
       }
       if (!over) break;
@@ -131,7 +133,7 @@ export function bakePart(ids: string[], log: (s: string) => void = console.log):
  * pelvis, skirt, hat/ears) scale down to fit what is left. */
 const BUDGET = [8900, 2450];
 const ADJUSTABLE = new Set(["chest", "pelvis", "skirt", "head"]);
-function budgetPlan(fig: Figure, entries: [PieceId, { ops: unknown[] }][]): { scale: [number, number]; hair: [number, number] } {
+function budgetPlan(fig: Figure, entries: [PieceId, { ops: unknown[] }][]): { scale: [number, number]; hair: [number, number]; midCell: number } {
   const scale: [number, number] = [1, 1], hair: [number, number] = [0, 0];
   for (const lod of [0, 1]) {
     const hi = lod === 0;
@@ -156,7 +158,7 @@ function budgetPlan(fig: Figure, entries: [PieceId, { ops: unknown[] }][]): { sc
       }
     scale[lod] = Math.max(0.3, Math.min(1, (BUDGET[lod] - fixed - hairT) / Math.max(1, adj)));
   }
-  return { scale, hair };
+  return { scale, hair, midCell: 1.9 };
 }
 
 function pieceKey(pid: PieceId, ops: unknown, fig: Figure) {
@@ -199,7 +201,7 @@ export function bake(log: (s: string) => void = console.log, only?: string[]) {
   return packParts([bakePart(castList(only).map((c) => c.id), log)]);
 }
 
-function meshPiece(pid: PieceId, ops: Parameters<typeof evalOps>[0], fig: Figure, restM: THREE.Matrix4, global: (p: V3) => number, scale: [number, number] = [1, 1], hairLv: [number, number] = [0, 0]): [AttrMesh, AttrMesh] {
+function meshPiece(pid: PieceId, ops: Parameters<typeof evalOps>[0], fig: Figure, restM: THREE.Matrix4, global: (p: V3) => number, scale: [number, number] = [1, 1], hairLv: [number, number] = [0, 0], midCell = 1.9): [AttrMesh, AttrMesh] {
   const kind = base(pid);
   const ctx = { pid, fig, restM, global };
   const lods: [AttrMesh, AttrMesh] = [emptyMesh(), emptyMesh()];
@@ -218,7 +220,7 @@ function meshPiece(pid: PieceId, ops: Parameters<typeof evalOps>[0], fig: Figure
     };
     // Each LOD is meshed on its own grid (the mid one coarser), so thin
     // features cannot stall the mid decimation.
-    const meshes = ([[h, Math.round(ht * scale[0])], [h * 1.9, Math.round(mt * scale[1])]] as const).map(([cell, target]) => {
+    const meshes = ([[h, Math.round(ht * scale[0])], [h * midCell, Math.round(mt * scale[1])]] as const).map(([cell, target]) => {
       const raw = surfaceNets(f, bb.min, bb.max, cell);
       project(f, raw.pos, cell * 0.5, 1);
       const hit: Hit = { d: 0, m: null };
@@ -243,7 +245,7 @@ function meshPiece(pid: PieceId, ops: Parameters<typeof evalOps>[0], fig: Figure
       if (env.BAKE_DEBUG) console.log(`  ${pid}: raw ${raw.tri.length / 3} → ${out.tri.length / 3}`);
       return out;
     });
-    meshes.forEach((m, lod) => appendMesh(lods[lod], sdfAttributes(ctx, m, ops, lod ? h * 1.9 : h, lod)));
+    meshes.forEach((m, lod) => appendMesh(lods[lod], sdfAttributes(ctx, m, ops, lod ? h * midCell : h, lod)));
   }
   const HC = fig.HC;
   for (const lod of [0, 1]) {
