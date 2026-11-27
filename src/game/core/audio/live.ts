@@ -10,6 +10,8 @@ import { AudioHost, type PlayOptions } from "./engine";
 import type { Bus } from "./graph";
 import type { LoopHandle, LoopName, PaletteName } from "./palette";
 import { MusicPlayer } from "./music";
+import { exposeQa } from "../../../stage/qa";
+import { launchersFor } from "../launchers";
 
 export const audio = new AudioHost();
 /** Real tracks, when there are any (MUSIC_ENABLED, TRACKS in music.ts). */
@@ -77,6 +79,8 @@ function bind() {
     window.addEventListener(type, gesture, { capture: true, passive: true });
 }
 bind();
+// QA builds only (a no-op otherwise): the engine and launchers for scripts.
+exposeQa({ audio: { host: audio, play: (name: PaletteName, opts?: PlayOptions) => audio.play(name, opts) }, launchers: { launchersFor } });
 
 /** Plays a palette sound now (no-op while muted, hidden or on the portfolio). */
 export const play = (name: PaletteName, opts?: PlayOptions) => audio.play(name, opts);

@@ -5,7 +5,8 @@
  *   window.dispatchEvent(new CustomEvent("stage-cue", { detail: { name: "tear" } }))
  * (`detail` may also carry `pan`, `gain` and, for `flight`, `duration` in s.)
  */
-import { play } from "./live";
+import { audio, loop, play } from "./live";
+import { PALETTE_NAMES } from "./palette";
 
 export type Cue =
   | "ui-open"
@@ -79,4 +80,4 @@ if (
   typeof location !== "undefined" &&
   new URLSearchParams(location.search).has("audio-lab")
 )
-  void import("./lab").then((lab) => lab.mountAudioLab());
+  void import("./lab").then((lab) => lab.mountAudioLab({ audio, names: PALETTE_NAMES, play, loop }));

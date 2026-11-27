@@ -3,12 +3,21 @@
  * palette sound and per loop, for a reviewer to audition the real engine in
  * the real game. Plain DOM, mounted once; never part of the normal build.
  */
-import { audio, loop, play } from "./live";
-import { PALETTE_NAMES, type LoopHandle, type LoopName } from "./palette";
+// Types only: the engine hands its functions in, so this QA chunk imports
+// nothing from the engine chunk (which keeps that chunk's name and exports).
+import type { AudioHost, PlayOptions } from "./engine";
+import type { LoopHandle, LoopName, PaletteName } from "./palette";
+
+export type LabDeps = {
+  audio: AudioHost;
+  names: readonly PaletteName[];
+  play: (name: PaletteName, opts?: PlayOptions) => boolean;
+  loop: (name: LoopName) => LoopHandle | null;
+};
 
 const LOOPS: LoopName[] = ["sizzle", "wheels", "crowd", "fountain-bed"];
 
-export function mountAudioLab() {
+export function mountAudioLab({ audio, names, play, loop }: LabDeps) {
   if (document.getElementById("audio-lab")) return;
   const panel = document.createElement("div");
   panel.id = "audio-lab";
@@ -27,7 +36,7 @@ export function mountAudioLab() {
     panel.append(b);
     return b;
   };
-  for (const name of PALETTE_NAMES) button(name, () => play(name, name === "flight" ? { duration: 4.6 } : {}));
+  for (const name of names) button(name, () => play(name, name === "flight" ? { duration: 4.6 } : {}));
   const running = new Map<LoopName, LoopHandle>();
   for (const name of LOOPS) {
     const b = button(`loop: ${name}`, () => {

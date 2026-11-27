@@ -30,6 +30,7 @@ import {
   type Tone,
 } from "./juice";
 import "./juice.css";
+import { exposeQa } from "../../../stage/qa";
 
 const reduced = () =>
   typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -184,6 +185,7 @@ export const juice = {
   haptic: safe(haptic),
   pool,
 };
+exposeQa({ juice });
 
 const scratch = new Vector3();
 /** World point → viewport px with the given camera and canvas. */
