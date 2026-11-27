@@ -14,6 +14,7 @@ import { journeyGate } from "./journey";
 import type { TravelOption } from "./travel";
 import { useWorldView } from "./worldView";
 import { useStage } from "../../stage/contract";
+import { readSoundPrefs, snapLevel, writeSoundPrefs, type SoundPrefs } from "./audio/prefs";
 export type Scene = "hub" | "rowing" | "secret" | PlaceId;
 let storageIssue = "";
 let savedRaw: string | null = null;
@@ -31,6 +32,14 @@ let writeAllowed = true;
 /** The save object last written to storage (skip identical autosaves). */
 let lastWritten: Save | null = null;
 const initial = load();
+const soundStorage = () => {
+  try {
+    return typeof localStorage === "undefined" ? undefined : localStorage;
+  } catch {
+    return undefined;
+  }
+};
+const initialSound = readSoundPrefs(soundStorage());
 if (!canWalk(initial.position[0], initial.position[1], initial.world))
   initial.position = [0, 5];
 if (storageIssue) writeAllowed = false;
@@ -88,7 +97,12 @@ type State = {
     | "desk";
   near: string;
   notice: string;
+  /** Master mute. Mirrors `sound.muted`; setting either keeps both in step. */
   muted: boolean;
+  /** The visitor's sound preference, remembered under `joshua-exe-sound-v1`. */
+  sound: SoundPrefs;
+  /** Updates and remembers the sound preference (mute, music, effects 0–100). */
+  setSound: (patch: Partial<SoundPrefs>) => void;
   quality: "high" | "low";
   result: null | {
     game: string;
@@ -113,7 +127,25 @@ export const useGame = create<State>((set, get) => ({
   panel: "none",
   near: "",
   notice: storageIssue,
-  muted: true,
+  muted: initialSound.muted,
+  sound: initialSound,
+  setSound(patch) {
+    const current = get().sound;
+    const next: SoundPrefs = {
+      muted: typeof patch.muted === "boolean" ? patch.muted : current.muted,
+      music: snapLevel(patch.music, current.music),
+      effects: snapLevel(patch.effects, current.effects),
+    };
+    if (
+      next.muted === current.muted &&
+      next.music === current.music &&
+      next.effects === current.effects &&
+      get().muted === next.muted
+    )
+      return;
+    set({ sound: next, muted: next.muted });
+    writeSoundPrefs(soundStorage(), next);
+  },
   quality: "high",
   result: null,
   run: 0,
@@ -241,4 +273,14 @@ useWorldView.subscribe((next, previous) => {
 });
 useStage.subscribe((next, previous) => {
   if (next.mode === "game" && previous.mode !== "game") keepView();
+});
+
+/* Sound preference API (the settings panel, the header mute button and the
+ * M key call these). Older code that writes `muted` directly is mirrored. */
+export const setMuted = (muted: boolean) => useGame.getState().setSound({ muted });
+export const toggleMuted = () => setMuted(!useGame.getState().sound.muted);
+export const setMusicLevel = (music: number) => useGame.getState().setSound({ music });
+export const setEffectsLevel = (effects: number) => useGame.getState().setSound({ effects });
+useGame.subscribe((next) => {
+  if (next.muted !== next.sound.muted) next.setSound({ muted: next.muted });
 });

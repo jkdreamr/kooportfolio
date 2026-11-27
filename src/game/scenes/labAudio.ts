@@ -1,6 +1,24 @@
 import { useGame } from "../core/store";
+import { audio as host } from "../core/audio/live";
 
-let context: AudioContext | undefined;
+/** Beat Lab's own voices sit on the effects bus at this trim, under the
+ * engine's master chain (mute, levels, compressor, limiter). */
+export const LAB_LEVEL = 0.32;
+let out: GainNode | undefined;
+let outContext: BaseAudioContext | undefined;
+function output(audio: AudioContext): AudioNode {
+  if (!out || outContext !== audio) {
+    out = audio.createGain();
+    out.gain.value = LAB_LEVEL;
+    outContext = audio;
+    host.connect("sfx", out);
+  }
+  return out;
+}
+/** The engine's context, when a sound may be made now. */
+function labContext(): AudioContext | null {
+  return host.ready() ? (host.ctx ?? null) : null;
+}
 function playTone(
   audio: AudioContext,
   when: number,
@@ -18,7 +36,7 @@ function playTone(
   gain.gain.exponentialRampToValueAtTime(volume, when + 0.008);
   gain.gain.exponentialRampToValueAtTime(0.001, when + duration);
   osc.connect(gain);
-  gain.connect(audio.destination);
+  gain.connect(output(audio));
   osc.start(when);
   osc.stop(when + duration + 0.01);
   osc.onended = () => {
@@ -32,7 +50,8 @@ function playTone(
 export function labTone(lane: number) {
   if (useGame.getState().muted) return;
   try {
-    const audio = (context ??= new AudioContext());
+    const audio = labContext();
+    if (!audio) return;
     if (audio.state === "suspended") void audio.resume().catch(() => {});
     playTone(
       audio,
@@ -70,7 +89,7 @@ function kick(audio: AudioContext, when: number): OscillatorNode {
   gain.gain.setValueAtTime(0.55, when);
   gain.gain.exponentialRampToValueAtTime(0.001, when + 0.2);
   osc.connect(gain);
-  gain.connect(audio.destination);
+  gain.connect(output(audio));
   osc.start(when);
   osc.stop(when + 0.22);
   osc.onended = () => {
@@ -98,7 +117,7 @@ function noiseHit(
   gain.gain.exponentialRampToValueAtTime(0.001, when + duration);
   src.connect(filter);
   filter.connect(gain);
-  gain.connect(audio.destination);
+  gain.connect(output(audio));
   src.start(when);
   src.stop(when + duration + 0.01);
   src.onended = () => {
@@ -187,7 +206,7 @@ function voiceNote(
   gain.gain.setValueAtTime(0.001, when);
   gain.gain.exponentialRampToValueAtTime(spec.volume, when + spec.attack);
   gain.gain.exponentialRampToValueAtTime(0.001, when + duration);
-  gain.connect(audio.destination);
+  gain.connect(output(audio));
   let input: AudioNode = gain;
   let filter: BiquadFilterNode | undefined;
   if (spec.filter) {
@@ -387,7 +406,8 @@ export function scheduleLabBeat(
   };
   if (useGame.getState().muted) return cancel;
   try {
-    const audio = (context ??= new AudioContext());
+    const audio = labContext();
+    if (!audio) return cancel;
     const stepsPerBar = beatsPerBar * 4;
     const stepInterval = beatInterval / 4;
     const countInSteps = countInBars * stepsPerBar;

@@ -3,6 +3,31 @@ import { undersideSpec } from "./islandUnderside";
 import { POND } from "./pond";
 import { campusFountainWorld } from "./campus";
 import type { WorldId } from "./worlds";
+import { doorsInWorld } from "./world";
+import { sampleWeather } from "./weather";
+import { sampleDaylight } from "./daylight";
+import {
+  birdCall,
+  carPass,
+  cityBed,
+  MAX_EVENTS,
+  murmurBuffer,
+  pickEvents,
+  placeEvent,
+  windBed,
+  windChime,
+  WORLD_AMBIENCE,
+  type Bed,
+} from "./audio/ambience";
+import { noiseBuffer } from "./audio/palette";
+import { seededNoise, type Bus } from "./audio/graph";
+import { audio as liveHost } from "./audio/live";
+
+/** What the ambience needs from the audio engine (injectable for tests). */
+export type AmbientHost = {
+  unlock(): AudioContext | null;
+  connect(bus: Bus, node: AudioNode): () => void;
+};
 
 export type AmbientEnvironment = {
   muted: boolean;
@@ -27,14 +52,17 @@ const FILES = {
   water: "/audio/water.mp3",
   rain: "/audio/rain.mp3",
 } as const;
-type Layer = keyof typeof FILES;
+type Recorded = keyof typeof FILES;
+/** Recorded layers plus the synthesised crowd murmur and fountain spray. */
+type Layer = Recorded | "crowd" | "spray";
 
 /** A looped recording placed in the world. Same buffers as the bed, started
  * at different offsets and rates so no two emitters phase against each other. */
 export type Emitter = {
   id: string;
-  /** A recording, or "spray": fountain splash synthesised in code. */
-  layer: Layer | "spray";
+  /** A recording, or synthesised in code: "spray" (fountain splash) or
+   * "crowd" (stadium murmur). */
+  layer: Layer;
   position: readonly [number, number, number];
   /** Linear gain at the reference distance. */
   level: number;
@@ -97,6 +125,19 @@ export function emittersFor(world: WorldId = "home"): Emitter[] {
       when: "always",
       ref: 2.5,
     });
+  // A crowd murmur spills out of the stadium's gate.
+  const stadium = doorsInWorld(world).find((door) => door.id === "stadium");
+  if (stadium)
+    list.push({
+      id: "stadium-crowd",
+      layer: "crowd",
+      position: [stadium.footprint[0], 3, stadium.footprint[1]],
+      level: 0.05,
+      rate: 1,
+      tone: { type: "lowpass", frequency: 1800 },
+      when: "always",
+      ref: 6,
+    });
   const outline = spec.outline,
     n = outline.length;
   let cx = 0,
@@ -136,10 +177,13 @@ export function emittersFor(world: WorldId = "home"): Emitter[] {
 
 /** Bed (non-positional) mix for a scene: open-air activities keep the old
  * policy; houses hear a muffled version of the outdoors, never the river. */
+/** Wind bed level outdoors: 0.01 in still air, 0.04 at the weather's strongest. */
+export const windLevel = (hour: number) => 0.01 + 0.03 * Math.min(1, Math.max(0, sampleWeather(hour).wind / 0.5));
+
 export function bedMix(e: AmbientEnvironment) {
   if (OUTDOOR.has(e.scene) && e.scene !== "hub")
-    return ambientMix(e.hour, e.x, e.z, e.scene);
-  const outside = ambientMix(e.hour, e.x, e.z, "hub");
+    return { ...ambientMix(e.hour, e.x, e.z, e.scene), wind: windLevel(e.hour) };
+  const outside = { ...ambientMix(e.hour, e.x, e.z, "hub"), wind: windLevel(e.hour) };
   if (e.scene === "hub")
     // Emitters carry the birds, crickets and water; the bed keeps a faint,
     // everywhere wash of birdsong so the far side of the island is not dead.
@@ -169,9 +213,15 @@ type Voice = {
 /** Owns every source so mute, navigation and async loads cannot leave orphan audio. */
 export class AmbientAudio {
   private context?: AudioContext;
-  private buffers = new Map<Layer, AudioBuffer>();
+  private buffers = new Map<Recorded, AudioBuffer>();
   private sprayBuffer?: AudioBuffer;
-  private gains = new Map<Layer, GainNode>();
+  private gains = new Map<Recorded, GainNode>();
+  private output?: () => void;
+  private city?: Bed;
+  private events?: GainNode;
+  private live: { end: number; sources: AudioScheduledSourceNode[] }[] = [];
+  private lastTick = 0;
+  private rnd = seededNoise(4242);
   private sources: AudioScheduledSourceNode[] = [];
   private nodes: AudioNode[] = [];
   private voices: Voice[] = [];
@@ -187,13 +237,18 @@ export class AmbientAudio {
   private starting = false;
   private disposed = false;
 
-  constructor(private environment: () => AmbientEnvironment) {}
+  constructor(
+    private environment: () => AmbientEnvironment,
+    private host: AmbientHost = liveHost,
+  ) {}
 
-  /** Must be called synchronously from a pointer/keyboard gesture, never on mount. */
+  /** Must be called synchronously from a pointer/keyboard gesture, never on mount.
+   * The context is the engine's one shared context. */
   unlock() {
     if (this.disposed) return;
     try {
-      this.context ??= new AudioContext();
+      this.context ??= this.host.unlock() ?? undefined;
+      if (!this.context) return;
       void this.context
         .resume()
         .then(() => this.sync())
@@ -263,6 +318,62 @@ export class AmbientAudio {
     this.engine?.frequency.setTargetAtTime(plane.x < 0 ? 82 : 71, t, 0.5);
     if (this.enginePanner) setPosition(this.enginePanner, t, plane.x, plane.y, plane.z);
     this.windGain?.gain.setTargetAtTime(mix.wind, t, 0.8);
+    const world = e.world ?? "home";
+    this.city?.gain.gain.setTargetAtTime(WORLD_AMBIENCE[world].city * (inside ? 0.4 : 1), t, 1.2);
+    try {
+      this.tickEvents(context, e, world, hub);
+    } catch {
+      /* Events are garnish; a failure never touches the beds. */
+    }
+  }
+
+  /** Bird calls, far cars and the wind chime: a few short voices at a time. */
+  private tickEvents(context: AudioContext, e: AmbientEnvironment, world: WorldId, hub: boolean) {
+    const t = context.currentTime;
+    const dt = Math.min(0.5, Math.max(0, t - this.lastTick));
+    this.lastTick = t;
+    this.live = this.live.filter((v) => v.end > t);
+    if (!this.events || !hub || dt <= 0) return;
+    const day = 1 - sampleDaylight(e.hour).night;
+    const weather = sampleWeather(e.hour);
+    const kinds = pickEvents(
+      world,
+      { day: day * (1 - weather.rain * 0.9) * (1 - weather.snow), wind: weather.wind, outdoors: true },
+      dt,
+      MAX_EVENTS - this.live.length,
+      this.rnd,
+    );
+    if (!kinds.length) return;
+    const [fx, fz] = e.facing ?? [-70, -95];
+    const listener = { x: e.x, z: e.z, fx, fz };
+    const groves = emittersFor(world).filter((em) => em.layer === "birds");
+    for (const kind of kinds) {
+      const r = Math.abs(this.rnd());
+      const at: [number, number] =
+        kind === "bird" && groves.length
+          ? [groves[Math.floor(r * groves.length) % groves.length].position[0] + this.rnd() * 6, groves[Math.floor(r * groves.length) % groves.length].position[2] + this.rnd() * 6]
+          : kind === "car"
+            ? [e.x + Math.cos(r * 6.283) * 70, e.z + Math.sin(r * 6.283) * 70]
+            : [4, -6];
+      const place = placeEvent(listener, at, kind === "car" ? 40 : 10);
+      if (place.gain < 0.08) continue;
+      const pan = context.createStereoPanner?.();
+      const out: AudioNode = pan ?? this.events;
+      if (pan) {
+        pan.pan.value = place.pan;
+        pan.connect(this.events);
+      }
+      const start = t + 0.02 + Math.abs(this.rnd()) * 0.08;
+      const voice =
+        kind === "bird"
+          ? birdCall(context, out, start, WORLD_AMBIENCE[world].birds[Math.floor(r * 2) % WORLD_AMBIENCE[world].birds.length], this.rnd, 0.05 * place.gain)
+          : kind === "car"
+            ? carPass(context, out, start, noiseBuffer(context), this.rnd, 0.025 * place.gain)
+            : windChime(context, out, start, this.rnd, 0.012 * place.gain);
+      const last = voice.sources[voice.sources.length - 1];
+      if (pan && last) last.onended = () => pan.disconnect();
+      this.live.push(voice);
+    }
   }
 
   private placeListener(context: AudioContext, e: AmbientEnvironment) {
@@ -313,7 +424,9 @@ export class AmbientAudio {
       const buffer =
         emitter.layer === "spray"
           ? (this.sprayBuffer ??= sprayBuffer(context))
-          : this.buffers.get(emitter.layer);
+          : emitter.layer === "crowd"
+            ? murmurBuffer(context)
+            : this.buffers.get(emitter.layer);
       if (!buffer) continue;
       const source = context.createBufferSource(),
         gain = context.createGain(),
@@ -374,7 +487,7 @@ export class AmbientAudio {
     const request = new AbortController();
     this.request = request;
     await Promise.all(
-      (Object.keys(FILES) as Layer[]).map(async (layer) => {
+      (Object.keys(FILES) as Recorded[]).map(async (layer) => {
         if (this.buffers.has(layer)) return;
         try {
           const response = await fetch(FILES[layer], {
@@ -415,7 +528,8 @@ export class AmbientAudio {
     spatial.gain.value = 0;
     interior.connect(master);
     spatial.connect(master);
-    master.connect(context.destination);
+    // Through the engine's ambience bus: master chain, mute, levels, ducking.
+    this.output = this.host.connect("ambience", master);
     this.interior = interior;
     this.spatial = spatial;
     this.nodes.push(master, interior, spatial);
@@ -452,29 +566,21 @@ export class AmbientAudio {
     this.enginePanner = enginePanner;
     this.sources.push(engine);
     this.nodes.push(filter, gain, enginePanner);
-    // Seeded filtered air noise under the snow/mist, not a downloaded wind sample.
-    const wind = context.createBufferSource(),
-      windFilter = context.createBiquadFilter(),
-      windGain = context.createGain();
-    const windBuffer = context.createBuffer(1, 44100, 22050),
-      samples = windBuffer.getChannelData(0);
-    let seed = 731;
-    for (let i = 0; i < samples.length; i++) {
-      seed = (Math.imul(seed, 1664525) + 1013904223) | 0;
-      samples[i] = seed / 2147483648;
-    }
-    wind.buffer = windBuffer;
-    wind.loop = true;
-    windFilter.type = "lowpass";
-    windFilter.frequency.value = 420;
-    windGain.gain.value = 0;
-    wind.connect(windFilter);
-    windFilter.connect(windGain);
-    windGain.connect(interior);
-    wind.start();
-    this.windGain = windGain;
-    this.sources.push(wind);
-    this.nodes.push(windFilter, windGain);
+    // Pink-noise wind with slow gusts, then the far city; both synthesised.
+    const wind = windBed(context, interior);
+    this.windGain = wind.gain;
+    this.sources.push(...wind.sources);
+    this.nodes.push(...wind.nodes);
+    const city = cityBed(context, interior);
+    this.city = city;
+    this.sources.push(...city.sources);
+    this.nodes.push(...city.nodes);
+    // Event voices (birds, cars, chime) share one gain into the bed path.
+    const events = context.createGain();
+    events.gain.value = 1;
+    events.connect(interior);
+    this.events = events;
+    this.nodes.push(events);
     this.sync();
   }
 
@@ -493,6 +599,18 @@ export class AmbientAudio {
       source.disconnect();
     }
     for (const node of this.nodes) node.disconnect();
+    for (const voice of this.live)
+      for (const source of voice.sources)
+        try {
+          source.stop();
+        } catch {
+          /* Already ended. */
+        }
+    this.live = [];
+    this.output?.();
+    this.output = undefined;
+    this.city = undefined;
+    this.events = undefined;
     this.sources = [];
     this.nodes = [];
     this.voices = [];
@@ -511,7 +629,7 @@ export class AmbientAudio {
     this.stop();
     this.buffers.clear();
     this.sprayBuffer = undefined;
-    void this.context?.close().catch(() => {});
+    // The context is the engine's, shared with every other sound: not closed here.
     this.context = undefined;
   }
 }

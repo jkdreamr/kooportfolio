@@ -3,6 +3,17 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 vi.mock("../src/game/core/store", () => ({
   useGame: { getState: () => ({ muted: false }) },
 }));
+// The engine host: one shared context, created by the (faked) gesture.
+vi.mock("../src/game/core/audio/live", () => {
+  const host = {
+    get ctx() {
+      return new (globalThis as unknown as { AudioContext: new () => unknown }).AudioContext();
+    },
+    ready: () => ({}),
+    connect: () => () => {},
+  };
+  return { audio: host };
+});
 
 function oscillator() {
   return {

@@ -3,8 +3,9 @@
  * for a sound. Owned by the sound/game-feel workstream; this is the shared
  * contract. Code outside the engine chunk can ask without importing this:
  *   window.dispatchEvent(new CustomEvent("stage-cue", { detail: { name: "tear" } }))
+ * (`detail` may also carry `pan`, `gain` and, for `flight`, `duration` in s.)
  */
-import { sound } from "../sound";
+import { play } from "./live";
 
 export type Cue =
   | "ui-open"
@@ -23,13 +24,19 @@ export type Cue =
   | "travel-arrive"
   | "fountain";
 
-export type CueOptions = { pan?: number; gain?: number };
+export type CueOptions = {
+  pan?: number;
+  gain?: number;
+  /** `flight`: the camera flight's length in seconds (default 4.6). */
+  duration?: number;
+  /** `ui-toggle`: turning something off plays the two notes reversed. */
+  off?: boolean;
+};
 
-/** Plays a cue. Unmapped cues are silent for now. */
+/** Plays a cue through the audio engine. Silent while muted, with the tab
+ * hidden, on the portfolio pages, or before the first in-game gesture. */
 export function cue(name: Cue, opts?: CueOptions): void {
-  void opts;
-  if (name === "ui-open") sound("open");
-  else if (name === "ui-close") sound("close");
+  play(name, opts);
 }
 
 const CUES: ReadonlySet<string> = new Set<Cue>([
@@ -38,14 +45,22 @@ const CUES: ReadonlySet<string> = new Set<Cue>([
 ]);
 export const isCue = (v: unknown): v is Cue => typeof v === "string" && CUES.has(v);
 
+const finite = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
+
 let listening = false;
 /** Lets code outside the engine chunk request cues via a window event. */
 export function listenForStageCues(): () => void {
   if (listening || typeof window === "undefined") return () => {};
   listening = true;
   const onCue = (e: Event) => {
-    const detail = (e as CustomEvent<{ name?: unknown; pan?: number; gain?: number }>).detail;
-    if (detail && isCue(detail.name)) cue(detail.name, { pan: detail.pan, gain: detail.gain });
+    const detail = (e as CustomEvent<{ name?: unknown; pan?: unknown; gain?: unknown; duration?: unknown; off?: unknown }>).detail;
+    if (detail && isCue(detail.name))
+      cue(detail.name, {
+        pan: finite(detail.pan),
+        gain: finite(detail.gain),
+        duration: finite(detail.duration),
+        off: detail.off === true,
+      });
   };
   window.addEventListener("stage-cue", onCue);
   return () => {
@@ -53,3 +68,15 @@ export function listenForStageCues(): () => void {
     window.removeEventListener("stage-cue", onCue);
   };
 }
+// The engine chunk always loads this module (via sound.ts), so stage cues
+// dispatched by the portfolio and the tear are heard without any wiring.
+listenForStageCues();
+
+// QA builds only: `/play?audio-lab=1` mounts a button per sound. The guard is
+// a build-time constant, so the normal build drops the import entirely.
+if (
+  (import.meta.env.DEV || import.meta.env.VITE_QA === "1") &&
+  typeof location !== "undefined" &&
+  new URLSearchParams(location.search).has("audio-lab")
+)
+  void import("./lab").then((lab) => lab.mountAudioLab());

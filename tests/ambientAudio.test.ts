@@ -8,8 +8,9 @@ import {
 } from "../src/game/core/ambientAudio";
 import { surfaceAt } from "../src/game/core/sound";
 
-// 4 bed loops + engine + wind, then one voice per emitter once in the hub.
-const BASE = 6;
+// 4 bed loops + engine + wind (noise + gust LFO) + far city, then one voice
+// per emitter once in the hub.
+const BASE = 8;
 const HOME_VOICES = emittersFor("home").length;
 
 const param = () => ({ value: 0, setTargetAtTime: vi.fn() });
@@ -94,7 +95,18 @@ beforeEach(() => {
     "fetch",
     vi.fn(async () => new Response(new Uint8Array([0, 1, 2]))),
   );
-  audio = new AmbientAudio(() => environment);
+  // The engine's role, reduced: hand out one context, accept the bus output.
+  const host = {
+    unlock: () => {
+      try {
+        return new (globalThis as unknown as { AudioContext: new () => AudioContext }).AudioContext();
+      } catch {
+        return null;
+      }
+    },
+    connect: () => () => {},
+  };
+  audio = new AmbientAudio(() => environment, host);
 });
 afterEach(() => {
   audio.dispose();
@@ -152,7 +164,8 @@ describe("ambient audio lifecycle", () => {
       );
       expect(fetch).toHaveBeenCalledTimes(4);
       audio.dispose();
-      expect(contexts[0].close).toHaveBeenCalledTimes(1);
+      // The context is the engine's shared one: ambience never closes it.
+      expect(contexts[0].close).toHaveBeenCalledTimes(0);
       audio.unlock();
       expect(contexts).toHaveLength(1);
     },
@@ -173,7 +186,6 @@ describe("ambient audio lifecycle", () => {
     for (const resolve of responses) resolve(new Response(new Uint8Array([0])));
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(sources).toHaveLength(0);
-    expect(contexts[0].close).toHaveBeenCalledTimes(1);
   });
 
   it("fails silently if the browser has no AudioContext or media cannot load", async () => {
@@ -189,7 +201,9 @@ describe("ambient audio lifecycle", () => {
       }),
     );
     audio.unlock();
-    await vi.waitFor(() => expect(sources).toHaveLength(2));
+    // Engine drone, wind (noise + gust LFO), the far city and the stadium
+    // crowd emitter: all synthesised, so they play with no media at all.
+    await vi.waitFor(() => expect(sources).toHaveLength(5));
     expect(sources[0].type).toBe("sawtooth");
   });
 
