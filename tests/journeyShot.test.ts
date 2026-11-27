@@ -149,3 +149,14 @@ describe("clock on load (B7a)", () => {
     expect(useTimeOfDay.getState().timeZone).toBe("America/Los_Angeles");
   });
 });
+
+describe("ride lengths match the Travel panel's copy", () => {
+  it("Fly · 18 s, Train · 14 s, 6 s with reduced motion", async () => {
+    const { readFileSync } = await import("node:fs");
+    const source = readFileSync(new URL("../src/game/ui/TravelMap.tsx", import.meta.url), "utf8");
+    const ride = /RIDE_SECONDS = \{ plane: (\d+), train: (\d+) \}/.exec(source);
+    const reduced = /REDUCED_RIDE_SECONDS = (\d+)/.exec(source);
+    expect(ride && [+ride[1], +ride[2]]).toEqual([JOURNEY_SHOT.rideSeconds.plane, JOURNEY_SHOT.rideSeconds.train]);
+    expect(reduced && +reduced[1]).toBe(JOURNEY_SHOT.reducedSeconds);
+  });
+});

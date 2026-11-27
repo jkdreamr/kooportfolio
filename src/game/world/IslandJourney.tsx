@@ -288,7 +288,7 @@ export function IslandJourney({
         daylightClock.heldBy = "journey";
       }
     } else if (phase.current === "ride") {
-      const rideSeconds = reduced ? JOURNEY_SHOT.reducedSeconds : plane ? 18 : 14;
+      const rideSeconds = reduced ? JOURNEY_SHOT.reducedSeconds : JOURNEY_SHOT.rideSeconds[trip.mode];
       if (r.frozen) {
         // Hold at the swap until the destination has been drawn twice.
         r.hold += dt;

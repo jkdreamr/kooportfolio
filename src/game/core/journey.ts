@@ -61,6 +61,8 @@ export const JOURNEY_SHOT = {
   veilFar: 60,
   /** Cap on holding the swap until the destination has been drawn. */
   holdCap: 2.5,
+  /** Ride length in seconds (the Travel panel quotes the same numbers). */
+  rideSeconds: { plane: 18, train: 14 },
   /** Reduced motion: whole ride, and the fog cross-fade at the midpoint. */
   reducedSeconds: 6,
   reducedVeilSeconds: 0.4,
