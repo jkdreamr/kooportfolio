@@ -1,0 +1,342 @@
+/* HUD layout: where the shared pieces sit, so they never cover the player,
+   the dock or each other. Imported by game.css after hud-motion.css; every
+   selector carries a doubled .game-shell so it outranks the older sheets
+   (and game.css's own rules, which follow the imports) without !important. */
+
+/* ── First steps: never over the player ───────────────────────────────── */
+@keyframes first-steps-in {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+  }
+}
+@keyframes first-steps-out {
+  to {
+    opacity: 0;
+    translate: 0 -4px;
+  }
+}
+/* Mouse and keyboard: bottom-left, just above the footer. */
+.game-shell.game-shell .first-steps {
+  left: max(24px, env(safe-area-inset-left));
+  right: auto;
+  bottom: calc(64px + env(safe-area-inset-bottom));
+  translate: 0 0;
+  animation-name: first-steps-in;
+}
+.game-shell.game-shell .first-steps[data-phase="exit"] {
+  animation-name: first-steps-out;
+}
+/* Touch: top-centre under the world name, far from the stick and player. */
+@media (pointer: coarse) {
+  @keyframes first-steps-in-top {
+    from {
+      opacity: 0;
+      translate: -50% -6px;
+    }
+  }
+  @keyframes first-steps-out-top {
+    to {
+      opacity: 0;
+      translate: -50% -4px;
+    }
+  }
+  .game-shell.game-shell .first-steps {
+    left: 50%;
+    right: auto;
+    top: max(112px, calc(env(safe-area-inset-top) + 100px));
+    bottom: auto;
+    translate: -50% 0;
+    max-width: calc(100vw - 32px);
+    white-space: normal;
+    text-align: center;
+    animation-name: first-steps-in-top;
+  }
+  .game-shell.game-shell .first-steps[data-phase="exit"] {
+    animation-name: first-steps-out-top;
+  }
+  .game-shell.game-shell .first-steps::before {
+    display: none;
+  }
+}
+
+/* ── Footer: legible, quiet, one pulse per save ───────────────────────── */
+.game-shell.game-shell .game-footer {
+  font-size: var(--text-xs);
+  color: rgb(255 255 255 / 0.7);
+  text-shadow: 0 1px 4px #0d233b80;
+  letter-spacing: 0;
+}
+.game-shell.game-shell .game-footer button {
+  font-size: var(--text-xs);
+  color: rgb(255 255 255 / 0.7);
+  text-shadow: 0 1px 4px #0d233b80;
+}
+.game-shell.game-shell .game-footer button:hover {
+  color: #fff;
+}
+.game-shell .save-indicator > i {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 8px;
+  vertical-align: 1px;
+  border-radius: 50%;
+  background: #c0dc91;
+}
+@keyframes save-pulse {
+  50% {
+    opacity: 0.6;
+  }
+}
+.game-shell .save-indicator[data-pulse] {
+  animation: save-pulse 600ms var(--motion-ease, ease) 1;
+}
+
+/* ── Interior header: one glass bar, story docked beneath ─────────────── */
+.game-shell.game-shell .interior-intro {
+  position: absolute;
+  z-index: 45;
+  top: max(92px, calc(env(safe-area-inset-top) + 84px));
+  left: max(24px, env(safe-area-inset-left));
+  width: min(360px, calc(100vw - 48px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.game-shell.game-shell .interior-intro .interior-heading {
+  position: static;
+  inset: auto;
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "exit title"
+    "launch launch";
+  align-items: center;
+  column-gap: 12px;
+  padding: 8px 14px 8px 8px;
+  color: var(--glass-ink);
+  background: var(--glass-sheen) var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  backdrop-filter: var(--glass-blur-sm);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--glass-radius);
+  box-shadow: var(--glass-highlight), var(--glass-shadow-sm);
+  pointer-events: auto;
+  text-shadow: none;
+}
+.game-shell.game-shell .interior-intro .interior-title {
+  grid-area: title;
+  margin: 0;
+  font: 700 var(--text-lg) / var(--leading-title) var(--font-ui);
+  letter-spacing: 0;
+  color: var(--glass-ink);
+  overflow-wrap: anywhere;
+  text-shadow: none;
+}
+.game-shell.game-shell .interior-intro .interior-heading > .back-link {
+  grid-area: exit;
+  order: 0;
+  margin: 0;
+}
+.game-shell.game-shell .interior-launchers {
+  grid-area: launch;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 4px 4px;
+}
+.game-shell.game-shell .interior-launchers .launcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--hit-min);
+  padding: 8px 14px;
+  font: 600 var(--text-sm) / 1.2 var(--font-ui);
+  color: var(--glass-ink);
+  background: var(--glass-well);
+  border: 1px solid var(--glass-hairline);
+  border-radius: 12px;
+  box-shadow: none;
+  cursor: pointer;
+}
+.game-shell.game-shell .interior-launchers .launcher:hover {
+  background: var(--glass-well-hover);
+}
+.game-shell.game-shell .interior-launchers .launcher.is-primary {
+  color: var(--glass-accent-ink);
+  background: var(--glass-accent);
+  border-color: var(--glass-accent-border);
+}
+.game-shell.game-shell .interior-launchers .launcher.is-primary:hover {
+  background: var(--glass-accent-hover);
+}
+.game-shell.game-shell .interior-launchers .launcher:focus-visible {
+  outline: 3px solid var(--glass-focus);
+  outline-offset: 2px;
+}
+.game-shell .interior-launchers kbd {
+  display: inline-grid;
+  place-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  font: 600 var(--text-xs) / 1 var(--font-ui);
+  border: 1px solid rgb(255 255 255 / 0.35);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  opacity: 0.85;
+}
+@media (pointer: coarse) {
+  .game-shell .interior-launchers kbd {
+    display: none;
+  }
+}
+/* The story card docks under the bar at the same width. */
+.game-shell.game-shell .interior-intro .room-story {
+  position: static;
+  inset: auto;
+  transform: none;
+  width: auto;
+  max-width: none;
+  margin: 0;
+  pointer-events: auto;
+}
+.game-shell.game-shell .interior-intro .room-story[hidden] {
+  display: none;
+}
+.game-shell.game-shell .interior-intro .room-story::after {
+  display: none;
+}
+@media (max-width: 700px) {
+  .game-shell.game-shell .interior-intro {
+    left: max(16px, env(safe-area-inset-left));
+    width: calc(100vw - 32px);
+    top: max(76px, calc(env(safe-area-inset-top) + 68px));
+  }
+}
+
+/* ── Modals: above the dock; bottom sheets on phones ──────────────────── */
+.game-shell.game-shell .scene-hub .modal-scrim {
+  padding-bottom: calc(var(--dock-clear, 24px) + 16px);
+}
+.game-shell.game-shell .scene-hub .game-modal {
+  max-height: calc(100svh - var(--dock-clear, 24px) - 32px - max(16px, env(safe-area-inset-top)));
+}
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    translate: 0 24px;
+  }
+}
+@media (max-width: 700px) and (pointer: coarse) {
+  .game-shell.game-shell .modal-scrim {
+    align-items: flex-end;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  .game-shell.game-shell .game-modal {
+    max-width: none;
+    padding-top: 30px;
+    border-radius: 22px;
+    animation: sheet-in 320ms var(--motion-ease) both;
+  }
+  .game-shell.game-shell .game-modal::before {
+    content: "";
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    width: 40px;
+    height: 4px;
+    margin-left: -20px;
+    border-radius: 2px;
+    background: rgb(255 255 255 / 0.4);
+  }
+}
+
+/* ── Toasts: bottom-centre above the dock ─────────────────────────────── */
+.game-shell.game-shell .scene-hub .game-toast {
+  bottom: calc(var(--dock-clear, 24px) + 16px);
+}
+
+/* ── Phone hub: view, zoom and clock fold into one 44 px row ──────────── */
+/* Right to left: clock chip (its native select opens the presets as the
+   system's own bottom sheet), zoom − / +, then the view toggle as an icon.
+   Nothing covers the sun or a quarter of the screen any more. */
+@media (max-width: 700px) {
+  .game-shell.game-shell {
+    --phone-row-top: max(72px, calc(env(safe-area-inset-top) + 64px));
+    --phone-chip: 96px;
+    --phone-zoom: 92px;
+  }
+  .game-shell.game-shell .time-of-day-control,
+  .game-shell.game-shell .world-zoom,
+  .game-shell.game-shell .world-view-toggle {
+    top: var(--phone-row-top);
+    bottom: auto;
+    height: 44px;
+    min-height: 44px;
+  }
+  .game-shell.game-shell .time-of-day-control {
+    right: var(--world-control-right);
+    width: var(--phone-chip);
+    padding: 0 10px;
+    justify-content: center;
+    background: var(--glass-sheen) var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 14px;
+    box-shadow: var(--glass-highlight), var(--glass-shadow-sm);
+  }
+  .game-shell.game-shell .time-of-day-control svg {
+    flex: 0 0 15px;
+    width: 15px;
+  }
+  .game-shell.game-shell .time-of-day-control select {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    opacity: 0;
+  }
+  .game-shell.game-shell .time-of-day-control time {
+    color: var(--glass-ink);
+  }
+  .game-shell.game-shell .time-of-day-control:focus-within {
+    outline: 3px solid var(--glass-focus);
+    outline-offset: 2px;
+  }
+  .game-shell.game-shell .world-zoom {
+    right: calc(var(--world-control-right) + var(--phone-chip) + 6px);
+    width: var(--phone-zoom);
+  }
+  .game-shell.game-shell .world-zoom button:first-child {
+    display: none;
+  }
+  .game-shell.game-shell .world-zoom button:nth-child(2) {
+    border-left: 0;
+    border-radius: 13px 0 0 13px;
+  }
+  .game-shell.game-shell .world-zoom::before,
+  .game-shell.game-shell:has(.time-of-day-control) .world-zoom::before {
+    inset: -1px;
+    background: var(--glass-sheen) var(--glass-bg);
+  }
+  .game-shell.game-shell .world-view-toggle {
+    right: calc(var(--world-control-right) + var(--phone-chip) + var(--phone-zoom) + 12px);
+    width: 44px;
+    padding: 0;
+  }
+  /* Icon only on screen; the label stays for assistive tech. */
+  .game-shell.game-shell .world-view-toggle span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .game-shell.game-shell .world-view-coach {
+    display: none;
+  }
+}

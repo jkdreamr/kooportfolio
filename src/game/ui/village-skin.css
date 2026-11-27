@@ -73,7 +73,7 @@
   --world-control-width: 164px;
   --world-control-height: 38px;
   --world-control-bottom: calc(52px + env(safe-area-inset-bottom));
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-ui);
 }
 .game-shell .game-ui {
   color: var(--hud-ink);
@@ -175,7 +175,7 @@
   :is(.world-heading, .interior-heading, .challenge-heading, .build-heading)
   h1 {
   color: white;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-ui);
   font-weight: 600;
   letter-spacing: -0.8px;
   text-shadow: 0 1px 4px #0d233b40;
@@ -241,7 +241,7 @@
 }
 .game-shell :is(.race-instruments, .basket-score) strong {
   color: #fff8e3;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-ui);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   text-shadow: 0 1px 4px #0d233b40;
@@ -301,12 +301,12 @@
 .game-shell
   .scene-rowing
   :is(.stamina-label, .race-instruments small, .cadence-switch small) {
-  font-size: 11px;
+  font-size: var(--text-xs);
   letter-spacing: 0;
   opacity: 1;
 }
 .game-shell .scene-rowing .race-progress {
-  font-size: 10px;
+  font-size: var(--text-xs);
   letter-spacing: 0;
 }
 .game-shell .last-split {
@@ -393,7 +393,7 @@
 }
 .game-shell .game-modal h2 {
   color: #fff8e6;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-ui);
   font-weight: 600;
   letter-spacing: -0.5px;
   text-shadow: 0 1px 4px #0d233b40;
@@ -446,7 +446,7 @@
   top: 215px;
   margin: 0;
   max-width: 330px;
-  font-size: 12px;
+  font-size: var(--text-xs);
   line-height: 1.7;
   color: white;
   text-shadow: 0 1px 4px #0d233b40;
@@ -465,7 +465,7 @@
   border-color: var(--hud-rim);
 }
 .game-shell .room-story h2 {
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-ui);
 }
 .game-shell .room-story a {
   color: #f2d18b;
@@ -510,7 +510,7 @@
 }
 .game-shell .result-score {
   color: #fff3c9;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-ui);
   font-weight: 600;
 }
 .game-shell .joystick {
@@ -581,7 +581,7 @@
     justify-content: center;
     width: var(--world-control-width);
     min-height: 28px;
-    font-size: 11px;
+    font-size: var(--text-xs);
   }
 }
 @media (pointer: coarse) {
@@ -603,7 +603,7 @@
     padding: 16px;
   }
   .game-shell .scene-rowing :is(.stamina-label, .race-instruments small) {
-    font-size: 12px;
+    font-size: var(--text-xs);
   }
 }
 @media (min-width: 701px) and (max-height: 500px) {
@@ -612,7 +612,7 @@
     top: auto;
     bottom: 42px;
     max-width: 230px;
-    font-size: 10px;
+    font-size: var(--text-xs);
     line-height: 1.4;
   }
 }
@@ -646,7 +646,7 @@
   padding: 4px 10px;
   gap: 3px;
   border-radius: 4px;
-  font-size: 10px;
+  font-size: var(--text-xs);
   box-shadow: none;
 }
 .game-shell .world-toolbar > :is(button, a) svg {
@@ -671,7 +671,7 @@
   border: 0;
   border-radius: 4px;
   box-shadow: none;
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.2;
   text-shadow: none;
   isolation: isolate;
@@ -707,7 +707,7 @@
   padding: 9px 12px;
   border: 1px solid #718b65;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 .game-shell
   :is(
@@ -761,7 +761,7 @@
   top: max(83px, calc(env(safe-area-inset-top) + 68px));
   left: max(24px, env(safe-area-inset-left));
   color: #fff;
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 600;
   text-shadow: 0 1px 4px #173741;
   pointer-events: none;
@@ -799,38 +799,8 @@
   .game-shell .interior-intro ~ .context-action {
     bottom: var(--interior-action-bottom);
   }
-  .game-shell .interior-intro:has(.room-story:not([hidden])) {
-    position: absolute;
-    top: max(90px, calc(env(safe-area-inset-top) + 74px));
-    inset-inline: 0;
-    display: grid;
-    gap: 10px;
-  }
-  .game-shell
-    .interior-intro:has(.room-story:not([hidden])):has(
-      ~ .context-action.visible
-    ) {
-    bottom: calc(var(--interior-action-bottom) + 80px);
-    grid-template-rows: auto minmax(0, 1fr);
-  }
-  .game-shell .interior-intro:has(.room-story:not([hidden])) .interior-heading {
-    position: static;
-    margin-inline: 23px;
-  }
-  .game-shell .interior-intro:has(.room-story:not([hidden])) h1 {
-    margin-bottom: 0;
-  }
-  .game-shell .interior-intro .room-story {
-    position: relative;
-    inset: auto;
-    transform: none;
-    justify-self: center;
-  }
-  .game-shell .interior-intro:has(~ .context-action.visible) .room-story {
-    align-self: start;
-    max-height: 100%;
-    overflow: auto;
-  }
+  /* The interior header and its docked story card are laid out in
+     hud-layout.css for every width. */
 }
 @media (max-width: 700px) and (max-height: 650px) and (orientation: portrait) {
   .game-shell .game-ui {
@@ -964,11 +934,11 @@
   }
 }
 .game-shell .scene-rowing .stamina-label {
-  font-size: 11px;
+  font-size: var(--text-xs);
   opacity: 1;
 }
 .game-shell .scene-rowing .race-progress {
-  font-size: 10px;
+  font-size: var(--text-xs);
 }
 @media (min-width: 701px) and (min-height: 600px) {
   .game-shell .scene-rowing .race-control-panel {
@@ -978,6 +948,6 @@
     padding: 16px;
   }
   .game-shell .scene-rowing .stamina-label {
-    font-size: 12px;
+    font-size: var(--text-xs);
   }
 }

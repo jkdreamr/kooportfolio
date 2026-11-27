@@ -14,7 +14,7 @@
     inset 0 1px 0 #7c919766,
     0 7px 0 #13262f,
     0 20px 80px #0e202ab3;
-  font-family: "Trebuchet MS", Arial, sans-serif;
+  font-family: var(--font-ui);
   text-align: left;
   user-select: text;
 }
@@ -79,7 +79,7 @@
 .writing-dialog .writing-notice {
   margin: 0 16px 10px;
   color: var(--hud-muted, #c3d0d0);
-  font-size: 12px;
+  font-size: var(--text-xs);
   line-height: 1.5;
 }
 .writing-reader {
@@ -117,7 +117,7 @@
 .writing-dialog .writing-post-link span {
   margin-top: 6px;
   color: var(--hud-muted, #c3d0d0);
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 400;
 }
 .game-shell .writing-dialog .writing-post-link[aria-current="true"] {
@@ -141,7 +141,7 @@
   gap: 16px;
   margin: 0 0 24px;
   color: var(--hud-muted, #c3d0d0);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 .writing-dialog .writing-body {
   font: inherit;
@@ -156,7 +156,7 @@
 }
 .writing-remove {
   margin-top: 30px;
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 .writing-remove summary {
   cursor: pointer;
@@ -184,7 +184,7 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 700;
 }
 .writing-compose input,
@@ -221,7 +221,7 @@
   gap: 16px;
 }
 .writing-compose footer span {
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--hud-muted, #c3d0d0);
 }
 @media (max-width: 600px) {

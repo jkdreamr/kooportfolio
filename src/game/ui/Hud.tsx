@@ -37,6 +37,8 @@ import { startIdlePrewarm } from "../engine/prewarm";
 import type { PlaceId } from "../core/world";
 import { npcName } from "../core/npcState";
 import { TravelMap } from "./TravelMap";
+import { useLaunchers } from "../core/launchers";
+import { cue } from "../core/audio/cues";
 
 /** Knob travel in px from the centre of the 100px pad. */
 const STICK_TRAVEL = 30;
@@ -504,7 +506,7 @@ function Toast({ notice }: { notice: string }) {
  * container, which precedes the HUD in the DOM. */
 function roomPrimary(shell: Element) {
   for (const button of shell.querySelectorAll<HTMLElement>(
-    ".stage-canvas button:not([disabled])",
+    ".interior-launchers button:not([disabled]), .stage-canvas button:not([disabled])",
   ))
     if (
       button.getClientRects().length > 0 &&
@@ -608,6 +610,80 @@ function useSceneFocus(hudShown: boolean) {
     return () => window.removeEventListener("keydown", tab, true);
   }, []);
 }
+/**
+ * The room's games, from the launcher registry, inside the interior header:
+ * the first is the primary action, the rest are quiet. Hidden while a game
+ * is running so nothing can start twice.
+ */
+function RoomLaunchers({ scene }: { scene: Scene }) {
+  const launchers = useLaunchers(scene);
+  const playing = useGameMode((s) => !!s.active);
+  if (!launchers.length || playing) return null;
+  return (
+    <div className="interior-launchers">
+      {launchers.map((launcher, index) => (
+        <button
+          key={launcher.id}
+          type="button"
+          className={index === 0 ? "launcher is-primary" : "launcher"}
+          onClick={() => {
+            cue("ui-confirm");
+            launcher.start();
+          }}
+        >
+          {launcher.label}
+          {launcher.hint && (
+            <kbd className="keyboard-hint" aria-hidden="true">
+              {launcher.hint}
+            </kbd>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
+/** "Saved locally", with one soft pulse each time the save changes. */
+function SaveIndicator() {
+  const save = useGame((s) => s.save);
+  const first = useRef(save);
+  const [pulse, setPulse] = useState(0);
+  useEffect(() => {
+    if (save === first.current) return;
+    setPulse((n) => n + 1);
+  }, [save]);
+  return (
+    <span className="save-indicator" key={pulse} data-pulse={pulse > 0 || undefined}>
+      <i aria-hidden="true" /> Saved locally
+    </span>
+  );
+}
+/** Keeps `--dock-clear` (viewport bottom to the dock's top edge) on the
+ * shell, so modals and toasts can sit above the dock instead of over it. */
+function useDockClearance(active: boolean) {
+  useEffect(() => {
+    const shell = document.querySelector<HTMLElement>(".game-shell");
+    if (!shell) return;
+    if (!active) {
+      shell.style.removeProperty("--dock-clear");
+      return;
+    }
+    const dock = shell.querySelector<HTMLElement>(".world-toolbar");
+    if (!dock) return;
+    const measure = () => {
+      const top = dock.getBoundingClientRect().top;
+      const bottom = shell.getBoundingClientRect().bottom;
+      if (top > 0) shell.style.setProperty("--dock-clear", `${Math.round(bottom - top)}px`);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(dock);
+    observer.observe(shell);
+    return () => {
+      observer.disconnect();
+      shell.style.removeProperty("--dock-clear");
+    };
+  }, [active]);
+}
 export function Hud({ interact }: { interact: () => void }) {
   const pendingExit = useRef<Scene | null>(null);
   const gameMode = useGameMode((s) => s.active?.id);
@@ -682,6 +758,7 @@ export function Hud({ interact }: { interact: () => void }) {
   const hub = g.scene === "hub",
     interior = isInterior(g.scene),
     game = g.scene === "rowing" || g.scene === "basketball";
+  useDockClearance(hub);
   const closePanel = () => useGame.setState({ panel: "none" });
   // A quiet glass tick when a panel opens or closes (silent while muted).
   const lastPanel = useRef(g.panel);
@@ -743,9 +820,10 @@ export function Hud({ interact }: { interact: () => void }) {
       {hub && <span className="world-name">{WORLDS[g.world].name}</span>}
       {interior && (
         <div className="interior-intro">
-          <div className="interior-heading">
-            {/* The heading takes focus on entry (tabIndex -1); the Exit
-                button still reads first visually (CSS order). */}
+          <div className="interior-heading interior-bar">
+            {/* One glass bar: Exit, the room name, then the room's games.
+                The heading takes focus on entry (tabIndex -1); the Exit
+                button still reads first visually (grid placement). */}
             <h1 tabIndex={-1} className="interior-title">
               {g.scene === "secret"
                 ? "Hoover vault"
@@ -773,6 +851,7 @@ export function Hud({ interact }: { interact: () => void }) {
             >
               <span aria-live="polite">{leaving ? "Leaving…" : "← Exit"}</span>
             </button>
+            <RoomLaunchers scene={g.scene} />
           </div>
           <RoomStory
             key={g.scene}
@@ -961,9 +1040,7 @@ export function Hud({ interact }: { interact: () => void }) {
         </nav>
       )}
       <div className="game-footer">
-        <span>
-          <i /> Saved locally
-        </span>
+        <SaveIndicator />
         <button onClick={() => useGame.setState({ panel: "help" })}>
           <Icon name="help" size={15} />
           <span className="keyboard-hint">

@@ -44,7 +44,7 @@
   line-height: 1.4;
 }
 .island-map-stop span {
-  font-size: 11px;
+  font-size: var(--text-xs);
   margin-top: 2px;
 }
 .island-map-stop--home {
