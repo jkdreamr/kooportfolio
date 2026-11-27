@@ -13,16 +13,17 @@ import { restPose, solveJoints, makeJoints } from "../skeleton";
 import { buildFigure, PIECE_JOINT, type Figure, type PieceId } from "./figure";
 import { evalOps, pieceBounds, pad, SLOT, type Hit, type V3 } from "./sdf";
 import { decimate, project, surfaceNets, type RawMesh } from "./mesher";
+import { appendMesh, brows, emptyMesh, eyes, headSkin, mouth, vertexNormals, type AttrMesh } from "./head";
 
 const DEFAULT = { shirt: "#6f8670", pants: "#3a4547", skin: "#efc5a0", hair: "#3e3632", shoe: "#efe2c8", hat: "#e0b86d", band: "#b0573a" };
 export const PLAYER_IDS = { hat: "player:hat", bare: "player:bare" } as const;
 
 const TARGET: Record<string, [number, number]> = {
-  head: [2800, 560], eyes: [300, 160], chest: [1200, 260], pelvis: [420, 90], skirt: [620, 120],
-  upper: [250, 50], fore: [520, 100], thigh: [220, 45], shin: [200, 40], foot: [220, 45],
+  head: [1200, 300], eyes: [0, 0], chest: [950, 230], pelvis: [340, 80], skirt: [540, 120],
+  upper: [210, 50], fore: [380, 95], thigh: [190, 45], shin: [170, 40], foot: [190, 45],
 };
 const CELL: Record<string, number> = {
-  head: 0.006, eyes: 0.0032, chest: 0.0062, pelvis: 0.008, skirt: 0.007, upper: 0.0065, fore: 0.0055, thigh: 0.009, shin: 0.009, foot: 0.006,
+  head: 0.005, eyes: 0.0032, chest: 0.0062, pelvis: 0.008, skirt: 0.007, upper: 0.0065, fore: 0.0055, thigh: 0.009, shin: 0.009, foot: 0.006,
 };
 const base = (id: PieceId) => id.replace(/[LR]$/, "");
 
@@ -54,14 +55,17 @@ export function bake(log: (s: string) => void = console.log, only?: string[]) {
     const global = (p: V3) => {
       let d = 1e9;
       for (const [pid, piece] of entries) {
+        if (!piece.ops.length) continue;
         v3.set(p[0], p[1], p[2]).applyMatrix4(inv[PIECE_JOINT[pid]]);
         d = Math.min(d, evalOps(piece.ops, [v3.x, v3.y, v3.z], null));
       }
+      v3.set(p[0], p[1], p[2]).applyMatrix4(inv.head);
+      d = Math.min(d, evalOps(fig.headSkin, [v3.x, v3.y, v3.z], null));
       return d;
     };
     manifest[id] = { p: {}, skirtTop: fig.skirtTop };
     for (const [pid, piece] of entries) {
-      const key = pid + JSON.stringify(piece.ops) + JSON.stringify(fig.eyes) ;
+      const key = pid + JSON.stringify(piece.ops) + (pid === "head" || pid === "eyes" ? JSON.stringify(fig.face) : "");
       let ids = cache.get(key);
       if (!ids) {
         ids = meshPiece(pid, piece.ops, fig, rest[PIECE_JOINT[pid]], global, shapes);
@@ -84,120 +88,173 @@ function meshPiece(
   shapes: Shape[],
 ): [number, number] {
   const kind = base(pid);
-  const h = CELL[kind];
-  const bb = pad(pieceBounds({ ops }), h * 3);
-  const f = (x: number, y: number, z: number) => evalOps(ops, [x, y, z], null);
-  const raw = surfaceNets(f, bb.min, bb.max, h);
-  project(f, raw.pos, h * 0.5, 1);
-  const [ht, mt] = TARGET[kind];
-  // Faces and hands keep more detail.
-  const HC = fig.eyes[0].c[1] + 0.065;
-  const weight = (x: number, y: number, z: number) => {
-    if (kind === "head" && z > 0.1 && y > HC - 0.32 && y < HC + 0.16 && Math.abs(x) < 0.33) return 16;
-    if (kind === "eyes") return 6;
-    if (kind === "fore" && y < -0.2) return 4;
-    return 1;
-  };
-  // Material per raw vertex (colour borders survive decimation).
-  const hit: Hit = { d: 0, m: null };
-  const slots = new Int32Array(raw.pos.length / 3);
-  for (let i = 0; i < slots.length; i++) {
-    evalOps(ops, [raw.pos[i * 3], raw.pos[i * 3 + 1], raw.pos[i * 3 + 2]], hit);
-    slots[i] = hit.m!.slot === SLOT.iris ? SLOT.iris : hit.m!.slot;
+  const ctx = { pid, fig, restM, global };
+  const lods: AttrMesh[] = [emptyMesh(), emptyMesh()];
+  if (ops.length) {
+    const h = CELL[kind];
+    const bb = pad(pieceBounds({ ops }), h * 3);
+    const f = (x: number, y: number, z: number) => evalOps(ops, [x, y, z], null);
+    const raw = surfaceNets(f, bb.min, bb.max, h);
+    project(f, raw.pos, h * 0.5, 1);
+    const [ht, mt] = TARGET[kind];
+    const weight = (x: number, y: number, z: number) => {
+      if (kind === "fore" && y < -0.2) return 4;
+      if (kind === "head" && z > 0.0 && y < fig.HC[1] + 0.25) return 3;
+      return 1;
+    };
+    // Material per raw vertex (colour borders survive decimation).
+    const hit: Hit = { d: 0, m: null };
+    const slots = new Int32Array(raw.pos.length / 3);
+    for (let i = 0; i < slots.length; i++) {
+      evalOps(ops, [raw.pos[i * 3], raw.pos[i * 3 + 1], raw.pos[i * 3 + 2]], hit);
+      slots[i] = hit.m!.slot;
+    }
+    const meshes = raw.tri.length / 3 > ht ? decimate(raw, [ht, mt], weight, slots) : [raw, ...decimate(raw, [mt], weight, slots)];
+    if ((globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.BAKE_DEBUG)
+      console.log(`  ${pid}: raw ${raw.tri.length / 3} → ${meshes.map((m) => m.tri.length / 3).join(" / ")}`);
+    meshes.forEach((m, lod) => appendMesh(lods[lod], sdfAttributes(ctx, m, ops, h, lod)));
   }
-  const meshes = raw.tri.length / 3 > ht ? decimate(raw, [ht, mt], weight, slots) : [raw, ...decimate(raw, [mt], weight, slots)];
-  if ((globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.BAKE_DEBUG) console.log(`  ${pid}: raw ${raw.tri.length / 3} → ${meshes.map((m) => m.tri.length / 3).join(" / ")}`);
-  return meshes.map((m, lod) => {
-    shapes.push(attributes(pid, m, ops, fig, restM, global, h, lod));
+  if (pid === "head" || pid === "eyes") {
+    const HC = fig.HC;
+    for (const lod of [0, 1]) {
+      const hi = lod === 0;
+      const parts: AttrMesh[] = [];
+      if (pid === "head") {
+        const paint = (p: V3) => {
+          let bl = 0;
+          for (const c of fig.cheeks) bl = Math.max(bl, smooth(0.1, 0.0, Math.hypot(p[0] - c[0], (p[1] - c[1]) * 1.3, p[2] - c[2])));
+          const m = fig.mouth;
+          const lip = smooth(0.05, 0.015, Math.hypot((p[0] - m[0]) * 0.75, (p[1] - m[1]) * 1.6, p[2] - m[2]));
+          return lip > bl ? { slotB: SLOT.lip, mix: lip * 0.55 } : { slotB: SLOT.blush, mix: bl * 0.85 };
+        };
+        parts.push(headSkin(HC, hi ? 30 : 13, hi ? 38 : 16, paint));
+        parts.push(brows(HC, fig.face.browLift, fig.face.browRight, hi));
+        parts.push(mouth(HC, fig.face.expr, hi));
+      } else parts.push(eyes(HC, fig.face.eye, fig.face.flick, hi));
+      for (const m of parts) {
+        bakeShade(ctx, m, lod);
+        appendMesh(lods[lod], m);
+      }
+    }
+  }
+  return lods.map((m) => {
+    shapes.push(finalize(m));
     return shapes.length - 1;
   }) as [number, number];
 }
 
-function attributes(
-  pid: PieceId,
-  m: RawMesh,
-  ops: Parameters<typeof evalOps>[0],
-  fig: Figure,
-  restM: THREE.Matrix4,
-  global: (p: V3) => number,
-  h: number,
-  lod = 0,
-): Shape {
+type Ctx = { pid: PieceId; fig: Figure; restM: THREE.Matrix4; global: (p: V3) => number };
+const pc = new THREE.Vector3(), nc = new THREE.Vector3();
+/** Baked AO (whole figure) × height gradient, into rigA.w (keeps paint). */
+function shadeAt(ctx: Ctx, p: V3, n: V3, lod: number) {
+  const nm = new THREE.Matrix3().getNormalMatrix(ctx.restM);
+  pc.set(p[0], p[1], p[2]).applyMatrix4(ctx.restM);
+  nc.set(n[0], n[1], n[2]).applyMatrix3(nm).normalize();
+  let occ = 0;
+  const H = [0.012, 0.028, 0.05, 0.08, 0.12], W = [1, 0.8, 0.6, 0.45, 0.3];
+  // The mid mesh's big triangles would smear small creases: broad AO only.
+  for (let s = lod ? 2 : 0; s < H.length; s++) {
+    const g = ctx.global([pc.x + nc.x * H[s], pc.y + nc.y * H[s], pc.z + nc.z * H[s]]);
+    occ += (W[s] * Math.max(0, H[s] - g)) / H[s];
+  }
+  return Math.max(0.3, 1 - (lod ? 0.5 : 0.34) * occ) * (0.8 + 0.2 * smooth(0.05, 1.7, pc.y));
+}
+function bakeShade(ctx: Ctx, m: AttrMesh, lod: number) {
+  for (let i = 0; i < m.pos.length / 3; i++) {
+    const p: V3 = [m.pos[i * 3], m.pos[i * 3 + 1], m.pos[i * 3 + 2]];
+    const n: V3 = [m.nrm[i * 3], m.nrm[i * 3 + 1], m.nrm[i * 3 + 2]];
+    // Skin AO is softened (vinyl-smooth faces); decals keep their own shade.
+    const sh = m.a[i * 4] === SLOT.skin ? 0.35 + 0.65 * Math.max(0.55, shadeAt(ctx, p, n, lod)) : Math.max(0.85, shadeAt(ctx, p, n, lod));
+    m.a[i * 4 + 3] = Math.round(Math.min(1, sh * (m.a[i * 4 + 3] / 255)) * 255);
+  }
+}
+
+/** Taubin smoothing (no shrink): removes decimation facets. */
+function taubin(pos: Float64Array, tri: Uint32Array, iters: number) {
+  const n = pos.length / 3;
+  const nb: Set<number>[] = Array.from({ length: n }, () => new Set());
+  for (let t = 0; t < tri.length; t += 3)
+    for (let c = 0; c < 3; c++) {
+      nb[tri[t + c]].add(tri[t + ((c + 1) % 3)]);
+      nb[tri[t + c]].add(tri[t + ((c + 2) % 3)]);
+    }
+  const tmp = new Float64Array(pos.length);
+  for (let it = 0; it < iters * 2; it++) {
+    const k = it % 2 ? -0.53 : 0.5;
+    for (let v = 0; v < n; v++) {
+      let x = 0, y = 0, z = 0;
+      for (const u of nb[v]) { x += pos[u * 3]; y += pos[u * 3 + 1]; z += pos[u * 3 + 2]; }
+      const c = nb[v].size || 1;
+      tmp[v * 3] = pos[v * 3] + k * (x / c - pos[v * 3]);
+      tmp[v * 3 + 1] = pos[v * 3 + 1] + k * (y / c - pos[v * 3 + 1]);
+      tmp[v * 3 + 2] = pos[v * 3 + 2] + k * (z / c - pos[v * 3 + 2]);
+    }
+    pos.set(tmp);
+  }
+}
+
+function sdfAttributes(ctx: Ctx, m: RawMesh, ops: Parameters<typeof evalOps>[0], h: number, lod: number): AttrMesh {
   const f = (x: number, y: number, z: number) => evalOps(ops, [x, y, z], null);
   project(f, m.pos, h * 0.4, 2);
+  taubin(m.pos, m.tri, lod ? 1 : 2);
+  const out: AttrMesh = { pos: Array.from(m.pos), nrm: new Array(m.pos.length).fill(0), a: [], b: [], tri: Array.from(m.tri) };
+  vertexNormals(out);
   const n = m.pos.length / 3;
-  const nrm = new Int8Array(n * 3), a = new Uint8Array(n * 4), b = new Uint8Array(n * 4);
   const hit: Hit = { d: 0, m: null };
   const e = h * 0.5;
-  const pc = new THREE.Vector3(), nc = new THREE.Vector3();
-  const nm = new THREE.Matrix3().getNormalMatrix(restM);
-  const HCy = fig.eyes[0].c[1] + 0.065;
+  const HCy = ctx.fig.HC[1];
   for (let i = 0; i < n; i++) {
     const x = m.pos[i * 3], y = m.pos[i * 3 + 1], z = m.pos[i * 3 + 2];
     let gx = f(x + e, y, z) - f(x - e, y, z), gy = f(x, y + e, z) - f(x, y - e, z), gz = f(x, y, z + e) - f(x, y, z - e);
     const gl = Math.hypot(gx, gy, gz) || 1;
-    gx /= gl; gy /= gl; gz /= gl;
-    nrm[i * 3] = Math.round(gx * 127); nrm[i * 3 + 1] = Math.round(gy * 127); nrm[i * 3 + 2] = Math.round(gz * 127);
+    // Blend the field normal with the smoothed mesh normal (no facets,
+    // no shading that disagrees with the silhouette).
+    gx = gx / gl + out.nrm[i * 3]; gy = gy / gl + out.nrm[i * 3 + 1]; gz = gz / gl + out.nrm[i * 3 + 2];
+    const nl = Math.hypot(gx, gy, gz) || 1;
+    gx /= nl; gy /= nl; gz /= nl;
+    out.nrm[i * 3] = gx; out.nrm[i * 3 + 1] = gy; out.nrm[i * 3 + 2] = gz;
     evalOps(ops, [x, y, z], hit);
     const mat = hit.m!;
-    const slotA = mat.slot;
     let slotB = mat.slot, mixW = 0;
-    // Baked AO from the whole figure (chin, armpits, hair underside, hems).
-    pc.set(x, y, z).applyMatrix4(restM);
-    nc.set(gx, gy, gz).applyMatrix3(nm).normalize();
-    let occ = 0;
-    const H = [0.012, 0.028, 0.05, 0.08, 0.12], W = [1, 0.8, 0.6, 0.45, 0.3];
-    // The mid mesh's big triangles would smear small creases: broad AO only.
-    for (let s = lod ? 2 : 0; s < H.length; s++) {
-      const g = global([pc.x + nc.x * H[s], pc.y + nc.y * H[s], pc.z + nc.z * H[s]]);
-      occ += (W[s] * Math.max(0, H[s] - g)) / H[s];
-    }
-    let shade = Math.max(0.3, 1 - (lod ? 0.5 : 0.36) * occ);
-    // Gentle top-to-bottom gradient over the figure.
-    shade *= 0.8 + 0.2 * smooth(0.05, 1.7, pc.y);
-    let eu = 128, ev = 128;
-    if (mat.paint === "face" || (pid === "head" && mat.slot === SLOT.skin)) {
-      let bl = 0;
-      for (const c of fig.cheeks) bl = Math.max(bl, smooth(0.095, 0.0, Math.hypot(x - c[0], (y - c[1]) * 1.25, z - c[2])));
-      if (bl > 0.01) { slotB = SLOT.blush; mixW = bl; }
-      const m = fig.mouth;
-      const lip = smooth(0.045, 0.012, Math.hypot((x - m[0]) * 0.75, (y - m[1]) * 1.6, z - m[2]));
-      if (lip > bl) { slotB = SLOT.lip; mixW = lip * 0.75; }
-    }
+    let shade = shadeAt(ctx, [x, y, z], [gx, gy, gz], lod);
     if (mat.paint === "hair") {
       const band = smooth(0.3, 0.55, gy) * (1 - smooth(0.72, 0.92, gy));
       slotB = SLOT.hairLight; mixW = band * 0.7;
       shade *= 0.82 + 0.18 * smooth(HCy - 0.35, HCy + 0.3, y);
     }
-    if (mat.paint === "eye") {
-      const eye = fig.eyes[x > 0 ? 0 : 1];
-      // Eye-local coordinates (undo the eye's turn about y).
-      const dx = x - eye.c[0], dz = z - eye.c[2];
-      const lx = dx * Math.cos(eye.rot) - dz * Math.sin(eye.rot);
-      const u = lx / eye.r[0] - eye.iris[0];
-      const v = (y - eye.c[1]) / eye.r[1] - eye.iris[1];
-      eu = Math.round(Math.max(0, Math.min(255, (u * 0.5 + 0.5) * 255)));
-      ev = Math.round(Math.max(0, Math.min(255, (v * 0.5 + 0.5) * 255)));
-      shade = Math.max(shade, 0.85);
-    }
-    a[i * 4] = slotA; a[i * 4 + 1] = slotB; a[i * 4 + 2] = Math.round(mixW * 255); a[i * 4 + 3] = Math.round(Math.min(1, shade) * 255);
-    b[i * 4] = Math.round(mat.rough * 255); b[i * 4 + 1] = Math.round((mat.metal ?? 0) * 255); b[i * 4 + 2] = eu; b[i * 4 + 3] = ev;
+    out.a.push(mat.slot, slotB, Math.round(mixW * 255), Math.round(Math.min(1, shade) * 255));
+    out.b.push(Math.round(mat.rough * 255), Math.round((mat.metal ?? 0) * 255), 128, 128);
   }
-  // Quantise positions to the shape's bounds.
+  return out;
+}
+
+/** Quantise and delta-code a mesh for the binary. */
+function finalize(m: AttrMesh): Shape {
+  const n = m.pos.length / 3;
   const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
   for (let i = 0; i < n * 3; i++) { mn[i % 3] = Math.min(mn[i % 3], m.pos[i]); mx[i % 3] = Math.max(mx[i % 3], m.pos[i]); }
-  const pos = new Int16Array(n * 3);
-  for (let i = 0; i < n * 3; i++) {
-    const c = i % 3, span = mx[c] - mn[c] || 1;
-    pos[i] = Math.round(((m.pos[i] - mn[c]) / span) * 65534 - 32767);
-  }
-  // Delta-code positions (vertices are in first-use order, so neighbours
-  // are close) and indices as "high-watermark − index": both gzip far better.
+  if (!n) { mn.fill(0); mx.fill(1); }
+  // Reorder vertices by first use so deltas stay small.
+  const order: number[] = [], remap = new Int32Array(n).fill(-1);
+  const tri = m.tri.map((v) => {
+    if (remap[v] < 0) { remap[v] = order.length; order.push(v); }
+    return remap[v];
+  });
+  for (let v = 0; v < n; v++) if (remap[v] < 0) { remap[v] = order.length; order.push(v); }
+  const pos = new Int16Array(n * 3), nrm = new Int8Array(n * 3), a = new Uint8Array(n * 4), b = new Uint8Array(n * 4);
+  order.forEach((v, i) => {
+    for (let c = 0; c < 3; c++) {
+      const span = mx[c] - mn[c] || 1;
+      pos[i * 3 + c] = Math.round(((m.pos[v * 3 + c] - mn[c]) / span) * 65534 - 32767);
+      nrm[i * 3 + c] = Math.round(Math.max(-1, Math.min(1, m.nrm[v * 3 + c])) * 127);
+    }
+    for (let c = 0; c < 4; c++) { a[i * 4 + c] = m.a[v * 4 + c]; b[i * 4 + c] = m.b[v * 4 + c]; }
+  });
   for (let i = n * 3 - 1; i >= 3; i--) pos[i] = (pos[i] - pos[i - 3]) | 0;
-  const idx = new Uint16Array(m.tri.length);
+  const idx = new Uint16Array(tri.length);
   let hw = 0;
-  for (let i = 0; i < m.tri.length; i++) {
-    const v = m.tri[i];
+  for (let i = 0; i < tri.length; i++) {
+    const v = tri[i];
     idx[i] = hw - v;
     if (v === hw) hw++;
   }

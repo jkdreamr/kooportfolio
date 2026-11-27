@@ -5,7 +5,8 @@
  * between pieces read as one clay-like figure. Colours are palette slots.
  */
 import { SK, type Joint } from "../skeleton";
-import type { Outfit } from "../outfit";
+import type { Expression, Outfit } from "../outfit";
+import type { EyeSpec } from "./head";
 import { SLOT, type Mat, type Node, type Op, type Piece, type V3 } from "./sdf";
 
 export type PieceId =
@@ -25,8 +26,10 @@ export type Figure = {
   pieces: Partial<Record<PieceId, Piece>>;
   /** Pelvis-frame origin of the skirt piece (flare pivot). */
   skirtTop: number;
-  /** Eye rect centres for the procedural iris (head frame). */
-  eyes: { c: V3; r: V3; iris: [number, number]; rot: number }[];
+  /** Head centre (head frame) and the AO stand-in for the analytic skin. */
+  HC: V3;
+  headSkin: Op[];
+  face: { expr: Expression; flick: boolean; browLift: number; browRight: number; eye: EyeSpec };
   /** Blush centres (head frame). */
   cheeks: V3[];
   /** Lip tint centre (head frame). */
@@ -469,53 +472,22 @@ export function buildFigure(o: Outfit): Figure {
   // ---------------------------------------------------------------- head
   const HC: V3 = [0, SK.headCenter, 0.01];
   const at = (x: number, y: number, z: number): V3 => [HC[0] + x, HC[1] + y, HC[2] + z];
-  const eyes: Figure["eyes"] = [];
   const expr = o.face?.expr ?? "smile";
   const flick = o.face?.flick ?? ["long", "bob", "ponytail", "bun"].includes(o.hair.style);
-  // Round head: big cranium and forehead, soft jaw, full cheeks.
-  const head: Op[] = [
-    add(ell(at(0, 0.015, 0), [0.375, 0.365, 0.355], M.skin)),
-    add(ell(at(0, -0.1, 0.05), [0.3, 0.21, 0.27], M.skin), 0.13),
-    add(ell(at(0, -0.215, 0.1), [0.13, 0.085, 0.11], M.skin), 0.09),
+  // The skin, eyes, brows, nose and mouth are analytic (head.ts); the SDF
+  // head piece carries only ears, hair, hats and glasses. `headSkin`
+  // approximates the skin for baked AO and hair fitting.
+  const headSkin: Op[] = [
+    add(ell(at(0, 0.015, 0), [0.375, 0.362, 0.352], M.skin)),
+    add(ell(at(0, -0.12, 0.06), [0.3, 0.22, 0.28], M.skin), 0.1),
   ];
-  const browLift = expr === "excited" ? 0.02 : expr === "proud" ? 0.01 : 0;
+  const head: Op[] = [];
   for (const s of [1, -1]) {
-    // Big round eyes, ~24% of the head width, below the mid-line, about one
-    // eye-width apart, turned with the curve of the face.
-    const rot = s * 0.42;
-    const E = at(s * 0.17, -0.065, 0.268);
-    const r: V3 = [0.088, 0.1, 0.056];
-    eyes.push({ c: E, r, iris: [-s * 0.05, -0.03], rot });
-    head.push(sub({ t: "ell", c: E, r: [r[0] + 0.007, r[1] + 0.007, r[2] + 0.006], rot: [0, rot, 0] }, 0.012));
-    // Soft full cheeks.
-    head.push(add(ell(at(s * 0.17, -0.155, 0.19), [0.12, 0.1, 0.1], M.skin), 0.07));
-    // Thin arched brows in the hair colour, inner end slightly up (friendly).
-    const lift = browLift + (expr === "thoughtful" && s < 0 ? 0.022 : 0);
-    head.push(...chain([at(s * 0.1, 0.112 + lift, 0.338), at(s * 0.17, 0.118 + lift, 0.31), at(s * 0.245, 0.092 + lift, 0.268)], 0.0105, M.fab(SLOT.brow, 0.6)));
-    // Ears.
-    head.push(add(ell(at(s * 0.36, -0.04, -0.01), [0.048, 0.08, 0.06], M.skin), 0.03));
-    head.push(sub(ell(at(s * 0.39, -0.04, 0.005), [0.02, 0.043, 0.03], { slot: SLOT.skinShade, rough: 0.6 }), 0.012));
+    head.push(add(ell(at(s * 0.355, -0.05, -0.01), [0.05, 0.08, 0.062], M.skin), 0.03));
+    head.push(sub(ell(at(s * 0.39, -0.05, 0.005), [0.02, 0.043, 0.03], { slot: SLOT.skinShade, rough: 0.6 }), 0.012));
   }
-  // Small soft button nose, low on the face.
-  head.push(add(ell(at(0, -0.14, 0.338), [0.034, 0.028, 0.03], M.skin), 0.03));
-  // Mouth: always a smile; an open D-shaped grin for the cheerful ones.
-  const mouthM: Mat = { slot: SLOT.mouth, rough: 0.5 };
-  const MY = -0.225;
-  if (expr === "grin" || expr === "excited") {
-    const wide = expr === "excited" ? 1.12 : 1;
-    const top = MY + 0.012;
-    head.push(sub({ t: "grp", m: mouthM, ops: [
-      add(ell(at(0, top, 0.33), [0.058 * wide, 0.042 * wide, 0.05])),
-      { op: "int", k: 0.006, n: plane([0, 1, 0], HC[1] + top) },
-    ] }, 0.006));
-    head.push(add(ell(at(0, top - 0.008, 0.3), [0.044 * wide, 0.009, 0.022], M.gloss(SLOT.white, 0.3)), 0.0));
-    head.push(add(ell(at(0, top - 0.038 * wide, 0.296), [0.034 * wide, 0.014, 0.024], M.gloss(SLOT.lip, 0.35)), 0.0));
-  } else {
-    const up = expr === "proud" ? 0.03 : 0.024;
-    head.push(sub({ t: "grp", ops: chain([at(-0.058, MY + up, 0.302), at(-0.03, MY + 0.002, 0.318), at(0, MY - 0.004, 0.322), at(0.03, MY + 0.002, 0.318), at(0.058, MY + up, 0.302)], 0.0075, mouthM), m: mouthM }, 0.005));
-  }
-  const cheeks: V3[] = [at(0.2, -0.15, 0.265), at(-0.2, -0.15, 0.265)];
-
+  const cheeks: V3[] = [at(0.2, -0.155, 0.27), at(-0.2, -0.155, 0.27)];
+  const browLift = expr === "excited" ? 0.018 : expr === "proud" ? 0.008 : 0;
   // Hair.
   const hat = o.head?.kind;
   const hatted = !!hat && hat !== "headband" && hat !== "visor";
@@ -670,27 +642,17 @@ export function buildFigure(o: Outfit): Figure {
     }
     if (e.kind === "pencil") head.push(add(cone(at(0.34, 0.06, 0.12), at(0.36, 0.05, -0.08), 0.012, 0.008, M.gloss(SLOT.accent + 7, 0.5)), 0.0));
   }
+  // Hollow out the skull so hair and hat cut faces sit inside the skin.
+  head.push(sub(ell(HC, [0.358, 0.345, 0.335]), 0.008));
   pieces.head = { ops: head };
 
   // ---------------------------------------------------------------- eyes
-  const eyeOps: Op[] = [];
-  for (const [i, s] of [1, -1].entries()) {
-    const { c: E, r, rot } = eyes[i];
-    eyeOps.push(add({ t: "ell", c: E, r, rot: [0, rot, 0], m: { slot: SLOT.iris, rough: 0.08, paint: "eye" } }));
-    // Soft upper lash line hugging the top of the eye (+ an outer flick).
-    const cr = Math.cos(rot), sr = Math.sin(rot);
-    const P = (lx: number, ly: number, lz: number): V3 => [E[0] + lx * cr + lz * sr, E[1] + ly, E[2] - lx * sr + lz * cr];
-    const pts: V3[] = [];
-    for (const deg of [168, 135, 100, 65, 30, 8]) {
-      const a = (deg * Math.PI) / 180;
-      const k = 0.95;
-      pts.push(P(s * r[0] * k * Math.cos(a), r[1] * k * Math.sin(a) + 0.004, r[2] * Math.sqrt(1 - k * k) + 0.007));
-    }
-    if (flick) pts.push(P(s * r[0] * 1.16, r[1] * 0.5, 0.004));
-    eyeOps.push(...chain(pts, 0.0092, { slot: SLOT.dark, rough: 0.5 }));
-  }
-  pieces.eyes = { ops: eyeOps };
-  return { pieces, skirtTop, eyes, cheeks, mouth: at(0, -0.228, 0.31) };
+  pieces.eyes = { ops: [] };
+  return {
+    pieces, skirtTop, cheeks, headSkin, HC,
+    mouth: at(0, -0.226, 0.31),
+    face: { expr, flick, browLift, browRight: expr === "thoughtful" ? 0.02 : 0, eye: { cx: 0.17, cy: -0.065, rx: 0.088, ry: 0.1, iris: [0.05, 0.03] } },
+  };
 }
 
 /** Palette (sRGB hex per slot) for an outfit. Extras fill accent slots. */
