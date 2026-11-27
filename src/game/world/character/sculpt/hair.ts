@@ -254,6 +254,13 @@ export function buildHair(style: HairStyle, mat: Mat, hatClip: Node[], hatted: b
         extra.push({ op: "add", k: 0.03, n: { t: "ell", c: B, r: [0.135, 0.12, 0.1], m: mat, disp: { kind: "locks", amp: 0.008, freq: 12, c: B } } });
         extra.push({ op: "add", k: 0.012, n: { t: "tor", c: addv(B, [0, 0, 0.02]), R: 0.1, r: 0.032, rot: [Math.PI / 2 - 0.25, 0, 0], m: mat, disp: { kind: "rib", amp: 0.006, freq: 9, c: B } } });
       }
+      if (braids) {
+        // The back splits at the nape into the two plaits.
+        for (let i = 0; i < 6; i++) {
+          const sd = i < 3 ? 1 : -1, k = i % 3;
+          L([S(PI + sd * 0.04, 0.35 + k * 0.25, 0), S(PI + sd * (0.35 + k * 0.2), 1.25 + k * 0.08, 0.03), S(sd * 2.05, 1.74, 0.03)], 0.2, 0.1, { th0: 0.034, th1: 0.03 });
+        }
+      }
       if (braids)
         for (const sd of [1, -1]) {
           // Plaits: alternating tilted beads down over the front of the shoulder.
@@ -261,13 +268,13 @@ export function buildHair(style: HairStyle, mat: Mat, hatClip: Node[], hatted: b
           const pts: V3[] = [];
           for (let i = 0; i <= 8; i++) {
             const t = i / 8;
-            pts.push([top[0] + sd * (0.03 + 0.04 * t), top[1] - 0.06 - t * 0.5, top[2] + 0.06 + t * 0.2]);
+            pts.push([top[0] + sd * (0.0 + 0.03 * t), top[1] - 0.04 - t * 0.46, top[2] + 0.05 + t * 0.16]);
           }
           pts.forEach((p, i) => {
             if (i === pts.length - 1) return;
             const q = pts[i + 1];
             const c: V3 = r3([(p[0] + q[0]) / 2, (p[1] + q[1]) / 2, (p[2] + q[2]) / 2]);
-            const r = 0.05 * (1 - i * 0.04);
+            const r = 0.058 * (1 - i * 0.04);
             extra.push({ op: "add", k: 0.012, n: { t: "ell", c, r: [+r.toFixed(4), 0.044, +(r * 0.85).toFixed(4)], rot: [0.3, 0, (i % 2 ? 0.55 : -0.55)], m: mat } });
             segs.push({ a: p, b: q, t0: 0.3 + i * 0.07, t1: 0.37 + i * 0.07, ra: r, rb: r });
           });
