@@ -58,9 +58,11 @@ export function RoomStory({
         <>
           <h2>Josh</h2>
           <p>{story.text}</p>
-          <a href={story.link} target="_blank" rel="noreferrer">
-            {story.label} ↗
-          </a>
+          {story.link && (
+            <a href={story.link} target="_blank" rel="noreferrer">
+              {story.label ?? "More"} ↗
+            </a>
+          )}
         </>
       )}
     </aside>

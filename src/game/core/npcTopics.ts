@@ -68,7 +68,7 @@ const topics: Record<string, readonly NpcTopic[]> = {
       id: "cox",
       label: "Who calls the shots?",
       reply:
-        "The coxswain. Josh walked on to Stanford rowing as a freshman with no experience and ended up steering and calling the rhythm for the whole boat. He'll tell you the seat chose him.",
+        "The coxswain. Josh walked on to Stanford rowing as a sophomore, and now he steers the boat and calls the rhythm for the whole crew.",
     },
   ],
   "go-player": [
@@ -152,7 +152,7 @@ const topics: Record<string, readonly NpcTopic[]> = {
       id: "kelix",
       label: "Who is kelix?",
       reply:
-        "Josh's producer name. He makes beats at night and posts them on SoundCloud when he's happy with one. Half the tracks started as a loop he couldn't leave alone.",
+        "Josh's name on SoundCloud, @atkelix on Instagram. He debuted with the single “Fairytale” under Dejavu Group, a Korean hip hop label.",
     },
   ],
   hooper: [
@@ -172,8 +172,13 @@ const topics: Record<string, readonly NpcTopic[]> = {
       id: "goat",
       label: "Josh's favorite player?",
       reply:
-        "LeBron, no debate. Josh has been a fan forever and will explain the longevity argument to anyone who stands still long enough. Don't bring up MJ unless you have an hour.",
+        "LeBron, no debate. Josh is a LeBron fan through and through.",
     },
+    ask(
+      "greatest",
+      "Who's the greatest?",
+      "Ask Josh and it's LeBron. Every time. Don't start.",
+    ),
   ],
   skater: [
     ask(
@@ -190,7 +195,7 @@ const topics: Record<string, readonly NpcTopic[]> = {
     ask(
       "josh",
       "Does Josh skate?",
-      "Since freshman year. He picked it up cruising between classes at Stanford and never put the board down. Still skates when the paths are dry.",
+      "Since his freshman year at Stanford. He still rides for fun.",
     ),
   ],
   "shuttle-player": [
@@ -209,6 +214,11 @@ const topics: Record<string, readonly NpcTopic[]> = {
       "singles",
       "Singles or doubles?",
       "Doubles, always. In singles every mistake is yours alone, and I like having someone to blame.",
+    ),
+    ask(
+      "josh",
+      "Does Josh play?",
+      "Since middle school. Badminton club here his freshman year. Now it's whenever he can.",
     ),
   ],
   "tower-docent": [
@@ -244,7 +254,7 @@ const topics: Record<string, readonly NpcTopic[]> = {
     ask(
       "lebron",
       "Play like LeBron?",
-      "Nobody does, but Josh tries. He's been a fan since he was a kid. If you see him here, ask about 2016. You'll be here a while.",
+      "Nobody does. Josh would tell you that himself, and he's the biggest LeBron fan I know.",
     ),
   ],
   "gym-walker": [
@@ -279,8 +289,8 @@ const topics: Record<string, readonly NpcTopic[]> = {
     ),
     ask(
       "josh",
-      "Does Josh do math?",
-      "It's half his degree, CS and math together at Stanford. He's the kind of person who solves it on a napkin if you ask him a question at lunch.",
+      "Is Josh a math person?",
+      "USACO Platinum as a high-school freshman, olympiads, research with Euler Circle, and he helped run the Stanford Math Tournament. So, yes.",
     ),
   ],
   "prep-cook": [
@@ -318,6 +328,11 @@ const topics: Record<string, readonly NpcTopic[]> = {
       "What do you cut first?",
       "The sentence I'm proudest of, usually. If it works harder for me than the reader, it goes.",
     ),
+    ask(
+      "josh",
+      "What does Josh write?",
+      "Poems, songs, essays. Lots of all three. He even built his own songwriting tool, Verses.",
+    ),
   ],
   "play-caller": [
     ask(
@@ -334,7 +349,12 @@ const topics: Record<string, readonly NpcTopic[]> = {
     ask(
       "niners",
       "Is Josh a football fan?",
-      "Lifelong Niners fan. Not the fairweather kind either; he's been through the bad years and stayed. He still talks about the dynasty names like he saw them live.",
+      "A huge 49ers fan. Go Niners! He'd want you to make this kick.",
+    ),
+    ask(
+      "stadium",
+      "Whose stadium is this?",
+      "Josh's team. Go 49ers. He's a huge fan.",
     ),
   ],
   drummer: [
@@ -622,12 +642,12 @@ const topics: Record<string, readonly NpcTopic[]> = {
     ask(
       "who",
       "Who is Josh?",
-      "Josh Koo. He made this whole world as his portfolio. Stanford CS and math, coxswain on the crew team, and he works at Cognition leading the Korea effort. Every spot here is somewhere that means something to him.",
+      "Josh Koo. He made this whole world as his portfolio. Stanford CS and math, coxswain on the crew team, and he leads Cognition's Korea efforts.",
     ),
     ask(
       "else",
       "What else does he do?",
-      "Makes music as kelix on SoundCloud, skates the paths when they're dry, and argues about LeBron like it's a research project. His code's all on GitHub under jkdreamr. Also a lifelong Niners fan, so he's used to heartbreak.",
+      "Makes music as kelix on SoundCloud, writes poems and essays, plays Go and badminton, and cheers for LeBron and the 49ers. His code's on GitHub under jkdreamr.",
     ),
     ask(
       "site",
@@ -650,7 +670,12 @@ const topics: Record<string, readonly NpcTopic[]> = {
     ask(
       "josh",
       "How'd Josh end up a coxswain?",
-      "He walked on freshman year with no experience, which is exactly when you shouldn't pick a sport you have to learn backwards. But he listened, called clean, and never missed a practice. Now he steers.",
+      "He walked on to Stanford rowing as a sophomore. Now he steers the boat and calls the race.",
+    ),
+    ask(
+      "cox-job",
+      "What does a cox do?",
+      "Steers, calls the race, keeps eight people honest. Josh does it for Stanford.",
     ),
   ],
   teammate: [
@@ -678,7 +703,12 @@ const topics: Record<string, readonly NpcTopic[]> = {
     ask(
       "kelix",
       "Is kelix Josh?",
-      "Yeah, that's his thing. Beats on SoundCloud, late night sessions in the lab. He says producing is just debugging for your ears, which is such a Josh sentence.",
+      "Yeah, that's his. kelix on SoundCloud, @atkelix on Instagram. He makes music as dreamr too.",
+    ),
+    ask(
+      "tracks",
+      "Whose tracks are these?",
+      "Josh's. He debuted with “Fairytale” and posts as kelix on SoundCloud.",
     ),
   ],
   "record-shopper": [
@@ -710,7 +740,7 @@ const topics: Record<string, readonly NpcTopic[]> = {
     ask(
       "josh",
       "Know Josh well?",
-      "He built this neighborhood out of his own routine. The house, the garden, the kitchen. It's not his actual street, but it might as well be.",
+      "He built this neighborhood for his portfolio: the house, the garden, the kitchen. He likes cooking, so guess his favorite room.",
     ),
   ],
   "food-regular": [
@@ -728,7 +758,7 @@ const topics: Record<string, readonly NpcTopic[]> = {
     ask(
       "josh",
       "Does Josh eat here?",
-      "Same order every time, which for someone who grew up on Korean food is a compliment. He knows the sides are the whole point.",
+      "He says he eats literally everything, and from what I've seen that's true. The sides go first.",
     ),
   ],
   picnicker: [
@@ -764,7 +794,7 @@ const topics: Record<string, readonly NpcTopic[]> = {
     ask(
       "josh",
       "Does Josh walk here?",
-      "When he's working on the Korea side at Cognition, this is his evening loop. He says the river is the only part of his calendar that runs on time.",
+      "Not that I've seen. He's busy leading Cognition's Korea efforts. They're hiring for Korea, by the way: message or DM Joshua.",
     ),
   ],
   rower: [
@@ -781,15 +811,15 @@ const topics: Record<string, readonly NpcTopic[]> = {
     ),
     ask(
       "josh",
-      "How'd Josh start rowing?",
-      "He walked on at Stanford as a freshman, no experience, just showed up. Everyone assumed he'd quit by winter. Now he's the one telling the boat when to pull.",
+      "Does Josh row?",
+      "He's our cox. Walked on as a sophomore and never left the boat.",
     ),
   ],
   neighbor: [
     ask(
       "house",
       "Whose house is this?",
-      "Josh's, in spirit at least. He made this corner of the world from the neighborhood where he grew up, give or take the better weather.",
+      "Josh's, in spirit at least. He made this corner of the world for his portfolio, give or take the better weather.",
     ),
     ask(
       "hang",
@@ -800,7 +830,7 @@ const topics: Record<string, readonly NpcTopic[]> = {
     ask(
       "josh",
       "What's Josh like?",
-      "Quiet until you get him started. Then it's crew, or LeBron, or whatever beat he's building as kelix that week. He's easy to find. Just follow the sound of someone explaining something.",
+      "Get him started on crew, LeBron, the 49ers or whatever he's making as kelix that week, and you'll be here a while.",
     ),
   ],
   classmate: [
@@ -812,13 +842,13 @@ const topics: Record<string, readonly NpcTopic[]> = {
     ask(
       "major",
       "What's Josh studying?",
-      "CS and math together. He says they reinforce each other, which I believe, since he debugs proofs like they're code.",
+      "CS and math together, at Stanford. He's done a lot of math: olympiads, and research with Euler Circle.",
       "tangram",
     ),
     ask(
       "josh",
       "Does Josh tutor?",
-      "Unofficially. He'll sit down next to you, look at your problem for two minutes, and then draw a picture that somehow makes it obvious. Then he apologizes for being late to crew.",
+      "Not officially, but he helped organize the Stanford Math Tournament, so he's no stranger to a hard problem.",
     ),
   ],
   regular: [
@@ -837,6 +867,11 @@ const topics: Record<string, readonly NpcTopic[]> = {
       "crowd",
       "Same faces every day?",
       "Mostly. The regulars know each other's orders better than their names, which is its own kind of friendship.",
+    ),
+    ask(
+      "dinners",
+      "Any good dinners around?",
+      "Josh hosts kookwleigh: intimate dinners, by invitation. Check the bulletin board.",
     ),
   ],
   lifter: [
@@ -865,16 +900,32 @@ const topics: Record<string, readonly NpcTopic[]> = {
     ask(
       "cognition",
       "What is this office?",
-      "The Cognition building. Josh works there leading the Korea effort. Before that he was an investment intern at CRV, which is a very different kind of busy.",
+      "The Cognition building. They make Devin, the AI software engineer. Josh leads their Korea efforts.",
       "campus",
     ),
     ask(
       "josh",
       "What's Josh's job?",
-      "He builds the stuff that makes other people's work faster. Sounds abstract until you watch him do it. He says he likes it because he actually ships things now.",
+      "He's leading Cognition's Korea efforts. He's also an investment intern at CRV.",
+    ),
+    ask(
+      "hiring",
+      "Is Cognition hiring?",
+      "For Korea, yes. Message or DM Joshua.",
     ),
   ],
 };
 
+/**
+ * For the town hall (Phase 2): the go regular's line, ready to append to
+ * "go-regular" once the building exists. Source: Josh's own notes ("clash of
+ * clans (prev. top 6 in the US), I stopped playing now"). Not listed yet, so
+ * nobody is pointed at a building that is not there.
+ */
+export const TOWN_HALL_TOPIC: NpcTopic = ask(
+  "town-hall",
+  "What's with the town hall?",
+  "Josh was top 6 in the US at a certain village-building game. Hasn't touched it in a while.",
+);
 export const topicsFor = (npcId: string): readonly NpcTopic[] =>
   topics[npcId] ?? [];
