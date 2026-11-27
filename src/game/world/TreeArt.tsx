@@ -695,7 +695,9 @@ export function NaturalTrees({
           geometry={low ? lowCrownGeometry : pineGeometry}
           mirror={lowCrownGeometry}
           reflected={!low}
-          cast={cast}
+          // Pine inner tiers never cast: the leaf shell's pine cards already
+          // draw the conifer's shadow (Korea's 300k high shadow budget).
+          cast={false}
           material={leafMaterial}
         />
       )}
