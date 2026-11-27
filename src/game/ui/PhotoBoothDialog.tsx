@@ -20,9 +20,24 @@ import {
   wallJpeg,
 } from "../core/photoStrip";
 import type { Border, Filter, Mark, Point, Sticker } from "../core/photoStrip";
-import { BOOTH_PATH, STRIP_HEIGHT, STRIP_WIDTH } from "../../shared/booth";
-import { apiUrl, readJson } from "../../shared/api";
-import { useApiAvailable } from "./useApiAvailable";
+import { STRIP_HEIGHT, STRIP_WIDTH } from "../../shared/booth";
+import {
+  ApiUnavailable,
+  readJson,
+  reportRequest,
+  wallListRequest,
+  wallPostRequest,
+  type ApiStatus,
+} from "../../shared/api";
+import { createLocalWall } from "../../shared/booth";
+import {
+  checkPublicText,
+  cooldownCopy,
+  cooldownLeft,
+  notePost,
+  textCheckCopy,
+} from "../../shared/writing";
+import { useApiStatus } from "./useApiAvailable";
 import { cue } from "../core/audio/cues";
 import type { WallStrip } from "../../shared/booth";
 import "./photo-booth.css";
@@ -49,8 +64,7 @@ function Camera({
   autoStart: boolean;
   onCameraRequested: () => void;
   onShoot: (shoot: Shoot) => void;
-  /** Absent when there is no shared wall to show. */
-  onWall?: () => void;
+  onWall: () => void;
 }) {
   const video = useRef<HTMLVideoElement>(null);
   const session = useRef(0);
@@ -245,11 +259,9 @@ function Camera({
             Enable camera
           </button>
         )}
-        {onWall && (
-          <button type="button" disabled={Boolean(sequence)} onClick={onWall}>
-            Wall
-          </button>
-        )}
+        <button type="button" disabled={Boolean(sequence)} onClick={onWall}>
+          Wall
+        </button>
       </div>
     </>
   );
@@ -265,7 +277,8 @@ function Decorate({
 }: {
   shoot: Shoot;
   posted: boolean;
-  /** Whether the shared wall exists; without it the strip only saves here. */
+  /** Whether the shared wall is live; without it posting keeps the strip
+   * on this device. */
   wall: boolean;
   onRetake: () => void;
   onScrap: () => void;
@@ -339,27 +352,51 @@ function Decorate({
   async function save(post: boolean) {
     const image = canvas.current;
     if (!image || pending.current) return;
+    if (post && wall) {
+      const check = checkPublicText(caption);
+      if (!check.ok) {
+        setError(textCheckCopy(check.reason));
+        cue("ui-error");
+        return;
+      }
+      const wait = cooldownLeft("booth");
+      if (wait > 0) {
+        setError(cooldownCopy(wait));
+        cue("ui-error");
+        return;
+      }
+    }
     const controller = new AbortController();
     pending.current = controller;
     setBusy(true);
     setError("");
     try {
       if (post) {
+        // Compressed to the wall's size cap (about 160 KB of JPEG).
         const jpeg = await wallJpeg(image);
-        const response = await fetch(apiUrl(BOOTH_PATH), {
-          method: "POST",
-          headers: { "Content-Type": "image/jpeg" },
-          body: jpeg,
+        if (!wall) {
+          localWall.add({
+            id: `local-${Date.now()}`,
+            jpeg: await toBase64(jpeg),
+          });
+          if (!controller.signal.aborted) onPosted();
+          return;
+        }
+        const { url, init } = wallPostRequest(jpeg);
+        const response = await fetch(url, {
+          ...init,
           signal: controller.signal,
         });
         if (response.status === 429) {
           if (!controller.signal.aborted) {
-            setError("Too many posts. Try again later.");
+            setError("That’s a lot of posting. Try again in a little while.");
             cue("ui-error");
           }
           return;
         }
         if (!response.ok) throw new Error("Wall unavailable.");
+        await readJson(response);
+        notePost("booth");
         if (!controller.signal.aborted) onPosted();
       } else {
         const blob = await stripBlob(image, "image/png");
@@ -375,9 +412,10 @@ function Decorate({
       if (!controller.signal.aborted) {
         setError(
           post
-            ? "Couldn’t post to the wall. You can still save your strip."
+            ? "Couldn’t post to the wall just now. Save strip still works."
             : "Couldn’t save strip.",
         );
+        cue("ui-error");
       }
     } finally {
       pending.current = null;
@@ -501,69 +539,135 @@ function Decorate({
           >
             Save strip
           </button>
-          {wall && (
-            <button
-              type="button"
-              disabled={busy || posted}
-              aria-describedby="booth-public"
-              onClick={() => void save(true)}
-            >
-              {posted ? "Posted" : "Post to wall"}
-            </button>
-          )}
+          <button
+            type="button"
+            disabled={busy || posted}
+            aria-describedby="booth-public"
+            onClick={() => void save(true)}
+          >
+            {posted ? "Posted" : "Post to wall"}
+          </button>
         </div>
         <p id="booth-save-note">Save strip downloads a PNG to this device.</p>
-        {wall && (
-          <p id="booth-public">Posted strips are visible to everyone.</p>
-        )}
+        <p id="booth-public">
+          {wall
+            ? "Posted strips are visible to everyone."
+            : "The shared wall opens soon. Until then, posting keeps your strip on this device."}
+        </p>
       </div>
     </div>
   );
 }
 
-function Wall({ onBack, posted }: { onBack: () => void; posted: boolean }) {
-  const [strips, setStrips] = useState<WallStrip[]>();
-  const [error, setError] = useState(false);
+const localWall = createLocalWall();
+async function toBase64(blob: Blob) {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let text = "";
+  for (let i = 0; i < bytes.length; i += 8192)
+    text += String.fromCharCode(...bytes.subarray(i, i + 8192));
+  return btoa(text);
+}
+/** The live wall's copy of what it showed when it could not load. */
+const WALL_LOCAL_LINE =
+  "The shared wall opens soon. Your strips are saved on this device.";
+
+function Wall({
+  onBack,
+  posted,
+  status,
+}: {
+  onBack: () => void;
+  posted: boolean;
+  status: ApiStatus;
+}) {
+  const live = status.live;
+  const [strips, setStrips] = useState<WallStrip[] | undefined>(() =>
+    live ? undefined : localWall.list(),
+  );
+  const [fellBack, setFellBack] = useState(false);
+  const [reported, setReported] = useState<Record<string, "sent" | "failed">>(
+    {},
+  );
   useEffect(() => {
+    if (!live) return;
     const controller = new AbortController();
-    void fetch(apiUrl(BOOTH_PATH), { signal: controller.signal })
+    const { url, init } = wallListRequest();
+    void fetch(url, { ...init, signal: controller.signal })
       .then(async (response) => {
-        if (!response.ok) throw new Error("Wall unavailable.");
+        if (!response.ok) throw new ApiUnavailable();
         const result = await readJson<{ strips: WallStrip[] }>(response);
-        if (!Array.isArray(result.strips)) throw new Error("Wall unavailable.");
+        if (!Array.isArray(result.strips)) throw new ApiUnavailable();
         setStrips(result.strips);
       })
       .catch(() => {
-        if (!controller.signal.aborted) setError(true);
+        if (controller.signal.aborted) return;
+        // Never a raw error: show this device's strips instead.
+        setFellBack(true);
+        setStrips(localWall.list());
       });
     return () => controller.abort();
-  }, []);
+  }, [live]);
+  const local = !live || fellBack;
+  async function report(id: string) {
+    try {
+      const { url, init } = reportRequest("strip", id);
+      const response = await fetch(url, init);
+      if (!response.ok) throw new ApiUnavailable();
+      setReported((r) => ({ ...r, [id]: "sent" }));
+    } catch {
+      setReported((r) => ({ ...r, [id]: "failed" }));
+      cue("ui-error");
+    }
+  }
 
   return (
     <>
-      {posted && <p role="status">Posted to wall.</p>}
-      {error ? (
-        <p className="photo-booth-error" role="alert">
-          The wall is unavailable.
+      {posted && (
+        <p role="status">
+          {local ? "Saved on this device." : "Posted to the wall."}
         </p>
-      ) : strips ? (
+      )}
+      {local && <p className="photo-booth-note">{WALL_LOCAL_LINE}</p>}
+      {strips ? (
         strips.length ? (
-          <div className="photo-booth-wall" aria-label="Posted strips">
+          <div
+            className="photo-booth-wall"
+            aria-label={local ? "Your strips on this device" : "Posted strips"}
+          >
             {strips.map(({ id, jpeg }) => (
-              <img
-                key={id}
-                src={`data:image/jpeg;base64,${jpeg}`}
-                alt="Posted photo strip"
-                width={STRIP_WIDTH}
-                height={STRIP_HEIGHT}
-              />
+              <figure key={id} className="photo-booth-wall-item">
+                <img
+                  src={`data:image/jpeg;base64,${jpeg}`}
+                  alt={local ? "Your photo strip" : "Posted photo strip"}
+                  width={STRIP_WIDTH}
+                  height={STRIP_HEIGHT}
+                />
+                {!local && status.features.report && (
+                  <button
+                    type="button"
+                    className="photo-booth-report"
+                    disabled={!!reported[id]}
+                    onClick={() => void report(id)}
+                  >
+                    {reported[id] === "sent"
+                      ? "Reported"
+                      : reported[id] === "failed"
+                        ? "Couldn’t report"
+                        : "Report"}
+                  </button>
+                )}
+              </figure>
             ))}
           </div>
         ) : (
-          <p>No strips yet.</p>
+          <p>
+            {local
+              ? "No strips on this device yet."
+              : "No strips yet. Be the first."}
+          </p>
         )
       ) : (
-        <p role="status">Loading wall…</p>
+        <p role="status">Loading the wall…</p>
       )}
       <div className="photo-booth-actions">
         <button type="button" onClick={onBack}>
@@ -576,8 +680,9 @@ function Wall({ onBack, posted }: { onBack: () => void; posted: boolean }) {
 
 function BoothSession({ paused }: { paused: boolean }) {
   const dialog = useRef<HTMLDialogElement>(null);
-  // The wall needs the shared backend; until it answers yes, it is hidden.
-  const wallOnline = useApiAvailable() === true;
+  // Live: the shared wall. Not live (or still probing): this device.
+  const status = useApiStatus();
+  const wallOnline = status?.live === true;
   const [shoot, setShoot] = useState<Shoot>();
   const [wall, setWall] = useState(false);
   const [posted, setPosted] = useState(false);
@@ -629,9 +734,7 @@ function BoothSession({ paused }: { paused: boolean }) {
     >
       <section className="photo-booth-card">
         <header>
-          <h2 id="photo-booth-title">
-            {wall && wallOnline ? "Photo wall" : "Photo booth"}
-          </h2>
+          <h2 id="photo-booth-title">{wall ? "Photo wall" : "Photo booth"}</h2>
           <button
             type="button"
             aria-label="Close photo booth"
@@ -641,14 +744,16 @@ function BoothSession({ paused }: { paused: boolean }) {
             ×
           </button>
         </header>
-        {wall && wallOnline && (
+        {wall && (
           <Wall
+            key={wallOnline ? "live" : "local"}
+            status={status ?? { live: false, features: {} }}
             onBack={() => (shoot ? setWall(false) : reset())}
             posted={posted}
           />
         )}
         {shoot && (
-          <div hidden={wall && wallOnline}>
+          <div hidden={wall}>
             <Decorate
               shoot={shoot}
               posted={posted}
@@ -666,12 +771,12 @@ function BoothSession({ paused }: { paused: boolean }) {
             />
           </div>
         )}
-        {!paused && !(wall && wallOnline) && !shoot && (
+        {!paused && !wall && !shoot && (
           <Camera
             autoStart={cameraRequested}
             onCameraRequested={() => setCameraRequested(true)}
             onShoot={setShoot}
-            onWall={wallOnline ? () => setWall(true) : undefined}
+            onWall={() => setWall(true)}
           />
         )}
       </section>

@@ -9,12 +9,25 @@ import {
 } from "../core/writingDraft";
 import {
   WRITING_LIMITS,
+  checkPublicText,
+  cooldownCopy,
+  cooldownLeft,
+  notePost,
+  textCheckCopy,
   validateWriting,
   type WritingDraft,
   type WritingPost,
 } from "../../shared/writing";
-import { ApiUnavailable, apiUrl, readJson } from "../../shared/api";
-import { useApiAvailable } from "../ui/useApiAvailable";
+import {
+  ApiUnavailable,
+  readJson,
+  reportRequest,
+  writingDeleteRequest,
+  writingListRequest,
+  writingPostRequest,
+  type ApiRequest,
+} from "../../shared/api";
+import { useApiStatus } from "../ui/useApiAvailable";
 import { cue } from "../core/audio/cues";
 import "./writing-room.css";
 
@@ -22,7 +35,7 @@ const tokensKey = "joshua-writing-tokens-v1";
 const blank = { title: "", author: "", body: "" };
 /** Shown on the Read tab whenever there is no shared shelf to read. */
 export const OFFLINE_LINE =
-  "The shared shelf is offline. What you write stays on this device.";
+  "The shared shelf opens soon. What you write is saved on this device.";
 function readLocal<T>(key: string, fallback: T): T {
   try {
     return JSON.parse(localStorage.getItem(key) ?? "null") ?? fallback;
@@ -55,14 +68,11 @@ function failureCopy(status: number) {
     return "That post can’t be changed from here.";
   return "Couldn’t reach the shelf. Your draft is kept.";
 }
-async function api<T>(path: string, init?: RequestInit): Promise<T> {
+async function api<T>({ url, init }: ApiRequest): Promise<T> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12000);
   try {
-    const response = await fetch(apiUrl(`/api/writing${path}`), {
-      ...init,
-      signal: controller.signal,
-    });
+    const response = await fetch(url, { ...init, signal: controller.signal });
     // 503: the Worker exists but its database does not; same as offline.
     if (response.status === 503) throw new ApiUnavailable();
     const data = await readJson<T>(response);
@@ -87,6 +97,7 @@ function WritingDialog({
   setDraft,
   draftStored,
   online,
+  canReport,
 }: {
   close: () => void;
   draft: WritingDraft;
@@ -94,6 +105,8 @@ function WritingDialog({
   draftStored: boolean;
   /** null while the backend probe runs. */
   online: boolean | null;
+  /** The Worker accepts reports (health `features.report`). */
+  canReport: boolean;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   // Offline once the probe says so, or as soon as a request proves it.
@@ -129,7 +142,7 @@ function WritingDialog({
     setError("");
     try {
       const result = await api<{ posts: WritingPost[]; next: string | null }>(
-        cursor ? `?before=${encodeURIComponent(cursor)}` : "",
+        writingListRequest(cursor),
       );
       if (!alive.current) return;
       const list = Array.isArray(result?.posts) ? result.posts : [];
@@ -222,17 +235,32 @@ function WritingDialog({
     e.preventDefault();
     if (busy || !validateWriting(draft)) return;
     if (local) return keepLocally();
+    // Public text: no links or abuse, and a breather between posts. The
+    // Worker enforces the same; this only saves a round trip.
+    const check = checkPublicText(
+      `${draft.author}\n${draft.title}\n${draft.body}`,
+    );
+    if (!check.ok) {
+      setError(textCheckCopy(check.reason));
+      cue("ui-error");
+      return;
+    }
+    const wait = cooldownLeft("writing");
+    if (wait > 0) {
+      setError(cooldownCopy(wait));
+      cue("ui-error");
+      return;
+    }
     setBusy(true);
     setError("");
     setStatus("");
     try {
       pending.current ??= { id: postId(), deleteToken: secret() };
       rememberToken(pending.current.id, pending.current.deleteToken);
-      const { post } = await api<{ post: WritingPost }>("", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...draft, ...pending.current }),
-      });
+      const { post } = await api<{ post: WritingPost }>(
+        writingPostRequest(draft, pending.current),
+      );
+      notePost("writing");
       if (!alive.current) return;
       setPosts((old) => [post, ...old.filter((p) => p.id !== post.id)]);
       setSelected(post);
@@ -259,10 +287,7 @@ function WritingDialog({
     setBusy(true);
     setError("");
     try {
-      await api(`/${post.id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${deleteTokens.current[post.id]}` },
-      });
+      await api(writingDeleteRequest(post.id, deleteTokens.current[post.id]));
       if (!alive.current) return;
       setPosts((old) => old.filter((p) => p.id !== post.id));
       setSelected(null);
@@ -274,6 +299,28 @@ function WritingDialog({
         setError(visitorCopy(error));
         cue("ui-error");
       }
+    } finally {
+      if (alive.current) setBusy(false);
+    }
+  }
+  const [reported, setReported] = useState<Record<string, boolean>>({});
+  async function reportPost(post: WritingPost) {
+    if (busy || reported[post.id]) return;
+    setBusy(true);
+    setError("");
+    try {
+      await api(reportRequest("writing", post.id));
+      if (!alive.current) return;
+      setReported((r) => ({ ...r, [post.id]: true }));
+      setStatus("Thanks. Josh will take a look.");
+    } catch (error) {
+      if (!alive.current) return;
+      setError(
+        error instanceof ApiUnavailable
+          ? "Reporting isn’t available right now."
+          : visitorCopy(error),
+      );
+      cue("ui-error");
     } finally {
       if (alive.current) setBusy(false);
     }
@@ -421,21 +468,28 @@ function WritingDialog({
                         Remove
                       </button>
                     </details>
-                  ) : (
-                    deleteTokens.current[selected.id] && (
-                      <details className="writing-remove">
-                        <summary>Remove my post</summary>
-                        <p>This removes it for everyone.</p>
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => void removePost(selected)}
-                        >
-                          Remove permanently
-                        </button>
-                      </details>
-                    )
-                  )}
+                  ) : deleteTokens.current[selected.id] ? (
+                    <details className="writing-remove">
+                      <summary>Remove my post</summary>
+                      <p>This removes it for everyone.</p>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void removePost(selected)}
+                      >
+                        Remove permanently
+                      </button>
+                    </details>
+                  ) : canReport ? (
+                    <button
+                      type="button"
+                      className="writing-report"
+                      disabled={busy || reported[selected.id]}
+                      onClick={() => void reportPost(selected)}
+                    >
+                      {reported[selected.id] ? "Reported" : "Report this post"}
+                    </button>
+                  ) : null}
                 </>
               ) : shown.length ? (
                 <p>Choose a piece to read.</p>
@@ -513,7 +567,8 @@ export function WritingRoomControls() {
   const [open, setOpen] = useState(false);
   // Probe as soon as the room is entered, so the dialog opens in its
   // final mode (shared shelf or this device) without a flash.
-  const online = useApiAvailable();
+  const status = useApiStatus();
+  const online = status ? status.live : null;
   // This owner stays mounted when pause hides GameControls' separate Html root.
   const [draft, setDraft] = useState(writingDraftSession.read);
   const [draftStored, setDraftStored] = useState(writingDraftSession.isStored);
@@ -556,6 +611,7 @@ export function WritingRoomControls() {
           setDraft={updateDraft}
           draftStored={draftStored}
           online={online}
+          canReport={!!status?.features.report}
         />
       )}
     </GameControls>

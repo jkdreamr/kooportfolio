@@ -197,3 +197,20 @@
     animation-duration: 1ms;
   }
 }
+.photo-booth-note {
+  margin: 0.25rem 0 0.5rem;
+  font-size: var(--text-sm);
+  line-height: var(--leading-text);
+  color: var(--hud-muted, #d3dedd);
+}
+.photo-booth-wall-item {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+}
+.photo-booth-dialog .photo-booth-report {
+  justify-self: start;
+  min-height: var(--hit-min);
+  padding: 0 0.6rem;
+  font-size: var(--text-xs);
+}
