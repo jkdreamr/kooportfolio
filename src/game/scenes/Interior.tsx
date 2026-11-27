@@ -30,7 +30,6 @@ import { StadiumInterior } from "./Stadium";
 import { MovieTheaterInterior, useTheater } from "./MovieTheater";
 import { SecretRoomInterior } from "./SecretRoom";
 import { HOOVER_STASH } from "../core/hoover";
-import { KOREA_THEATER_PROGRAM } from "../core/theaterProgram";
 
 export function Interior() {
   const world = useGame((s) => s.world);
@@ -208,7 +207,7 @@ export function Interior() {
         {scene === "writing" && <WritingInterior />}
         {theater && (
           <MovieTheaterInterior
-            program={world === "korea" ? KOREA_THEATER_PROGRAM : undefined}
+            kind={world === "korea" ? "korea" : "home"}
             title={world === "korea" ? "Seoul Cinema" : undefined}
           />
         )}

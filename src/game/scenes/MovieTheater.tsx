@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { Html, PerspectiveCamera } from "@react-three/drei";
-import { useThree } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { create } from "zustand";
 import { Box, Cylinder, Sign } from "../world/Models";
 import { runtime, useGame } from "../core/store";
@@ -16,10 +16,13 @@ import { useLauncher, useLauncherHosted } from "../core/launchers";
 import { cue } from "../core/audio/cues";
 import { useSoundLoop } from "./useSoundLoop";
 import {
-  THEATER_PROGRAM,
+  loadTheaterProgram,
+  warmTheaterProgram,
   youtubeEmbedUrl,
   type TheaterFilm,
+  type TheaterKind,
 } from "../core/theaterProgram";
+import { doorsInWorld } from "../core/world";
 import {
   THEATER_EYE,
   THEATER_PLAYER_HEIGHT,
@@ -59,6 +62,17 @@ export function MovieTheaterBuilding({
   p?: [number, number, number];
   korean?: boolean;
 }) {
+  // Start fetching the catalogue as the visitor walks up to the doors.
+  const near = useRef(0);
+  useFrame((_, dt) => {
+    near.current += dt;
+    if (near.current < 0.5) return;
+    near.current = 0;
+    const state = useGame.getState();
+    if (state.scene !== "hub") return;
+    const door = doorsInWorld(state.world).find((d) => d.id === "theater");
+    if (door && Math.hypot(runtime.x - door.x, runtime.z - door.z) < 14) void warmTheaterProgram().catch(() => {});
+  });
   return (
     <StaticBatch id="MovieTheaterBuilding">
       <group position={p}>
@@ -577,9 +591,21 @@ function TheaterViewer({
 }
 
 export function MovieTheaterInterior({
-  program = THEATER_PROGRAM,
+  kind = "home",
   title = "The picture house",
-}: { program?: readonly TheaterFilm[]; title?: string } = {}) {
+}: { kind?: TheaterKind; title?: string } = {}) {
+  // Loaded on entry (usually already warm from the walk up). Until then, or
+  // if the chunk cannot load, the screen shows its idle card, never an error.
+  const [program, setProgram] = useState<readonly TheaterFilm[]>([]);
+  useEffect(() => {
+    let live = true;
+    loadTheaterProgram(kind)
+      .then((films) => live && setProgram(films))
+      .catch(() => live && setProgram([]));
+    return () => {
+      live = false;
+    };
+  }, [kind]);
   const seated = useTheater((s) => s.seated);
   const playing = useTheater((s) => !!s.filmId);
   const { width, height } = useThree((s) => s.size);

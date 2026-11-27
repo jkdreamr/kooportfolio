@@ -5,7 +5,7 @@ import {
   SHARD_CHANNELS,
   THEATER_PROGRAM,
   type TheaterFilm,
-} from "../src/game/core/theaterProgram";
+} from "../src/game/core/theater/catalogue";
 
 /**
  * Catalog size each theater must reach. The data shards are still being
