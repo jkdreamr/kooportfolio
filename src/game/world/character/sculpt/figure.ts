@@ -82,7 +82,8 @@ const shell = (of: Node, d: number, m: Mat, clip: Node[] = [], disp?: Node["disp
 /** Keep y above / below a height (clip regions). */
 const above = (y: number) => plane([0, -1, 0], -y);
 const below = (y: number) => plane([0, 1, 0], y);
-const chain = (pts: V3[], r: number, m: Mat): Op[] => pts.slice(1).map((p, i) => add(cap(pts[i], p, r, m), 0.004));
+/** A strap painted onto the surface it crosses (no thin geometry to shard). */
+const paintChain = (pts: V3[], r: number, m: Mat): Op[] => pts.slice(1).map((p, i) => ({ op: "paint" as const, k: 0, n: cap(pts[i], p, r * 1.5, m) }));
 const r3 = (v: V3): V3 => [+v[0].toFixed(4), +v[1].toFixed(4), +v[2].toFixed(4)];
 /** Point on a node's surface at (x, y), marching along z from the front
  * (side = 1) or the back (side = −1), lifted off it by `lift`. */
@@ -315,7 +316,6 @@ export function buildFigure(o: Outfit): Figure {
     chest.push(add(cap(bow, [bow[0] - 0.035, bow[1] - 0.18, bow[2] + 0.015], 0.011, M.gloss(slot, 0.4)), 0.004));
   }
   // Chest-mounted extras.
-  const strapFront = (x: number, y: number) => front(x, y, 0.035);
   for (const e of o.extras ?? []) {
     const A = M.fab(extraColorSlot(o, e.kind)), B = M.fab(extraColorSlot(o, e.kind, true));
     switch (e.kind) {
@@ -325,17 +325,17 @@ export function buildFigure(o: Outfit): Figure {
         chest.push(add(box([c[0], c[1] - 0.06, c[2] - 0.06], [0.085 * w, 0.06, 0.03], 0.022, A), 0.008));
         chest.push(add(box([c[0], c[1] + 0.1, c[2] - 0.035], [0.1 * w, 0.03, 0.04], 0.02, B), 0.006));
         chest.push(add(cap([c[0] - 0.06, c[1] - 0.05, c[2] - 0.091], [c[0] + 0.06, c[1] - 0.05, c[2] - 0.091], 0.004, M.metal(SLOT.white)), 0.001));
-        for (const s of [1, -1]) chest.push(...chain([strapFront(s * 0.1, 0.02), strapFront(s * 0.11, 0.25), [s * 0.11, 0.39, -0.005], backAt(s * 0.1, 0.3, 0.035)], 0.013, B));
+        for (const s of [1, -1]) chest.push(...paintChain([front(s * 0.1, 0.02), front(s * 0.11, 0.25), [s * 0.11, 0.39, -0.005], backAt(s * 0.1, 0.3)], 0.013, B));
         break;
       }
       case "satchel":
       case "tote":
-        chest.push(...chain([[0.12, 0.39, 0.0], strapFront(0.0, 0.2), strapFront(-0.12 * w, -0.02), [-0.16 * w, -0.1, 0.04]], 0.011, M.leather(extraColorSlot(o, e.kind, true))));
+        chest.push(...paintChain([[0.12, 0.39, 0.0], front(0.0, 0.2), front(-0.12 * w, -0.02), [-0.16 * w, -0.1, 0.04]], 0.011, M.leather(extraColorSlot(o, e.kind, true))));
         break;
       case "lanyard":
       case "whistle": {
         const tag = front(0, 0.2, 0.03);
-        for (const s of [1, -1]) chest.push(add(cap([s * 0.05, 0.4, 0.02], tag, 0.005, A), 0.002));
+        for (const s of [1, -1]) chest.push(...paintChain([[s * 0.05, 0.4, 0.02], front(s * 0.025, 0.3), tag], 0.006, A));
         if (e.kind === "lanyard") chest.push(add(box([tag[0], tag[1] - 0.035, tag[2] + 0.004], [0.028, 0.036, 0.004], 0.004, M.gloss(extraColorSlot(o, e.kind, true))), 0.002));
         else chest.push(add(cap([tag[0] - 0.012, tag[1] - 0.01, tag[2] + 0.006], [tag[0] + 0.02, tag[1] - 0.012, tag[2] + 0.014], 0.011, M.metal(SLOT.white)), 0.002));
         break;
@@ -348,7 +348,7 @@ export function buildFigure(o: Outfit): Figure {
       }
       case "camera": {
         const c = front(0, 0.12, 0.05);
-        for (const s of [1, -1]) chest.push(add(cap([s * 0.05, 0.4, 0.02], [c[0] + s * 0.05, c[1] + 0.02, c[2] - 0.01], 0.005, M.fab(SLOT.dark)), 0.002));
+        for (const s of [1, -1]) chest.push(...paintChain([[s * 0.05, 0.4, 0.02], front(s * 0.05, 0.25), [c[0] + s * 0.05, c[1] + 0.02, c[2] - 0.01]], 0.006, M.fab(SLOT.dark)));
         chest.push(add(box(c, [0.06, 0.04, 0.027], 0.012, M.gloss(SLOT.dark, 0.35)), 0.003));
         chest.push(add(cyl([c[0] + 0.012, c[1], c[2] + 0.04], 0.022, 0.028, 0.006, M.metal(SLOT.dark), [Math.PI / 2, 0, 0]), 0.003));
         chest.push(add(cyl([c[0] + 0.012, c[1], c[2] + 0.062], 0.003, 0.02, 0.002, M.gloss(SLOT.accent + 7, 0.05), [Math.PI / 2, 0, 0]), 0.0));
@@ -372,7 +372,7 @@ export function buildFigure(o: Outfit): Figure {
         chest.push(add(grp([add(ell([c[0], c[1], c[2]], [0.13, 0.115, 0.04])), add(ell([c[0] - 0.04, c[1] + 0.14, c[2]], [0.095, 0.085, 0.04]), 0.04)], A), 0.0));
         chest.push(add(cyl([c[0] - 0.02, c[1] + 0.02, c[2] - 0.042], 0.003, 0.035, 0.002, M.gloss(SLOT.dark)), 0.0));
         chest.push(add(box([c[0] - 0.14, c[1] + 0.36, c[2]], [0.02, 0.17, 0.012], 0.006, B, [0, 0, 0.45]), 0.0));
-        chest.push(...chain([[0.13, 0.39, 0.0], strapFront(0, 0.22), strapFront(-0.13 * w, 0.0)], 0.01, M.fab(SLOT.dark)));
+        chest.push(...paintChain([[0.13, 0.39, 0.0], front(0, 0.22), front(-0.13 * w, 0.0)], 0.01, M.fab(SLOT.dark)));
         break;
       }
       case "roll":
