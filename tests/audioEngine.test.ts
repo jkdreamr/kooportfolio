@@ -143,6 +143,16 @@ describe("audio engine (D1)", () => {
     }
   });
 
+  it("lets the landing end a flight sound that is still playing", () => {
+    const { h } = host();
+    h.setAllowed(true);
+    h.unlock();
+    expect(h.fade("flight")).toBe(false);
+    expect(h.play("flight", { duration: 4.6 })).toBe(true);
+    expect(h.fade("flight", 0.45)).toBe(true);
+    expect(h.fade("flight")).toBe(false);
+  });
+
   it("caps simultaneous voices at 24", () => {
     const { h } = host();
     h.setAllowed(true);

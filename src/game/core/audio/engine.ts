@@ -55,6 +55,8 @@ export class AudioHost {
   private duckState = new Map<Bus, number>();
   /** Voices and loops built since start (muted ⇒ stays 0). */
   built = 0;
+  /** The latest voice per palette name, so an event can end it early. */
+  private latest = new Map<PaletteName, { fade: (seconds: number) => void; end: number }>();
 
   constructor(private options: HostOptions = {}) {
     this.random = options.random ?? Math.random;
@@ -257,6 +259,31 @@ export class AudioHost {
       },
     });
     if ("ducks" in spec && spec.ducks) this.duck("music", -6, 0.06, Math.max(0, result.end - t - 0.06), 0.6);
+    this.latest.set(name, {
+      end: result.end,
+      fade: (seconds) => {
+        const at = ctx.currentTime;
+        v.gain.cancelScheduledValues(at);
+        v.gain.setValueAtTime(v.gain.value, at);
+        v.gain.linearRampToValueAtTime(0, at + seconds);
+        for (const s of sources)
+          try {
+            s.stop(at + seconds + 0.02);
+          } catch {
+            /* Already stopped. */
+          }
+      },
+    });
+    return true;
+  }
+
+  /** Fades out the latest voice of `name` if it is still sounding (a flight
+   * that ends sooner than its default length). */
+  fade(name: PaletteName, seconds = 0.4) {
+    const voice = this.latest.get(name);
+    if (!voice || !this.ctx || voice.end <= this.ctx.currentTime) return false;
+    this.latest.delete(name);
+    voice.fade(seconds);
     return true;
   }
 

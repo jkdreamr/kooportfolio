@@ -277,7 +277,7 @@ export const SPECS = {
       bell(ctx, out, t, { f: 1046 * v.pitch, ratio: 3.01, index: 0.8, indexDecay: 0.15, dur: 0.3, level: 0.9 })),
   },
   tear: {
-    bus: "sfx", level: 0.06, send: 0.2, dur: 0.38, vary: { pitch: 0.03, level: 0.08 },
+    bus: "sfx", level: 0.045, send: 0.2, dur: 0.38, vary: { pitch: 0.03, level: 0.08 },
     build: (ctx, out, t, v) => {
       // Paper: a rising band of noise whose amplitude is chopped by a 30 Hz
       // saw at 40% depth, so it reads as fibres parting, not hiss.
@@ -306,7 +306,7 @@ export const SPECS = {
     },
   },
   flight: {
-    bus: "sfx", level: 0.035, send: 0.3, dur: 4.6, vary: FIXED,
+    bus: "sfx", level: 0.03, send: 0.3, dur: 4.6, vary: FIXED,
     build: (ctx, out, t, v) => {
       const d = v.duration ?? 4.6;
       const air = ctx.createBufferSource(),
@@ -354,7 +354,7 @@ export const SPECS = {
     },
   },
   land: {
-    bus: "sfx", level: 0.045, send: 0.25, dur: 0.4, vary: MUSICAL,
+    bus: "sfx", level: 0.035, send: 0.25, dur: 0.4, vary: MUSICAL,
     build: (ctx, out, t, v) => built(t + 0.4,
       thump(ctx, out, t, 120 * v.pitch, 60, 0.2, 0.75),
       noise(ctx, out, t, v, { type: "lowpass", f: 700, q: 0.7, dur: 0.06, attack: 0.002, level: 0.3 }),

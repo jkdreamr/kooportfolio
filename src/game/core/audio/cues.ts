@@ -37,6 +37,9 @@ export type CueOptions = {
 /** Plays a cue through the audio engine. Silent while muted, with the tab
  * hidden, on the portfolio pages, or before the first in-game gesture. */
 export function cue(name: Cue, opts?: CueOptions): void {
+  // The landing ends the flight's air on cue, however long the flight was
+  // (returning visitors fly 2.2 s; the flight cue does not say).
+  if (name === "land") audio.fade("flight", 0.45);
   play(name, opts);
 }
 
