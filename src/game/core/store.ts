@@ -118,12 +118,14 @@ type State = {
     game: string;
     title: string;
     detail: string;
-    /** Optional score for the result card's count-up. */
+    /** Optional score for the result card's count-up (ResultCard). */
     score?: number;
-    /** Personal best for this result's measure, after this game. */
-    best?: number;
-    /** This game set a new personal best. */
-    newBest?: boolean;
+    /** Unit shown after the score ("s", "points"). */
+    unit?: string;
+    /** This game set a new personal best (the card's "New best" chip). */
+    best?: boolean;
+    /** The personal best for this measure, after this game. */
+    record?: number;
   };
   run: number;
   go: (scene: Scene) => void;

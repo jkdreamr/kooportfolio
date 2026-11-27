@@ -26,6 +26,7 @@ import {
 } from "../core/basketball";
 import { footstep, sound } from "../core/sound";
 import { BasketballPlayer } from "./BasketballPlayer";
+import { ResultCard } from "../ui/ResultCard";
 import { useJuice } from "./juice/Juice";
 import {
   CourtBall,
@@ -432,17 +433,17 @@ function CourtSessionHud({ close }: { close: () => void }) {
         <div className="court-finished" role="status">
           <span>TIME</span>
           <h2>Session done</h2>
-          <p className="court-finished-score">
-            <b>{hud.points}</b> points · longest streak {hud.best?.streak ?? hud.streak}
-          </p>
-          {hud.best && (
-            <p className="court-finished-best">
-              {hud.best.newPoints ? <span className="court-new-best">New best</span> : <>Best {hud.best.points}</>}
-              {hud.best.newStreak && !hud.best.newPoints && <span className="court-new-best">New streak best</span>}
-            </p>
-          )}
-          <button onClick={() => beginRound()}>Play again</button>
-          <button onClick={close}>Close</button>
+          <ResultCard
+            score={hud.points}
+            unit="points"
+            best={!!hud.best?.newPoints}
+            detail={`Longest streak ${hud.best?.streak ?? hud.streak}${
+              hud.best && !hud.best.newPoints ? ` · best ${hud.best.points}` : ""
+            }${hud.best?.newStreak && !hud.best.newPoints ? " · new streak best" : ""}`}
+            onReplay={() => beginRound()}
+            onBack={close}
+            backLabel="Back to the court"
+          />
         </div>
       )}
     </section>

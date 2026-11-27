@@ -20,6 +20,7 @@ import {
 import { runtime, useGame } from "../core/store";
 import { useLauncher, useLauncherHosted } from "../core/launchers";
 import { useJuice } from "./juice/Juice";
+import { ResultCard } from "../ui/ResultCard";
 import { startGameMode, endGameMode, useGameMode } from "../core/gameMode";
 import { keys, touch } from "../core/input";
 import { sound } from "../core/sound";
@@ -634,20 +635,17 @@ export function BadmintonCourt({
                     aria-label="Match result"
                   >
                     <h2>{snapshot.winner === "player" ? "You win" : "Match over"}</h2>
-                    <p className="badminton-final">
-                      <b>{snapshot.score[0]}</b> – <b>{snapshot.score[1]}</b>
-                    </p>
-                    {record && (
-                      <p className="badminton-bests">
-                        Longest rally {record.longest}
-                        {record.newRally ? <span className="badminton-new-best">New best</span> : <> · best {record.bestRally}</>}
-                        {record.wins > 0 && <> · {record.wins} won</>}
-                      </p>
-                    )}
-                    <button ref={(node) => node?.focus({ preventScroll: true })} onClick={begin}>Rematch</button>
-                    <button className="badminton-quiet" onClick={end}>
-                      Back to room
-                    </button>
+                    <ResultCard
+                      score={record?.longest ?? snapshot.longest}
+                      unit="shot rally"
+                      best={!!record?.newRally}
+                      detail={`${snapshot.winner === "player" ? "Won" : "Lost"} ${snapshot.score[0]}–${snapshot.score[1]}${
+                        record && !record.newRally ? ` · best rally ${record.bestRally}` : ""
+                      }${record && record.wins > 0 ? ` · ${record.wins} won` : ""}`}
+                      onReplay={begin}
+                      onBack={end}
+                      backLabel="Back to the room"
+                    />
                   </section>
                 ) : (
                   <>

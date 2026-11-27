@@ -303,9 +303,10 @@ export function Rowing() {
           game: "rowing",
           title: best.improved ? "New best time" : "Race complete",
           detail: `${length} m in ${raceClock(time)}${best.improved ? "" : ` · best ${raceClock(record)}`}`,
-          score: time,
-          best: record,
-          newBest: best.improved,
+          score: Math.round(time),
+          unit: "s",
+          best: best.improved,
+          record,
         },
       });
       setAnnounce(`Finished ${length} metres in ${raceClock(time)}.${best.improved ? " New best time." : ""}`);

@@ -24,6 +24,11 @@ export const ROOM_MUSIC_CUTOFF = 1200;
 export const ROOM_MUSIC_DB = -8;
 /** Dialogue: ambience 6 dB and music 8 dB under a conversation. */
 export const DIALOGUE_DUCK = { ambience: -6, music: -8 } as const;
+/** An external player (the Listen panel) holds the stage: the world bed
+ * drops well back and music stops while it plays. */
+export const HOLD_DUCK = { ambience: -18, music: -60 } as const;
+/** Sources currently holding the game audio down (window "stage-audio-hold"). */
+const holds = new Set<string>();
 
 let bound = false;
 function bind() {
@@ -42,11 +47,12 @@ function bind() {
     audio.setSpace(outdoor ? "outdoor" : "room");
     audio.setMusicTone(outdoor ? 18000 : ROOM_MUSIC_CUTOFF);
     const talking = s.panel === "npc";
-    audio.holdDuck("ambience", talking ? DIALOGUE_DUCK.ambience : 0);
-    // Music sits out mini-games and the cinema; rooms hear it muffled.
+    const held = holds.size > 0;
+    audio.holdDuck("ambience", held ? HOLD_DUCK.ambience : talking ? DIALOGUE_DUCK.ambience : 0);
+    // Music sits out mini-games, the cinema and external players; rooms hear it muffled.
     audio.holdDuck(
       "music",
-      playing || s.scene === "theater" ? -60 : talking ? DIALOGUE_DUCK.music : outdoor ? 0 : ROOM_MUSIC_DB,
+      held || playing || s.scene === "theater" ? HOLD_DUCK.music : talking ? DIALOGUE_DUCK.music : outdoor ? 0 : ROOM_MUSIC_DB,
     );
   };
   applyPrefs();
@@ -61,6 +67,13 @@ function bind() {
   });
   useStage.subscribe((next, prev) => {
     if (next.mode !== prev.mode) applyStage();
+  });
+  window.addEventListener("stage-audio-hold", (e) => {
+    const detail = (e as CustomEvent<{ source?: unknown; on?: unknown }>).detail;
+    if (!detail || typeof detail.source !== "string") return;
+    if (detail.on === true) holds.add(detail.source);
+    else holds.delete(detail.source);
+    applyScene();
   });
   audio.setHidden(document.hidden);
   document.addEventListener("visibilitychange", () => audio.setHidden(document.hidden));

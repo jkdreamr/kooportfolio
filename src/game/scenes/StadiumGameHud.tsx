@@ -179,7 +179,7 @@ export function StadiumGameHud({
         }}
       >
         <div className="stadium-game-score">
-          <strong>49ERS</strong>
+          <strong>GO NINERS</strong>
           <small>FIELD GOALS</small>
         </div>
         <button

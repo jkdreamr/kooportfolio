@@ -48,24 +48,24 @@ function Field() {
         }
     }
     c.fillStyle = "#f4d997";
-    c.font = "bold 74px Georgia";
+    c.font = "bold 70px system-ui, sans-serif";
     c.textAlign = "center";
-    c.fillText("49ERS", 384, 115);
+    // Fan text in team colours, never the team's marks.
+    c.fillText("GO NINERS", 384, 115);
     c.save();
     c.translate(384, 1450);
     c.rotate(Math.PI);
     c.fillText("SAN FRANCISCO", 0, 24);
     c.restore();
-    c.beginPath();
-    c.ellipse(384, 768, 120, 78, 0, 0, Math.PI * 2);
+    // Midfield: a plain red-and-gold band with the 50, no logo.
     c.fillStyle = "#a91f32";
-    c.fill();
-    c.strokeStyle = "#cfac68";
-    c.lineWidth = 10;
-    c.stroke();
+    c.fillRect(214, 742, 340, 52);
+    c.fillStyle = "#cfac68";
+    c.fillRect(214, 734, 340, 8);
+    c.fillRect(214, 794, 340, 8);
     c.fillStyle = "#fff3d6";
-    c.font = "italic bold 82px Georgia";
-    c.fillText("SF", 384, 795);
+    c.font = "bold 46px system-ui, sans-serif";
+    c.fillText("50", 384, 784);
     const map = new THREE.CanvasTexture(canvas);
     map.colorSpace = THREE.SRGBColorSpace;
     map.anisotropy = 4;
@@ -309,7 +309,7 @@ export function StadiumArchitecture({
       <Box p={[0, 4.5, -28.85]} s={[8.4, 3.1, 0.72]} c="#393d35" />
       <Box p={[0, 6.12, -28.85]} s={[8.6, 0.2, 0.8]} c={GOLD} />
       <Sign
-        text="49ERS"
+        text="GO NINERS"
         p={[0, 5.2, -28.45]}
         size={[7.3, 1.05]}
         color={RED}
@@ -388,7 +388,7 @@ export function StadiumBuilding() {
         </group>
         <Box p={[0, 1.85, 3.15]} s={[3.7, 0.5, 0.65]} c={RED} />
         <Sign
-          text="49ERS"
+          text="GO NINERS"
           p={[0, 1.86, 3.51]}
           size={[2.8, 0.44]}
           color={RED}

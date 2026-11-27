@@ -18,6 +18,7 @@ const skateOffset = new THREE.Vector3();
 import { runtime, useGame } from "../core/store";
 import { useLauncher, useLauncherHosted } from "../core/launchers";
 import { useJuice } from "./juice/Juice";
+import { ResultCard } from "../ui/ResultCard";
 import { useSoundLoop } from "./useSoundLoop";
 import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import { keys, movement, movementSpeed, touch } from "../core/input";
@@ -620,17 +621,16 @@ export function SkateParkInterior() {
                     aria-label="Skate run result"
                   >
                     <span className="skate-eyebrow">Run complete</span>
-                    <h2>{result ? `${result.score.toLocaleString("en-US")} points` : "Nice line"}</h2>
-                    {result && (
-                      <p className="skate-best">
-                        Best combo {result.combo.toLocaleString("en-US")}
-                        {result.newBest ? <span className="skate-new-best">New best</span> : <> · record {result.bestCombo.toLocaleString("en-US")}</>}
-                      </p>
-                    )}
-                    <div className="skate-modes">
-                      <button onClick={() => begin("run")}>Ride again</button>
-                      <button onClick={leaveBoard}>Step off</button>
-                    </div>
+                    <h2>Nice line</h2>
+                    <ResultCard
+                      score={result?.score}
+                      unit="points"
+                      best={!!result?.newBest}
+                      detail={result ? `Best combo ${result.combo.toLocaleString("en-US")}${result.newBest ? "" : ` · record ${result.bestCombo.toLocaleString("en-US")}`}` : undefined}
+                      onReplay={() => begin("run")}
+                      onBack={leaveBoard}
+                      backLabel="Step off"
+                    />
                   </section>
                 ) : (
                   <>
