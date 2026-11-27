@@ -290,3 +290,14 @@ describe("console gate allowlist (A11)", () => {
     expect(isAllowed("Warning: An error occurred during hydration.")).toBe(false);
   });
 });
+
+describe("portfolio type sizes", () => {
+  it("sets no text below 12 px in the portfolio stylesheets", () => {
+    for (const file of ["../src/style.css", "../src/site/glass.css"]) {
+      const css = readFileSync(new URL(file, import.meta.url), "utf8");
+      const sizes = [...css.matchAll(/font(?:-size)?\s*:[^;{}]*?(\d+(?:\.\d+)?)px/g)].map((m) => +m[1]);
+      if (file.endsWith("style.css")) expect(sizes.length).toBeGreaterThan(10);
+      for (const px of sizes) expect(px, file).toBeGreaterThanOrEqual(12);
+    }
+  });
+});
