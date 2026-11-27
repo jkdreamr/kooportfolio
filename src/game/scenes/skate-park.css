@@ -3,7 +3,7 @@
   inset: 0;
   pointer-events: none;
   color: #f5f4e9;
-  font-family: inherit;
+  font-family: var(--font-ui, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
   user-select: none;
 }
 .skate-ui button {
@@ -35,7 +35,7 @@
   margin-left: 5px;
   color: #c3d0d0;
   font: inherit;
-  font-size: 10px;
+  font-size: 12px;
   white-space: nowrap;
 }
 .skate-card {
@@ -53,7 +53,7 @@
   pointer-events: auto;
 }
 .skate-eyebrow {
-  font-size: 10px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: #d6b77a;
@@ -98,7 +98,7 @@
   border: 1px solid #b39b66;
   border-radius: 7px;
   background: #304650;
-  font-size: 11px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
 .skate-banked {
@@ -109,7 +109,7 @@
 }
 .skate-banked > span {
   color: #c3d0d0;
-  font-size: 9px;
+  font-size: 12px;
 }
 .skate-banked > strong {
   font-size: 28px;
@@ -131,14 +131,14 @@
 }
 .skate-combo-label {
   color: #f5f4e9;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   text-shadow: 0 2px 2px #20352a;
 }
 .skate-combo small {
   margin-left: 3px;
   color: #f6d081;
-  font-size: 10px;
+  font-size: 12px;
 }
 .skate-combo meter {
   display: block;
@@ -200,7 +200,7 @@
   grid-column: 1 / 3;
   min-height: 32px;
   background: #21353f;
-  font-size: 11px;
+  font-size: 12px;
 }
 .skate-hint {
   position: absolute;
@@ -213,7 +213,7 @@
   padding: 5px 8px;
   border-radius: 4px;
   background: #21353f;
-  font-size: 10px;
+  font-size: 12px;
   text-align: center;
 }
 .scene-skate .joystick {
@@ -243,7 +243,7 @@
     right: 12px;
   }
   .skate-view-controls button {
-    font-size: 10px !important;
+    font-size: 12px !important;
     padding: 6px !important;
   }
   .skate-ui.is-riding .skate-view-controls {
@@ -265,7 +265,7 @@
   }
   .skate-score > span {
     white-space: nowrap;
-    font-size: 10px;
+    font-size: 12px;
   }
   .skate-steer {
     left: 10px;
@@ -282,7 +282,7 @@
     gap: 4px;
   }
   .skate-tricks button {
-    font-size: 11px;
+    font-size: 12px;
     padding: 7px 2px;
   }
   .skate-tricks kbd {
@@ -290,7 +290,7 @@
   }
   .skate-hint {
     bottom: 66px;
-    font-size: 9px;
+    font-size: 12px;
   }
   .skate-feedback {
     top: 207px;

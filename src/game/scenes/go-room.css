@@ -16,7 +16,7 @@
   background: var(--hud-face, #304650);
   color: var(--hud-ink, #f5f4e9);
   box-shadow: var(--hud-shadow);
-  font-family: "Trebuchet MS", Arial, sans-serif;
+  font-family: var(--font-ui, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
   font-size: 13px;
   line-height: 1.4;
   pointer-events: auto;
@@ -118,7 +118,7 @@
 }
 .go-board .go-point:hover:not(:disabled), .go-board .go-point:focus-visible { background: transparent; outline: none; }
 .go-point.go-top { scroll-margin-block-start: 8px; }
-.go-axis { position: absolute; font-size: clamp(9px, 1vw, 11px); line-height: 1; color: #49311f; pointer-events: none; }
+.go-axis { position: absolute; font-size: 12px; line-height: 1; color: #49311f; pointer-events: none; }
 .go-axis-column { top: -5px; left: 50%; transform: translateX(-50%); }
 .go-axis-row { left: -5px; top: 50%; transform: translateY(-50%); }
 .go-point::before, .go-point::after { content: ""; position: absolute; background: #5c4028; z-index: -1; }
@@ -144,28 +144,28 @@
 .go-territory-1 { background: #26332b; }
 .go-territory-2 { background: #fff2d0; }
 .go-status { display: block; font-size: clamp(12px, 1.7vw, 16px); line-height: 1.3; text-align: center; }
-.go-caption { font-size: 11px; color: var(--hud-muted, #c3d0d0); margin: 3px 0 8px; line-height: 1.5; }
+.go-caption { font-size: 12px; color: var(--hud-muted, #c3d0d0); margin: 3px 0 8px; line-height: 1.5; }
 .go-captures, .go-score { display: flex; gap: 20px; justify-content: space-between; margin-top: 10px; }
 .go-captures b, .go-score b { font-size: 20px; margin-left: 7px; }
 .go-score { flex-direction: column; gap: 10px; }
-.go-score small { display: block; color: var(--hud-muted, #c3d0d0); font-size: 11px; margin-top: 2px; }
+.go-score small { display: block; color: var(--hud-muted, #c3d0d0); font-size: 12px; margin-top: 2px; }
 .go-legend { display: flex; align-items: center; gap: 5px; margin-top: 9px; }
 .go-legend i { width: 9px; height: 9px; border: 1px solid #829398; }
 .go-actions { display: flex; gap: 8px; }
 .go-actions button { flex: 1; padding-inline: 8px; }
-.go-message { min-height: 18px; font-size: 11px; line-height: 1.45; color: var(--hud-ink, #f4f6f7); margin: 9px 0; }
-.go-card .go-new { min-height: 32px; padding: 4px 8px; font-size: 11px; background: #21353f; }
+.go-message { min-height: 18px; font-size: 12px; line-height: 1.45; color: var(--hud-ink, #f4f6f7); margin: 9px 0; }
+.go-card .go-new { min-height: 32px; padding: 4px 8px; font-size: 12px; background: #21353f; }
 .go-confirm p { margin: 6px 0; }
 .go-mode { display: flex; gap: 8px; align-items: center; font-size: var(--text-xs, 12px); margin-top: 9px; }
 /* Opponent picker: one segmented control in the glass style, not a native select. */
 .go-segments { flex: 1; display: flex; padding: 3px; gap: 2px; border-radius: 9px; background: #00000026; box-shadow: inset 0 0 0 1px #ffffff1f; }
-.go-segments button { flex: 1; min-height: 34px; padding: 4px 6px; border: 0; border-radius: 6px; background: transparent; color: inherit; font: 600 var(--text-xs, 12px) / 1 var(--font-ui, system-ui, sans-serif); cursor: pointer; }
+.go-segments button { flex: 1; min-height: 34px; padding: 4px 6px; border: 0; border-radius: 6px; background: transparent; color: inherit; font: 600 var(--text-xs, 12px) /1 var(--font-ui, system-ui, sans-serif); cursor: pointer; }
 .go-segments button.is-selected { background: #f5ecd8; color: #3b2a1a; box-shadow: 0 1px 3px #0003; }
 .go-segments button:focus-visible { outline: 2px solid #ffc97a; outline-offset: 2px; }
 @media (pointer: coarse) { .go-segments button { min-height: 44px; font-size: var(--text-sm, 13px); } }
 .go-record { margin: 6px 0; font-size: var(--text-sm, 13px); }
 .go-new-best { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #ffc97a; color: #3b2a1a; font-weight: 700; font-size: var(--text-xs, 12px); }
-.go-rules { font-size: 11px; line-height: 1.55; color: var(--hud-muted, #c3d0d0); margin-top: 10px; }
+.go-rules { font-size: 12px; line-height: 1.55; color: var(--hud-muted, #c3d0d0); margin-top: 10px; }
 .go-rules summary { cursor: pointer; padding: 6px 0; }
 .go-rules p { margin: 6px 0; }
 @media (max-width: 600px) {

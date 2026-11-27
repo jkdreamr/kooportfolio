@@ -3,7 +3,7 @@
   inset: 0;
   color: var(--hud-ink, #f5f4e9);
   pointer-events: none;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-ui, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
   user-select: none;
   -webkit-user-select: none;
 }
@@ -15,10 +15,7 @@
   background: var(--hud-face, #293f49);
   box-shadow: 0 3px 10px #10242c30;
   color: var(--hud-ink, #f5f4e9);
-  font:
-    600 13px Arial,
-    Helvetica,
-    sans-serif;
+  font: 600 13px var(--font-ui, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
   padding: 10px 16px;
   cursor: pointer;
   touch-action: none;
@@ -42,10 +39,7 @@
   cursor: default;
 }
 .badminton-ui h2 {
-  font:
-    600 24px Arial,
-    Helvetica,
-    sans-serif;
+  font: 600 24px var(--font-ui, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
   margin: 0;
 }
 .badminton-ui p {
@@ -111,7 +105,7 @@
   width: 100%;
   text-align: center;
   color: var(--hud-muted, #c3d0d0);
-  font-size: 10px;
+  font-size: 12px;
 }
 .badminton-result {
   top: 50%;
@@ -145,7 +139,7 @@
   padding: 3px 8px;
   border-radius: 4px;
   background: var(--hud-low, #21353e);
-  font-size: 11px;
+  font-size: 12px;
   text-transform: capitalize;
   letter-spacing: 0.02em;
   text-shadow: 0 1px 5px #10242c;
@@ -189,7 +183,7 @@
   border-radius: 4px;
   background: var(--hud-low, #21353e);
   color: var(--hud-muted, #c3d0d0);
-  font-size: 10px;
+  font-size: 12px;
   white-space: nowrap;
   line-height: 1.5;
   text-align: center;
@@ -290,7 +284,7 @@
   .badminton-shots button {
     min-height: 40px;
     padding: 6px 4px;
-    font-size: 11px;
+    font-size: 12px;
   }
   .badminton-selection,
   .badminton-hint {
@@ -311,7 +305,7 @@
     top: 16px;
     max-width: 66px;
     padding: 8px !important;
-    font-size: 11px !important;
+    font-size: 12px !important;
   }
 }
 @media (max-width: 360px) {
@@ -344,7 +338,7 @@
   .badminton-shots button {
     min-height: 36px;
     padding: 4px;
-    font-size: 11px;
+    font-size: 12px;
   }
   .badminton-selection,
   .badminton-hint {

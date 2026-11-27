@@ -102,7 +102,7 @@
   padding: 7px 13px;
 }
 .papa-open-tickets small {
-  font-size: 10px;
+  font-size: 12px;
   color: #ced1b7;
 }
 .papa-hot {
@@ -132,7 +132,7 @@
 }
 .papa-ticket header span,
 .papa-order small {
-  font-size: 11px;
+  font-size: 12px;
   text-transform: capitalize;
   color: #cbc8a8;
 }
@@ -152,7 +152,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: 12px;
   color: #e0ddc3;
 }
 .papa-food {
@@ -221,7 +221,7 @@
 }
 .papa-stations small {
   color: #b2b596;
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 1px;
 }
 .papa-stations span {
@@ -229,7 +229,7 @@
   top: 8px;
   right: 8px;
   color: #d4c58c;
-  font-size: 10px;
+  font-size: 12px;
 }
 .papa-actions {
   width: min(510px, 45vw);
@@ -325,7 +325,7 @@
 .papa-hint {
   display: block;
   margin-top: 10px;
-  font-size: 10px;
+  font-size: 12px;
   color: #a8b7a6;
 }
 .papa-toppings {
@@ -342,7 +342,7 @@
   gap: 6px;
   min-height: 51px;
   padding: 7px 4px;
-  font-size: 10px;
+  font-size: 12px;
   background: #294a45;
 }
 .papa-toppings button:last-child {
@@ -412,7 +412,7 @@
   gap: 8px;
 }
 .papa-grades span {
-  font-size: 11px;
+  font-size: 12px;
   color: #b5c1ab;
 }
 .papa-grades b {
@@ -461,7 +461,7 @@
     font-size: 12px;
   }
   .papa-open-tickets small {
-    font-size: 9px;
+    font-size: 12px;
   }
   .papa-ticket {
     top: 133px;
@@ -512,7 +512,7 @@
     padding: 10px;
   }
   .papa-order .papa-recipe li {
-    font-size: 9px;
+    font-size: 12px;
     gap: 4px;
   }
   .papa-order .papa-recipe {
@@ -524,7 +524,7 @@
     gap: 5px;
   }
   .papa-order small {
-    font-size: 9px;
+    font-size: 12px;
   }
   .papa-order button {
     padding: 8px;
@@ -538,7 +538,7 @@
   }
   .papa-hint {
     margin-top: 8px;
-    font-size: 9px;
+    font-size: 12px;
   }
   .papa-result {
     bottom: 22px;
@@ -563,7 +563,7 @@
     font-size: 12px;
   }
   .papa-top span {
-    font-size: 10px;
+    font-size: 12px;
   }
   .papa-top time {
     font-size: 16px;
@@ -657,7 +657,7 @@
   }
   .papa-order .papa-recipe li,
   .papa-ticket .papa-recipe li {
-    font-size: 11px;
+    font-size: 12px;
     gap: 5px;
   }
   .papa-order progress {
@@ -679,7 +679,7 @@
     min-height: 43px;
   }
   .papa-hint {
-    font-size: 9px;
+    font-size: 12px;
   }
   .papa-result {
     top: 62px;

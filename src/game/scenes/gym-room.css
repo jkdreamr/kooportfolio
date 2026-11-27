@@ -1,9 +1,7 @@
 .gym-room-card,
 .gym-game {
   color: #f1f5f9;
-  font:
-    14px/1.35 system-ui,
-    sans-serif;
+  font: 14px/1.35 var(--font-ui, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
 }
 .gym-room-card,
 .gym-game-topbar,
@@ -36,9 +34,7 @@
   border-radius: 4px;
   background: #334155;
   color: #f8fafc;
-  font:
-    700 14px system-ui,
-    sans-serif;
+  font: 700 14px var(--font-ui, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
   cursor: pointer;
   touch-action: manipulation;
 }
@@ -80,9 +76,7 @@
 }
 .gym-action-label kbd {
   color: #dce6ee;
-  font:
-    500 12px system-ui,
-    sans-serif;
+  font: 500 12px var(--font-ui, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
 }
 .gym-game {
   position: absolute;
@@ -171,7 +165,7 @@
   position: absolute;
   top: -19px;
   color: #d0eee0;
-  font-size: 11px;
+  font-size: 12px;
 }
 .gym-timing-marker {
   position: absolute;

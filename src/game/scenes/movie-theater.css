@@ -9,9 +9,7 @@
   align-items: center;
   gap: 8px;
   color: var(--glass-ink);
-  font:
-    14px system-ui,
-    sans-serif;
+  font: 14px var(--font-ui, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
   pointer-events: none;
   color-scheme: dark;
 }
@@ -48,9 +46,7 @@
   border-radius: var(--glass-radius-sm);
   background: var(--glass-well);
   color: inherit;
-  font:
-    600 13px system-ui,
-    sans-serif;
+  font: 600 13px var(--font-ui, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
   text-decoration: none;
   cursor: pointer;
   touch-action: manipulation;
@@ -128,9 +124,7 @@
   box-shadow: inset 0 1px 2px rgb(4 16 24 / 0.3);
   color: inherit;
   /* 16px keeps iOS Safari from zooming the page on focus. */
-  font:
-    16px system-ui,
-    sans-serif;
+  font: 16px var(--font-ui, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
   touch-action: manipulation;
 }
 .cinema-search::placeholder {
