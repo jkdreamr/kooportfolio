@@ -25,9 +25,15 @@ import { audio as liveHost } from "./audio/live";
 
 /** What the ambience needs from the audio engine (injectable for tests). */
 export type AmbientHost = {
+  /** Creates/resumes the shared context, only where sound is allowed. */
   unlock(): AudioContext | null;
   connect(bus: Bus, node: AudioNode): () => void;
+  /** The shared context if some other gesture already made it (never creates). */
+  readonly ctx?: AudioContext | null;
 };
+
+/** stop(): the bed fades out over this long instead of cutting (a pop). */
+export const STOP_FADE = 0.08;
 
 export type AmbientEnvironment = {
   muted: boolean;
@@ -206,6 +212,7 @@ export function bedMix(e: AmbientEnvironment) {
 type Voice = {
   emitter: Emitter;
   source: AudioBufferSourceNode;
+  tone?: BiquadFilterNode;
   gain: GainNode;
   panner: PannerNode;
 };
@@ -217,6 +224,7 @@ export class AmbientAudio {
   private sprayBuffer?: AudioBuffer;
   private gains = new Map<Recorded, GainNode>();
   private output?: () => void;
+  private master?: GainNode;
   private city?: Bed;
   private events?: GainNode;
   private live: { end: number; sources: AudioScheduledSourceNode[] }[] = [];
@@ -247,12 +255,14 @@ export class AmbientAudio {
   unlock() {
     if (this.disposed) return;
     try {
-      this.context ??= this.host.unlock() ?? undefined;
-      if (!this.context) return;
-      void this.context
-        .resume()
-        .then(() => this.sync())
-        .catch(() => {});
+      // Only through the engine: it resumes when sound is allowed and the
+      // tab visible, and returns null on the portfolio, where the context it
+      // suspended must stay suspended. sync() runs every frame and starts
+      // the beds once the context is running.
+      const context = this.host.unlock();
+      if (!context) return;
+      this.context = context;
+      if (context.state === "running") this.sync();
     } catch {
       /* No WebAudio is a supported silent fallback. */
     }
@@ -275,6 +285,9 @@ export class AmbientAudio {
       this.stop();
       return;
     }
+    // A gesture the engine saw (the tear, a touchend) may have made the
+    // context before ours did: adopt it, never create or resume it here.
+    this.context ??= this.host.ctx ?? undefined;
     const context = this.context;
     if (!context || context.state !== "running") return;
     if (!this.sources.length && !this.starting) void this.start(context);
@@ -436,8 +449,9 @@ export class AmbientAudio {
       source.playbackRate.value = emitter.rate;
       gain.gain.value = 0;
       let head: AudioNode = source;
+      let tone: BiquadFilterNode | undefined;
       if (emitter.tone) {
-        const tone = context.createBiquadFilter();
+        tone = context.createBiquadFilter();
         tone.type = emitter.tone.type;
         tone.frequency.value = emitter.tone.frequency;
         source.connect(tone);
@@ -455,13 +469,14 @@ export class AmbientAudio {
       source.start(0, offset);
       this.sources.push(source);
       this.nodes.push(gain, panner);
-      this.voices.push({ emitter, source, gain, panner });
+      this.voices.push({ emitter, source, tone, gain, panner });
     }
   }
 
   /** Travel: fade the old island's emitters out, then let the new ones in. */
   private retireVoices(context: AudioContext) {
     const t = context.currentTime;
+    const retired = new Set<AudioNode>();
     for (const voice of this.voices) {
       voice.gain.gain.setTargetAtTime(0, t, 0.25);
       try {
@@ -469,14 +484,20 @@ export class AmbientAudio {
       } catch {
         /* Already stopped. */
       }
-      this.sources = this.sources.filter((s) => s !== voice.source);
-      const { source, gain, panner } = voice;
+      const { source, tone, gain, panner } = voice;
+      retired.add(source).add(gain).add(panner);
+      if (tone) retired.add(tone);
       source.onended = () => {
         source.disconnect();
+        tone?.disconnect();
         gain.disconnect();
         panner.disconnect();
       };
     }
+    // The retired voices own their teardown now (onended): drop them from
+    // the lists, which would otherwise grow with every island travelled.
+    this.sources = this.sources.filter((s) => !retired.has(s));
+    this.nodes = this.nodes.filter((n) => !retired.has(n));
     this.voices = [];
     this.voiceWorld = undefined;
   }
@@ -530,6 +551,7 @@ export class AmbientAudio {
     spatial.connect(master);
     // Through the engine's ambience bus: master chain, mute, levels, ducking.
     this.output = this.host.connect("ambience", master);
+    this.master = master;
     this.interior = interior;
     this.spatial = spatial;
     this.nodes.push(master, interior, spatial);
@@ -584,30 +606,46 @@ export class AmbientAudio {
     this.sync();
   }
 
+  /**
+   * Silences everything. The bed fades over STOP_FADE (a hard stop of the
+   * wind, beds and drone is an audible click), then the nodes go. The lists
+   * are reset at once, so a restart during the fade builds a fresh set.
+   */
   stop() {
     // Invalidate even a decode that was already in flight when fetch was aborted.
     if (this.starting || this.sources.length) this.generation++;
     this.request?.abort();
     this.request = undefined;
     this.starting = false;
-    for (const source of this.sources) {
-      try {
-        source.stop();
-      } catch {
-        /* Never started. */
-      }
-      source.disconnect();
+    const sources = [...this.sources, ...this.live.flatMap((v) => v.sources)],
+      nodes = this.nodes,
+      output = this.output,
+      master = this.master,
+      context = this.context;
+    const running = !!(context && master && context.state === "running");
+    const t = running ? context!.currentTime : 0;
+    if (running) {
+      const p = master!.gain;
+      const v = p.value;
+      p.cancelScheduledValues(t);
+      p.setValueAtTime(v, t);
+      p.linearRampToValueAtTime(0, t + STOP_FADE);
     }
-    for (const node of this.nodes) node.disconnect();
-    for (const voice of this.live)
-      for (const source of voice.sources)
-        try {
-          source.stop();
-        } catch {
-          /* Already ended. */
-        }
+    for (const source of sources)
+      try {
+        source.stop(running ? t + STOP_FADE + 0.02 : undefined);
+      } catch {
+        /* Never started, or already ended. */
+      }
+    const teardown = () => {
+      for (const source of sources) source.disconnect();
+      for (const node of nodes) node.disconnect();
+      output?.();
+    };
+    if (running) setTimeout(teardown, (STOP_FADE + 0.07) * 1000);
+    else teardown();
     this.live = [];
-    this.output?.();
+    this.master = undefined;
     this.output = undefined;
     this.city = undefined;
     this.events = undefined;

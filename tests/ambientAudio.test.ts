@@ -4,6 +4,7 @@ import {
   bedMix,
   emittersFor,
   INTERIOR_CUTOFF,
+  STOP_FADE,
   type AmbientEnvironment,
 } from "../src/game/core/ambientAudio";
 import { surfaceAt } from "../src/game/core/sound";
@@ -13,7 +14,14 @@ import { surfaceAt } from "../src/game/core/sound";
 const BASE = 8;
 const HOME_VOICES = emittersFor("home").length;
 
-const param = () => ({ value: 0, setTargetAtTime: vi.fn() });
+const param = () => ({
+  value: 0,
+  setTargetAtTime: vi.fn(),
+  setValueAtTime: vi.fn(),
+  linearRampToValueAtTime: vi.fn(),
+  cancelScheduledValues: vi.fn(),
+});
+let gains: ReturnType<typeof node>[];
 function node() {
   return {
     connect: vi.fn(),
@@ -49,7 +57,11 @@ class FakeContext {
     return source;
   };
   createOscillator = this.createBufferSource;
-  createGain = node;
+  createGain = () => {
+    const gain = node();
+    gains.push(gain);
+    return gain;
+  };
   createBiquadFilter = () => {
     const filter = node();
     filters.push(filter);
@@ -78,6 +90,7 @@ let environment: AmbientEnvironment, audio: AmbientAudio;
 beforeEach(() => {
   sources = [];
   filters = [];
+  gains = [];
   contexts = [];
   environment = {
     muted: true,
@@ -144,13 +157,14 @@ describe("ambient audio lifecycle", () => {
       else if (reason === "theater") environment.scene = "theater";
       else environment[reason as "muted" | "paused" | "hidden"] = true;
       audio.sync();
-      expect(
-        sources.every(
-          (s) =>
-            s.stop.mock.calls.length === 1 &&
-            s.disconnect.mock.calls.length === 1,
-        ),
-      ).toBe(true);
+      // Faded, not cut: each source stops just after an 80 ms master ramp.
+      expect(sources.every((s) => s.stop.mock.calls.length === 1 && s.stop.mock.calls[0][0] > 1.08)).toBe(true);
+      const master = gains[0].gain;
+      expect(master.linearRampToValueAtTime).toHaveBeenLastCalledWith(0, 1 + STOP_FADE);
+      expect(sources.some((s) => s.disconnect.mock.calls.length > 0)).toBe(false);
+      await vi.waitFor(() =>
+        expect(sources.every((s) => s.disconnect.mock.calls.length === 1)).toBe(true),
+      );
       Object.assign(environment, {
         muted: false,
         paused: false,
@@ -243,6 +257,52 @@ describe("ambient audio lifecycle", () => {
     // Old voices are scheduled to stop after their fade, not cut.
     for (const voice of homeVoices)
       expect(voice.stop.mock.calls[0][0]).toBeGreaterThan(1);
+  });
+});
+
+describe("ambient audio and the engine", () => {
+  it("never resumes a context the engine keeps suspended (the portfolio)", async () => {
+    const context = new FakeContext();
+    let allowed = true;
+    const host = { unlock: () => (allowed ? (context as unknown as AudioContext) : null), connect: () => () => {} };
+    const ambient = new AmbientAudio(() => environment, host);
+    environment.muted = false;
+    ambient.unlock();
+    await vi.waitFor(() => expect(sources.length).toBeGreaterThan(0));
+    // Back on the portfolio: the engine suspended the shared context.
+    allowed = false;
+    context.state = "suspended";
+    ambient.unlock();
+    ambient.sync();
+    expect(context.resume).not.toHaveBeenCalled();
+    ambient.dispose();
+  });
+
+  it("adopts a context another gesture already made, without unlocking", async () => {
+    const context = new FakeContext();
+    const unlock = vi.fn(() => null);
+    const host = { unlock, connect: () => () => {}, ctx: context as unknown as AudioContext };
+    const ambient = new AmbientAudio(() => environment, host);
+    environment.muted = false;
+    ambient.sync();
+    await vi.waitFor(() => expect(sources).toHaveLength(BASE + HOME_VOICES));
+    expect(unlock).not.toHaveBeenCalled();
+    expect(context.resume).not.toHaveBeenCalled();
+    ambient.dispose();
+  });
+
+  it("does not keep retired voices' nodes after island travel", async () => {
+    environment.muted = false;
+    audio.unlock();
+    await vi.waitFor(() => expect(sources).toHaveLength(BASE + HOME_VOICES));
+    const lists = audio as unknown as { nodes: unknown[]; sources: unknown[] };
+    const nodes = lists.nodes.length;
+    for (const world of ["korea", "home", "korea", "home"] as const) {
+      environment.world = world;
+      audio.sync();
+    }
+    expect(lists.nodes.length).toBe(nodes);
+    expect(lists.sources.length).toBe(BASE + HOME_VOICES);
   });
 });
 

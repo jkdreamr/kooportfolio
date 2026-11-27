@@ -113,7 +113,7 @@ describe("audio engine (D1)", () => {
     expect(ctx().calls.length).toBeGreaterThan(before);
   });
 
-  it("ramps master to 0 on mute and back up over 250 ms", () => {
+  it("ramps master to 0 on mute and back up in 30 ms, so the toggle cue is heard", () => {
     const { h } = host();
     h.setAllowed(true);
     h.unlock();
@@ -121,10 +121,77 @@ describe("audio engine (D1)", () => {
     h.setMuted(true);
     expect(master.setTargetAtTime).toHaveBeenLastCalledWith(0, 1, 0.02);
     h.setMuted(false);
+    expect(master.linearRampToValueAtTime).toHaveBeenLastCalledWith(0.8, 1.03);
+    // Back from a hidden tab: the slow fade in.
+    h.setHidden(true);
+    h.setHidden(false);
     expect(master.linearRampToValueAtTime).toHaveBeenLastCalledWith(0.8, 1.25);
   });
 
-  it("is silent with the tab hidden and suspends after a second", () => {
+  it("opens the master at full on creation: the unlocking gesture's own sound plays", () => {
+    const { h } = host();
+    h.setAllowed(true);
+    h.unlock();
+    const master = h.graph!.master.gain as unknown as { value: number; linearRampToValueAtTime: ReturnType<typeof vi.fn> };
+    expect(master.value).toBe(0.8);
+    expect(master.linearRampToValueAtTime).not.toHaveBeenCalled();
+    // Created muted: stays closed until unmuted.
+    const muted = host();
+    muted.h.setAllowed(true);
+    muted.h.setMuted(true);
+    muted.h.unlock();
+    expect((muted.h.graph!.master.gain as unknown as { value: number }).value).toBe(0);
+  });
+
+  it("resumes after a suspend that was still settling when the tab came back", async () => {
+    vi.useFakeTimers();
+    try {
+      const { h, ctx } = host();
+      h.setAllowed(true);
+      h.unlock();
+      let settle!: () => void;
+      ctx().suspend = vi.fn(() => new Promise<void>((resolve) => (settle = resolve)));
+      h.setHidden(true);
+      vi.advanceTimersByTime(1100);
+      expect(ctx().suspend).toHaveBeenCalledTimes(1);
+      // Visible again while the suspend is in flight (state still "running").
+      h.setHidden(false);
+      expect(ctx().resume).not.toHaveBeenCalled();
+      ctx().state = "suspended";
+      settle();
+      await vi.waitFor(() => expect(ctx().resume).toHaveBeenCalledTimes(1));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("resumes from iOS's interrupted state, but never on the portfolio", () => {
+    const { h, ctx } = host();
+    h.setAllowed(true);
+    h.unlock();
+    ctx().state = "interrupted";
+    h.setHidden(true);
+    h.setHidden(false);
+    expect(ctx().resume).toHaveBeenCalledTimes(1);
+    h.setAllowed(false);
+    ctx().state = "suspended";
+    expect(h.unlock()).toBeNull();
+    expect(ctx().resume).toHaveBeenCalledTimes(1);
+  });
+
+  it("anchors a held duck at the current value (no step from a cancelled ramp)", () => {
+    const { h } = host();
+    h.setAllowed(true);
+    h.unlock();
+    const p = h.graph!.duck.music.gain as unknown as { value: number } & Record<string, ReturnType<typeof vi.fn>>;
+    p.value = 0.7;
+    h.holdDuck("music", -8);
+    expect(p.setValueAtTime).toHaveBeenLastCalledWith(0.7, 1);
+    expect(p.setTargetAtTime.mock.lastCall![1]).toBe(1);
+    expect(p.setValueAtTime.mock.invocationCallOrder.at(-1)!).toBeLessThan(p.setTargetAtTime.mock.invocationCallOrder.at(-1)!);
+  });
+
+  it("is silent with the tab hidden and suspends after a second", async () => {
     vi.useFakeTimers();
     try {
       const { h, ctx } = host();
@@ -136,7 +203,7 @@ describe("audio engine (D1)", () => {
       expect(ctx().suspend).toHaveBeenCalledTimes(1);
       ctx().state = "suspended";
       h.setHidden(false);
-      expect(ctx().resume).toHaveBeenCalled();
+      await vi.waitFor(() => expect(ctx().resume).toHaveBeenCalled());
       expect(h.play("score")).toBe(true);
     } finally {
       vi.useRealTimers();

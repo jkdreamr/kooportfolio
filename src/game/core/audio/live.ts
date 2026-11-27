@@ -77,8 +77,6 @@ function bind() {
   });
   audio.setHidden(document.hidden);
   document.addEventListener("visibilitychange", () => audio.setHidden(document.hidden));
-  // Capture phase: runs while the browser still counts the event as a
-  // gesture, before any handler that might play a sound.
   let applied: AudioContext | null = null;
   const gesture = () => {
     const ctx = audio.unlock();
@@ -88,9 +86,26 @@ function bind() {
       void music.setWorld(useGame.getState().world);
     }
   };
-  for (const type of ["pointerdown", "keydown", "touchend"] as const)
+  for (const type of GESTURES) {
+    // Capture: before any handler that might play a sound.
     window.addEventListener(type, gesture, { capture: true, passive: true });
+    // Bubble: after the handler that leaves the portfolio. A press on the
+    // letter is still "site" in the capture phase, so only this one, in the
+    // same activation, finds the stage allowed.
+    window.addEventListener(type, gesture, { passive: true });
+  }
+  // The tear is dispatched mid-drag, inside the press's activation window,
+  // and may be the first moment both the engine and the stage are ready.
+  // This listener is added before cues.ts's, so the context exists by the
+  // time the tear cue plays.
+  window.addEventListener("stage-cue", (e) => {
+    if ((e as CustomEvent<{ name?: unknown } | null>).detail?.name === "tear") gesture();
+  });
 }
+
+/** Events that count as a gesture for unlocking audio. pointerup and click
+ * cover the keyboard-less, reduced-motion "click activates" entry. */
+export const GESTURES = ["pointerdown", "pointerup", "click", "keydown", "touchend"] as const;
 bind();
 // QA builds only (a no-op otherwise): the engine and launchers for scripts.
 exposeQa({ audio: { host: audio, play: (name: PaletteName, opts?: PlayOptions) => audio.play(name, opts) }, launchers: { launchersFor } });

@@ -26,7 +26,10 @@ export type PlayOptions = {
 };
 
 export const MAX_LOOPS = 4;
+/** Back from hidden or from the portfolio: the world fades in. */
 const UNMUTE_RAMP = 0.25;
+/** Unmuting from the HUD: quick, so the toggle's own "on" cue is heard. */
+const UNMUTE_FAST = 0.03;
 const MUTE_TAU = 0.02;
 const HIDE_FADE = 0.2;
 const SUSPEND_AFTER_MS = 1000;
@@ -51,6 +54,8 @@ export class AudioHost {
   private allowed = false;
   private levels = { music: 80, effects: 100 };
   private suspendTimer: ReturnType<typeof setTimeout> | null = null;
+  /** A suspend() still settling; a resume waits for it (else it is lost). */
+  private suspending: Promise<void> | null = null;
   private spaceTimer: ReturnType<typeof setTimeout> | null = null;
   private duckState = new Map<Bus, number>();
   /** Voices and loops built since start (muted ⇒ stays 0). */
@@ -70,13 +75,21 @@ export class AudioHost {
         const create =
           this.options.create ??
           (() => new AudioContext({ latencyHint: "interactive" }));
-        this.ctx = create();
-        this.graph = buildMixGraph(this.ctx, { reverb: this.options.reverb });
-        this.graph.master.gain.value = 0;
+        const ctx = create();
+        this.ctx = ctx;
+        this.graph = buildMixGraph(ctx, { reverb: this.options.reverb });
         this.applyLevels(true);
-        this.applyMaster(true);
+        // Nothing is playing yet, so the master starts at full: the very
+        // sound this gesture triggers is heard (a ramp would swallow it).
+        this.applyMaster("create");
+        // iOS: a call or Siri leaves the context "interrupted"; Safari can
+        // also suspend it on its own. Take it back as soon as we may.
+        if (typeof ctx.addEventListener === "function")
+          ctx.addEventListener("statechange", () => {
+            if (ctx.state !== "running") this.resumeIfOpen();
+          });
       }
-      if (this.ctx.state !== "running" && !this.hidden) void this.ctx.resume().catch(() => {});
+      this.resumeIfOpen();
       return this.ctx;
     } catch {
       this.ctx = null;
@@ -99,7 +112,7 @@ export class AudioHost {
     if (this.muted === muted) return;
     this.muted = muted;
     if (muted) this.pool.clear(this.ctx?.currentTime ?? 0);
-    this.applyMaster();
+    this.applyMaster(muted ? "fade" : "unmute");
   }
 
   setAllowed(allowed: boolean) {
@@ -126,14 +139,22 @@ export class AudioHost {
     return !this.muted && !this.hidden && this.allowed;
   }
 
-  private applyMaster(immediate = false) {
+  /** "create": snap (nothing sounds yet); "unmute": a 30 ms ramp; else the
+   * slow fade in or out. */
+  private applyMaster(how: "create" | "unmute" | "fade" = "fade") {
     const g = this.graph;
     if (!g) return;
     const p = g.master.gain,
       t = g.ctx.currentTime;
     p.cancelScheduledValues(t);
-    p.setValueAtTime(immediate ? 0 : p.value, t);
-    if (this.open()) p.linearRampToValueAtTime(MASTER_GAIN, t + UNMUTE_RAMP);
+    if (how === "create") {
+      const v = this.open() ? MASTER_GAIN : 0;
+      p.value = v;
+      p.setValueAtTime(v, t);
+      return;
+    }
+    p.setValueAtTime(p.value, t);
+    if (this.open()) p.linearRampToValueAtTime(MASTER_GAIN, t + (how === "unmute" ? UNMUTE_FAST : UNMUTE_RAMP));
     else if (this.muted) p.setTargetAtTime(0, t, MUTE_TAU);
     else p.linearRampToValueAtTime(0, t + HIDE_FADE);
   }
@@ -161,9 +182,29 @@ export class AudioHost {
     if (this.hidden || !this.allowed) {
       this.suspendTimer = setTimeout(() => {
         this.suspendTimer = null;
-        if ((this.hidden || !this.allowed) && ctx.state === "running") void ctx.suspend().catch(() => {});
+        if ((this.hidden || !this.allowed) && ctx.state === "running") {
+          const settling: Promise<void> = ctx
+            .suspend()
+            .catch(() => {})
+            .then(() => {
+              if (this.suspending !== settling) return;
+              this.suspending = null;
+              // The tab came back (or the game reopened) mid-suspend.
+              this.resumeIfOpen();
+            });
+          this.suspending = settling;
+        }
       }, SUSPEND_AFTER_MS);
-    } else if (ctx.state === "suspended") void ctx.resume().catch(() => {});
+    } else this.resumeIfOpen();
+  }
+
+  /** Resumes the context when visible and allowed: from "suspended" and
+   * from iOS's "interrupted" alike. Waits out a suspend in flight. */
+  private resumeIfOpen() {
+    const ctx = this.ctx;
+    if (!ctx || this.hidden || !this.allowed) return;
+    if (this.suspending || ctx.state === "running" || ctx.state === "closed") return;
+    void ctx.resume().catch(() => {});
   }
 
   /** Reverb follows interior/exterior with a 300 ms crossfade. */
@@ -199,7 +240,11 @@ export class AudioHost {
     if (!g) return;
     const p = g.duck[bus].gain,
       t = g.ctx.currentTime;
+    // Anchor first: cancelling an in-flight duck() ramp would otherwise
+    // start the approach from that ramp's end value, a step.
+    const now = p.value;
     p.cancelScheduledValues(t);
+    p.setValueAtTime(now, t);
     p.setTargetAtTime(target, t, tau);
   }
 
