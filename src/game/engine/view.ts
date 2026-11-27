@@ -190,8 +190,6 @@ export function stepViewProgress(
     : Math.max(toward, progress - step);
 }
 
-/** Boom samples per check (from near the target out to the camera). */
-const BOOM_SAMPLES = 5;
 /** Candidate boom fractions, longest first. */
 const BOOM_STEPS = [1, 0.85, 0.7, 0.55, 0.42, 0.3, 0.18, 0] as const;
 /** Elevations tried at the shortest boom, lowest first. */
