@@ -68,10 +68,10 @@ export function bakePart(ids: string[], log: (s: string) => void = console.log):
     const fig = buildFigure(outfit);
     const entries = Object.entries(fig.pieces) as [PieceId, NonNullable<Figure["pieces"][PieceId]>][];
     // Whole-figure field in character space (for AO).
-    const global = (p: V3) => {
+    const global = (p: V3, skip?: PieceId) => {
       let d = 1e9;
       for (const [pid, piece] of entries) {
-        if (!piece.ops.length) continue;
+        if (!piece.ops.length || pid === skip || pid === "pointR") continue;
         const j = PIECE_JOINT[pid];
         v3.set(p[0], p[1], p[2]).applyMatrix4(inv[j]);
         d = Math.min(d, evalOps(piece.ops, [v3.x, v3.y, v3.z], null) * (j === "head" ? SK.headScale : 1));
@@ -363,7 +363,13 @@ function toRest(pid: PieceId, m: AttrMesh, rest: Record<string, THREE.Matrix4>) 
   }
 }
 
-type Ctx = { pid: PieceId; fig: Figure; restM: THREE.Matrix4; global: (p: V3) => number };
+type Ctx = { pid: PieceId; fig: Figure; restM: THREE.Matrix4; global: (p: V3, skip?: PieceId) => number };
+/** A limb's AO ignores the limb piece it tucks into (or under) at the joint:
+ * the overlap is hidden, and its occlusion would draw a ragged dark band. */
+const AO_SKIP: Partial<Record<PieceId, PieceId>> = {
+  upperL: "foreL", upperR: "foreR", foreL: "upperL", foreR: "upperR", pointR: "upperR",
+  thighL: "shinL", thighR: "shinR", shinL: "thighL", shinR: "thighR",
+};
 const pc = new THREE.Vector3(), nc = new THREE.Vector3();
 /** Baked AO (whole figure) × top-down light gradient, into rigA.w. */
 function shadeAt(ctx: Ctx, p: V3, n: V3, lod: number) {
@@ -374,7 +380,7 @@ function shadeAt(ctx: Ctx, p: V3, n: V3, lod: number) {
   const H = [0.01, 0.024, 0.045, 0.075, 0.12], W = [1, 0.85, 0.65, 0.45, 0.3];
   // The mid mesh's big triangles would smear small creases: broad AO only.
   for (let s = lod ? 2 : 0; s < H.length; s++) {
-    const g = ctx.global([pc.x + nc.x * H[s], pc.y + nc.y * H[s], pc.z + nc.z * H[s]]);
+    const g = ctx.global([pc.x + nc.x * H[s], pc.y + nc.y * H[s], pc.z + nc.z * H[s]], AO_SKIP[ctx.pid]);
     occ += (W[s] * Math.max(0, H[s] - g)) / H[s];
   }
   // Painted look: lighter at the head and shoulders, darker toward the feet.
@@ -432,9 +438,12 @@ function labeled(raw: RawMesh, target: number, weight: (x: number, y: number, z:
       for (let t = 0; t < raw.tri.length; t += 3)
         for (let c = 0; c < 3; c++) {
           const u = raw.tri[t + c], v = raw.tri[t + ((c + 1) % 3)];
-          if (vlab[u] !== vlab[v]) { vw[u] = 6; vw[v] = 6; }
+          if (vlab[u] !== vlab[v]) { vw[u] = 4; vw[v] = 4; }
         }
-      m = decimate(raw, [target], (x, y, z, i) => weight(x, y, z) * (i === undefined ? 1 : vw[i]), vlab)[0];
+      // Borders only weigh more (no hard constraint: a hard border lets a
+      // small region shrink onto it, e.g. a bare shin onto a boot top); the
+      // face labels and the straightening below make the colours crisp.
+      m = decimate(raw, [target], (x, y, z, i) => weight(x, y, z) * (i === undefined ? 1 : vw[i]))[0];
     } else m = decimate(raw, [target], weight)[0];
   }
   const lab = new Int32Array(m.tri.length / 3);

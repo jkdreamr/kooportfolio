@@ -522,9 +522,10 @@ export function buildFigure(o: Outfit): Figure {
       upper.push(add(shell(upperBody, 0.015, sm, [above(-0.2)]), 0.003));
       upper.push(add({ ...tor([0, -0.19, 0.004], 0.048 * aw + 0.017, 0.019, sm, undefined, 1, 1.04), disp: folds(0.003, [0, -0.19, 0], 6) }, 0.005));
     }
-    // A clean flat end just past the elbow, tucked over the (thinner)
-    // forearm: the joint shows one neat edge, never two surfaces fighting.
-    upper.push({ op: "int", k: 0.002, n: above(-UA - 0.028) });
+    // A clean end just past the elbow, tucked over the (thinner) forearm:
+    // the joint shows one neat edge, never two surfaces fighting. The rim
+    // is filleted (a sharp cut meshes into a sawtooth).
+    upper.push({ op: "int", k: 0.007, n: above(-UA - 0.028) });
     pieces[`upper${side}`] = { ops: upper };
 
     const foreBody = grp([
@@ -675,7 +676,7 @@ export function buildFigure(o: Outfit): Figure {
         thigh.push(add(shell(thighBody, baji ? 0.037 : 0.017, M.fab(legSlot), bottom.kind === "shorts" ? [above(-0.19)] : [], trousers ? band(0.0026, -TH - 0.01, -TH + 0.07, 75) : folds(0.002)), 0.003));
       if (bottom.kind === "shorts") thigh.push(add(tor([0, -0.185, 0.002], 0.068 * aw + 0.017, 0.011, M.fab(bottom.trim ? SLOT.bottomTrim : SLOT.bottom)), 0.003));
       // Flat end just past the knee over the thinner shin (see the elbow).
-      thigh.push({ op: "int", k: 0.002, n: above(-TH - 0.026) });
+      thigh.push({ op: "int", k: 0.01, n: above(-TH - 0.026) });
       pieces[`thigh${side}`] = { ops: thigh };
     }
     if (bottom.kind !== "chima") {

@@ -72,7 +72,8 @@ describe("sculpted characters (F3/F5/F6)", () => {
       if (o.head?.kind === "headscarf") continue;
       expect(fig.hairPlan, v.id).toBeDefined();
       const { mesh } = hairMesh(fig.hairPlan!, true, fig.hatDist);
-      expect(mesh.tri.length / 3, v.id).toBeGreaterThan(200);
+      // (Under a beanie or helmet only the band below the brim shows.)
+      expect(mesh.tri.length / 3, v.id).toBeGreaterThan(150);
       // Hair hidden inside a hat is culled (only clump ends stay tucked in).
       let deep = 0;
       for (let i = 0; i < mesh.pos.length; i += 3) if (fig.hatDist([mesh.pos[i], mesh.pos[i + 1], mesh.pos[i + 2]]) < -0.03) deep++;
