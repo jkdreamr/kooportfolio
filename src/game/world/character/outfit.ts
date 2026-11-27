@@ -111,7 +111,10 @@ export type Outfit = {
   feet: { kind: FootKind; color: string; sole?: string };
   gloves?: string;
   extras?: Extra[];
+  /** Friendly expression for the sculpted face (always a smile of some kind). */
+  face?: { expr?: Expression; flick?: boolean };
 };
+export type Expression = "smile" | "grin" | "proud" | "excited" | "thoughtful";
 
 // --- Colour helpers (sRGB hex) ---------------------------------------------------
 const hexRgb = (hex: string): [number, number, number] => {

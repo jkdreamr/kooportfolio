@@ -725,6 +725,24 @@ export function casualOutfit(npc: Villager): Outfit {
   };
 }
 
-export const outfitFor = (npc: Villager): Outfit =>
-  CAST[npc.id]?.make(npc) ?? casualOutfit(npc);
+/** Expression and eye colour per villager, from their role and lines. */
+const FACE: Record<string, { expr: NonNullable<Outfit["face"]>["expr"]; eyes?: string; flick?: boolean }> = {
+  cook: { expr: "grin" }, "lunch-vendor": { expr: "grin" }, "prep-cook": { expr: "smile", eyes: "#7a5a2e" },
+  "tower-fan": { expr: "excited", flick: true }, "booth-visitor": { expr: "excited" }, drummer: { expr: "excited" },
+  "palace-guide": { expr: "grin" }, "hall-docent": { expr: "proud" }, "tower-docent": { expr: "proud", flick: true },
+  "architecture-student": { expr: "proud" }, researcher: { expr: "thoughtful" }, "puzzle-solver": { expr: "thoughtful", eyes: "#7a5a2e" },
+  "math-tutor": { expr: "thoughtful" }, "go-player": { expr: "thoughtful" }, "go-regular": { expr: "smile" },
+  student: { expr: "thoughtful" }, classmate: { expr: "smile" }, reader: { expr: "thoughtful", eyes: "#5d7f6a" },
+  "copy-editor": { expr: "thoughtful" }, hooper: { expr: "grin" }, rower: { expr: "grin" }, teammate: { expr: "grin" },
+  rebounder: { expr: "excited" }, "hanok-grandmother": { expr: "grin" }, "astronomy-student": { expr: "excited", flick: true },
+  "park-guide": { expr: "grin" }, musician: { expr: "grin" }, visitor: { expr: "smile", eyes: "#4f7fb0" },
+  picnicker: { expr: "smile", eyes: "#8a6a32" }, gardener: { expr: "grin", eyes: "#6f7f3a" }, neighbor: { expr: "smile", eyes: "#8a6a32" },
+  runner: { expr: "grin", eyes: "#4f7fb0" }, skater: { expr: "grin" }, "shuttle-player": { expr: "excited" },
+  postie: { expr: "grin" }, mapmaker: { expr: "smile", eyes: "#8a6a32" }, "play-caller": { expr: "proud" },
+};
+export const outfitFor = (npc: Villager): Outfit => {
+  const o = CAST[npc.id]?.make(npc) ?? casualOutfit(npc);
+  const f = FACE[npc.id];
+  return f ? { ...o, eyes: o.eyes ?? f.eyes, face: { expr: f.expr, flick: f.flick } } : o;
+};
 

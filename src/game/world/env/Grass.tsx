@@ -376,10 +376,10 @@ const farGeometry = tuftGeometry(3, 2, 1.7);
  * inside the near radius). */
 const mediumGeometry = tuftGeometry(3, 1, 1.7);
 /** Explore, high tier: the soft near tuft (12 blades, 24 tris) and the
- * soft far tuft (6 blades, 12 tris). Swapped in on the same meshes when the
+ * soft far tuft (5 blades, 10 tris). Swapped in on the same meshes when the
  * view turns to explore (geometry only: same material and program). */
 const softNear = softTuftGeometry(12, 1);
-const softFar = softTuftGeometry(6, 2, 1.35);
+const softFar = softTuftGeometry(5, 2, 1.45);
 /** Explore-only flower clumps (high tier). */
 const flowerTuft = flowerGeometry();
 /** Visible flower clump cap (explore, high). */

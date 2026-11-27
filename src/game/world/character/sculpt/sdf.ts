@@ -55,7 +55,7 @@ type Base = { m?: Mat; disp?: Disp };
 export type Node = Base &
   (
     | { t: "sph"; c: V3; r: number }
-    | { t: "ell"; c: V3; r: V3 }
+    | { t: "ell"; c: V3; r: V3; rot?: V3 }
     | { t: "cap"; a: V3; b: V3; r: number }
     | { t: "cone"; a: V3; b: V3; ra: number; rb: number }
     | { t: "box"; c: V3; h: V3; r: number; rot?: V3 }
@@ -159,7 +159,8 @@ export function dist(n: Node, p: V3): number {
       d = len3(p[0] - n.c[0], p[1] - n.c[1], p[2] - n.c[2]) - n.r;
       break;
     case "ell": {
-      const x = (p[0] - n.c[0]), y = (p[1] - n.c[1]), z = (p[2] - n.c[2]);
+      const L = local(p, n.c, n.rot, n);
+      const x = L[0], y = L[1], z = L[2];
       const k0 = len3(x / n.r[0], y / n.r[1], z / n.r[2]);
       const k1 = len3(x / (n.r[0] * n.r[0]), y / (n.r[1] * n.r[1]), z / (n.r[2] * n.r[2]));
       d = k1 > 1e-9 ? (k0 * (k0 - 1)) / k1 : -Math.min(n.r[0], n.r[1], n.r[2]);

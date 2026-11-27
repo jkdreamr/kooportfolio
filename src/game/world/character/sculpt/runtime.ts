@@ -150,11 +150,14 @@ const FRAG_COLOR = /* glsl */ `
     // pupil, two specular dots. Crisp at any mesh density.
     vec2 e = vRigEye.xy;
     float r = length(e);
-    vec3 sclera = vec3(0.93, 0.91, 0.89) * (0.82 + 0.18 * smoothstep(0.9, 0.2, length(e + vec2(0.0, -0.25))));
-    vec3 iris = vRigColor * (0.55 + 0.75 * smoothstep(0.62, 0.05, r)) * (1.0 + 0.55 * smoothstep(0.0, -0.5, e.y));
-    rigCol = mix(iris, sclera, smoothstep(0.6, 0.66, r));
-    rigCol = mix(vec3(0.02, 0.018, 0.02), rigCol, smoothstep(0.27, 0.32, r));
-    rigGlow = smoothstep(0.17, 0.12, length(e - vec2(0.24, 0.28))) + 0.8 * smoothstep(0.085, 0.05, length(e - vec2(-0.2, -0.22)));
+    // Sclera with a soft shadow under the lash line.
+    vec3 sclera = vec3(0.96, 0.95, 0.93) * (0.78 + 0.22 * smoothstep(0.95, 0.45, e.y));
+    // Big warm iris: darker rim and top, glowing lower half.
+    vec3 iris = vRigColor * (0.5 + 0.8 * smoothstep(0.68, 0.1, r)) * (0.75 + 0.7 * smoothstep(0.25, -0.55, e.y));
+    rigCol = mix(iris, sclera, smoothstep(0.63, 0.69, r));
+    rigCol = mix(vec3(0.03, 0.02, 0.025), rigCol, smoothstep(0.27, 0.32, r));
+    // Catchlights: a big one upper-left, a small one lower-right (screen).
+    rigGlow = smoothstep(0.2, 0.15, length(e - vec2(-0.24, 0.27))) + 0.9 * smoothstep(0.09, 0.06, length(e - vec2(0.23, -0.25)));
     rigSkinF = 0.0;
   }
   diffuseColor.rgb *= rigCol;

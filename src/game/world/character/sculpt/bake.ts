@@ -18,7 +18,7 @@ const DEFAULT = { shirt: "#6f8670", pants: "#3a4547", skin: "#efc5a0", hair: "#3
 export const PLAYER_IDS = { hat: "player:hat", bare: "player:bare" } as const;
 
 const TARGET: Record<string, [number, number]> = {
-  head: [2400, 560], eyes: [300, 160], chest: [1200, 260], pelvis: [420, 90], skirt: [620, 120],
+  head: [2800, 560], eyes: [300, 160], chest: [1200, 260], pelvis: [420, 90], skirt: [620, 120],
   upper: [250, 50], fore: [520, 100], thigh: [220, 45], shin: [200, 40], foot: [220, 45],
 };
 const CELL: Record<string, number> = {
@@ -91,9 +91,9 @@ function meshPiece(
   project(f, raw.pos, h * 0.5, 1);
   const [ht, mt] = TARGET[kind];
   // Faces and hands keep more detail.
-  const HC = fig.eyes[0].c[1] + 0.035;
+  const HC = fig.eyes[0].c[1] + 0.065;
   const weight = (x: number, y: number, z: number) => {
-    if (kind === "head" && z > 0.12 && y > HC - 0.3 && y < HC + 0.12 && Math.abs(x) < 0.3) return 14;
+    if (kind === "head" && z > 0.1 && y > HC - 0.32 && y < HC + 0.16 && Math.abs(x) < 0.33) return 16;
     if (kind === "eyes") return 6;
     if (kind === "fore" && y < -0.2) return 4;
     return 1;
@@ -131,7 +131,7 @@ function attributes(
   const e = h * 0.5;
   const pc = new THREE.Vector3(), nc = new THREE.Vector3();
   const nm = new THREE.Matrix3().getNormalMatrix(restM);
-  const HCy = fig.eyes[0].c[1] + 0.035;
+  const HCy = fig.eyes[0].c[1] + 0.065;
   for (let i = 0; i < n; i++) {
     const x = m.pos[i * 3], y = m.pos[i * 3 + 1], z = m.pos[i * 3 + 2];
     let gx = f(x + e, y, z) - f(x - e, y, z), gy = f(x, y + e, z) - f(x, y - e, z), gz = f(x, y, z + e) - f(x, y, z - e);
@@ -158,8 +158,11 @@ function attributes(
     let eu = 128, ev = 128;
     if (mat.paint === "face" || (pid === "head" && mat.slot === SLOT.skin)) {
       let bl = 0;
-      for (const c of fig.cheeks) bl = Math.max(bl, smooth(0.085, 0.0, Math.hypot(x - c[0], y - c[1], z - c[2])));
-      if (bl > 0.01) { slotB = SLOT.blush; mixW = bl * 0.8; }
+      for (const c of fig.cheeks) bl = Math.max(bl, smooth(0.095, 0.0, Math.hypot(x - c[0], (y - c[1]) * 1.25, z - c[2])));
+      if (bl > 0.01) { slotB = SLOT.blush; mixW = bl; }
+      const m = fig.mouth;
+      const lip = smooth(0.045, 0.012, Math.hypot((x - m[0]) * 0.75, (y - m[1]) * 1.6, z - m[2]));
+      if (lip > bl) { slotB = SLOT.lip; mixW = lip * 0.75; }
     }
     if (mat.paint === "hair") {
       const band = smooth(0.3, 0.55, gy) * (1 - smooth(0.72, 0.92, gy));
@@ -168,7 +171,10 @@ function attributes(
     }
     if (mat.paint === "eye") {
       const eye = fig.eyes[x > 0 ? 0 : 1];
-      const u = (x - eye.c[0]) / eye.r[0] - eye.iris[0];
+      // Eye-local coordinates (undo the eye's turn about y).
+      const dx = x - eye.c[0], dz = z - eye.c[2];
+      const lx = dx * Math.cos(eye.rot) - dz * Math.sin(eye.rot);
+      const u = lx / eye.r[0] - eye.iris[0];
       const v = (y - eye.c[1]) / eye.r[1] - eye.iris[1];
       eu = Math.round(Math.max(0, Math.min(255, (u * 0.5 + 0.5) * 255)));
       ev = Math.round(Math.max(0, Math.min(255, (v * 0.5 + 0.5) * 255)));
