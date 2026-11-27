@@ -26,6 +26,7 @@ import { Icon } from "./Icon";
 import { destinationsInWorld, doors, isInterior } from "../core/world";
 import { WORLDS } from "../core/worlds";
 import { profile } from "../../content/profile";
+import { ownerLinkGroups } from "../../content/links";
 import { WorldLabels } from "../world/Labels";
 import { roomFor } from "../core/room";
 import { useGameMode } from "../core/gameMode";
@@ -642,6 +643,46 @@ function RoomLaunchers({ scene }: { scene: Scene }) {
     </div>
   );
 }
+/**
+ * The links hub: the one place to find everything of Josh's beyond this
+ * world. Opened from "Josh" in the dock and from each world's bulletin
+ * board. Every link comes from src/content/links.ts.
+ */
+function JoshLinks() {
+  return (
+    <div className="josh-links">
+      <p className="josh-bio">{profile.bio}</p>
+      <a className="josh-email" href={`mailto:${profile.email}`}>
+        {profile.email}
+      </a>
+      {ownerLinkGroups().map((group) => (
+        <section
+          key={group.id}
+          className={`josh-group josh-group--${group.id}`}
+          aria-labelledby={`josh-group-${group.id}`}
+        >
+          <h3 id={`josh-group-${group.id}`}>{group.title}</h3>
+          <ul>
+            {group.links.map((link) => (
+              <li key={link.id}>
+                <a href={link.url} target="_blank" rel="noreferrer">
+                  <span className="josh-link-label">{link.label}</span>
+                  {link.note && (
+                    <span className="josh-link-note">{link.note}</span>
+                  )}
+                  <span className="josh-link-arrow" aria-hidden="true">
+                    ↗
+                  </span>
+                  <span className="sr-only"> (opens in a new tab)</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  );
+}
 /** "Saved locally", with one soft pulse each time the save changes. */
 function SaveIndicator() {
   const save = useGame((s) => s.save);
@@ -1009,11 +1050,7 @@ export function Hud({ interact }: { interact: () => void }) {
             ["travel", "Travel", () => useGame.setState({ panel: "travel" })],
             ["home", "Places", () => useGame.setState({ panel: "places" })],
             ["avatar", "You", () => useGame.setState({ panel: "avatar" })],
-            [
-              "memories",
-              "Memories",
-              () => useGame.setState({ panel: "memories" }),
-            ],
+            ["memories", "Josh", () => useGame.setState({ panel: "memories" })],
             [
               "settings",
               "Settings",
@@ -1086,20 +1123,9 @@ export function Hud({ interact }: { interact: () => void }) {
           </button>
         </Modal>
       </Presence>
-      <Presence show={g.panel === "memories"}>
-        <Modal eyebrow="" title="Joshua" close={closePanel}>
-          <div className="memory-card">
-            <Icon name="oar" size={28} />
-            <div>
-              <b>Coxswain</b>
-            </div>
-          </div>
-          <div className="memory-card">
-            <Icon name="memories" size={28} />
-            <div>
-              <b>Stanford CS + math</b>
-            </div>
-          </div>
+      <Presence show={g.panel === "memories" || g.panel === "profile"}>
+        <Modal eyebrow="" title="Joshua Koo" close={closePanel}>
+          <JoshLinks />
         </Modal>
       </Presence>
       <Presence show={g.panel === "settings"}>
@@ -1263,23 +1289,6 @@ export function Hud({ interact }: { interact: () => void }) {
             </a>
             <a href="/work" target="_blank" rel="noreferrer">
               Work <span>↗</span>
-            </a>
-          </div>
-        </Modal>
-      </Presence>
-      <Presence show={g.panel === "profile"}>
-        <Modal eyebrow="" title="Joshua Koo" close={closePanel}>
-          <p>{profile.bio}</p>
-          <div className="study-links">
-            {profile.socials.map(([name, url]) => (
-              <a key={name} href={url} target="_blank" rel="noreferrer">
-                {name}
-                <span>↗</span>
-              </a>
-            ))}
-            <a href={`mailto:${profile.email}`}>
-              {profile.email}
-              <span>↗</span>
             </a>
           </div>
         </Modal>
