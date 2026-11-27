@@ -21,7 +21,7 @@ export const PLAYER_IDS = { hat: "player:hat", bare: "player:bare" } as const;
 
 const TARGET: Record<string, [number, number]> = {
   head: [1000, 260], eyes: [0, 0], chest: [1050, 240], pelvis: [300, 80], skirt: [480, 120],
-  upper: [190, 40], fore: [300, 64], thigh: [170, 38], shin: [160, 34], foot: [170, 36], mouth: [0, 0],
+  upper: [190, 40], fore: [300, 64], thigh: [170, 38], shin: [160, 44], foot: [170, 36], mouth: [0, 0],
 };
 const CELL: Record<string, number> = {
   head: 0.005, eyes: 0.0032, chest: 0.0056, pelvis: 0.007, skirt: 0.007, upper: 0.006, fore: 0.005, thigh: 0.008, shin: 0.008, foot: 0.0055, mouth: 0.003,
@@ -260,7 +260,7 @@ function meshPiece(pid: PieceId, ops: Parameters<typeof evalOps>[0], fig: Figure
     const meshes = ([[h, Math.round(ht * scale[0])], [h * midCell, Math.round(mt * scale[1])]] as const).map(([cell, target], lod) => {
       const raw = surfaceNets(f, bb.min, bb.max, cell);
       project(f, raw.pos, cell * 0.5, 1);
-      const out = labeled(raw, target, (x, y, z) => weight(x, y, z), labelAt, !lod, (l) => isCloth(mats[l].slot));
+      const out = labeled(raw, target, (x, y, z) => weight(x, y, z), labelAt, !lod, (l) => isCloth(mats[l].slot), f);
       if (env.BAKE_DEBUG) console.log(`  ${pid}: raw ${raw.tri.length / 3} → ${out.tri.length / 3}`);
       return out;
     });
@@ -422,7 +422,7 @@ function taubin(pos: Float64Array, tri: Uint32Array, iters: number) {
  * border onto the true border line. Vertices are split per material later,
  * so faces are flat colours with clean, straight-edged borders.
  */
-function labeled(raw: RawMesh, target: number, weight: (x: number, y: number, z: number) => number, labelAt: (x: number, y: number, z: number) => number, hero: boolean, cloth: (l: number) => boolean): LabMesh {
+function labeled(raw: RawMesh, target: number, weight: (x: number, y: number, z: number) => number, labelAt: (x: number, y: number, z: number) => number, hero: boolean, cloth: (l: number) => boolean, f: (x: number, y: number, z: number) => number): LabMesh {
   let m = raw;
   if (raw.tri.length / 3 > target) {
     if (hero) {
@@ -445,6 +445,16 @@ function labeled(raw: RawMesh, target: number, weight: (x: number, y: number, z:
     for (let k = 0; k < 3; k++) for (let d = 0; d < 3; d++) c[d] += m.pos[m.tri[t * 3 + k] * 3 + d] / 3;
     const pts = [c, ...[0, 1, 2].map((k) => [0, 1, 2].map((d) => c[d] * 0.4 + m.pos[m.tri[t * 3 + k] * 3 + d] * 0.6))];
     let best = -1, bn = 0;
+    // Sample on the surface itself: a coarse face can sit a centimetre
+    // inside an outer garment, where the inner layer would win.
+    const e = 0.002;
+    for (const p of pts)
+      for (let it = 0; it < 3; it++) {
+        const d = f(p[0], p[1], p[2]);
+        const gx = f(p[0] + e, p[1], p[2]) - f(p[0] - e, p[1], p[2]), gy = f(p[0], p[1] + e, p[2]) - f(p[0], p[1] - e, p[2]), gz = f(p[0], p[1], p[2] + e) - f(p[0], p[1], p[2] - e);
+        const g = Math.hypot(gx, gy, gz) || 1;
+        p[0] -= (gx / g) * d; p[1] -= (gy / g) * d; p[2] -= (gz / g) * d;
+      }
     pts.forEach((p, i) => {
       const l = labelAt(p[0], p[1], p[2]);
       const n = (votes.get(l) ?? 0) + (i === 0 ? 1.5 : 1);

@@ -257,7 +257,7 @@ export function buildHair(style: HairStyle, mat: Mat, hatClip: Node[], hatted: b
       break;
     }
     case "curly": {
-      thick = 0.045;
+      thick = 0.058;
       knots = [0, 1.06, 0.45, 1.0, 0.9, 1.22, 1.25, 1.5, 1.45, 1.45, 1.75, 1.45, 2.2, 1.9, PI, 2.08];
       // Soft rounded curl clumps: smooth bulbs evenly spread over the
       // scalp (golden-angle spiral) at one height, so the silhouette stays
@@ -571,7 +571,7 @@ function hoodMesh(h: HairBuild, hi: boolean, level: number, inside: (p: V3, m?: 
       const c = hang < 1 ? hug(c0, lift) : hug(c0, 0.012 + th0 * 0.5);
       const o: V3 = [c[0] + N[0] * (th0 * 0.5 + g), c[1] + N[1] * (th0 * 0.5 + g), c[2] + N[2] * (th0 * 0.5 + g)];
       oc.push(m.pos.length / 3);
-      pushHair(m, o, N, 0.12 + 0.85 * sp, (0.8 + 0.2 * bul) * (0.9 + 0.1 * sp), h.rough, T);
+      pushHair(m, o, N, 0.12 + 0.62 * sp, (0.8 + 0.2 * bul) * (0.9 + 0.1 * sp), h.rough, T);
       const ip: V3 = [c[0] - N[0] * th0 * 0.5, c[1] - N[1] * th0 * 0.5, c[2] - N[2] * th0 * 0.5];
       ic.push(m.pos.length / 3);
       pushHair(m, ip, [-N[0], -N[1], -N[2]], 0.25 + 0.4 * sp, 0.55, h.rough, T);
@@ -619,7 +619,7 @@ function coilMesh(h: HairBuild, hi: boolean, level: number, inside: (p: V3, m?: 
         // (a rounded curl), never a streak down to a point.
         const tan = norm3([rad[0] * ca - d[0] * sa, rad[1] * ca - d[1] * sa, rad[2] * ca - d[2] * sa]);
         ids.push(m.pos.length / 3);
-        pushHair(m, p, n, 0.5 - 0.15 * a, 1 - 0.22 * a, h.rough, a === 0 ? u : tan);
+        pushHair(m, p, n, 0.42 - 0.1 * a, 1 - 0.16 * a, h.rough, a === 0 ? u : tan);
       }
       return ids;
     };

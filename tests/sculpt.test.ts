@@ -123,6 +123,19 @@ describe("sculpted characters (F3/F5/F6)", () => {
     }
   });
 
+  it("paints straps and garment openings as a few crisp shader shapes", () => {
+    for (const v of villagers) {
+      const o = outfitFor(v);
+      const fig = buildFigure(o);
+      expect(fig.paint.length, v.id).toBeLessThanOrEqual(28);
+      for (const q of fig.paint) for (const x of [...q.a, ...q.b, q.r]) expect(Number.isFinite(x)).toBe(true);
+      // Vests and open jackets show the shirt through a painted V.
+      if (o.outer && ["vest", "jacket", "blazer", "labcoat", "cardigan"].includes(o.outer.kind)) expect(fig.paint.some((q) => q.t === 1), v.id).toBe(true);
+      // Hanging styles are one closed mass (no gaps between locks).
+      if (["bob", "long", "layered"].includes(fig.hairPlan ? o.hair.style : "")) expect(fig.hairPlan!.hood, v.id).toBeDefined();
+    }
+  });
+
   it.skipIf(!existsSync(castFile))("ships a baked cast within budget for every villager and the player", () => {
     const buf = readFileSync(castFile);
     const cast = new Cast(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));

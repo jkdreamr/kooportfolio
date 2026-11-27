@@ -175,13 +175,13 @@ export function buildFigure(o: Outfit): Figure {
   // neck) are painted with a trim band, crisp at any budget, instead of cut
   // edges that decimate into shards.
   const scoop = (c: V3, r: V3, band: number) => {
-    paintP.push({ t: 2, slot: SLOT.topTrim, a: c, b: [r[0] + band, r[1] + band, r[2] + band], r: 0 });
+    if (band > 0) paintP.push({ t: 2, slot: SLOT.topTrim, a: c, b: [r[0] + band, r[1] + band, r[2] + band], r: 0 });
     paintP.push({ t: 2, slot: SLOT.skin, a: c, b: r, r: 0 });
   };
-  if (top.kind === "tank") { neckHole.push(above(0.6)); scoop([0, 0.43, 0.1], [0.075, 0.13, 0.11], 0.012); }
+  if (top.kind === "tank") scoop([0, 0.43, 0.1], [0.075, 0.13, 0.11], 0.012);
   else if (top.kind === "turtleneck") neckHole.push(above(0.6));
   else neckHole.push(not(cap([0, 0.3, -0.01], [0, 0.6, 0.015], 0.064)), not(ell([0, 0.41, 0.07], [0.058, 0.04, 0.06])));
-  if (sleeves === "none" && !torsoOuter) for (const s of [1, -1]) scoop([s * 0.2, 0.3, -0.008], [0.06, 0.085, 0.075], 0.012);
+  if (sleeves === "none" && !torsoOuter) for (const s of [1, -1]) scoop([s * 0.2, 0.3, -0.008], [0.06, 0.085, 0.075], 0);
   else if (sleeves === "none") for (const s of [1, -1]) neckHole.push(not(ell([s * 0.2, 0.3, -0.008], [0.06, 0.085, 0.075])));
   const topClip = [...neckHole, above(hemY)];
   if (top.kind === "jeogori") topClip.push(above(0.15));
@@ -377,8 +377,8 @@ export function buildFigure(o: Outfit): Figure {
       }
       case "number": {
         const p = front(0, 0.17, topD + 0.003), q = backAt(0, 0.19, topD + 0.003);
-        chest.push(add(box(p, [0.055, 0.06, 0.004], 0.006, A), 0.002));
-        chest.push(add(box(q, [0.065, 0.075, 0.004], 0.006, A), 0.002));
+        // Painted number patches (flat, crisp) front and back.
+        paintP.push({ t: 3, slot: A.slot, a: p, b: [0.055, 0.06, 0.03], r: 0.01 }, { t: 3, slot: A.slot, a: q, b: [0.065, 0.075, 0.03], r: 0.012 });
         break;
       }
       case "camera": {
@@ -507,7 +507,7 @@ export function buildFigure(o: Outfit): Figure {
   for (const [side, s] of [["L", 1], ["R", -1]] as const) {
     const upperBody = grp([
       add(sph([s * 0.006, -0.008, -0.002], 0.064 * aw, M.skin)),
-      add(cone([0, -0.02, 0], [0, -UA - 0.03, 0], 0.06 * aw, 0.052 * aw, M.skin), 0.03),
+      add(cone([0, -0.02, 0], [0, -UA - 0.03, 0], 0.06 * aw, 0.058 * aw, M.skin), 0.03),
       add(ell([0, -0.12, 0.008], [0.056 * aw, 0.085, 0.057 * aw], M.skin), 0.04),
     ], M.skin);
     const upper: Op[] = [add(upperBody)];
@@ -658,7 +658,7 @@ export function buildFigure(o: Outfit): Figure {
     // ---------------------------------------------------------------- legs
     const TH = SK.thigh, SH = SK.shin;
     const thighBody = grp([
-      add(cone([0, 0.02, 0], [0, -TH - 0.02, 0.004], 0.082 * aw, 0.057 * aw, M.skin)),
+      add(cone([0, 0.02, 0], [0, -TH - 0.02, 0.002], 0.082 * aw, 0.064 * aw, M.skin)),
       add(ell([s * 0.006, -0.12, 0.01], [0.078 * aw, 0.13, 0.078 * aw], M.skin), 0.05),
     ], M.skin);
     const shinBody = grp([
