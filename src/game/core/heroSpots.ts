@@ -17,7 +17,7 @@ const AWAY = -2.0;
 export const HERO_SPOTS: Record<WorldId, HeroSpot> = {
   home: { position: [-2.5, 5], heading: AWAY, exploreDistance: DEFAULT_EXPLORE_DISTANCE },
   korea: { position: [-21.3, 48.4], heading: AWAY, exploreDistance: DEFAULT_EXPLORE_DISTANCE },
-  stanford: { position: [-22.5, 46.8], heading: AWAY, exploreDistance: DEFAULT_EXPLORE_DISTANCE },
+  stanford: { position: [-19.5, 43.8], heading: AWAY, exploreDistance: DEFAULT_EXPLORE_DISTANCE },
 };
 
 /** The national flag every island flies (Landscape), its pole 4.5 m tall. */
