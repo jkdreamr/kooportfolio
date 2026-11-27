@@ -15,6 +15,7 @@ import {
 } from "../../shared/writing";
 import { ApiUnavailable, apiUrl, readJson } from "../../shared/api";
 import { useApiAvailable } from "../ui/useApiAvailable";
+import { cue } from "../core/audio/cues";
 import "./writing-room.css";
 
 const tokensKey = "joshua-writing-tokens-v1";
@@ -46,7 +47,8 @@ function postId() {
 /** A failure with copy written for visitors (never a raw error message). */
 class WritingFailure extends Error {}
 function failureCopy(status: number) {
-  if (status === 429) return "That’s a lot of posting. Try again in a little while.";
+  if (status === 429)
+    return "That’s a lot of posting. Try again in a little while.";
   if (status === 400 || status === 413)
     return "Check the name, title and text, then try again.";
   if (status === 401 || status === 403 || status === 404)
@@ -140,7 +142,10 @@ function WritingDialog({
     } catch (error) {
       if (!alive.current) return;
       if (error instanceof ApiUnavailable) goLocal();
-      else setError(visitorCopy(error));
+      else {
+        setError(visitorCopy(error));
+        cue("ui-error");
+      }
     } finally {
       if (alive.current) setLoading(false);
     }
@@ -241,7 +246,10 @@ function WritingDialog({
         // The shelf vanished mid-session: keep the piece here instead.
         goLocal();
         keepLocally();
-      } else setError(visitorCopy(error));
+      } else {
+        setError(visitorCopy(error));
+        cue("ui-error");
+      }
     } finally {
       if (alive.current) setBusy(false);
     }
@@ -262,7 +270,10 @@ function WritingDialog({
     } catch (error) {
       if (!alive.current) return;
       if (error instanceof ApiUnavailable) goLocal();
-      else setError(visitorCopy(error));
+      else {
+        setError(visitorCopy(error));
+        cue("ui-error");
+      }
     } finally {
       if (alive.current) setBusy(false);
     }
@@ -338,7 +349,9 @@ function WritingDialog({
           <div className={`writing-reader ${selected ? "has-selection" : ""}`}>
             <aside
               className="writing-list"
-              aria-label={local ? "Your writing on this device" : "Public writing"}
+              aria-label={
+                local ? "Your writing on this device" : "Public writing"
+              }
             >
               {local ? (
                 <p className="writing-offline">{OFFLINE_LINE}</p>
@@ -384,11 +397,15 @@ function WritingDialog({
                     {selected.author}{" "}
                     <time
                       dateTime={new Date(
-                        isPiece(selected) ? selected.savedAt : selected.createdAt,
+                        isPiece(selected)
+                          ? selected.savedAt
+                          : selected.createdAt,
                       ).toISOString()}
                     >
                       {new Date(
-                        isPiece(selected) ? selected.savedAt : selected.createdAt,
+                        isPiece(selected)
+                          ? selected.savedAt
+                          : selected.createdAt,
                       ).toLocaleDateString()}
                     </time>
                     {isPiece(selected) && <span>On this device</span>}
@@ -397,7 +414,10 @@ function WritingDialog({
                   {isPiece(selected) ? (
                     <details className="writing-remove">
                       <summary>Remove from this device</summary>
-                      <button type="button" onClick={() => removePiece(selected)}>
+                      <button
+                        type="button"
+                        onClick={() => removePiece(selected)}
+                      >
                         Remove
                       </button>
                     </details>

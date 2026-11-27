@@ -8,7 +8,6 @@ import {
 } from "react";
 import { runtime, useGame, walkTo, type Scene } from "../core/store";
 import { keys, touch } from "../core/input";
-import { sound } from "../core/sound";
 import { usePresence, type PresenceState } from "./motion";
 import { useGlassMode, useHudReveal } from "./hudStage";
 import { FirstSteps, useHintLearning, useHints } from "./FirstSteps";
@@ -50,6 +49,7 @@ import {
   useMuted,
 } from "./soundPrefs";
 import { showToast, useToasts, TOAST_MAX } from "./toasts";
+import { attachUiSounds } from "./uiSounds";
 
 /** Knob travel in px from the centre of the 100px pad. */
 const STICK_TRAVEL = 30;
@@ -535,10 +535,7 @@ function ToastStack() {
           <span>{toast.text}</span>
           <button
             aria-label="Dismiss notification"
-            onClick={() => {
-              cue("ui-back");
-              dismiss(toast.id);
-            }}
+            onClick={() => dismiss(toast.id)}
           >
             ×
           </button>
@@ -594,6 +591,7 @@ function useSoundShortcut(hudShown: boolean) {
         ? "Sound is off · press M for sound"
         : "Sound is on · press M to mute",
     );
+    cue("toast");
   }, [hudShown]);
   return touchHint;
 }
@@ -607,10 +605,7 @@ function SoundSettings() {
       <button
         className="setting-row"
         aria-pressed={!muted}
-        onClick={() => {
-          setSoundPrefs({ muted: !muted });
-          cue("ui-toggle");
-        }}
+        onClick={() => setSoundPrefs({ muted: !muted })}
       >
         <span>Sound</span>
         <b>{muted ? "Off" : "On"}</b>
@@ -768,10 +763,7 @@ function RoomLaunchers({ scene }: { scene: Scene }) {
           key={launcher.id}
           type="button"
           className={index === 0 ? "launcher is-primary" : "launcher"}
-          onClick={() => {
-            cue("ui-confirm");
-            launcher.start();
-          }}
+          onClick={() => launcher.start()}
         >
           {launcher.label}
           {launcher.hint && (
@@ -918,6 +910,12 @@ export function Hud({ interact }: { interact: () => void }) {
       useGame.setState({ overlayLocked: false });
     };
   }, []);
+  // Delegated interface sounds: hover (mouse), keyboard focus at half gain,
+  // and a cue per kind of click (see uiSounds.ts).
+  useEffect(() => {
+    const shell = document.querySelector<HTMLElement>(".game-shell");
+    return shell ? attachUiSounds(shell, cue) : undefined;
+  }, []);
   // Idle shader prewarm for rooms and game stages (by proxy, never mounted).
   useEffect(() => startIdlePrewarm(), []);
   const g = useGame();
@@ -948,8 +946,8 @@ export function Hud({ interact }: { interact: () => void }) {
     const from = lastPanel.current;
     lastPanel.current = g.panel;
     if (from === g.panel || g.panel === "npc" || from === "npc") return;
-    if (from === "none") sound("open");
-    else if (g.panel === "none") sound("close");
+    if (from === "none") cue("ui-open");
+    else if (g.panel === "none") cue("ui-close");
   }, [g.panel]);
   const nearDoor =
     hub && !!g.near && doors.some((door) => door.id === g.near);
@@ -978,10 +976,8 @@ export function Hud({ interact }: { interact: () => void }) {
             aria-label={g.muted ? "Unmute sound" : "Mute sound"}
             aria-keyshortcuts="M"
             title={g.muted ? "Sound on (M)" : "Mute (M)"}
-            onClick={() => {
-              toggleMute();
-              cue("ui-toggle");
-            }}
+            data-cue="ui-toggle"
+            onClick={toggleMute}
           >
             <Icon name={g.muted ? "muted" : "sound"} />
           </button>
@@ -1201,6 +1197,7 @@ export function Hud({ interact }: { interact: () => void }) {
           ].map(([icon, label, action]) => (
             <button
               key={String(label)}
+              data-cue="none"
               className={
                 g.panel === icon || (icon === "home" && g.panel === "places")
                   ? "active"

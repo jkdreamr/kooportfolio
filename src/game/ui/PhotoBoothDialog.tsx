@@ -23,6 +23,7 @@ import type { Border, Filter, Mark, Point, Sticker } from "../core/photoStrip";
 import { BOOTH_PATH, STRIP_HEIGHT, STRIP_WIDTH } from "../../shared/booth";
 import { apiUrl, readJson } from "../../shared/api";
 import { useApiAvailable } from "./useApiAvailable";
+import { cue } from "../core/audio/cues";
 import type { WallStrip } from "../../shared/booth";
 import "./photo-booth.css";
 
@@ -72,7 +73,10 @@ function Camera({
     const view = video.current;
     if (!view) return;
     if (!navigator.mediaDevices?.getUserMedia) {
-      setError("Camera needs HTTPS or localhost.");
+      {
+        setError("Camera needs HTTPS or localhost.");
+        cue("ui-error");
+      }
       return;
     }
     const id = ++session.current;
@@ -99,7 +103,10 @@ function Camera({
         stopCamera.current?.();
         setSequence(undefined);
         setState("idle");
-        setError("Camera disconnected.");
+        {
+          setError("Camera disconnected.");
+          cue("ui-error");
+        }
       }
       for (const track of tracks) track.addEventListener("ended", ended);
       stopCamera.current = () => {
@@ -121,14 +128,23 @@ function Camera({
         failure instanceof DOMException &&
         failure.name === "NotAllowedError"
       ) {
-        setError("Camera blocked. Allow it in your browser settings.");
+        {
+          setError("Camera blocked. Allow it in your browser settings.");
+          cue("ui-error");
+        }
       } else if (
         failure instanceof DOMException &&
         failure.name === "NotFoundError"
       ) {
-        setError("No camera found.");
+        {
+          setError("No camera found.");
+          cue("ui-error");
+        }
       } else {
-        setError("Couldn’t open camera.");
+        {
+          setError("Couldn’t open camera.");
+          cue("ui-error");
+        }
       }
     }
   }, []);
@@ -156,7 +172,10 @@ function Camera({
           shots.push(captureShot(view));
         } catch {
           setSequence(undefined);
-          setError("Couldn’t take photo. Try again.");
+          {
+            setError("Couldn’t take photo. Try again.");
+            cue("ui-error");
+          }
           return;
         }
         if (shots.length === SHOT_COUNT) {
@@ -334,8 +353,10 @@ function Decorate({
           signal: controller.signal,
         });
         if (response.status === 429) {
-          if (!controller.signal.aborted)
+          if (!controller.signal.aborted) {
             setError("Too many posts. Try again later.");
+            cue("ui-error");
+          }
           return;
         }
         if (!response.ok) throw new Error("Wall unavailable.");
@@ -492,7 +513,9 @@ function Decorate({
           )}
         </div>
         <p id="booth-save-note">Save strip downloads a PNG to this device.</p>
-        {wall && <p id="booth-public">Posted strips are visible to everyone.</p>}
+        {wall && (
+          <p id="booth-public">Posted strips are visible to everyone.</p>
+        )}
       </div>
     </div>
   );

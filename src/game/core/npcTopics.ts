@@ -171,8 +171,7 @@ const topics: Record<string, readonly NpcTopic[]> = {
     {
       id: "goat",
       label: "Josh's favorite player?",
-      reply:
-        "LeBron, no debate. Josh is a LeBron fan through and through.",
+      reply: "LeBron, no debate. Josh is a LeBron fan through and through.",
     },
     ask(
       "greatest",
