@@ -20,6 +20,7 @@ import { Groves } from "./Groves";
 import { Understory } from "./Understory";
 import { ContactShadows } from "./ContactShadows";
 import { Clouds } from "./Clouds";
+import { Roads } from "./Roads";
 import { tickReflection } from "./reflection";
 import { surfaceDetail, surfaceExplore } from "../Surface";
 import { useEnvTier } from "./tier";
@@ -49,6 +50,7 @@ export function Environment({ world }: { world: WorldId }) {
   return (
     <group name="env">
       <EnvironmentDriver />
+      <Roads world={world} />
       <LeafShell />
       <Grass world={world} />
       <Understory world={world} />

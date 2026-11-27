@@ -100,6 +100,9 @@ const defaultOnBeforeCompile = THREE.Material.prototype.onBeforeCompile;
 
 /** Surface kind byte per vertex (see Surface.ts); 0 = plain. */
 function kindIndex(material: THREE.Material) {
+  // A road pattern code (Surface.ts ROAD_PATTERN) overrides the layer.
+  const code = material.userData.bakeKind as number | undefined;
+  if (typeof code === "number") return code;
   const kind = material.userData.surfaceKind as string | undefined;
   return kind ? (SURFACE_KIND_INDEX[kind as SurfaceKind] ?? 0) : 0;
 }
@@ -791,18 +794,22 @@ export function StaticBatch({
   enabled = true,
   soft = false,
   ao,
+  chunk,
 }: {
   id: string;
   children?: ReactNode;
   enabled?: boolean;
   soft?: boolean;
+  /** Split wide bakes into spatial cells (default true). A few island-wide
+   * pieces (the roads) stay one draw with `chunk={false}`. */
+  chunk?: boolean;
   /** Baked contact AO; default: on under the hub, off in interiors. */
   ao?: boolean;
 }) {
   const nested = useContext(InBatch);
   if (soft && nested) return <>{children}</>;
   return (
-    <BatchRoot id={id} enabled={enabled} ao={ao}>
+    <BatchRoot id={id} enabled={enabled} ao={ao} chunk={chunk}>
       {children}
     </BatchRoot>
   );
@@ -820,11 +827,13 @@ function BatchRoot({
   children,
   enabled,
   ao,
+  chunk,
 }: {
   id: string;
   children?: ReactNode;
   enabled: boolean;
   ao?: boolean;
+  chunk?: boolean;
 }) {
   const root = useRef<THREE.Group>(null);
   const baker = useRef<Baker | null>(null);
@@ -832,6 +841,7 @@ function BatchRoot({
     if (!enabled || !root.current) return;
     const b = new Baker(root.current, id, {
       ao: ao ?? underHub(root.current),
+      chunk,
     });
     baker.current = b;
     if (import.meta.env.DEV) {
@@ -847,7 +857,7 @@ function BatchRoot({
       b.dispose();
       baker.current = null;
     };
-  }, [id, enabled, ao]);
+  }, [id, enabled, ao, chunk]);
   const active = useWorldActive();
   useFrame(() => {
     if (active) baker.current?.tick();

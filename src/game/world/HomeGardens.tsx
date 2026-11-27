@@ -2,7 +2,6 @@ import {
   HOME_FLOWER_BEDS,
   HOME_GARDEN_GROUNDS,
   HOME_GARDEN_TREES,
-  HOME_GARDEN_WALKS,
 } from "../core/homeGardens";
 import { NaturalTrees, type TreePlacement } from "./TreeArt";
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
@@ -18,8 +17,7 @@ const add = (
 // Separate, ordered depth intervals: gravel below paths below planting edging.
 for (const [x, z, w, d] of HOME_GARDEN_GROUNDS)
   add([x, 0.143, z], [w, 0.028, d], "#92916b");
-for (const [x, z, w, d] of HOME_GARDEN_WALKS)
-  add([x, 0.168, z], [w, 0.035, d], "#ad9f82", "block");
+// The walks themselves are roads (env/Roads.tsx).
 
 HOME_FLOWER_BEDS.forEach(([x, z, w, d], index) => {
   add([x, 0.33, z], [w, 0.34, d], "#8e8262");

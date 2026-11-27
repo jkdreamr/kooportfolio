@@ -166,10 +166,67 @@ export const SCULPT_KIND_VERTEX = (expr: string) => `
 #ifdef SCULPT_KIND_VARYING
   vSculptKind = ${expr};
 #endif`;
+/**
+ * Road patterns (bake only). A bake vertex whose kind byte is 16 or more is
+ * not a detail layer: the fragment draws a procedural pattern in world space
+ * (anti-aliased, faded out once its joints fall below a pixel) and uses the
+ * plain layer underneath. Even codes run along world x, odd ones along z.
+ */
+export const ROAD_PATTERN = {
+  kerbStonesX: 16,
+  kerbStonesZ: 17,
+  paversX: 18,
+  paversZ: 19,
+  bricksX: 20,
+  bricksZ: 21,
+  settsX: 22,
+  settsZ: 23,
+} as const;
+export type RoadPatternCode = (typeof ROAD_PATTERN)[keyof typeof ROAD_PATTERN];
+
+/** GLSL (after color_fragment, bake only): assigns `sculptKindValue` and
+ * darkens joints / varies stone tone for the road pattern codes. Derivatives
+ * are taken outside any branch. */
+const ROAD_PATTERN_FRAGMENT = `
+#ifdef SCULPT_KIND_VARYING
+  {
+    float sculptCode = floor(vSculptKind + 0.5);
+    sculptKindValue = sculptCode > 15.5 ? 0.0 : sculptCode;
+    float sculptAlongZ = mod(sculptCode, 2.0);
+    vec2 sculptP = mix(vSculptWorld.xz, vSculptWorld.zx, sculptAlongZ);
+    vec2 sculptW = fwidth(sculptP);
+    float sculptFam = floor((sculptCode - 16.0) / 2.0);
+    // Per family: cell size (along, across), joint half-width, joint shade,
+    // running-bond offset.
+    vec2 sculptCell = sculptFam < 0.5 ? vec2(0.45, 8.0)
+      : sculptFam < 1.5 ? vec2(0.9, 0.45)
+      : sculptFam < 2.5 ? vec2(0.105, 8.0)
+      : vec2(0.3, 0.22);
+    float sculptHalf = sculptFam < 0.5 ? 0.012 : sculptFam < 1.5 ? 0.01 : sculptFam < 2.5 ? 0.006 : 0.008;
+    float sculptShade = sculptFam < 0.5 ? 0.8 : sculptFam < 1.5 ? 0.86 : sculptFam < 2.5 ? 0.82 : 0.84;
+    float sculptRow = floor(sculptP.y / sculptCell.y);
+    float sculptA = sculptP.x + mod(sculptRow, 2.0) * 0.5 * sculptCell.x * step(0.5, sculptFam);
+    vec2 sculptG = vec2(sculptA, sculptP.y) / sculptCell;
+    vec2 sculptD = abs(fract(sculptG + 0.5) - 0.5) * sculptCell;
+    vec2 sculptAA = sculptW * 0.75 + 1e-4;
+    vec2 sculptLine = 1.0 - smoothstep(vec2(sculptHalf) - sculptAA, vec2(sculptHalf) + sculptAA, sculptD);
+    // Fade a family of joints out before it can alias.
+    sculptLine *= 1.0 - smoothstep(sculptCell * 0.12, sculptCell * 0.35, sculptW);
+    float sculptJoint = max(sculptLine.x, sculptLine.y);
+    vec2 sculptId = floor(sculptG);
+    float sculptRand = fract(sin(dot(sculptId, vec2(12.9898, 78.233)) + sculptFam) * 43758.5453);
+    float sculptTone = 0.955 + 0.09 * sculptRand;
+    // River-stone kerb: alternate two stones every 0.45 m.
+    sculptTone *= sculptFam < 0.5 ? mix(1.0, 0.88, mod(sculptId.x, 2.0)) : 1.0;
+    float sculptOn = step(15.5, sculptCode);
+    diffuseColor.rgb *= mix(1.0, sculptTone * mix(1.0, sculptShade, sculptJoint), sculptOn);
+  }
+#endif`;
 const KIND_FRAGMENT = `
 #ifdef SCULPT_KIND_VARYING
   varying float vSculptKind;
-  #define sculptKind floor(vSculptKind + 0.5)
+  float sculptKindValue;
+  #define sculptKind sculptKindValue
 #else
   uniform float uSurfaceKind;
   #define sculptKind uSurfaceKind
@@ -245,6 +302,7 @@ export function sculptedMaterial(
       .replace(
         "#include <color_fragment>",
         `#include <color_fragment>
+        ${ROAD_PATTERN_FRAGMENT}
         vec3 sculptN = normalize(vSculptNormal);
         float sculptLight = smoothstep(-0.65, 0.85, sculptN.y);
         diffuseColor.rgb *= mix(vec3(0.78, 0.83, 0.88), vec3(1.04, 1.02, 0.98), sculptLight);

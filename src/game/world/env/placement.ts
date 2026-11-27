@@ -28,6 +28,7 @@ import {
   STANFORD_SHORE,
 } from "../../../shared/stanford-ground";
 import { HOME_PATH_FOOTPRINTS } from "./homePaths";
+import { roadFootprints } from "./roads";
 import { HOME_LAKE_SHELVES, distanceToLakeShelf, lakeBankY, lakeWaterY } from "./lakeShelves";
 import { KOREA_PAVING_FOOTPRINTS } from "../KoreaWorldEnvironment";
 import { KOREA_PAVED_GROUNDS } from "../KoreaPublicGrounds";
@@ -65,10 +66,10 @@ const STANFORD_ROADS: Rect[] = STANFORD_WALKS.map(([x, z, w, d]) => [x, z, w, d]
 // The campus district's quad is paved; it is placed rotated by π at `campus`.
 const CAMPUS_RECT: Rect = [campus.x, campus.z - 4, 44, 50];
 export const PAVED: Record<WorldId, readonly Rect[]> = {
-  home: HOME_PATH_FOOTPRINTS,
+  home: [...HOME_PATH_FOOTPRINTS, ...roadFootprints("home")],
   // The Han's channel (and the bridge over it) is never lawn.
-  korea: [...KOREA_PAVING_FOOTPRINTS, [25, 33, 76, 24]],
-  stanford: [...STANFORD_ROADS, CAMPUS_RECT],
+  korea: [...KOREA_PAVING_FOOTPRINTS, ...roadFootprints("korea"), [25, 33, 76, 24]],
+  stanford: [...STANFORD_ROADS, ...roadFootprints("stanford"), CAMPUS_RECT],
 };
 
 const inRect = (x: number, z: number, [cx, cz, w, d]: Rect, pad: number) =>
@@ -343,7 +344,8 @@ function* placeGrass(world: WorldId): Generator<void, GrassTuft[]> {
       if (shoreGap < 0.3) continue;
       if (relief(x, z)) continue;
       const near = paved(x, z);
-      if (near.some((rect) => inRect(x, z, rect, 0.12))) continue;
+      // 0.2 clear of every road edge, kerb and fillet (B2).
+      if (near.some((rect) => inRect(x, z, rect, 0.2))) continue;
       if (world === "korea" && KOREA_PAVED_GROUNDS.some((loop) => insidePolygon(x, z, loop))) continue;
       if (doors.some(([dx, dz]) => Math.hypot(x - dx, z - dz) < 1.6)) continue;
       if (pond && ((x - pond.x) / (pond.radiusX + 0.3)) ** 2 + ((z - pond.z) / (pond.radiusZ + 0.3)) ** 2 < 1) continue;

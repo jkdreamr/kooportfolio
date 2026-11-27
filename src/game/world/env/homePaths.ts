@@ -4,34 +4,15 @@ import { HOME_GARDEN_FOOTPRINTS } from "../../core/homeGardens";
 import { HOME_DESTINATION_CENTERS } from "../../core/homeLayout";
 
 // Home's streets and entrance walks as data (pure: placement and tests read
-// it without the scene graph). HomeWorldEnvironment draws HOME_PATH_PARTS.
+// it without the scene graph). The lanes are drawn by env/Roads.tsx from
+// HOME_ROAD_RECTS; HomeWorldEnvironment draws the entrance dressing
+// (HOME_PATH_PARTS).
 export const HOME_PATH_PARTS: SceneryPart[] = [];
 const paths = HOME_PATH_PARTS;
+/** [centre x, centre z, width, depth] of every lane and entrance walk. */
+export const HOME_ROAD_RECTS: (readonly [number, number, number, number])[] = [];
 function path(x: number, z: number, width: number, depth: number) {
-  paths.push({
-    p: [x, 0.185, z],
-    s: [width, 0.045, depth],
-    c: "#ad9f82",
-    shape: "block",
-  });
-  // Flush inset edges add thickness without invisible ankle-high collision.
-  if (width > depth) {
-    for (const side of [-1, 1])
-      paths.push({
-        p: [x, 0.211, z + side * (depth / 2 - 0.15)],
-        s: [width, 0.018, 0.22],
-        c: "#d1c5aa",
-        shape: "block",
-      });
-  } else {
-    for (const side of [-1, 1])
-      paths.push({
-        p: [x + side * (width / 2 - 0.15), 0.211, z],
-        s: [0.22, 0.018, depth],
-        c: "#d1c5aa",
-        shape: "block",
-      });
-  }
+  HOME_ROAD_RECTS.push([x, z, Math.abs(width), Math.abs(depth)]);
 }
 
 // The short entrance walks feed two shared streets, not an island-wide grid.
@@ -68,6 +49,7 @@ for (let i = 0; i < 16; i++) {
 }
 export const HOME_PATH_FOOTPRINTS: GroundFootprint[] = [
   ...HOME_GARDEN_FOOTPRINTS,
+  ...HOME_ROAD_RECTS,
   ...paths.map<GroundFootprint>(({ p, s }) => [p[0], p[2], s[0], s[2]]),
 ];
 

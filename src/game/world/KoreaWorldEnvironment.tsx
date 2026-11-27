@@ -1,11 +1,7 @@
 import * as THREE from "three";
 import { waterMaterial } from "./GlossKit";
 import { attachReflection } from "./env/reflection";
-import {
-  KOREA_GARDEN_WALKS,
-  KOREA_LANDMARKS,
-  KOREA_MAIN_STREET,
-} from "../core/koreaLandmarks";
+import { KOREA_LANDMARKS } from "../core/koreaLandmarks";
 import { HanRiverBridge } from "./HanRiverBridge";
 import { KoreaHistoricLandmarks } from "./KoreaHistoricLandmarks";
 import { NamsanTower } from "./NamsanTower";
@@ -47,29 +43,13 @@ slab(9, 1, 18, 3.4);
 slab(11.5, 10, 27, 3.4);
 const [towerX, towerZ] = KOREA_LANDMARKS.namsan.origin;
 slab(towerX, towerZ, 5.2, 5.2, "#b8b5a8");
-for (const walk of KOREA_GARDEN_WALKS) {
-  const [x, z, width, depth] = walk;
-  slab(x, z, width, depth, walk === KOREA_MAIN_STREET ? "#c8bba4" : "#b3ab97");
-}
-for (let x = -32; x <= 48; x += 1.6) {
-  paving.push({
-    p: [x, 0.213, KOREA_MAIN_STREET[1]],
-    s: [1.56, 0.01, 2.5],
-    c: Math.round(x * 10) % 3 ? "#c7bba6" : "#c0b39e",
-    shape: "block",
-  });
-}
-slab(-0.5, 12, 106, 3.3);
-slab(25, 18.7, 79, 3.2);
+// The garden walks, the main street, the riverside streets and the bank
+// promenades are roads (env/roads.ts, drawn by env/Roads.tsx). The red
+// cycle lanes beside the bank roads stay paving.
 slab(25, 15.8, 79, 1.9, "#a27d72");
-slab(27.5, 47, 85, 3.2);
 slab(18, 50, 68, 1.9, "#a27d72");
-slab(-15, 33, 3, 30);
-slab(65, 30, 3, 25);
 // The bank lane skirts the terminal to connect the bridge and departures.
 slab(67.5, 34, 7, 2.4);
-slab(69, 47.5, 2, 27);
-slab(63.5, 61, 13, 2);
 for (let x = -13; x < 63; x += 2) {
   paving.push({
     p: [x, 0.216, 15.8],
