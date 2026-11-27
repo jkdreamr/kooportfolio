@@ -220,7 +220,8 @@ describe("vercel.json (A4)", () => {
   it("caches hashed assets for a year, unhashed media briefly", () => {
     expect(header("/assets/engine-abc123.js", "Cache-Control")).toBe("public, max-age=31536000, immutable");
     expect(header("/audio/birds.mp3", "Cache-Control")).toBe("public, max-age=3600, stale-while-revalidate=604800");
-    expect(header("/characters/cast-v1.bin.gz", "Cache-Control")).toMatch(/^public, max-age=3600/);
+    // Rebaked in place under one name: always revalidate (ETag), never serve a stale cast to new code.
+    expect(header("/characters/cast-v1.bin.gz", "Cache-Control")).toBe("public, max-age=0, must-revalidate");
     expect(header("/", "Cache-Control")).toBeUndefined(); // HTML: Vercel's revalidating default
   });
   it("sends the security headers everywhere and keeps the camera for the photo booth", () => {

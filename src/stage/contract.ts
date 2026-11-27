@@ -255,7 +255,9 @@ export function pendingWarmTasks() {
   );
 }
 /** Engine-side: drop a task once it has run. */
-export function completeWarmTask(id: string) {
+export function completeWarmTask(id: string, task?: unknown) {
+  // A task re-registered under the same id while the old one ran must survive.
+  if (task !== undefined && warmTasks.get(id) !== task) return;
   warmTasks.delete(id);
 }
 /** Engine-side: be told when new work is registered. */

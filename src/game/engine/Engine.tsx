@@ -414,7 +414,7 @@ export function EngineRuntime({
             } catch (error) {
               console.warn(`warm task ${task.id} failed`, error);
             }
-            completeWarmTask(task.id);
+            completeWarmTask(task.id, task);
             if (!ready.current)
               useStage.setState({ warmProgress: ++index / (total + 1) });
             await nextFrame();

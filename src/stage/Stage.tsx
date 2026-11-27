@@ -19,6 +19,9 @@ type EngineModule = {
 };
 
 export const RELOAD_KEY = "stage-reloaded";
+/** Separate guard for lazy-chunk preload failures: never cleared by a
+ * successful engine import, so a chunk that keeps failing reloads once. */
+export const PRELOAD_RELOAD_KEY = "stage-preload-reloaded";
 const RETRY_DELAY_MS = 800;
 
 let loading: Promise<EngineModule> | null = null;
@@ -157,13 +160,15 @@ export function Stage({ play }: { play: boolean }) {
   // replaced it). Outside the game, reload once for fresh chunk names;
   // inside it, the failing feature reports its own error.
   useEffect(() => {
-    const onPreloadError = () => {
-      if (!play || useStage.getState().mode === "game" || readReloaded()) return;
+    const onPreloadError = (event: Event) => {
+      if (!play || useStage.getState().mode === "game") return;
       try {
-        sessionStorage.setItem(RELOAD_KEY, "1");
+        if (sessionStorage.getItem(PRELOAD_RELOAD_KEY) !== null) return;
+        sessionStorage.setItem(PRELOAD_RELOAD_KEY, "1");
       } catch {
         return;
       }
+      event.preventDefault();
       location.reload();
     };
     window.addEventListener("vite:preloadError", onPreloadError);

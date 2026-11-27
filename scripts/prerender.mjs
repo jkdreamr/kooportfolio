@@ -164,7 +164,7 @@ try {
     .replace(/\s*<script>[\s\S]*?<\/script>/, "")
     .replace(/\s*<script type="module"[^>]*><\/script>/g, "")
     .replace(/\s*<link rel="modulepreload"[^>]*>/g, "")
-    .replace(/\s*<noscript[\s\S]*?<\/noscript>/, "")
+    .replace(/\s*<noscript[\s\S]*?<\/noscript\s*>/, "")
     .replace('<div id="root"></div>', `<div id="root">${ssr.renderNotFound()}</div>`);
   await writeFile(`${root}/404.html`, notFound);
 } finally {
