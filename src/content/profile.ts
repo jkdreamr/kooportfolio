@@ -1,7 +1,7 @@
 // Public source: https://joshuakoo.xyz, checked 2026-11-23. No inferred projects.
 export const profile = {
   name: "joshua koo",
-  bio: "stanford cs + math · coxswain · investment intern @ crv",
+  bio: "chief of staff, apac @ cognition · investment intern @ crv · stanford cs + math · coxswain",
   email: "joskoo@stanford.edu",
   socials: [
     ["github", "https://github.com/jkdreamr"],

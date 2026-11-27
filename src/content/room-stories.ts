@@ -14,12 +14,12 @@ const ABOUT = { link: "https://joshuakoo.xyz", label: "About Josh" } as const;
 const LINKEDIN = { link: "https://linkedin.com/in/joshuaykoo", label: "LinkedIn" } as const;
 
 export const roomStories: Partial<Record<PlaceId, RoomStoryEntry>> = {
-  // Not on his site (kept from before, unverified here): skateboarding.
+  // Not on his site; [owner] confirmed 2026-11-27: skateboarding.
   skate: {
     text: "Josh picked up skateboarding as a freshman at Stanford and still rides for fun.",
     ...ABOUT,
   },
-  // Not on his site (kept from before, unverified here): Los Altos.
+  // Not on his site; [owner] confirmed 2026-11-27: Los Altos.
   theater: {
     text: "Josh grew up in Los Altos, just down the road from Stanford. He studies CS and math there now.",
     ...ABOUT,
@@ -61,7 +61,7 @@ export const roomStories: Partial<Record<PlaceId, RoomStoryEntry>> = {
   // Alphag3n: [owner] confirmed 2026-11-27 and asked for it to be featured
   // (not on his site). CRV, NEAR, Pantera: J data.ts:68–70.
   office: {
-    text: "Before Stanford, Josh founded Alphag3n, a startup backed by sponsors like Coinbase, Solana and Polygon. Today he's an investment intern at CRV, after NEAR Protocol and Pantera Capital.",
+    text: "Before Stanford, Josh founded Alphag3n. Today he's an investment intern at CRV, after NEAR Protocol and Pantera Capital.",
     ...LINKEDIN,
   },
   // Kappa Sigma, TreeHacks, Blockchain Club: J data.ts:49–53.
