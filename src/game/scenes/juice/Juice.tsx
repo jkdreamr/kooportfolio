@@ -91,17 +91,18 @@ function pop(text: string, x: number, y: number, tone: Tone = "good") {
   if (!el) return;
   el.textContent = text;
   el.style.color = TONES[tone];
-  const rise = reduced() ? 0 : -POP_RISE;
-  run(
-    el,
-    [
-      { opacity: 0, transform: "translateY(0px)" },
-      { opacity: 1, offset: 0.15, transform: `translateY(${rise * 0.15}px)` },
-      { opacity: 1, offset: 0.6, transform: `translateY(${rise * 0.6}px)` },
-      { opacity: 0, transform: `translateY(${rise}px)` },
-    ].map((f) => (reduced() ? { opacity: f.opacity, offset: f.offset } : f)),
-    POP_MS,
-  );
+  const still = reduced();
+  const rise = still ? 0 : -POP_RISE;
+  // Linear timeline with per-segment easing: in fast, readable for most of
+  // its life, then gone. (One ease over the whole timeline would start the
+  // fade almost at once.)
+  const frames: Keyframe[] = [
+    { opacity: 0, transform: "translateY(0px)", easing: EASE },
+    { opacity: 1, offset: 0.12, transform: `translateY(${rise * 0.5}px)`, easing: EASE },
+    { opacity: 1, offset: 0.62, transform: `translateY(${rise * 0.85}px)`, easing: "ease-in" },
+    { opacity: 0, transform: `translateY(${rise}px)` },
+  ];
+  run(el, still ? frames.map(({ opacity, offset, easing }) => ({ opacity, offset, easing })) : frames, POP_MS, "linear");
 }
 
 /** An expanding ring 12 → 64 px. */
