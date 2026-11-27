@@ -186,15 +186,18 @@ export function EngineRuntime({
     }
     // The peek looks down from ~230 units, where the gameplay fog (tuned
     // for the follow camera) washes the island to a flat disc. While the
-    // page is peeled the island centre stays nearly clear; from the commit
-    // the fog eases back to the gameplay values over the first 60% of the
-    // flight on the flight's own curve. Colour is untouched (horizon).
+    // page is peeled the island centre stays nearly clear (fog measured from
+    // the rendered camera's own distance d); from the commit that haze keeps
+    // tracking d as the camera descends and eases into the gameplay values
+    // on the flight's own curve, reaching them as the flight lands (eased
+    // over only the first 60%, the gameplay fog met the camera while it was
+    // still high and washed the island out mid-flight). Colour is untouched.
     let hazeNear = 0;
     let hazeFar = 0;
     const stageMode = useStage.getState().mode;
     if (fog instanceof THREE.Fog && stageMode !== "game" && usePresented.getState().scene === "hub") {
       const progress = stageMode === "flying" ? (rig.pathProgress() ?? 1) : 0;
-      const weight = smootherstep(progress / 0.6);
+      const weight = smootherstep(progress);
       if (weight < 1) {
         const peek = peekFog(camera.position.distanceTo(liveTarget));
         const next = blendFog(peek, fog, weight);
