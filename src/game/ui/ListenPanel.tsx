@@ -26,53 +26,100 @@ export function holdGameAudio(on: boolean) {
   );
 }
 
+/**
+ * A player's life: check the host answers at all (a blocked or offline host
+ * would otherwise paint the browser's own error page inside the frame),
+ * then load the frame behind a placeholder. Blocked, refused by a content
+ * policy, or failing: the plain link-out instead.
+ */
+export type PlayerState = "checking" | "loading" | "ready" | "slow" | "failed";
+export const showsFrame = (state: PlayerState) =>
+  state === "loading" || state === "ready" || state === "slow";
+
 function Player({ embed }: { embed: OwnerEmbed }) {
-  const [state, setState] = useState<"loading" | "ready" | "slow">("loading");
+  const [state, setState] = useState<PlayerState>("checking");
   useEffect(() => {
+    const controller = new AbortController();
+    const host = new URL(embed.src).origin;
+    // An opaque answer is enough: it proves the host is reachable from here.
+    fetch(embed.src, {
+      mode: "no-cors",
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(() => setState((s) => (s === "checking" ? "loading" : s)))
+      .catch(() => {
+        if (!controller.signal.aborted) setState("failed");
+      });
+    const policy = (event: SecurityPolicyViolationEvent) => {
+      if (event.blockedURI.startsWith(host)) setState("failed");
+    };
+    document.addEventListener("securitypolicyviolation", policy);
     const timer = window.setTimeout(
-      () => setState((s) => (s === "loading" ? "slow" : s)),
+      () => setState((s) => (s === "loading" || s === "checking" ? "slow" : s)),
       EMBED_SLOW_MS,
     );
-    return () => window.clearTimeout(timer);
-  }, []);
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+      document.removeEventListener("securitypolicyviolation", policy);
+    };
+  }, [embed.src]);
   const video = embed.id === "youtube";
   return (
-    <div className="listen-player" data-state={state} data-video={video || undefined}>
+    <div
+      className="listen-player"
+      data-state={state}
+      data-video={video || undefined}
+    >
       <div
         className="listen-frame"
         style={video ? undefined : { height: embed.height }}
       >
         {state !== "ready" && (
-          <div className="listen-placeholder" aria-hidden={state === "loading"}>
-            {state === "loading" ? (
+          <div
+            className="listen-placeholder"
+            aria-hidden={state === "loading" || state === "checking"}
+          >
+            {state === "loading" || state === "checking" ? (
               <span className="listen-spinner">Loading {embed.label}…</span>
             ) : (
               <span>
-                {embed.label} is taking a while (it may be blocked here).{" "}
+                {state === "failed"
+                  ? `The ${embed.label} player can’t load here.`
+                  : `${embed.label} is taking a while.`}{" "}
                 <a href={embed.href} target="_blank" rel="noreferrer">
-                  Open it on {embed.label} ↗
+                  Listen on {embed.label} ↗
                 </a>
               </span>
             )}
           </div>
         )}
-        <iframe
-          key={embed.id}
-          src={embed.src}
-          title={embed.title}
-          loading="lazy"
-          allow={
-            video
-              ? "encrypted-media; picture-in-picture; fullscreen"
-              : "encrypted-media; clipboard-write"
-          }
-          allowFullScreen={video}
-          referrerPolicy="strict-origin-when-cross-origin"
-          onLoad={() => setState("ready")}
-        />
+        {showsFrame(state) && (
+          <iframe
+            key={embed.id}
+            src={embed.src}
+            title={embed.title}
+            loading="lazy"
+            allow={
+              video
+                ? "encrypted-media; picture-in-picture; fullscreen"
+                : "encrypted-media; clipboard-write"
+            }
+            allowFullScreen={video}
+            referrerPolicy="strict-origin-when-cross-origin"
+            onLoad={() => setState((s) => (showsFrame(s) ? "ready" : s))}
+          />
+        )}
       </div>
-      <a className="listen-out" href={embed.href} target="_blank" rel="noreferrer">
-        Open on {embed.label} ↗<span className="sr-only"> (opens in a new tab)</span>
+      <a
+        className="listen-out"
+        href={embed.href}
+        target="_blank"
+        rel="noreferrer"
+      >
+        Open on {embed.label} ↗
+        <span className="sr-only"> (opens in a new tab)</span>
       </a>
     </div>
   );
@@ -123,10 +170,15 @@ export function ListenTabs({ onClose }: { onClose: () => void }) {
             onClick={() => useListen.setState({ tab: embed.id })}
             onKeyDown={(event) => {
               const step =
-                event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+                event.key === "ArrowRight"
+                  ? 1
+                  : event.key === "ArrowLeft"
+                    ? -1
+                    : 0;
               if (!step) return;
               event.preventDefault();
-              const next = (index + step + OWNER_EMBEDS.length) % OWNER_EMBEDS.length;
+              const next =
+                (index + step + OWNER_EMBEDS.length) % OWNER_EMBEDS.length;
               useListen.setState({ tab: OWNER_EMBEDS[next].id });
               tabs.current[next]?.focus();
             }}

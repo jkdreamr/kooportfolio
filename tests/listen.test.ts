@@ -13,3 +13,14 @@ describe("listen panel state", () => {
     closeListen();
   });
 });
+
+describe("listen player states", () => {
+  it("shows the frame only once the host has answered, never when it failed", async () => {
+    const { showsFrame } = await import("../src/game/ui/ListenPanel");
+    expect(showsFrame("checking")).toBe(false);
+    expect(showsFrame("failed")).toBe(false);
+    expect(showsFrame("loading")).toBe(true);
+    expect(showsFrame("slow")).toBe(true);
+    expect(showsFrame("ready")).toBe(true);
+  });
+});
