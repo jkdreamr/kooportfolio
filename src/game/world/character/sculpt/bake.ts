@@ -12,7 +12,7 @@ import { outfitFromPalette, type Outfit } from "../outfit";
 import { restPose, solveJoints, makeJoints, SK, JOINTS } from "../skeleton";
 import { buildFigure, PIECE_JOINT, type Figure, type PieceId } from "./figure";
 import { evalOps, pieceBounds, pad, SLOT, type Hit, type Mat, type V3 } from "./sdf";
-import { cutByLabel, decimate, dropIslands, project, surfaceNets, type LabMesh, type RawMesh } from "./mesher";
+import { decimate, dropIslands, project, straightenBorders, surfaceNets, type LabMesh, type RawMesh } from "./mesher";
 import { appendMesh, brows, ears, emptyMesh, eyes, glasses, headSkin, mouth, vertexNormals, type AttrMesh, type MouthKind } from "./head";
 import { hairMesh, type HairSeg } from "./hair";
 
@@ -34,8 +34,9 @@ const env = (globalThis as { process?: { env: Record<string, string | undefined>
 const FAST = env.BAKE_FAST ? 1.5 : 1;
 
 export type Shape = { pos: Uint16Array; nrm: Int8Array; a: Uint8Array; b: Uint8Array; idx: Uint16Array; bb: number[] };
-export type CharManifest = { p: Partial<Record<PieceId, [number, number]>>; skirtTop: number };
-export type BakePart = { keys: string[]; shapes: [Shape, Shape][]; chars: Record<string, { p: Partial<Record<PieceId, number>>; skirtTop: number }> };
+/** Shader paint on the chest, rest space: 12 numbers per shape (see runtime). */
+export type CharManifest = { p: Partial<Record<PieceId, [number, number]>>; skirtTop: number; paint?: number[] };
+export type BakePart = { keys: string[]; shapes: [Shape, Shape][]; chars: Record<string, { p: Partial<Record<PieceId, number>>; skirtTop: number; paint?: number[] }> };
 
 const smooth = (a: number, b: number, x: number) => {
   const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
@@ -80,7 +81,7 @@ export function bakePart(ids: string[], log: (s: string) => void = console.log):
       if (fig.hairAO.length) d = Math.min(d, evalOps(fig.hairAO, [v3.x, v3.y, v3.z], null) * SK.headScale);
       return d;
     };
-    part.chars[id] = { p: {}, skirtTop: fig.skirtTop };
+    part.chars[id] = { p: {}, skirtTop: fig.skirtTop, paint: paintData(fig, rest.chest) };
     const plan = budgetPlan(fig, entries);
     const meshAll = (adjOnly: boolean) => {
       for (const [pid, piece] of entries) {
@@ -164,6 +165,23 @@ function budgetPlan(fig: Figure, entries: [PieceId, { ops: unknown[] }][]): { sc
   return { scale, hair, midCell: 1.9 };
 }
 
+/** Chest paint shapes into rest space, flattened for the manifest. */
+function paintData(fig: Figure, chestM: THREE.Matrix4): number[] {
+  const out: number[] = [];
+  const v = new THREE.Vector3();
+  const o = new THREE.Vector3().setFromMatrixPosition(chestM);
+  const to = (p: V3) => { v.set(p[0], p[1], p[2]).applyMatrix4(chestM); return [v.x, v.y, v.z].map((x) => +x.toFixed(4)); };
+  for (const q of fig.paint.slice(0, 28)) {
+    if (q.t === 0) out.push(0, q.slot, +q.r.toFixed(4), 0, ...to(q.a), 0, ...to(q.b), 0);
+    else if (q.t === 2) out.push(2, q.slot, 0, 0, ...to(q.a), 0, ...q.b, 0);
+    else if (q.t === 3) out.push(3, q.slot, +q.r.toFixed(4), 0, ...to(q.a), 0, ...q.b, 0);
+    // The wedge is defined about the chest origin (the chest's rest frame
+    // only translates).
+    else out.push(1, q.slot, q.k ?? 0.3, q.o ?? 0.03, +o.x.toFixed(4), +o.y.toFixed(4), +o.z.toFixed(4), 0, q.a[2], 0, 0, 0);
+  }
+  return out;
+}
+
 function pieceKey(pid: PieceId, ops: unknown, fig: Figure) {
   if (pid.startsWith("mouth")) return pid + mouthKind(pid, fig);
   if (pid === "eyes") return pid + JSON.stringify([fig.face.eye, fig.face.flick, fig.face.lashes, fig.face.lid]);
@@ -191,7 +209,7 @@ export function packParts(parts: BakePart[]) {
       return ids;
     });
     for (const [id, c] of Object.entries(part.chars)) {
-      manifest[id] = { p: {}, skirtTop: c.skirtTop };
+      manifest[id] = { p: {}, skirtTop: c.skirtTop, ...(c.paint?.length ? { paint: c.paint } : {}) };
       for (const [pid, i] of Object.entries(c.p)) manifest[id].p[pid as PieceId] = local[i as number];
     }
   }
@@ -218,6 +236,10 @@ function meshPiece(pid: PieceId, ops: Parameters<typeof evalOps>[0], fig: Figure
     // on broad cloth.
     const weight = (x: number, y: number, z: number) => {
       if (kind === "fore" && y < -SK.foreArm + 0.01) return 4;
+      // Keep the flat joint ends (just past the elbow and knee) round and
+      // even, so the seam reads as one clean line.
+      if (kind === "upper" && y < -SK.upperArm - 0.012) return 5;
+      if (kind === "thigh" && y < -SK.thigh - 0.012) return 5;
       if (kind === "head") return z > 0.05 && y < fig.HC[1] + 0.25 ? 3 : 1.6;
       return 1;
     };
@@ -233,18 +255,12 @@ function meshPiece(pid: PieceId, ops: Parameters<typeof evalOps>[0], fig: Figure
       if (id === undefined) { id = mats.length; mats.push(m); matIds.set(k, id); }
       return id;
     };
-    // Each LOD is meshed on its own grid (the mid one coarser). The dense
-    // mesh is cut along its colour borders, then decimated with the borders
-    // as feature lines, so every face keeps one flat colour and the borders
-    // stay clean lines at any budget.
+    // Each LOD is meshed on its own grid (the mid one coarser), decimated,
+    // and given one flat material per face with straightened borders.
     const meshes = ([[h, Math.round(ht * scale[0])], [h * midCell, Math.round(mt * scale[1])]] as const).map(([cell, target], lod) => {
       const raw = surfaceNets(f, bb.min, bb.max, cell);
       project(f, raw.pos, cell * 0.5, 1);
-      // Mid LOD budgets are too small for border lines (regions would shrink
-      // onto them): plain geometric decimation, then one flat material per
-      // face, sampled at its centre (borders follow triangle edges).
-      if (lod) return midLabeled(raw, target, (x, y, z) => weight(x, y, z), labelAt);
-      const out = heroLabeled(raw, target, weight, labelAt, (l) => isCloth(mats[l].slot));
+      const out = labeled(raw, target, (x, y, z) => weight(x, y, z), labelAt, !lod, (l) => isCloth(mats[l].slot));
       if (env.BAKE_DEBUG) console.log(`  ${pid}: raw ${raw.tri.length / 3} → ${out.tri.length / 3}`);
       return out;
     });
@@ -400,54 +416,34 @@ function taubin(pos: Float64Array, tri: Uint32Array, iters: number) {
 }
 
 /**
- * Hero LOD: quadric decimation (vertices next to a colour border cost more
- * to move, broad cloth less), then the mesh is cut exactly along its colour
- * borders (bisection on every edge that changes material) and the vertices
- * are split per material later, so every face is one flat colour and every
- * border is a clean straight-edged line. Several decimation levels come out
- * of one pass; the finest whose cut fits the target is used.
+ * Crisp colour borders without spending triangles on them: decimate (hero:
+ * with the colour borders held, as before), give every face one material
+ * (a vote at its centre and corners), then slide the vertices on each
+ * border onto the true border line. Vertices are split per material later,
+ * so faces are flat colours with clean, straight-edged borders.
  */
-function heroLabeled(raw: RawMesh, target: number, weight: (x: number, y: number, z: number) => number, labelAt: (x: number, y: number, z: number) => number, cloth: (l: number) => boolean): LabMesh {
-  const nV = raw.pos.length / 3;
-  const vlab = new Int32Array(nV);
-  for (let i = 0; i < nV; i++) vlab[i] = labelAt(raw.pos[i * 3], raw.pos[i * 3 + 1], raw.pos[i * 3 + 2]);
-  const vw = new Float32Array(nV);
-  for (let i = 0; i < nV; i++) vw[i] = cloth(vlab[i]) ? 0.6 : 1;
-  for (let t = 0; t < raw.tri.length; t += 3)
-    for (let c = 0; c < 3; c++) {
-      const u = raw.tri[t + c], v = raw.tri[t + ((c + 1) % 3)];
-      if (vlab[u] !== vlab[v]) { vw[u] = 6; vw[v] = 6; }
-    }
-  const cutOf = (m: RawMesh) => {
-    const vl = new Int32Array(m.pos.length / 3);
-    for (let i = 0; i < vl.length; i++) vl[i] = labelAt(m.pos[i * 3], m.pos[i * 3 + 1], m.pos[i * 3 + 2]);
-    const c = cutByLabel(m, vl, labelAt);
-    dropIslands(c, 1.2e-5);
-    return c;
-  };
-  if (raw.tri.length / 3 <= target) return cutOf(raw);
-  const ks = [0.97, 0.9, 0.84, 0.78, 0.72, 0.66, 0.6, 0.54, 0.48];
-  const levels = decimate(raw, ks.map((k) => Math.round(target * k)), (x, y, z, i) => weight(x, y, z) * (i === undefined ? 1 : vw[i]));
-  let last: LabMesh | null = null;
-  for (const m of levels) {
-    const c = cutOf(m);
-    last = c;
-    if (c.tri.length / 3 <= target) return c;
+function labeled(raw: RawMesh, target: number, weight: (x: number, y: number, z: number) => number, labelAt: (x: number, y: number, z: number) => number, hero: boolean, cloth: (l: number) => boolean): LabMesh {
+  let m = raw;
+  if (raw.tri.length / 3 > target) {
+    if (hero) {
+      const nV = raw.pos.length / 3;
+      const vlab = new Int32Array(nV), vw = new Float32Array(nV);
+      for (let i = 0; i < nV; i++) { vlab[i] = labelAt(raw.pos[i * 3], raw.pos[i * 3 + 1], raw.pos[i * 3 + 2]); vw[i] = cloth(vlab[i]) ? 0.6 : 1; }
+      for (let t = 0; t < raw.tri.length; t += 3)
+        for (let c = 0; c < 3; c++) {
+          const u = raw.tri[t + c], v = raw.tri[t + ((c + 1) % 3)];
+          if (vlab[u] !== vlab[v]) { vw[u] = 6; vw[v] = 6; }
+        }
+      m = decimate(raw, [target], (x, y, z, i) => weight(x, y, z) * (i === undefined ? 1 : vw[i]), vlab)[0];
+    } else m = decimate(raw, [target], weight)[0];
   }
-  return last!;
-}
-
-/** Mid LOD: geometric decimation, then a flat material per face. */
-function midLabeled(raw: RawMesh, target: number, weight: (x: number, y: number, z: number) => number, labelAt: (x: number, y: number, z: number) => number): LabMesh {
-  const m = raw.tri.length / 3 > target ? decimate(raw, [target], weight)[0] : raw;
   const lab = new Int32Array(m.tri.length / 3);
   const votes = new Map<number, number>();
   for (let t = 0; t < lab.length; t++) {
-    // Majority of the centre and the three corners pulled toward it.
     votes.clear();
     const c = [0, 0, 0];
     for (let k = 0; k < 3; k++) for (let d = 0; d < 3; d++) c[d] += m.pos[m.tri[t * 3 + k] * 3 + d] / 3;
-    const pts = [c, ...[0, 1, 2].map((k) => [0, 1, 2].map((d) => c[d] * 0.5 + m.pos[m.tri[t * 3 + k] * 3 + d] * 0.5))];
+    const pts = [c, ...[0, 1, 2].map((k) => [0, 1, 2].map((d) => c[d] * 0.4 + m.pos[m.tri[t * 3 + k] * 3 + d] * 0.6))];
     let best = -1, bn = 0;
     pts.forEach((p, i) => {
       const l = labelAt(p[0], p[1], p[2]);
@@ -457,7 +453,10 @@ function midLabeled(raw: RawMesh, target: number, weight: (x: number, y: number,
     });
     lab[t] = best;
   }
-  return { pos: m.pos, tri: m.tri, lab };
+  const out: LabMesh = { pos: Float64Array.from(m.pos), tri: m.tri, lab };
+  dropIslands(out, hero ? 1.5e-5 : 1.5e-4);
+  straightenBorders(out, labelAt);
+  return out;
 }
 
 /** Nearest hair lock segment: root→tip parameter and strand direction. */

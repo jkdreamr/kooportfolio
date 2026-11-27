@@ -139,10 +139,10 @@ function dispValue(d: Disp, p: V3) {
       // Sharp creases between rounded clumps.
       return d.amp * (1 - s) * (1 - s) * 2 - d.amp * 0.4;
     }
-    case "rib": {
-      const a = Math.atan2(p[0] - d.c[0], p[2] - d.c[2]);
-      return d.amp * Math.abs(Math.sin(a * d.freq));
-    }
+    case "rib":
+      // Knit ribs are not sculpted: finer than any triangle budget can
+      // draw, they aliased into blotches and wiggly colour borders.
+      return 0;
     case "band": {
       const y = p[1];
       const w = Math.max(0, Math.min(1, (y - d.y0) / 0.02, (d.y1 - y) / 0.02));

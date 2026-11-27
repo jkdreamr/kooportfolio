@@ -51,6 +51,8 @@ export type Figure = {
   hairPlan?: HairBuild;
   hatDist: (p: V3) => number;
   hairAO: Op[];
+  /** Shader-painted shapes on the chest (chest frame). */
+  paint: PaintPrim[];
   /** Analytic ears shown (not under long hair, scarves or headphones). */
   ears: boolean;
 };
@@ -84,8 +86,27 @@ const shell = (of: Node, d: number, m: Mat, clip: Node[] = [], disp?: Node["disp
 /** Keep y above / below a height (clip regions). */
 const above = (y: number) => plane([0, -1, 0], -y);
 const below = (y: number) => plane([0, 1, 0], y);
+/**
+ * Shader paint (chest frame): straps, V-openings and armholes are drawn per
+ * pixel from these few analytic shapes, so their edges are perfectly crisp
+ * at any distance and cost no triangles. 0 capsule (a, b, r), 1 V-wedge
+ * (|x| < o + k·y, z > zmin), 2 ellipsoid (centre a, radii b), 3 rounded
+ * box (centre a, half extents b, corner r).
+ */
+export type PaintPrim = { t: 0 | 1 | 2 | 3; slot: number; a: V3; b: V3; r: number; k?: number; o?: number };
 /** A strap painted onto the surface it crosses (no thin geometry to shard). */
-const paintChain = (pts: V3[], r: number, m: Mat): Op[] => pts.slice(1).map((p, i) => ({ op: "paint" as const, k: 0, n: cap(pts[i], p, r * 1.5, m) }));
+const paintChain = (pts: V3[], r: number, m: Mat, snap?: (p: V3) => V3): PaintPrim[] => {
+  // Refine so the strap's capsules follow the curved surface (a straight
+  // segment would dip inside it and show only a sliver).
+  const fine: V3[] = [pts[0]];
+  for (let i = 1; i < pts.length; i++)
+    for (let k = 1; k <= 3; k++) {
+      const t = k / 3, a = pts[i - 1], b = pts[i];
+      const q: V3 = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+      fine.push(k < 3 && snap ? snap(q) : q);
+    }
+  return fine.slice(1).map((p, i) => ({ t: 0 as const, slot: m.slot, a: fine[i], b: p, r: r * 1.5 }));
+};
 const r3 = (v: V3): V3 => [+v[0].toFixed(4), +v[1].toFixed(4), +v[2].toFixed(4)];
 /** Point on a node's surface at (x, y), marching along z from the front
  * (side = 1) or the back (side = −1), lifted off it by `lift`. */
@@ -144,15 +165,24 @@ export function buildFigure(o: Outfit): Figure {
   ], M.skin);
   const neck = cap([0, 0.33, -0.012], [0, 0.53, 0.012], 0.05, M.skin);
   const chest: Op[] = [add(torso), add(neck, 0.05), add(sph([0, 0.375, -0.012], 0.062, M.skin), 0.04)];
+  const paintP: PaintPrim[] = [];
   const front = (x: number, y: number, lift = 0) => surf(torso, x, y, 1, lift);
   const backAt = (x: number, y: number, lift = 0) => surf(torso, x, y, -1, lift);
   // Top garment: shell over the torso with a neckline, armholes and hem.
   const hemY = belted && !outer ? -0.07 : -0.15;
   const neckHole: Node[] = [];
-  if (top.kind === "tank") neckHole.push(not(ell([0, 0.43, 0.1], [0.075, 0.13, 0.11])));
+  // Sleeveless tops keep one closed shell: the armholes (and a tank's scoop
+  // neck) are painted with a trim band, crisp at any budget, instead of cut
+  // edges that decimate into shards.
+  const scoop = (c: V3, r: V3, band: number) => {
+    paintP.push({ t: 2, slot: SLOT.topTrim, a: c, b: [r[0] + band, r[1] + band, r[2] + band], r: 0 });
+    paintP.push({ t: 2, slot: SLOT.skin, a: c, b: r, r: 0 });
+  };
+  if (top.kind === "tank") { neckHole.push(above(0.6)); scoop([0, 0.43, 0.1], [0.075, 0.13, 0.11], 0.012); }
   else if (top.kind === "turtleneck") neckHole.push(above(0.6));
   else neckHole.push(not(cap([0, 0.3, -0.01], [0, 0.6, 0.015], 0.064)), not(ell([0, 0.41, 0.07], [0.058, 0.04, 0.06])));
-  if (sleeves === "none") for (const s of [1, -1]) neckHole.push(not(ell([s * 0.2, 0.3, -0.008], [0.06, 0.085, 0.075])));
+  if (sleeves === "none" && !torsoOuter) for (const s of [1, -1]) scoop([s * 0.2, 0.3, -0.008], [0.06, 0.085, 0.075], 0.012);
+  else if (sleeves === "none") for (const s of [1, -1]) neckHole.push(not(ell([s * 0.2, 0.3, -0.008], [0.06, 0.085, 0.075])));
   const topClip = [...neckHole, above(hemY)];
   if (top.kind === "jeogori") topClip.push(above(0.15));
   const topD = top.kind === "jeogori" ? 0.022 : top.kind === "sweater" ? 0.02 : 0.014;
@@ -171,20 +201,21 @@ export function buildFigure(o: Outfit): Figure {
     chest.push(add(cap(a, b, 0.009, M.fab(slot)), 0.003));
     for (const y of buttons) chest.push(add(sph(front(0, y, topD + 0.006), 0.0085, M.gloss(SLOT.white, 0.25)), 0.001));
   };
-  const pocket = (x: number, y: number, slot: number, lift: number, flap = true) => {
-    const p = front(x, y, lift + 0.004);
-    chest.push(add(box(p, [0.032, 0.034, 0.005], 0.004, M.fab(slot)), 0.002));
-    if (flap) chest.push(add(box([p[0], p[1] + 0.03, p[2] + 0.003], [0.035, 0.011, 0.005], 0.004, M.fab(slot === SLOT.top ? SLOT.topTrim : slot)), 0.001));
+  /** A painted patch pocket: trim outline, body, flap seam (crisp, flat). */
+  const pocket = (x: number, y: number, slot: number, lift: number, trim: number = SLOT.topTrim, size: [number, number] = [0.034, 0.036], flap = true) => {
+    const p = front(x, y, lift);
+    paintP.push({ t: 3, slot: trim, a: p, b: [size[0], size[1], 0.03], r: 0.007 });
+    paintP.push({ t: 3, slot, a: [p[0], p[1] - 0.0035, p[2]], b: [size[0] - 0.0055, size[1] - 0.0075, 0.03], r: 0.005 });
+    if (flap) paintP.push({ t: 3, slot: trim, a: [p[0], p[1] + size[1] - 0.014, p[2]], b: [size[0] - 0.003, 0.0022, 0.03], r: 0.0015 });
   };
   switch (top.kind) {
     case "tee":
     case "tank":
-      chest.push(add(tor([0, 0.405, 0.012], 0.066, 0.009, M.fab(SLOT.topTrim), [-0.38, 0, 0]), 0.004));
+      if (top.kind === "tee") chest.push(add(tor([0, 0.405, 0.012], 0.066, 0.009, M.fab(SLOT.topTrim), [-0.38, 0, 0]), 0.004));
       if (!outer) hemRing(SLOT.top, hemY + 0.004, 0.009);
       break;
     case "jersey":
       chest.push(add(tor([0, 0.405, 0.012], 0.068, 0.011, M.fab(SLOT.topTrim), [-0.38, 0, 0]), 0.004));
-      for (const s of [1, -1]) chest.push(add(tor([s * 0.198, 0.3, -0.008], 0.07, 0.009, M.fab(SLOT.topTrim), [0, 0, s * 1.4], 1, 1.2), 0.003));
       hemRing(SLOT.topTrim, hemY + 0.004, 0.01);
       break;
     case "turtleneck":
@@ -236,13 +267,8 @@ export function buildFigure(o: Outfit): Figure {
   if (outer) {
     // Openings are painted, not cut: the coat stays one smooth surface
     // (cut layers decimate into shards), the shirt colour shows in the V.
-    const wedge = grp([
-      add(plane([1, -0.3, 0], 0.03)),
-      { op: "int", k: 0, n: plane([-1, -0.3, 0], 0.03) },
-      { op: "int", k: 0, n: plane([0, 0, -1], -0.04) },
-    ], M.fab(SLOT.top));
-    const paint = (n: Node): Op => ({ op: "paint", k: 0, n });
-    const armholes = [1, -1].map((s) => ell([s * 0.2, 0.3, -0.008], [0.07, 0.1, 0.09], M.fab(SLOT.top)));
+    const wedge: PaintPrim = { t: 1, slot: SLOT.top, a: [0, 0, 0.04], b: [0, 0, 0], r: 0, k: 0.3, o: 0.03 };
+    const armholes: PaintPrim[] = [1, -1].map((s) => ({ t: 2 as const, slot: SLOT.top, a: [s * 0.2, 0.3, -0.008] as V3, b: [0.07, 0.1, 0.09] as V3, r: 0 }));
     const O = M.fab(SLOT.outer, outer.kind === "blazer" ? 0.78 : 0.86);
     const neckOpen = not(cap([0, 0.3, -0.01], [0, 0.6, 0.015], 0.07));
     const oHem = -0.17;
@@ -254,7 +280,7 @@ export function buildFigure(o: Outfit): Figure {
         const d = outer.kind === "cardigan" ? 0.024 : 0.03;
         const knitC = outer.kind === "cardigan" ? { kind: "rib" as const, amp: 0.0016, freq: 56, c: [0, 0, 0] as V3 } : band(0.003, oHem, oHem + 0.13, 55);
         chest.push(add(shell(torso, d, O, [above(oHem), neckOpen], knitC), 0.003));
-        chest.push(paint(wedge));
+        paintP.push(wedge);
         // Lapels / front edges.
         for (const s of [1, -1]) {
           const lapel = outer.kind === "blazer" || outer.kind === "labcoat" || outer.kind === "jacket";
@@ -283,7 +309,7 @@ export function buildFigure(o: Outfit): Figure {
       }
       case "vest":
         chest.push(add(shell(torso, 0.024, O, [above(oHem + 0.02), neckOpen], folds(0.0015)), 0.003));
-        chest.push(paint(wedge), ...armholes.map(paint));
+        paintP.push(wedge, ...armholes);
         for (const s of [1, -1]) {
           chest.push(add(cap(front(s * 0.03, oHem + 0.04, 0.03), front(s * 0.08, 0.37, 0.03), 0.008, M.fab(SLOT.outerTrim)), 0.003));
           // Welt pocket: a neat trim strip, not a box that decimates to a blob.
@@ -299,7 +325,7 @@ export function buildFigure(o: Outfit): Figure {
         // Bib apron: bib, neck strap, waist ties.
         chest.push(add(shell(torso, 0.022, O, [plane([0, 0, -1], -0.025), plane([1, 0, 0], 0.11 * w), plane([-1, 0, 0], 0.11 * w), below(0.27), above(-0.1)]), 0.003));
         for (const s of [1, -1]) chest.push(add(cap(front(s * 0.09, 0.26, 0.022), [s * 0.05, 0.43, 0.015], 0.008, O), 0.003));
-        chest.push(add(box(front(0, 0.12, 0.026), [0.05, 0.035, 0.005], 0.006, M.fab(SLOT.outerTrim)), 0.002));
+        pocket(0, 0.11, SLOT.outer, 0.022, SLOT.outerTrim, [0.052, 0.038], false);
         break;
       }
       case "overalls": {
@@ -310,9 +336,7 @@ export function buildFigure(o: Outfit): Figure {
           chest.push(add(cap([s * 0.1, 0.4, 0.0], backAt(s * 0.07, 0.15, 0.016), 0.012, O), 0.003));
           chest.push(add(cyl(front(s * 0.08, 0.225, 0.03), 0.004, 0.013, 0.003, M.metal(), [Math.PI / 2, 0, 0]), 0.001));
         }
-        const bp = front(0, 0.13, 0.024);
-        chest.push(add(box(bp, [0.05, 0.04, 0.005], 0.006, O), 0.002));
-        chest.push(add(box([bp[0], bp[1] + 0.035, bp[2] + 0.002], [0.052, 0.006, 0.005], 0.003, M.fab(SLOT.outerTrim)), 0.001));
+        pocket(0, 0.13, SLOT.outer, 0.02, SLOT.outerTrim, [0.05, 0.042]);
         break;
       }
     }
@@ -324,7 +348,9 @@ export function buildFigure(o: Outfit): Figure {
     chest.push(add(cap(bow, [bow[0] + 0.02, bow[1] - 0.22, bow[2] + 0.02], 0.012, M.gloss(slot, 0.4)), 0.004));
     chest.push(add(cap(bow, [bow[0] - 0.035, bow[1] - 0.18, bow[2] + 0.015], 0.011, M.gloss(slot, 0.4)), 0.004));
   }
-  // Chest-mounted extras.
+  // Chest-mounted extras. Painted straps sit on the outermost layer.
+  const SL = torsoOuter ? 0.032 : topD + 0.003;
+  const snapS = (p: V3): V3 => (p[1] > 0.36 ? p : p[2] >= 0 ? front(p[0], p[1], SL) : backAt(p[0], p[1], SL));
   for (const e of o.extras ?? []) {
     const A = M.fab(extraColorSlot(o, e.kind)), B = M.fab(extraColorSlot(o, e.kind, true));
     switch (e.kind) {
@@ -334,17 +360,17 @@ export function buildFigure(o: Outfit): Figure {
         chest.push(add(box([c[0], c[1] - 0.06, c[2] - 0.06], [0.085 * w, 0.06, 0.03], 0.022, A), 0.008));
         chest.push(add(box([c[0], c[1] + 0.1, c[2] - 0.035], [0.1 * w, 0.03, 0.04], 0.02, B), 0.006));
         chest.push(add(cap([c[0] - 0.06, c[1] - 0.05, c[2] - 0.091], [c[0] + 0.06, c[1] - 0.05, c[2] - 0.091], 0.004, M.metal(SLOT.white)), 0.001));
-        for (const s of [1, -1]) chest.push(...paintChain([front(s * 0.1, 0.02), front(s * 0.11, 0.25), [s * 0.11, 0.39, -0.005], backAt(s * 0.1, 0.3)], 0.013, B));
+        for (const s of [1, -1]) paintP.push(...paintChain([front(s * 0.1, 0.02, SL), front(s * 0.11, 0.25, SL), [s * 0.11, 0.405 + SL * 0.6, -0.005], backAt(s * 0.1, 0.3, SL)], 0.013, B, snapS));
         break;
       }
       case "satchel":
       case "tote":
-        chest.push(...paintChain([[0.12, 0.39, 0.0], front(0.0, 0.2), front(-0.12 * w, -0.02), [-0.16 * w, -0.1, 0.04]], 0.011, M.leather(extraColorSlot(o, e.kind, true))));
+        paintP.push(...paintChain([[0.12, 0.405 + SL * 0.6, 0.0], front(0.0, 0.2, SL), front(-0.12 * w, -0.02, SL), [-0.16 * w, -0.1, 0.04]], 0.011, M.leather(extraColorSlot(o, e.kind, true)), snapS));
         break;
       case "lanyard":
       case "whistle": {
         const tag = front(0, 0.2, 0.03);
-        for (const s of [1, -1]) chest.push(...paintChain([[s * 0.05, 0.4, 0.02], front(s * 0.025, 0.3), tag], 0.006, A));
+        for (const s of [1, -1]) paintP.push(...paintChain([[s * 0.05, 0.4, 0.02], front(s * 0.025, 0.3, SL), tag], 0.006, A, snapS));
         if (e.kind === "lanyard") chest.push(add(box([tag[0], tag[1] - 0.035, tag[2] + 0.004], [0.028, 0.036, 0.004], 0.004, M.gloss(extraColorSlot(o, e.kind, true))), 0.002));
         else chest.push(add(cap([tag[0] - 0.012, tag[1] - 0.01, tag[2] + 0.006], [tag[0] + 0.02, tag[1] - 0.012, tag[2] + 0.014], 0.011, M.metal(SLOT.white)), 0.002));
         break;
@@ -357,7 +383,7 @@ export function buildFigure(o: Outfit): Figure {
       }
       case "camera": {
         const c = front(0, 0.12, 0.05);
-        for (const s of [1, -1]) chest.push(...paintChain([[s * 0.05, 0.4, 0.02], front(s * 0.05, 0.25), [c[0] + s * 0.05, c[1] + 0.02, c[2] - 0.01]], 0.006, M.fab(SLOT.dark)));
+        for (const s of [1, -1]) paintP.push(...paintChain([[s * 0.05, 0.4, 0.02], front(s * 0.05, 0.25, SL), [c[0] + s * 0.05, c[1] + 0.02, c[2] - 0.01]], 0.006, M.fab(SLOT.dark), snapS));
         chest.push(add(box(c, [0.06, 0.04, 0.027], 0.012, M.gloss(SLOT.dark, 0.35)), 0.003));
         chest.push(add(cyl([c[0] + 0.012, c[1], c[2] + 0.04], 0.022, 0.028, 0.006, M.metal(SLOT.dark), [Math.PI / 2, 0, 0]), 0.003));
         chest.push(add(cyl([c[0] + 0.012, c[1], c[2] + 0.062], 0.003, 0.02, 0.002, M.gloss(SLOT.accent + 7, 0.05), [Math.PI / 2, 0, 0]), 0.0));
@@ -381,7 +407,7 @@ export function buildFigure(o: Outfit): Figure {
         chest.push(add(grp([add(ell([c[0], c[1], c[2]], [0.13, 0.115, 0.04])), add(ell([c[0] - 0.04, c[1] + 0.14, c[2]], [0.095, 0.085, 0.04]), 0.04)], A), 0.0));
         chest.push(add(cyl([c[0] - 0.02, c[1] + 0.02, c[2] - 0.042], 0.003, 0.035, 0.002, M.gloss(SLOT.dark)), 0.0));
         chest.push(add(box([c[0] - 0.14, c[1] + 0.36, c[2]], [0.02, 0.17, 0.012], 0.006, B, [0, 0, 0.45]), 0.0));
-        chest.push(...paintChain([[0.13, 0.39, 0.0], front(0, 0.22), front(-0.13 * w, 0.0)], 0.01, M.fab(SLOT.dark)));
+        paintP.push(...paintChain([[0.13, 0.405 + SL * 0.6, 0.0], front(0, 0.22, SL), front(-0.13 * w, 0.0, SL)], 0.01, M.fab(SLOT.dark), snapS));
         break;
       }
       case "roll":
@@ -402,7 +428,7 @@ export function buildFigure(o: Outfit): Figure {
   ], M.skin);
   const pelvisSlot = outer?.kind === "overalls" ? SLOT.outer : SLOT.bottom;
   const pd = bottom.kind === "baji" ? 0.022 : 0.012;
-  const pelvis: Op[] = [add(hips), add(shell(hips, pd, M.fab(pelvisSlot, bottom.color === "#3d5373" ? 0.8 : 0.86), [below(0.085)], folds(0.0015)), 0.003)];
+  const pelvis: Op[] = [add(hips), add(shell(hips, pd, M.fab(pelvisSlot, bottom.color === "#3d5373" ? 0.8 : 0.86), [below(0.16)], folds(0.0015)), 0.003)];
   const pfront = (x: number, y: number, lift: number) => surf(hips, x, y, 1, lift);
   const pback = (x: number, y: number, lift: number) => surf(hips, x, y, -1, lift);
   const trousered = bottom.kind === "trousers" || bottom.kind === "shorts" || bottom.kind === "baji" || outer?.kind === "overalls";
@@ -468,7 +494,6 @@ export function buildFigure(o: Outfit): Figure {
   if (outer?.kind === "labcoat") skirtOps.push(add(S(0.47, 0.165 * w, 0.25 * w, SLOT.outer, { gap: 0.32, wave: 0.006 })));
   if (outer?.kind === "apron") {
     skirtOps.push(add(S(0.44, 0.16 * w, 0.24 * w, SLOT.outer, { front: 0.95, wave: 0.008 })));
-    skirtOps.push(add(box([0, skirtTop - 0.14, 0.17 * w], [0.06, 0.04, 0.008], 0.008, M.fab(SLOT.outerTrim)), 0.004));
   }
   if (bottom.trim && skirtish && bottom.kind !== "chima") {
     const len = bottom.kind === "skirt" ? 0.34 : 0.6;
@@ -499,7 +524,7 @@ export function buildFigure(o: Outfit): Figure {
     }
     // A clean flat end just past the elbow, tucked over the (thinner)
     // forearm: the joint shows one neat edge, never two surfaces fighting.
-    upper.push({ op: "int", k: 0.01, n: above(-UA - 0.028) });
+    upper.push({ op: "int", k: 0.002, n: above(-UA - 0.028) });
     pieces[`upper${side}`] = { ops: upper };
 
     const foreBody = grp([
@@ -647,10 +672,10 @@ export function buildFigure(o: Outfit): Figure {
     if (!longHem && !longCoat) {
       const thigh: Op[] = [add(thighBody)];
       if (trousers || bottom.kind === "shorts")
-        thigh.push(add(shell(thighBody, baji ? 0.03 : 0.013, M.fab(legSlot), bottom.kind === "shorts" ? [above(-0.19)] : [], trousers ? band(0.0026, -TH - 0.01, -TH + 0.07, 75) : folds(0.002)), 0.003));
+        thigh.push(add(shell(thighBody, baji ? 0.037 : 0.017, M.fab(legSlot), bottom.kind === "shorts" ? [above(-0.19)] : [], trousers ? band(0.0026, -TH - 0.01, -TH + 0.07, 75) : folds(0.002)), 0.003));
       if (bottom.kind === "shorts") thigh.push(add(tor([0, -0.185, 0.002], 0.068 * aw + 0.017, 0.011, M.fab(bottom.trim ? SLOT.bottomTrim : SLOT.bottom)), 0.003));
       // Flat end just past the knee over the thinner shin (see the elbow).
-      thigh.push({ op: "int", k: 0.012, n: above(-TH - 0.026) });
+      thigh.push({ op: "int", k: 0.002, n: above(-TH - 0.026) });
       pieces[`thigh${side}`] = { ops: thigh };
     }
     if (bottom.kind !== "chima") {
@@ -839,7 +864,7 @@ export function buildFigure(o: Outfit): Figure {
   pieces.eyes = { ops: [] };
   for (const m of MOUTHS) pieces[m] = { ops: [] };
   return {
-    pieces, skirtTop, cheeks, headSkin, HC, ears: !earsHidden && !has(o, "headphones"), hair: hairSegs, hairPlan, hatDist, hairAO: hairPlan ? hairAO(hairPlan) : [],
+    pieces, skirtTop, cheeks, headSkin, HC, paint: paintP, ears: !earsHidden && !has(o, "headphones"), hair: hairSegs, hairPlan, hatDist, hairAO: hairPlan ? hairAO(hairPlan) : [],
     mouth: at(0, -0.226, 0.31),
     glasses: (o.extras ?? []).some((e) => e.kind === "glasses" || e.kind === "sunglasses")
       ? { slot: extraColorSlot(o, (o.extras ?? []).some((e) => e.kind === "glasses") ? "glasses" : "sunglasses"), sun: (o.extras ?? []).some((e) => e.kind === "sunglasses") }

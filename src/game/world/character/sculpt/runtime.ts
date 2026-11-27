@@ -28,7 +28,7 @@ export type CastManifest = {
   nv: number;
   ni: number;
   shapes: ShapeMeta[];
-  chars: Record<string, { p: Partial<Record<PieceId, [number, number]>>; skirtTop: number }>;
+  chars: Record<string, { p: Partial<Record<PieceId, [number, number]>>; skirtTop: number; paint?: number[] }>;
 };
 
 export class Cast {
@@ -149,7 +149,10 @@ export function loadCast(url = CAST_URL) {
 export const castNow = () => castLoaded;
 
 // --- Material -------------------------------------------------------------------
-export const PALETTE_WIDTH = 32;
+/** Palette row: 32 colour slots, then the shader-paint block (a count and
+ * up to 28 shapes, three texels each) for the instance's piece. */
+export const PALETTE_WIDTH = 128;
+const PAINT_AT = 32, PAINT_MAX = 28;
 /** Shared lighting knobs (uniform objects shared by every sculpt material). */
 export const sculptUniforms = {
   rigRim: { value: new THREE.Color(0.5, 0.56, 0.68) },
@@ -169,6 +172,8 @@ varying float vRigKind;
 varying vec3 vRigLocal;
 varying vec3 vRigNLocal;
 varying vec3 vRigTan;
+flat varying int vRigRow;
+varying float vRigShade;
 vec3 rigSlot(float s, int row) { return texelFetch(rigPalette, ivec2(int(s * 255.0 + 0.5), row), 0).rgb; }
 vec3 rigOct(vec2 e) {
   vec3 v = vec3(e, 1.0 - abs(e.x) - abs(e.y));
@@ -202,6 +207,8 @@ const VERT_MAIN = /* glsl */ `
   vec3 rigCa = rigSlot(rigA.x, rigRow);
   vec3 rigCb = rigSlot(rigA.y, rigRow);
   vRigColor = mix(rigCa, rigCb, rigA.z) * (rigA.w * 1.12);
+  vRigRow = rigRow;
+  vRigShade = rigA.w * 1.12;
   vRigSurf = rigB.xy;
   float rigSlotA = floor(rigA.x * 255.0 + 0.5);
   float rigSlotB = floor(rigA.y * 255.0 + 0.5);
@@ -235,6 +242,9 @@ varying float vRigKind;
 varying vec3 vRigLocal;
 varying vec3 vRigNLocal;
 varying vec3 vRigTan;
+flat varying int vRigRow;
+varying float vRigShade;
+uniform highp sampler2D rigPalette;
 uniform vec3 rigRim;
 uniform vec3 rigWarm;
 uniform sampler2D rigDetail;
@@ -267,12 +277,44 @@ const FRAG_COLOR = /* glsl */ `
   } else if (vRigKind > 0.5) {
     vec3 rp = vRigLocal;
     vec3 rn = normalize(vRigNLocal);
+    float rigBare = 0.0;
+    if (vRigKind < 2.5) {
+      // Shader paint: straps, V-openings, armholes, crisp per pixel.
+      int rigN = int(texelFetch(rigPalette, ivec2(32, vRigRow), 0).x + 0.5);
+      for (int i = 0; i < 28; i++) {
+        if (i >= rigN) break;
+        vec4 q0 = texelFetch(rigPalette, ivec2(33 + i * 3, vRigRow), 0);
+        vec4 q1 = texelFetch(rigPalette, ivec2(34 + i * 3, vRigRow), 0);
+        vec4 q2 = texelFetch(rigPalette, ivec2(35 + i * 3, vRigRow), 0);
+        float d;
+        if (q0.x < 0.5) {
+          vec3 ba = q2.xyz - q1.xyz, pa = rp - q1.xyz;
+          d = length(pa - ba * clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0)) - q0.z;
+        } else if (q0.x < 1.5) {
+          vec3 l = rp - q1.xyz;
+          d = max(max(l.x - q0.z * l.y - q0.w, -l.x - q0.z * l.y - q0.w), q2.x - l.z);
+        } else if (q0.x < 2.5) {
+          vec3 l = (rp - q1.xyz) / q2.xyz;
+          d = (length(l) - 1.0) * min(q2.x, min(q2.y, q2.z));
+        } else {
+          vec3 l = abs(rp - q1.xyz) - q2.xyz + q0.z;
+          d = length(max(l, 0.0)) + min(max(l.x, max(l.y, l.z)), 0.0) - q0.z;
+        }
+        float aa = max(fwidth(d), 1e-4);
+        vec3 pc = texelFetch(rigPalette, ivec2(int(q0.y + 0.5), vRigRow), 0).rgb * vRigShade;
+        float cov = smoothstep(aa, -aa, d);
+        rigCol = mix(rigCol, pc, cov);
+        // Skin shown through an opening is shaded as skin, not cloth.
+        rigBare = mix(rigBare, q0.y < 0.5 ? 1.0 : 0.0, cov);
+      }
+      rigSkinF = max(rigSkinF, rigBare);
+    }
     if (vRigKind < 1.5) {
       // Cloth: woven texture and soft painted mottling.
       vec4 d = rigTri(rp, rn, 7.0);
       vec4 m = rigTri(rp, rn, 1.3);
-      rigCol *= 0.94 + 0.13 * d.r + 0.14 * (m.a - 0.5);
-      rigRoughMod = 0.08 * (d.r - 0.5);
+      rigCol *= 1.0 + (1.0 - rigBare) * (-0.06 + 0.13 * d.r + 0.14 * (m.a - 0.5));
+      rigRoughMod = 0.08 * (d.r - 0.5) * (1.0 - rigBare) - 0.3 * rigBare;
     } else if (vRigKind < 2.5) {
       vec4 d = rigTri(rp, rn, 11.0);
       rigCol *= 0.96 + 0.08 * d.g;
@@ -392,7 +434,7 @@ export function sculptMaterial(palette: THREE.DataTexture, bones: THREE.DataText
       .replace("#include <metalnessmap_fragment>", "#include <metalnessmap_fragment>\n metalnessFactor = vRigSurf.y;")
       .replace("#include <opaque_fragment>", `${RIM}\n#include <opaque_fragment>`);
   };
-  m.customProgramCacheKey = () => "rig-sculpt-v2";
+  m.customProgramCacheKey = () => "rig-sculpt-v3";
   m.userData.noBake = true;
   return m;
 }
@@ -423,10 +465,18 @@ export function paletteTexture(rows: number) {
   return t;
 }
 const col = new THREE.Color();
+/** Write the shader-paint block (manifest numbers, 12 per shape) into row `row`. */
+export function writePaint(t: THREE.DataTexture, row: number, paint: number[] | undefined) {
+  const data = t.image.data as Float32Array;
+  const n = Math.min(PAINT_MAX, Math.floor((paint?.length ?? 0) / 12));
+  data[(row * PALETTE_WIDTH + PAINT_AT) * 4] = n;
+  for (let i = 0; i < n * 12; i++) data[(row * PALETTE_WIDTH + PAINT_AT + 1) * 4 + i] = paint![i];
+  t.needsUpdate = true;
+}
 /** Write an sRGB hex palette into texture row `row` (linear floats). */
 export function writePalette(t: THREE.DataTexture, row: number, hexes: string[], glow: number[] = [], char = 0) {
   const data = t.image.data as Float32Array;
-  for (let i = 0; i < PALETTE_WIDTH; i++) {
+  for (let i = 0; i < PAINT_AT; i++) {
     col.set(hexes[i] ?? "#ff00ff");
     const g = glow[i] ?? 1;
     const o = (row * PALETTE_WIDTH + i) * 4;
@@ -497,6 +547,7 @@ export class SculptBatch {
         this.mesh.setVisibleAt(id, false);
         this.owner[id] = ci;
         writePalette(this.palette, id, c.palette, c.glow, ci);
+        if (pid === "chest") writePaint(this.palette, id, entry?.paint);
         return id;
       });
     });

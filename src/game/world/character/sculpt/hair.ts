@@ -129,12 +129,14 @@ export function buildHair(style: HairStyle, mat: Mat, hatClip: Node[], hatted: b
       thick = 0.022;
       // Textured crop: chunky clumps from the crown forward with lifted
       // tips, combed down at the back and sides.
-      for (let i = 0; i < 6; i++) {
+      // Under headwear the grooved cap alone shows (clumps would emerge
+      // from under the brim as flat stubs).
+      if (!hatted) for (let i = 0; i < 6; i++) {
         const t = i / 5, a = lerp(-0.85, 0.85, t);
         L([S(a * 0.35 + PI, 0.35, 0), S(a * 0.3, 0.12, 0.035), S(a * 0.8 + 0.08, 0.7, 0.05), S(a + 0.18, 1.06, 0.045)], 0.15, 0.04, { th0: 0.05, th1: 0.03 });
       }
       flow = { w: sdir(PI, 0.42), locks: 18, amp: 0.55, swirl: 0.25 };
-      for (const sd of [1, -1]) for (let i = 0; i < 3; i++) {
+      if (!hatted) for (const sd of [1, -1]) for (let i = 0; i < 3; i++) {
         const a = sd * (1.0 + i * 0.45);
         L([S(a * 0.6, 0.45, 0), S(a, 0.95, 0.035), S(a + sd * 0.15, 1.42, 0.022)], 0.15, 0.05, { th0: 0.042, th1: 0.022 });
       }
@@ -148,11 +150,11 @@ export function buildHair(style: HairStyle, mat: Mat, hatClip: Node[], hatted: b
       thick = 0.026;
       const part = 0.5;
       // Long top swept from the side parting over to the far side.
-      for (let i = 0; i < 6; i++) {
+      if (!hatted) for (let i = 0; i < 6; i++) {
         const ph = 0.28 + i * 0.13;
         L([S(part, ph, 0), S(part * 0.3 - 0.2, ph + 0.05, 0.06), S(-0.75 - i * 0.12, ph + 0.42 + i * 0.05, 0.055), S(-1.15 - i * 0.1, ph + 0.75 + i * 0.05, 0.035)], 0.16, 0.045, { th0: 0.055, th1: 0.026 });
       }
-      for (let i = 0; i < 4; i++) L([S(part + 0.05, 0.3 + i * 0.18, 0), S(part + 0.5, 0.62 + i * 0.16, 0.045), S(1.3 + i * 0.08, 1.12 + i * 0.1, 0.028)], 0.14, 0.04, { th0: 0.045, th1: 0.022 });
+      if (!hatted) for (let i = 0; i < 4; i++) L([S(part + 0.05, 0.3 + i * 0.18, 0), S(part + 0.5, 0.62 + i * 0.16, 0.045), S(1.3 + i * 0.08, 1.12 + i * 0.1, 0.028)], 0.14, 0.04, { th0: 0.045, th1: 0.022 });
       flow = { w: sdir(part + 0.4, 0.42), locks: 18, amp: 0.55, swirl: -0.2 };
       if (!hatted) for (let i = 0; i < 3; i++) L([S(part - 0.05, 0.75 + i * 0.06, 0.01), S(0.15 - i * 0.15, 0.98, 0.065), S(-0.32 - i * 0.18, 1.1 + i * 0.03, 0.05)], 0.14 - i * 0.02, 0.035, { th0: 0.05, th1: 0.028 });
       break;
@@ -439,7 +441,9 @@ function pushHair(m: AttrMesh, p: V3, n: V3, t: number, shade: number, rough: nu
 /** Keep triangles that are not (mostly) inside the headwear. */
 function cullAdd(m: AttrMesh, inside: (p: V3, m?: number) => boolean, ...v: number[]) {
   const P = (k: number): V3 => [m.pos[k * 3], m.pos[k * 3 + 1], m.pos[k * 3 + 2]];
-  if (v.filter((k) => !inside(P(k), 0.004)).length >= 2) m.tri.push(...v);
+  // One corner outside is enough: the edge then tucks under the headwear
+  // instead of showing a sawtooth of culled triangles.
+  if (v.some((k) => !inside(P(k), -0.006))) m.tri.push(...v);
 }
 
 /**
@@ -596,8 +600,8 @@ function hoodMesh(h: HairBuild, hi: boolean, level: number, inside: (p: V3, m?: 
  * coil-shaped highlight; an even, rounded silhouette. */
 function coilMesh(h: HairBuild, hi: boolean, level: number, inside: (p: V3, m?: number) => boolean): AttrMesh {
   const m = emptyMesh();
-  const segs = hi ? (level === 0 ? 8 : 7) : 5;
-  const polar = hi ? (level === 0 ? [0, 0.22, 0.42, 0.62] : [0, 0.3, 0.62]) : [0, 0.34, 0.62];
+  const segs = hi ? (level === 0 ? 8 : level === 1 ? 7 : 6) : 5;
+  const polar = hi && level === 0 ? [0, 0.27, 0.62] : [0, 0.32, 0.62];
   for (const c of h.coils ?? []) {
     const d = norm3(c.d);
     const ctr: V3 = [HC[0] + d[0] * (ellR(d) + h.cap.thick * 0.5 + c.r * 0.3), HC[1] + d[1] * (ellR(d) + h.cap.thick * 0.5 + c.r * 0.3), HC[2] + d[2] * (ellR(d) + h.cap.thick * 0.5 + c.r * 0.3)];

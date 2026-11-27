@@ -367,7 +367,8 @@ export function decimate(
         if (!tryCollapse(a, b)) continue;
       }
     }
-    for (const fm of [0.05, -0.2]) {
+    // (Never below 0.05: a looser test folds triangles over.)
+    for (const fm of [0.05]) {
       if (faces <= target * 1.02) break;
       // Stalled on dense ridged detail: accept stronger normal turns.
       flipMin = fm;
@@ -541,5 +542,62 @@ export function dropIslands(m: LabMesh, minArea: number) {
     const r = find(t);
     const l = to.get(r);
     if (l !== undefined) m.lab[t] = l;
+  }
+}
+
+/**
+ * Slide each vertex on a colour border onto the true border line (found by
+ * bisection toward a neighbour across it), at most 45% of the way along that
+ * edge and never folding a face: the per-face colour borders then run
+ * straight instead of zigzagging along triangle edges.
+ */
+export function straightenBorders(m: LabMesh, labelAt: (x: number, y: number, z: number) => number) {
+  const nV = m.pos.length / 3, nT = m.lab.length;
+  const vf: number[][] = Array.from({ length: nV }, () => []);
+  for (let t = 0; t < nT; t++) for (let c = 0; c < 3; c++) vf[m.tri[t * 3 + c]].push(t);
+  const P = m.pos;
+  const n0 = [0, 0, 0], n1 = [0, 0, 0];
+  const fnorm = (t: number, out: number[]) => {
+    const a = m.tri[t * 3] * 3, b = m.tri[t * 3 + 1] * 3, c = m.tri[t * 3 + 2] * 3;
+    const ux = P[b] - P[a], uy = P[b + 1] - P[a + 1], uz = P[b + 2] - P[a + 2];
+    const vx = P[c] - P[a], vy = P[c + 1] - P[a + 1], vz = P[c + 2] - P[a + 2];
+    out[0] = uy * vz - uz * vy; out[1] = uz * vx - ux * vz; out[2] = ux * vy - uy * vx;
+    return Math.hypot(out[0], out[1], out[2]);
+  };
+  for (let v = 0; v < nV; v++) {
+    const labs = new Set<number>();
+    for (const t of vf[v]) labs.add(m.lab[t]);
+    if (labs.size !== 2) continue;
+    const x = P[v * 3], y = P[v * 3 + 1], z = P[v * 3 + 2];
+    const own = labelAt(x, y, z);
+    // A neighbour whose faces are all of the other label.
+    const other = [...labs].find((l) => l !== own) ?? -1;
+    let best = -1, bd = Infinity;
+    for (const t of vf[v])
+      for (let c = 0; c < 3; c++) {
+        const u = m.tri[t * 3 + c];
+        if (u === v || !vf[u].every((f) => m.lab[f] === (labs.has(own) ? other : m.lab[f]))) continue;
+        if (labelAt(P[u * 3], P[u * 3 + 1], P[u * 3 + 2]) === own) continue;
+        const d = (P[u * 3] - x) ** 2 + (P[u * 3 + 1] - y) ** 2 + (P[u * 3 + 2] - z) ** 2;
+        if (d < bd) { bd = d; best = u; }
+      }
+    if (best < 0) continue;
+    const ux = P[best * 3], uy = P[best * 3 + 1], uz = P[best * 3 + 2];
+    let ta = 0, tb = 1;
+    for (let i = 0; i < 6; i++) {
+      const tm = (ta + tb) / 2;
+      if (labelAt(x + (ux - x) * tm, y + (uy - y) * tm, z + (uz - z) * tm) === own) ta = tm; else tb = tm;
+    }
+    const t = Math.min(0.45, (ta + tb) / 2);
+    const nx = x + (ux - x) * t, ny = y + (uy - y) * t, nz = z + (uz - z) * t;
+    let ok = true;
+    for (const f of vf[v]) {
+      const l0 = fnorm(f, n0);
+      P[v * 3] = nx; P[v * 3 + 1] = ny; P[v * 3 + 2] = nz;
+      const l1 = fnorm(f, n1);
+      P[v * 3] = x; P[v * 3 + 1] = y; P[v * 3 + 2] = z;
+      if (l1 < 1e-12 || (n0[0] * n1[0] + n0[1] * n1[1] + n0[2] * n1[2]) / (l0 * l1 || 1) < 0.5) { ok = false; break; }
+    }
+    if (ok) { P[v * 3] = nx; P[v * 3 + 1] = ny; P[v * 3 + 2] = nz; }
   }
 }
