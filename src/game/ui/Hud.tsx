@@ -51,6 +51,17 @@ import {
 import { showToast, useToasts, TOAST_MAX } from "./toasts";
 import { attachUiSounds } from "./uiSounds";
 import { closeListen, ListenTabs, openListen, useListen } from "./ListenPanel";
+import { ResultCard } from "./ResultCard";
+
+/** Optional numbers a game may put on its result (score, unit, new best). */
+function resultScore(result: unknown) {
+  const r = (result ?? {}) as { score?: unknown; unit?: unknown; best?: unknown };
+  return {
+    score: typeof r.score === "number" && Number.isFinite(r.score) ? r.score : undefined,
+    unit: typeof r.unit === "string" ? r.unit : undefined,
+    best: r.best === true,
+  };
+}
 
 /** Knob travel in px from the centre of the 100px pad. */
 const STICK_TRAVEL = 30;
@@ -1477,25 +1488,21 @@ export function Hud({ interact }: { interact: () => void }) {
           title={g.result?.title ?? ""}
           close={() => g.go(g.scene === "rowing" ? "boathouse" : "hub")}
         >
-          <p className="result-detail">{g.result?.detail}</p>
-          <button
-            className="primary-button"
-            onClick={() => {
+          <ResultCard
+            {...resultScore(g.result)}
+            detail={g.result?.detail}
+            onReplay={() => {
               runtime.aim = 0;
               runtime.raceCadence = 30;
               g.go(g.scene as Scene);
             }}
-          >
-            Play again <Icon name="arrow" size={17} />
-          </button>
-          <button
-            className="quiet-button"
-            onClick={() => g.go(g.scene === "rowing" ? "boathouse" : "hub")}
-          >
-            {g.scene === "rowing"
-              ? "Back to the boathouse"
-              : "Back to the village"}
-          </button>
+            onBack={() => g.go(g.scene === "rowing" ? "boathouse" : "hub")}
+            backLabel={
+              g.scene === "rowing"
+                ? "Back to the boathouse"
+                : "Back to the village"
+            }
+          />
         </Modal>
       </Presence>
     </div>

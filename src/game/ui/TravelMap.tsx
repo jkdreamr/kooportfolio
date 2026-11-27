@@ -1,6 +1,21 @@
 import { directJourney, WORLD_NAMES, type TravelWorld } from "../core/travel";
 import "./travel-map.css";
 
+/**
+ * How long each ride takes, as shown on the cards. These are the travel
+ * timeline's lengths (world workstream, B7: plane 18 s, train 14 s; 6 s
+ * with reduced motion); keep them in step if the timeline changes.
+ */
+export const RIDE_SECONDS = { plane: 18, train: 14 } as const;
+export const REDUCED_RIDE_SECONDS = 6;
+export function rideLabel(mode: "plane" | "train", reducedMotion = false) {
+  const seconds = reducedMotion ? REDUCED_RIDE_SECONDS : RIDE_SECONDS[mode];
+  return `${mode === "plane" ? "Fly" : "Train"} · ${seconds} s`;
+}
+const prefersReducedMotion = () =>
+  typeof window !== "undefined" &&
+  !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
 function Island({ world }: { world: TravelWorld }) {
   return (
     <svg viewBox="0 0 120 100" aria-hidden="true">
@@ -76,7 +91,7 @@ export function TravelMap({
             aria-current={!route ? "location" : undefined}
             aria-label={
               route
-                ? `Travel to ${WORLD_NAMES[destination]}`
+                ? `Travel to ${WORLD_NAMES[destination]}, ${rideLabel(route.mode, prefersReducedMotion()).replace(" · ", ", ").replace(" s", " seconds")}`
                 : `${WORLD_NAMES[destination]}, you are here`
             }
             onClick={() => onChoose(destination)}
@@ -86,9 +101,7 @@ export function TravelMap({
             <span>
               {!route
                 ? "You are here"
-                : route.mode === "plane"
-                  ? "Fly →"
-                  : "Train →"}
+                : rideLabel(route.mode, prefersReducedMotion())}
             </span>
           </button>
         );

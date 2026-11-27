@@ -44,7 +44,7 @@
   .game-shell.game-shell .first-steps {
     left: 50%;
     right: auto;
-    top: max(112px, calc(env(safe-area-inset-top) + 100px));
+    top: max(132px, calc(env(safe-area-inset-top) + 124px));
     bottom: auto;
     translate: -50% 0;
     max-width: calc(100vw - 32px);
@@ -196,7 +196,7 @@
 }
 /* The story card docks under the bar at the same width. */
 .game-shell.game-shell .interior-intro .room-story {
-  position: static;
+  position: relative;
   inset: auto;
   transform: none;
   width: auto;
@@ -578,4 +578,35 @@
     grid-row: 1 / span 2;
     align-self: center;
   }
+}
+
+/* ── Results: one card for every game ─────────────────────────────────── */
+.game-shell .result-card {
+  display: grid;
+  gap: 10px;
+}
+.game-shell.game-shell .result-card .result-score {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin: -6px 0 4px;
+  font: 700 var(--text-2xl) / var(--leading-title) var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--glass-ink);
+}
+.game-shell .result-score small {
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--glass-muted);
+}
+.game-shell .result-best {
+  align-self: center;
+  padding: 4px 10px;
+  font: 700 var(--text-xs) / 1.2 var(--font-ui);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #2b2410;
+  background: var(--glass-gold);
+  border-radius: 999px;
 }
