@@ -385,6 +385,8 @@ export function IslandJourney({
       }
     }
     journeyAtmosphere.veil = r.veil;
+    journeyAtmosphere.near = plane ? JOURNEY_SHOT.veilNear : JOURNEY_SHOT.trainVeilNear;
+    journeyAtmosphere.far = plane ? JOURNEY_SHOT.veilFar : JOURNEY_SHOT.trainVeilFar;
     journeyRuntime.phase = phase.current;
     journeyRuntime.p = r.p;
     journeyRuntime.veil = r.veil;

@@ -59,6 +59,11 @@ export const JOURNEY_SHOT = {
   /** Veiled fog (view depth): the vehicle 14 m away stays readable. */
   veilNear: 8,
   veilFar: 60,
+  /** The train runs along the coast, so land can be nearer the lens than
+   * the train: its veil is a full sea-fog white-out (train included), and
+   * only the streaming wisps carry the motion through the swap. */
+  trainVeilNear: 0.5,
+  trainVeilFar: 3,
   /** Cap on holding the swap until the destination has been drawn. */
   holdCap: 2.5,
   /** Ride length in seconds (the Travel panel quotes the same numbers). */
