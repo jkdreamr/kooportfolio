@@ -1015,8 +1015,16 @@ export class PeepholeController {
     return base;
   }
 
+  /** In the game the sheet is off and stays off: publish that once, not a
+   * fresh frame object every animation frame for the whole session. */
+  private publishedOff = false;
   private publish() {
-    this.sink?.update(this.frameOut());
+    if (!this.sink) return;
+    if (this.phase === "game") {
+      if (this.publishedOff) return;
+      this.publishedOff = true;
+    } else this.publishedOff = false;
+    this.sink.update(this.frameOut());
   }
 
   dispose() {

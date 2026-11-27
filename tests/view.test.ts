@@ -21,7 +21,7 @@ import {
   treeBlocked,
 } from "../src/game/engine/view";
 import { ISLAND_CAMERA_OFFSET } from "../src/game/core/islandView";
-import { obstacleAt, setBoomObstacles } from "../src/game/engine/view";
+import { obstacleAt, resetBoomMemo, setBoomObstacles } from "../src/game/engine/view";
 import { FLIGHT_OBSTACLES, HERO_SPOTS } from "../src/game/core/heroSpots";
 import { canWalk, doorsInWorld } from "../src/game/core/world";
 import { terrainHeightAt } from "../src/game/core/terrain";
@@ -284,4 +284,27 @@ describe("boom avoids props (A9)", () => {
       }
     });
   }
+});
+
+describe("boom memo (A12)", () => {
+  it("does not sample the world again while nothing has moved", () => {
+    resetBoomMemo();
+    let calls = 0;
+    const blocked = () => {
+      calls++;
+      return false;
+    };
+    const target = { x: 1, y: 1.6, z: 2 };
+    const a = clearBoom({ distance: 0, elevation: 0 }, target, 0.7, 10, blocked);
+    const first = calls;
+    expect(first).toBeGreaterThan(0);
+    for (let i = 0; i < 10; i++) expect(clearBoom({ distance: 0, elevation: 0 }, target, 0.7, 10, blocked)).toEqual(a);
+    expect(calls).toBe(first);
+    clearBoom({ distance: 0, elevation: 0 }, { ...target, x: 1.5 }, 0.7, 10, blocked);
+    expect(calls).toBeGreaterThan(first);
+    // Still re-checked now and then even when nothing moves.
+    const before = calls;
+    for (let i = 0; i < 40; i++) clearBoom({ distance: 0, elevation: 0 }, { ...target, x: 1.5 }, 0.7, 10, blocked);
+    expect(calls).toBeGreaterThan(before);
+  });
 });

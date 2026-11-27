@@ -252,6 +252,63 @@ export function clearBoom(
   distance: number,
   blocked: (x: number, z: number, y: number) => boolean,
 ) {
+  // Called every frame: while nothing that decides the answer has moved (a
+  // player standing still), reuse it instead of sampling the world again.
+  // Re-checked every BOOM_MEMO_FRAMES calls anyway, so solids that appear
+  // under a still camera (trees registered late) are picked up within ~0.5 s.
+  const memo = boomMemo;
+  if (
+    ++memo.age < BOOM_MEMO_FRAMES &&
+    memo.blocked === blocked &&
+    memo.obstacles === boomObstacles &&
+    memo.azimuth === azimuth &&
+    memo.distance === distance &&
+    Math.abs(memo.x - target.x) < 1e-4 &&
+    Math.abs(memo.y - target.y) < 1e-4 &&
+    Math.abs(memo.z - target.z) < 1e-4
+  ) {
+    out.distance = memo.outDistance;
+    out.elevation = memo.outElevation;
+    return out;
+  }
+  searchBoom(out, target, azimuth, distance, blocked);
+  memo.age = 0;
+  memo.blocked = blocked;
+  memo.obstacles = boomObstacles;
+  memo.azimuth = azimuth;
+  memo.distance = distance;
+  memo.x = target.x;
+  memo.y = target.y;
+  memo.z = target.z;
+  memo.outDistance = out.distance;
+  memo.outElevation = out.elevation;
+  return out;
+}
+const BOOM_MEMO_FRAMES = 30;
+const boomMemo = {
+  age: 0,
+  blocked: null as ((x: number, z: number, y: number) => boolean) | null,
+  obstacles: boomObstacles,
+  azimuth: NaN,
+  distance: NaN,
+  x: NaN,
+  y: NaN,
+  z: NaN,
+  outDistance: 0,
+  outElevation: 0,
+};
+/** Forget the cached boom (tests; the world's solids changed under it). */
+export function resetBoomMemo() {
+  boomMemo.blocked = null;
+}
+
+function searchBoom(
+  out: { distance: number; elevation: number },
+  target: THREE.Vector3Like,
+  azimuth: number,
+  distance: number,
+  blocked: (x: number, z: number, y: number) => boolean,
+) {
   const span = Math.max(0, distance - BOOM_MIN_DISTANCE);
   for (let step = 0; step < BOOM_STEPS.length; step++) {
     const length = BOOM_MIN_DISTANCE + span * BOOM_STEPS[step];
