@@ -6,13 +6,15 @@ import { holdsFor, mix, outfitFromPalette, shade, type Outfit, type PaletteLike 
 import { outfitPalette } from "./figure";
 import { castNow, loadCast, type Cast, type SculptChar } from "./runtime";
 
-/** The baked cast, fetched once in idle time after the stage is ready
- * (null until then, or if it fails: callers keep the primitive rig). */
+/** The baked cast, fetched once the visitor is actually in the game (never
+ * while the stage only warms behind the portfolio), shortly after ready.
+ * Null until then, or if it fails: callers keep the primitive rig. */
 export function useCast(): Cast | null {
   const [cast, setCast] = useState<Cast | null>(castNow());
   const ready = useStage((s) => s.ready);
+  const inGame = useStage((s) => s.mode === "game");
   useEffect(() => {
-    if (!ready || cast) return;
+    if (!ready || !inGame || cast) return;
     let live = true;
     const id = window.setTimeout(() => {
       loadCast().then((c) => live && setCast(c));
@@ -21,7 +23,7 @@ export function useCast(): Cast | null {
       live = false;
       window.clearTimeout(id);
     };
-  }, [ready, cast]);
+  }, [ready, inGame, cast]);
   return cast;
 }
 

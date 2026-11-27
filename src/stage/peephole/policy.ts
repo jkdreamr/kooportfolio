@@ -25,7 +25,9 @@ export type VisitEnvironment = {
 };
 
 export type VisitPolicy = {
-  /** Fetch the engine chunk at idle without being asked. */
+  /** Fetch the engine chunk at idle without being asked. Off for everyone:
+   * the portfolio pages stay light, and the engine loads on intent (hover,
+   * focus or touch on the "o", or the Play link). */
   preloadAtIdle: boolean;
   /** Physical drag/tear; false → a short dissolve straight to the game. */
   physical: boolean;
@@ -42,9 +44,8 @@ export type VisitPolicy = {
 };
 
 export function visitPolicy(env: VisitEnvironment): VisitPolicy {
-  const slow = env.effectiveType === "2g" || env.effectiveType === "slow-2g";
   return {
-    preloadAtIdle: env.webgl && !env.saveData && !slow,
+    preloadAtIdle: false,
     physical: !env.reducedMotion,
     instantCounter: env.returning,
     pullScale: env.returning ? 0.6 : 1,

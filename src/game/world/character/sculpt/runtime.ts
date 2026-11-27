@@ -112,10 +112,34 @@ export class Cast {
 
 let castPromise: Promise<Cast | null> | null = null;
 let castLoaded: Cast | null = null;
+const CAST_URL = `${import.meta.env?.BASE_URL ?? "/"}characters/cast-v1.bin`;
+async function fetchBuffer(url: string) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(String(r.status));
+  return r.arrayBuffer();
+}
+/** The cast ships gzip-compressed (~1.5 MB instead of ~5 MB, written at build
+ * time by scripts/gzip-cast.mjs) and is inflated here, so the transfer stays
+ * small whatever the host's compression does. If the host already decoded it
+ * (Content-Encoding), the bytes arrive inflated and are used as they are.
+ * Browsers without DecompressionStream fetch the raw file instead. */
+async function fetchCast(url: string) {
+  if (typeof DecompressionStream === "function") {
+    try {
+      const packed = await fetchBuffer(`${url}.gz`);
+      const head = new Uint8Array(packed, 0, Math.min(2, packed.byteLength));
+      if (head[0] !== 0x1f || head[1] !== 0x8b) return packed;
+      const stream = new Blob([packed]).stream().pipeThrough(new DecompressionStream("gzip"));
+      return await new Response(stream).arrayBuffer();
+    } catch {
+      /* fall through to the raw file */
+    }
+  }
+  return fetchBuffer(url);
+}
 /** Starts (once) and returns the cast download. Null when unavailable. */
-export function loadCast(url = `${import.meta.env?.BASE_URL ?? "/"}characters/cast-v1.bin`) {
-  return (castPromise ??= fetch(url)
-    .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+export function loadCast(url = CAST_URL) {
+  return (castPromise ??= fetchCast(url)
     .then((buf) => (castLoaded = new Cast(buf)))
     .catch(() => null));
 }

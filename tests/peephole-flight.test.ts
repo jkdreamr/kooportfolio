@@ -53,7 +53,7 @@ describe("visit policy", () => {
   const base = { reducedMotion: false, saveData: false, returning: false, webgl: true };
   it("first visit: physical, full flight, preloads", () => {
     const p = visitPolicy(base);
-    expect(p).toMatchObject({ preloadAtIdle: true, physical: true, flightSeconds: 4.6, pullScale: 1, playLabel: "Play" });
+    expect(p).toMatchObject({ preloadAtIdle: false, physical: true, flightSeconds: 4.6, pullScale: 1, playLabel: "Play" });
   });
   it("returning: shorter pull and flight, Continue", () => {
     const p = visitPolicy({ ...base, returning: true });
@@ -62,7 +62,7 @@ describe("visit policy", () => {
   it("respects Save-Data, 2g and reduced motion", () => {
     expect(visitPolicy({ ...base, saveData: true }).preloadAtIdle).toBe(false);
     expect(visitPolicy({ ...base, effectiveType: "2g" }).preloadAtIdle).toBe(false);
-    expect(visitPolicy({ ...base, effectiveType: "4g" }).preloadAtIdle).toBe(true);
+    expect(visitPolicy({ ...base, effectiveType: "4g" }).preloadAtIdle).toBe(false);
     const r = visitPolicy({ ...base, reducedMotion: true });
     expect(r.physical).toBe(false);
     expect(r.flightSeconds).toBe(0);

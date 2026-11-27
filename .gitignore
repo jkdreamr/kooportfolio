@@ -6,3 +6,6 @@ playwright-report/
 test-results/
 coverage/
 .env*
+
+# generated at build time by scripts/gzip-cast.mjs
+public/characters/*.gz
