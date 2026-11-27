@@ -2,14 +2,16 @@ import { useEffect, useRef } from "react";
 import { profile } from "../content/profile";
 import { peephole, usePeephole } from "../stage/peephole/controller";
 
+/** The owner's own Buy Me a Coffee page (his site: src/os/data.ts `links.coffee`). */
+const COFFEE_URL = "https://buymeacoffee.com/joshuakoo";
+
 /**
  * The portfolio. Quiet on purpose: the only secret is the first "o" of
  * "koo", which is a real <button> in the heading. Its counter is a window onto
  * the world beneath the page once that world is warm; pull it far enough and
  * the page tears open (see src/stage/peephole).
  */
-export function Portfolio() {
-  const path = location.pathname.replace(/\/+$/, "") || "/";
+export function Portfolio({ path, year }: { path: string; year: number }) {
   const root = useRef<HTMLDivElement>(null);
   const letter = useRef<HTMLButtonElement>(null);
   const armed = usePeephole((s) => s.armed);
@@ -65,12 +67,15 @@ export function Portfolio() {
           </a>
           <a
             href="/play"
+            onPointerEnter={() => peephole.intent()}
+            onFocus={() => peephole.intent()}
             onClick={(e) => {
               if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
               if (peephole.playLink()) e.preventDefault();
             }}
           >
-            {playLabel}
+            {/* Fixed width: "Play" → "Continue" after hydration never moves the nav. */}
+            <span className="play-label">{playLabel}</span>
           </a>
         </nav>
         {path === "/about" && (
@@ -127,11 +132,16 @@ export function Portfolio() {
                 </a>
               ))}
             </p>
+            <p className="support-link">
+              <a href={COFFEE_URL} target="_blank" rel="noreferrer">
+                Buy me a coffee ↗
+              </a>
+            </p>
           </section>
         )}
       </main>
       <footer className="site-footer">
-        <span>© {new Date().getFullYear()} JOSHUA KOO</span>
+        <span>{`© ${year} JOSHUA KOO`}</span>
       </footer>
     </div>
   );

@@ -45,6 +45,9 @@ export type PeepholeTuning = {
   flickSpeed: number;
   /** Tension where the preview crack starts. */
   crackT: number;
+  /** Ceiling on the held tension: the hand can go further, the letter
+   * holds here (0.6 while the world is still loading; Infinity once armed). */
+  maxT: number;
 };
 
 export const DEFAULT_TUNING: PeepholeTuning = {
@@ -60,6 +63,7 @@ export const DEFAULT_TUNING: PeepholeTuning = {
   flickT: 0.85,
   flickSpeed: 2.4,
   crackT: 0.6,
+  maxT: Infinity,
 };
 
 export function clamp(v: number, lo: number, hi: number) {
@@ -93,6 +97,11 @@ export function inverseRubberBand(r: number, L: number) {
 /** Hand distance needed for tension T (T < 2.2). */
 export function handDistanceForTension(T: number, L: number) {
   return inverseRubberBand(T * L, L);
+}
+
+/** Letter radius allowed by a tension ceiling (bounded by the band's 2.2L). */
+export function clampedTensionRadius(maxT: number, L: number) {
+  return Number.isFinite(maxT) ? Math.max(0, maxT) * L : Infinity;
 }
 
 export type PeepholeEvent = "commit" | "crack" | "settle";
@@ -190,11 +199,24 @@ export class PeepholeSim {
   setHand(dx: number, dy: number) {
     this.handX = dx;
     this.handY = dy;
+    this.aim();
+  }
+  /** Letter target from the hand: rubber band, then the tension ceiling. */
+  private aim() {
+    const dx = this.handX;
+    const dy = this.handY;
     const d = Math.hypot(dx, dy);
-    const r = rubberBand(d, this.L);
+    const r = Math.min(rubberBand(d, this.L), clampedTensionRadius(this.tune.maxT, this.L));
     const s = d > 1e-6 ? r / d : 0;
     this.targetX = dx * s;
     this.targetY = dy * s;
+  }
+  /** Change the tension ceiling while held: the target moves, the letter
+   * follows on its spring (no jump in position or tension). */
+  setMaxTension(maxT: number) {
+    if (maxT === this.tune.maxT) return;
+    this.tune.maxT = maxT;
+    this.aim();
   }
   /** Hand displacement the current target corresponds to. */
   get hand() {
@@ -330,4 +352,27 @@ export class PeepholeSim {
     }
     if (!wasRest && this.atRest) this.emit("settle");
   }
+}
+
+/* ------------------------------------------------ pulling while loading */
+
+/** Tension the letter holds at while the world is still loading. */
+export const LOADING_MAX_T = 0.6;
+/** Tension per second the ceiling lifts by once the world is armed. */
+export const TENSION_RAMP = 2;
+
+/** One step of the post-arm ceiling lift; Infinity once past the band's reach. */
+export function rampTension(maxT: number, dt: number) {
+  const next = maxT + TENSION_RAMP * Math.max(0, dt);
+  return next >= 2.2 ? Infinity : next;
+}
+
+/**
+ * The loading gauge in the counter, 0..1: 60% for the engine download
+ * (an easing estimate while it is in flight, exact once it has arrived),
+ * 40% for the warm-up. Callers keep the maximum, so it never moves back.
+ */
+export function loadingProgress(seconds: number, engineIn: boolean, warm: number) {
+  const download = engineIn ? 1 : 0.92 * (1 - Math.exp(-Math.max(0, seconds) / 1.6));
+  return 0.6 * download + 0.4 * (engineIn ? clamp(warm, 0, 1) : 0);
 }

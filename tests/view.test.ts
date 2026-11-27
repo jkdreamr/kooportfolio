@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { PerspectiveCamera, Vector3 } from "three";
 import { aimCamera } from "../src/game/engine/camera";
 import {
+  BOOM_LAST_RESORT,
   BOOM_MAX_ELEVATION,
   BOOM_MIN_DISTANCE,
   EXPLORE_ELEVATION,
@@ -20,6 +21,11 @@ import {
   treeBlocked,
 } from "../src/game/engine/view";
 import { ISLAND_CAMERA_OFFSET } from "../src/game/core/islandView";
+import { obstacleAt, setBoomObstacles } from "../src/game/engine/view";
+import { FLIGHT_OBSTACLES, HERO_SPOTS } from "../src/game/core/heroSpots";
+import { canWalk, doorsInWorld } from "../src/game/core/world";
+import { terrainHeightAt } from "../src/game/core/terrain";
+import type { WorldId } from "../src/shared/worlds";
 import {
   DEFAULT_EXPLORE_DISTANCE,
   MAX_EXPLORE_DISTANCE,
@@ -139,16 +145,22 @@ describe("boom safety", () => {
     const out = clearBoom({ distance: 0, elevation: 0 }, target, azimuth, 10, () => false);
     expect(out).toEqual({ distance: 10, elevation: EXPLORE_ELEVATION });
   });
-  it("comes closer and rises behind a wall, never under the minimum", () => {
+  it("comes closer behind a wall before it rises, never under the minimum", () => {
     // A wall 6 units behind the player along the boom.
     const wall = (x: number, z: number) =>
       x * Math.sin(azimuth) + z * Math.cos(azimuth) > 6;
     const out = clearBoom({ distance: 0, elevation: 0 }, target, azimuth, 10, wall);
     expect(out.distance).toBeLessThan(6.5);
     expect(out.distance).toBeGreaterThanOrEqual(BOOM_MIN_DISTANCE);
-    expect(out.elevation).toBeGreaterThan(EXPLORE_ELEVATION);
+    expect(out.elevation).toBe(EXPLORE_ELEVATION);
+    // A wall closer than the minimum boom: shortest length, then up.
+    const close = (x: number, z: number, y: number) =>
+      x * Math.sin(azimuth) + z * Math.cos(azimuth) > 1.5 && y < 2.4;
+    const raised = clearBoom({ distance: 0, elevation: 0 }, target, azimuth, 10, close);
+    expect(raised.distance).toBe(BOOM_MIN_DISTANCE);
+    expect(raised.elevation).toBeGreaterThan(EXPLORE_ELEVATION);
     const boxed = clearBoom({ distance: 0, elevation: 0 }, target, azimuth, 10, () => true);
-    expect(boxed).toEqual({ distance: BOOM_MIN_DISTANCE, elevation: BOOM_MAX_ELEVATION });
+    expect(boxed).toEqual({ distance: BOOM_LAST_RESORT, elevation: BOOM_MAX_ELEVATION });
   });
   it("stays out of tree crowns and trunks, but not the crown over the player", () => {
     const dir = { x: Math.sin(azimuth), z: Math.cos(azimuth) };
@@ -207,4 +219,69 @@ describe("view state", () => {
       freshSave(),
     );
   });
+});
+
+describe("boom avoids props (A9)", () => {
+  const azimuth = azimuthOf(offset);
+  const target = { x: 0, y: 1.6, z: 0 };
+  it("tests the world's tall props on top of the caller's solids", () => {
+    // A pergola post 4 m behind the player, on the boom line.
+    const px = Math.sin(azimuth) * 4;
+    const pz = Math.cos(azimuth) * 4;
+    setBoomObstacles([[px, pz, 0.3, 0.3, 3]]);
+    try {
+      const out = clearBoom({ distance: 0, elevation: 0 }, target, azimuth, 10, () => false);
+      expect(out.distance).toBeLessThan(4);
+      expect(out.distance).toBeGreaterThanOrEqual(BOOM_MIN_DISTANCE);
+      expect(out.elevation).toBe(EXPLORE_ELEVATION);
+    } finally {
+      setBoomObstacles([]);
+    }
+    expect(obstacleAt([[0, 0, 1, 1, 2]], 0.5, 0.5, 1)).toBe(true);
+    expect(obstacleAt([[0, 0, 1, 1, 2]], 0.5, 0.5, 2.5)).toBe(false);
+    expect(obstacleAt([[0, 0, 1, 1, 2]], 1.5, 0, 1)).toBe(false);
+  });
+
+  /** The engine's obstacle list for a world (Game.tsx worldObstacles). */
+  const solids = (world: WorldId) => [
+    ...FLIGHT_OBSTACLES[world],
+    ...doorsInWorld(world).map(({ footprint, anchor }) => [footprint[0], footprint[1], footprint[2] + 0.4, footprint[3] + 0.4, anchor[1]] as const),
+  ];
+  /** Hero spot plus the first 12 walkable points of a fixed 6 m ring walk. */
+  function scriptedPositions(world: WorldId): [number, number][] {
+    const [hx, hz] = HERO_SPOTS[world].position;
+    const out: [number, number][] = [[hx, hz]];
+    for (let ring = 1; out.length < 13 && ring <= 8; ring++)
+      for (let k = 0; k < 12 && out.length < 13; k++) {
+        const a = (k / 12) * Math.PI * 2 + ring * 0.37;
+        const x = hx + Math.cos(a) * ring * 6;
+        const z = hz + Math.sin(a) * ring * 6;
+        if (canWalk(x, z, world)) out.push([+x.toFixed(2), +z.toFixed(2)]);
+      }
+    return out;
+  }
+  for (const world of ["home", "stanford", "korea"] as const) {
+    it(`${world}: nothing between the camera and the look point at the player's head, 13 scripted spots`, () => {
+      const list = solids(world);
+      setBoomObstacles(list);
+      try {
+        const spots = scriptedPositions(world);
+        expect(spots.length).toBe(13);
+        for (const [x, z] of spots) {
+          const feetY = Math.max(0, terrainHeightAt(x, z, world));
+          const pose = explorePose(makeViewPose(), { x, y: feetY + 0.18, z }, offset, DEFAULT_EXPLORE_DISTANCE, EXPLORE_FOV);
+          const blocked = (bx: number, bz: number, by: number) => terrainHeightAt(bx, bz, world) > by - 0.6;
+          const safe = clearBoom({ distance: 0, elevation: 0 }, pose.target, azimuth, DEFAULT_EXPLORE_DISTANCE, blocked);
+          const camera = cameraPosition(explorePose(makeViewPose(), { x, y: feetY + 0.18, z }, offset, safe.distance, EXPLORE_FOV, safe.elevation));
+          for (let i = 1; i < 60; i++) {
+            const p = camera.clone().lerp(pose.target, i / 60);
+            const hit = list.find((o) => obstacleAt([o], p.x, p.z, p.y));
+            expect(hit, `${world} ${x},${z} sample ${i} ${p.toArray().map((v) => v.toFixed(2))} ${safe.distance} ${hit}`).toBeUndefined();
+          }
+        }
+      } finally {
+        setBoomObstacles([]);
+      }
+    });
+  }
 });

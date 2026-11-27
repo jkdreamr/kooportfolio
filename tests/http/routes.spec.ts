@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { watchConsole } from "./console-gate";
 // Built Worker + static asset integration; UI acceptance is recorded separately.
 for (const [route, copy] of [
   ["/", "joshua koo"],
@@ -54,3 +55,32 @@ test("default preview serves the shared photo wall with local storage", async ({
   expect(wall.status()).toBe(200);
   expect(Array.isArray((await wall.json()).strips)).toBe(true);
 });
+
+// A2: the page the visitor first sees is the page React adopts.
+for (const route of ["/", "/about", "/work", "/contact"]) {
+  test(`${route} hydrates the prerendered page without a mismatch`, async ({ page, request }) => {
+    const html = await (await request.get(route)).text();
+    const prerendered = html
+      .match(/<h1[^>]*>([\s\S]*?)<\/h1>/)?.[1]
+      .replace(/<[^>]+>/g, "");
+    expect(prerendered).toBeTruthy();
+    const gate = watchConsole(page);
+    await page.goto(route, { waitUntil: "load" });
+    await page.waitForTimeout(1500);
+    expect(await page.locator("h1").first().textContent()).toBe(prerendered);
+    // React reports hydration mismatches as console errors: the gate fails on any.
+    expect(gate.problems()).toEqual([]);
+    const shift = await page.evaluate(
+      () =>
+        new Promise<number>((resolve) => {
+          let total = 0;
+          new PerformanceObserver((list) => {
+            for (const e of list.getEntries() as (PerformanceEntry & { value: number; hadRecentInput: boolean })[])
+              if (!e.hadRecentInput) total += e.value;
+          }).observe({ type: "layout-shift", buffered: true });
+          setTimeout(() => resolve(total), 200);
+        }),
+    );
+    expect(shift).toBeLessThanOrEqual(0.02);
+  });
+}

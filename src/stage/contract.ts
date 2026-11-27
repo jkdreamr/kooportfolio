@@ -284,7 +284,9 @@ export interface CameraPose {
   roll?: number;
 }
 
-export type RigEase = "linear" | "quintic-out" | "cubic-in-out";
+/** "smootherstep": t³(10 − 15t + 6t²), zero velocity and acceleration at
+ * both ends (the tear flight). */
+export type RigEase = "linear" | "quintic-out" | "cubic-in-out" | "smootherstep";
 
 export interface CameraPathOptions {
   /** Control poses for a centripetal Catmull-Rom spline (positions and
@@ -366,6 +368,21 @@ export const cameraRig = {
 };
 function issue(command: CameraCommand) {
   useCameraRig.setState((s) => ({ command, serial: s.serial + 1 }));
+}
+
+/* ------------------------------------------------------ flight obstacles */
+
+/** [centre x, centre z, half x, half z, top y] of something a camera flight
+ * must clear (tall props from heroSpots.ts, building footprints). */
+export type FlightObstacleBox = readonly [number, number, number, number, number];
+let obstacles: readonly FlightObstacleBox[] = [];
+/** Engine-side: the current world's obstacles (the portfolio chunk cannot
+ * import world data, so the engine publishes them here). */
+export function setFlightObstacles(list: readonly FlightObstacleBox[]) {
+  obstacles = list;
+}
+export function flightObstacles() {
+  return obstacles;
 }
 
 /* --------------------------------------------- ortho-zoom ↔ distance mapping */

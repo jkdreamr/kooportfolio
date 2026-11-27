@@ -6,6 +6,9 @@ import {
   inverseRubberBand,
   pullLength,
   rubberBand,
+  LOADING_MAX_T,
+  loadingProgress,
+  rampTension,
 } from "../src/stage/peephole/spring";
 
 const L = 220;
@@ -233,5 +236,80 @@ describe("letter spring", () => {
     run(sim, 4);
     expect(sim.atRest).toBe(true);
     expect(sim.committed).toBe(false);
+  });
+});
+
+describe("pulling before the world is ready (A6)", () => {
+  it("holds the tension at the loading ceiling however far the hand goes", () => {
+    const sim = new PeepholeSim(L, { commitT: Infinity, flickT: Infinity, maxT: LOADING_MAX_T });
+    sim.grab(0, 0);
+    let peak = 0;
+    for (let i = 1; i <= 60; i++) {
+      sim.drag(i * 12, i * 6);
+      sim.advance(1 / 60);
+      peak = Math.max(peak, sim.tension);
+    }
+    run(sim, 1);
+    expect(sim.tension).toBeCloseTo(LOADING_MAX_T, 2);
+    expect(peak).toBeLessThan(LOADING_MAX_T + 0.08);
+    expect(sim.committed).toBe(false);
+  });
+  it("hands the same drag on when armed: no jump, tension continuous, then commits", () => {
+    const sim = new PeepholeSim(L, { commitT: Infinity, flickT: Infinity, maxT: LOADING_MAX_T });
+    sim.grab(0, 0);
+    const hand = handDistanceForTension(1.25, L);
+    sim.drag(Math.cos(0.4) * hand, Math.sin(0.4) * hand);
+    run(sim, 1.2);
+    expect(sim.tension).toBeCloseTo(LOADING_MAX_T, 2);
+    // Armed: the controller lifts the ceiling with rampTension each frame.
+    sim.tune.commitT = 1;
+    sim.tune.flickT = 0.85;
+    let last = sim.tension;
+    const steps: number[] = [];
+    for (let i = 0; i < 120 && !sim.committed; i++) {
+      if (Number.isFinite(sim.tune.maxT)) sim.setMaxTension(rampTension(sim.tune.maxT, 1 / 60));
+      sim.advance(1 / 60);
+      steps.push(Math.abs(sim.tension - last));
+      last = sim.tension;
+    }
+    // At the hand-off itself the tension is continuous (< 0.02), and the
+    // lift never produces a visible jump afterwards either.
+    expect(steps[0]).toBeLessThan(0.02);
+    expect(Math.max(...steps)).toBeLessThan(0.05);
+    expect(sim.committed).toBe(true);
+    expect(sim.held).toBe(true);
+  });
+  it("lifts the ceiling to Infinity past the band's reach", () => {
+    let t = LOADING_MAX_T;
+    let frames = 0;
+    while (Number.isFinite(t)) {
+      t = rampTension(t, 1 / 60);
+      frames++;
+    }
+    expect(frames).toBeGreaterThan(30);
+    expect(frames).toBeLessThan(60);
+  });
+  it("release still reseals exactly from the ceiling", () => {
+    const sim = new PeepholeSim(L, { commitT: Infinity, flickT: Infinity, maxT: LOADING_MAX_T });
+    sim.grab(0, 0);
+    sim.drag(400, 200);
+    run(sim, 1);
+    sim.release();
+    run(sim, 4);
+    expect(sim.atRest).toBe(true);
+    expect(sim.x).toBeCloseTo(0, 1);
+  });
+  it("loading gauge: rises monotonically 0 → 1 across download and warm-up", () => {
+    let last = -1;
+    const samples: number[] = [];
+    for (let t = 0; t <= 6; t += 0.1) samples.push(loadingProgress(t, false, 0));
+    for (const w of [0, 0.25, 0.5, 0.75, 1]) samples.push(loadingProgress(7, true, w));
+    for (const p of samples) {
+      expect(p).toBeGreaterThanOrEqual(last);
+      last = p;
+    }
+    expect(samples[0]).toBe(0);
+    expect(samples[samples.length - 1]).toBe(1);
+    expect(loadingProgress(100, false, 0)).toBeLessThan(0.6);
   });
 });

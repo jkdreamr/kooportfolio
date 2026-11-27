@@ -10,14 +10,18 @@
  */
 import { create } from "zustand";
 import { useWorldView, type WorldViewMode } from "../../game/core/worldView";
-import { cameraRig, revealHud, useCameraRig, useStage, type CameraPose } from "../contract";
+import { HERO_SPOTS } from "../../game/core/heroSpots";
+import { cameraRig, flightObstacles, revealHud, useCameraRig, useStage, type CameraPose } from "../contract";
 import { exposeQa, qaEnabled } from "../qa";
-import { flightPoses, peekPose, TIMELINE, type PeekScene } from "./flight";
+import { clearFlightPath, flightPoses, peekPose, TIMELINE, type PeekScene } from "./flight";
 import { markEntered, readEnvironment, visitPolicy, type VisitEnvironment, type VisitPolicy } from "./policy";
-import { rasterizePage, type PageRaster } from "./raster";
+import { letterField, rasterizePage, type PageRaster } from "./raster";
 import {
   PeepholeSim,
   clamp,
+  loadingProgress,
+  rampTension,
+  LOADING_MAX_T,
   handDistanceForTension,
   pullLength,
   smoothstep,
@@ -86,6 +90,17 @@ const AUTO_SECONDS = 1.2;
  * own default, 1, is the whole-island overview). */
 const ENTRY_ZOOM = 4.5;
 const ENTER_ANNOUNCE = "You are in the village. Use the arrow keys or W A S D to walk, E to interact.";
+const LOADING_ANNOUNCE = "Opening… the world is loading.";
+/** Pointer this close to the heading (CSS px) counts as intent. */
+const NEAR_HEADING = 160;
+/** Seconds after load for the one-time "loose letter" tell. */
+const TELL_DELAY_MS = 2500;
+
+/** Ask the game's audio for a cue without importing it (core/audio/cues.ts
+ * listens for this event). */
+function dispatchCue(name: "tear" | "flight" | "land") {
+  window.dispatchEvent(new CustomEvent("stage-cue", { detail: { name } }));
+}
 
 function setThemeColor(color: string) {
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", color);
@@ -126,6 +141,15 @@ export class PeepholeController {
   private interest = new Set<() => void>();
   private originPath = "/";
   private unsub: (() => void)[] = [];
+  /** Engine requested at (s), and whether its module has arrived. */
+  private loadStartedAt = -1;
+  private engineIn = false;
+  /** The "o" fills with sky as the world loads (0..1, monotonic). */
+  private loadShown = 0;
+  private fillReady = false;
+  private tellTimer = 0;
+  private heading: HTMLElement | null = null;
+  private headingRect: DOMRect | null = null;
 
   /* ------------------------------------------------------------ lifecycle */
 
@@ -162,6 +186,20 @@ export class PeepholeController {
     button.addEventListener("click", this.onClick);
     button.addEventListener("pointerenter", this.onHover);
     button.addEventListener("focus", this.wantEngine);
+    // Wider intent: the pointer near the heading, a touch on it.
+    this.heading = button.closest("h1");
+    this.heading?.addEventListener("touchstart", this.wantEngine, { passive: true });
+    if (!this.armedFlag && this.loadStartedAt < 0) {
+      document.addEventListener("pointermove", this.onNearHeading, { passive: true });
+      window.addEventListener("scroll", this.forgetHeadingRect, { passive: true });
+    }
+    // Once per page view: the letter settles a little, so a first-time
+    // visitor (on touch too) sees that it is loose.
+    window.clearTimeout(this.tellTimer);
+    this.tellTimer = window.setTimeout(() => {
+      if (!this.policy?.physical || this.armedFlag || this.phase !== "rest" || this.sim.held || document.hidden) return;
+      this.sim.impulse(Math.random() < 0.5 ? -18 : 18, -12);
+    }, TELL_DELAY_MS);
     if (this.ready) this.prepareSheet();
   }
 
@@ -179,6 +217,10 @@ export class PeepholeController {
       b.removeEventListener("pointerenter", this.onHover);
       b.removeEventListener("focus", this.wantEngine);
     }
+    this.heading?.removeEventListener("touchstart", this.wantEngine);
+    this.stopNearHeading();
+    window.clearTimeout(this.tellTimer);
+    this.heading = null;
     this.button = null;
     this.root = null;
   }
@@ -189,9 +231,34 @@ export class PeepholeController {
     return () => void this.interest.delete(fn);
   }
   private wantEngine = () => {
+    if (this.loadStartedAt < 0) this.loadStartedAt = now();
+    this.stopNearHeading();
     for (const fn of this.interest) fn();
     this.interest.clear();
   };
+  /** Intent from outside the letter (the Play link's hover or focus). */
+  intent() {
+    this.wantEngine();
+  }
+  /** The engine module has arrived (Stage); warm-up progress follows. */
+  engineLoaded() {
+    this.engineIn = true;
+  }
+  private onNearHeading = (e: PointerEvent) => {
+    if (!this.heading) return;
+    this.headingRect ??= this.heading.getBoundingClientRect();
+    const r = this.headingRect;
+    const dx = Math.max(r.left - e.clientX, 0, e.clientX - r.right);
+    const dy = Math.max(r.top - e.clientY, 0, e.clientY - r.bottom);
+    if (dx * dx + dy * dy <= NEAR_HEADING * NEAR_HEADING) this.wantEngine();
+  };
+  private forgetHeadingRect = () => {
+    this.headingRect = null;
+  };
+  private stopNearHeading() {
+    document.removeEventListener("pointermove", this.onNearHeading);
+    window.removeEventListener("scroll", this.forgetHeadingRect);
+  }
 
   private invalidate: (() => void) | null = null;
   private pumpAt = 0;
@@ -221,7 +288,11 @@ export class PeepholeController {
 
   private resetSim() {
     const L = pullLength(innerWidth, innerHeight, this.env?.returning) ;
-    this.sim = new PeepholeSim(L, { commitT: this.armedFlag ? 1 : Infinity, flickT: this.armedFlag ? 0.85 : Infinity });
+    this.sim = new PeepholeSim(L, {
+      commitT: this.armedFlag ? 1 : Infinity,
+      flickT: this.armedFlag ? 0.85 : Infinity,
+      maxT: this.armedFlag ? Infinity : LOADING_MAX_T,
+    });
     this.sim.on((e) => {
       if (e === "commit") this.onCommit();
     });
@@ -239,17 +310,31 @@ export class PeepholeController {
     if (!this.root || !this.button || !this.sink || this.armedFlag) return;
     const go = () => {
       if (!this.root || !this.button || !this.sink || this.armedFlag) return;
+      // A pull may be under way (the visitor grabbed the letter while the
+      // world loaded): measure at rest, then put the pulled letter back in
+      // the same task, so no frame shows it jump.
+      const held = this.sim.held;
+      const pulled = this.button.style.transform;
       if (!this.rebuildRaster()) return;
+      this.button.style.transform = held ? pulled : "";
       this.armedFlag = true;
       this.sim.tune.commitT = 1;
       this.sim.tune.flickT = 0.85;
-      this.counterOpen = 0;
-      this.button.style.transform = "";
-      usePeephole.setState({ armed: true });
+      // The counter was already full of sky: open it at once under a held pull.
+      this.counterOpen = held ? 1 : 0;
+      this.loadShown = 1;
+      delete this.button.dataset.loading;
+      this.button.style.setProperty("--pp-load", "1");
+      usePeephole.setState({ armed: true, ...(held ? { announce: "" } : {}) });
       this.root.classList.add("pp-live");
       this.applyCounterMask();
       this.aimPeek(0);
-      if (this.phase === "rest") this.restStage();
+      if (this.phase === "rest") {
+        // Hand the same drag to the sheet: the spring, hand and tension
+        // carry straight on; only the ceiling lifts, gradually (tick).
+        if (held) this.enterPeek();
+        else this.restStage();
+      }
     };
     const idle = (cb: () => void) =>
       typeof window.requestIdleCallback === "function"
@@ -337,6 +422,7 @@ export class PeepholeController {
     this.pointerId = e.pointerId;
     this.auto = null;
     this.sim.grab(e.clientX, e.clientY);
+    if (!this.armedFlag) this.showLoadingFill();
     this.enterPeek();
   };
   private onPointerMove = (e: PointerEvent) => {
@@ -430,6 +516,30 @@ export class PeepholeController {
     this.skip();
   };
 
+  /** First pull before the world is ready: the counter becomes a progress
+   * gauge (exact counter shape, filled with sky from the bottom). */
+  private showLoadingFill() {
+    const b = this.button;
+    if (!b) return;
+    if (!this.fillReady) {
+      const field = letterField(b);
+      if (field) {
+        const prev = b.style.transform;
+        b.style.transform = "none";
+        const r = b.getBoundingClientRect();
+        b.style.transform = prev;
+        b.style.setProperty("--pp-fill-mask", `url("${field.counterMask}")`);
+        b.style.setProperty("--pp-fx", `${field.box.x - r.left}px`);
+        b.style.setProperty("--pp-fy", `${field.box.y - r.top}px`);
+        b.style.setProperty("--pp-fw", `${field.box.width}px`);
+        b.style.setProperty("--pp-fh", `${field.box.height}px`);
+        this.fillReady = true;
+      }
+    }
+    b.dataset.loading = "true";
+    usePeephole.setState({ announce: LOADING_ANNOUNCE });
+  }
+
   private startAutoPull(held: boolean, key: string | null) {
     this.auto = { start: now(), held, key };
     this.sim.grab(0, 0);
@@ -477,6 +587,9 @@ export class PeepholeController {
     this.savedZoom = view.zoom;
     this.savedView = view.view;
     const landing = view.savedView ?? "explore";
+    // A first visit (no saved view) lands on the composed hero framing; the
+    // spot's position and heading are the game's (heroSpots.ts, read only).
+    if (view.savedView === null) useWorldView.setState({ exploreDistance: HERO_SPOTS.home.exploreDistance });
     if (landing === "explore") useWorldView.setState({ view: "explore" });
     else {
       useWorldView.setState({ view: "diorama" });
@@ -512,6 +625,7 @@ export class PeepholeController {
     window.setTimeout(() => {
       if (this.phase !== "rest") return;
       this.sheetFrames = 0;
+      if (this.button) this.button.style.transform = "";
       if (this.sim.crease < 0.02) {
         this.seam = null;
         this.sink?.setSeam(null);
@@ -536,6 +650,7 @@ export class PeepholeController {
     const st = useStage.getState();
     st.setMode("tearing");
     st.setWorldScissor(null);
+    dispatchCue("tear");
     usePeephole.setState({ phase: "tearing", skippable: true, announce: "The page tears open." });
   }
 
@@ -553,11 +668,16 @@ export class PeepholeController {
     }
     const poses = flightPoses(peek, live, this.scene);
     const duration = this.policy?.flightSeconds ?? 4.6;
+    // Resampled and lifted over tall props (pergolas, roofs): the camera
+    // never flies through anything on its way down.
+    const points = clearFlightPath(duration < 3 ? [poses[0], poses[1], poses[3], poses[4]] : poses, flightObstacles());
+    dispatchCue("flight");
     cameraRig.path({
       // The last control point is replaced by the moving live pose.
-      points: duration < 3 ? [poses[0], poses[1], poses[3], poses[4]] : poses,
+      points,
       duration,
-      ease: "quintic-out",
+      // One curve for the whole flight: no velocity step at either end.
+      ease: "smootherstep",
       blendToLive: 0.6,
       onBlendStart: () => this.finishEntry(),
       onDone: () => {
@@ -578,10 +698,11 @@ export class PeepholeController {
     const st = useStage.getState();
     st.setMode("game");
     revealHud();
+    dispatchCue("land");
     markEntered();
     if (location.pathname !== "/play") history.pushState({ stage: "play", from: this.originPath }, "", "/play");
     document.documentElement.classList.add("in-game");
-    setThemeColor("#dce5c7");
+    setThemeColor(document.documentElement.style.getPropertyValue("--sky").trim() || "#dce5c7");
     usePeephole.setState({ phase: "game", announce: ENTER_ANNOUNCE, skippable: false });
   }
 
@@ -627,14 +748,20 @@ export class PeepholeController {
     st.setWorldVisible(true);
     st.setWorldScissor(null);
     this.counterOpen = 1;
+    if (this.button) this.button.style.transform = "";
     this.aimPeek(0.8);
     const root = this.root;
     usePeephole.setState({ phase: "rest", skippable: false, announce: "" });
     if (!root) return;
     root.classList.remove("pp-gone", "pp-paper", "pp-dissolve", "pp-returning");
-    // Fade the page back in over the world (a dissolve, never a cut).
+    // The HUD leaves first (120 ms, style.css: it is hidden whenever the
+    // stage is not in the game), then the page fades in over the world
+    // (160 ms): the dock never sits on the page, nothing shows through the "o".
+    const reduce = !this.policy?.physical;
     const fade = root.animate([{ opacity: 0 }, { opacity: 1 }], {
-      duration: 500,
+      duration: reduce ? 150 : 160,
+      delay: reduce ? 0 : 120,
+      fill: "backwards",
       easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
     });
     fade.onfinish = () => {
@@ -713,16 +840,30 @@ export class PeepholeController {
       const fade = Math.max(0.05, this.policy.counterFade);
       this.counterOpen = Math.min(1, this.counterOpen + dt / fade);
     }
-    // Toy mode: the DOM letter itself swings.
-    if (!this.armedFlag && this.button && this.phase === "rest") {
-      const T = sim.tension;
+    // While the world loads the DOM letter itself is pulled, drawn exactly
+    // as the sheet will draw it (same travel, angle and scale), and it keeps
+    // following through a hand-off into the peek until the sheet covers it.
+    if (this.button && ((!this.armedFlag && this.phase === "rest") || this.phase === "peek")) {
       this.button.style.transform = sim.atRest
         ? ""
-        : `translate(${sim.x.toFixed(2)}px, ${sim.y.toFixed(2)}px) rotate(${sim.angle.toFixed(4)}rad) scale(${(1 + 0.08 * T).toFixed(4)})`;
+        : `translate(${(sim.x * VISUAL).toFixed(2)}px, ${(sim.y * VISUAL).toFixed(2)}px) rotate(${sim.angle.toFixed(4)}rad) scale(${this.letterScale().toFixed(4)})`;
     }
+    if (!this.armedFlag) this.loadTick();
+    // After a hand-off the tension ceiling lifts over ~0.8 s, never at once.
+    else if (Number.isFinite(sim.tune.maxT)) sim.setMaxTension(rampTension(sim.tune.maxT, dt));
     if (this.phase === "peek") this.peekTick();
     if (this.phase === "tearing" || this.phase === "flying") this.tearTick(dt);
     this.publish();
+  }
+
+  /** The loading gauge in the counter: engine download, then warm-up. */
+  private loadTick() {
+    if (this.loadStartedAt < 0 || !this.button) return;
+    const p = loadingProgress(now() - this.loadStartedAt, this.engineIn, useStage.getState().warmProgress);
+    if (p > this.loadShown + 0.002) {
+      this.loadShown = p;
+      this.button.style.setProperty("--pp-load", p.toFixed(3));
+    }
   }
 
   private peekTick() {

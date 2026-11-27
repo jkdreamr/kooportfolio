@@ -1,7 +1,7 @@
 :root {
   font-family: Arial, Helvetica, sans-serif;
   color: #232724;
-  background: #ffffff;
+  background: #fbfbf9;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -168,6 +168,27 @@ body {
   transform-origin: 50% 62%;
   will-change: transform;
 }
+/* Pulled before the world is ready: the counter of the "o" (its exact
+   shape, from the glyph) fills with sky from the bottom as it loads. The
+   controller sets the mask, its box and --pp-load (0..1). */
+.loose-letter::after {
+  content: "";
+  position: absolute;
+  left: var(--pp-fx, 0);
+  top: var(--pp-fy, 0);
+  width: var(--pp-fw, 0);
+  height: var(--pp-fh, 0);
+  background: var(--sky);
+  -webkit-mask: var(--pp-fill-mask, none) 0 0 / 100% 100% no-repeat;
+  mask: var(--pp-fill-mask, none) 0 0 / 100% 100% no-repeat;
+  clip-path: inset(calc((1 - var(--pp-load, 0)) * 100%) 0 0 0);
+  opacity: 0;
+  transition: opacity 240ms ease-out;
+  pointer-events: none;
+}
+.loose-letter[data-loading="true"]::after {
+  opacity: 1;
+}
 .loose-letter:active {
   cursor: grabbing;
 }
@@ -198,11 +219,17 @@ body {
   padding: 10px 20px;
   position: relative;
 }
+/* "Play" becomes "Continue" for returning visitors after hydration; the
+   label box is wide enough for either, so the nav never moves. */
+.play-label {
+  display: inline-block;
+  min-width: 4.2em;
+  text-align: center;
+}
 .editorial-content {
   text-align: left;
   margin: 52px auto 0;
   max-width: 550px;
-  animation: fade-in 0.4s;
 }
 .editorial-content h2 {
   font:
@@ -242,8 +269,47 @@ body {
   flex-wrap: wrap;
   gap: 24px;
 }
-.social-links a {
+.social-links a,
+.support-link a {
   text-decoration: underline;
+}
+.support-link {
+  margin-top: 28px;
+}
+.noscript-note {
+  max-width: 550px;
+  margin: 0 auto 40px;
+  padding: 0 32px;
+  font-size: 13px;
+  color: #6f7468;
+}
+/* Coarse pointers: every portfolio link gets a 44 px hit area from padding
+   (the type stays the same size). */
+@media (pointer: coarse) {
+  .wordmark,
+  .availability,
+  .email-link,
+  .social-links a,
+  .support-link a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .wordmark {
+    min-width: 44px;
+    padding: 0 6px;
+    margin-left: -6px;
+  }
+  .social-links {
+    gap: 4px 20px;
+  }
+  .social-links a,
+  .support-link a {
+    min-width: 44px;
+  }
+  .support-link {
+    margin-top: 12px;
+  }
 }
 .site-footer {
   height: 84px;
@@ -331,13 +397,25 @@ body {
 .stage-skip:hover {
   background: rgba(24, 30, 26, 0.46);
 }
+/* Whenever the stage is not in the game (the portfolio, a peek, the tear,
+   the flight) the HUD is hidden and out of the tab order: after Back it
+   leaves in 120 ms before the page fades in, and never shows through the
+   "o". The canvas layer is the one child that stays. */
+html:not([data-stage-mode="game"]) body .game-shell > :not(.stage-canvas) {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 120ms linear,
+    visibility 0s linear 120ms;
+}
 /* Direct /play: the inline head script sets html.play before first paint, so
    the very first frame is sky, never white and never the no-JS page. */
 html.play,
 html.play body {
   background: var(--sky);
 }
-html.play #root > main {
+html.play #root > .portfolio {
   display: none;
 }
 html.in-game body {
@@ -351,6 +429,85 @@ html:not(.play):not([data-stage-mode="game"]) body,
 html:not(.play):not([data-stage-mode="game"]) #root {
   height: auto;
   overflow: visible;
+}
+/* ------------------------------------------- direct /play: loading mark */
+/* Pure CSS from the first paint (the inline head script sets html.play); it
+   appears only if the world is not up 400 ms in. The stage writes the real
+   progress into --boot-p (0–60% engine download, 60–100% warm-up) and adds
+   .boot-done (300 ms fade) or .boot-skip (never shown) on the first frame. */
+@property --boot-p {
+  syntax: "<percentage>";
+  inherits: true;
+  initial-value: 4%;
+}
+html.play {
+  transition: --boot-p 400ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+html.play body::before,
+html.play body::after {
+  position: fixed;
+  left: 50%;
+  z-index: 4;
+  pointer-events: none;
+  opacity: 0;
+  animation: boot-in 200ms linear 400ms forwards;
+}
+html.play body::before {
+  content: "JOSHUA.EXE" / "";
+  top: 46%;
+  transform: translate(-50%, -50%);
+  font: 700 15px/1 Arial, Helvetica, sans-serif;
+  letter-spacing: 2.4px;
+  /* Centre the letters, not the trailing letter-space. */
+  padding-left: 2.4px;
+  color: rgb(31 35 33 / 0.7);
+  white-space: nowrap;
+}
+html.play body::after {
+  content: "";
+  top: calc(46% + 20px);
+  width: 120px;
+  height: 2px;
+  margin-left: -60px;
+  border-radius: 1px;
+  background: linear-gradient(
+    to right,
+    rgb(31 35 33 / 0.6) var(--boot-p),
+    rgb(31 35 33 / 0.14) var(--boot-p)
+  );
+}
+html.play.boot-done body::before,
+html.play.boot-done body::after {
+  animation: boot-out 300ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+html.play.boot-skip body::before,
+html.play.boot-skip body::after {
+  content: none;
+}
+@keyframes boot-in {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes boot-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+/* Portfolio routes cross-fade into each other where the browser can
+   (cross-document view transitions); elsewhere they navigate as before. */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition {
+    navigation: auto;
+  }
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 180ms;
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
 }
 @keyframes fade-in {
   from {
@@ -415,4 +572,49 @@ html:not(.play):not([data-stage-mode="game"]) #root {
   .portfolio.pp-returning {
     transition-duration: 400ms !important;
   }
+}
+/* The engine itself could not be loaded (Stage.tsx): the game's stylesheet
+   is not there either, so the card brings its own look. */
+.stage-unavailable {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px;
+  text-align: center;
+  background: var(--sky);
+  color: var(--ink);
+}
+.stage-unavailable h1 {
+  margin: 0;
+  font: 28px/1.2 Georgia, "Times New Roman", serif;
+}
+.stage-unavailable p {
+  margin: 0;
+  max-width: 34ch;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.stage-unavailable button,
+.stage-unavailable a {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+.stage-unavailable button {
+  border-radius: 22px;
+  background: var(--ink);
+  color: var(--paper);
+}
+.stage-unavailable a {
+  text-decoration: underline;
 }

@@ -19,6 +19,7 @@ import { stats } from "./stats";
 import { usePresented } from "./presented";
 import { islandFollow } from "../core/islandCamera";
 import { useWorldView, viewRuntime } from "../core/worldView";
+import { blendFog, peekFog, smootherstep } from "../../stage/peephole/flight";
 
 const liveCamera = new THREE.Vector3(),
   liveForward = new THREE.Vector3(),
@@ -184,6 +185,26 @@ export function EngineRuntime({
         fog.far += fogShift;
       } else fogShift = 0;
     }
+    // The peek looks down from ~230 units, where the gameplay fog (tuned
+    // for the follow camera) washes the island to a flat disc. While the
+    // page is peeled the island centre stays nearly clear; from the commit
+    // the fog eases back to the gameplay values over the first 60% of the
+    // flight on the flight's own curve. Colour is untouched (horizon).
+    let hazeNear = 0;
+    let hazeFar = 0;
+    const stageMode = useStage.getState().mode;
+    if (fog instanceof THREE.Fog && stageMode !== "game" && usePresented.getState().scene === "hub") {
+      const progress = stageMode === "flying" ? (rig.pathProgress() ?? 1) : 0;
+      const weight = smootherstep(progress / 0.6);
+      if (weight < 1) {
+        const peek = peekFog(camera.position.distanceTo(liveTarget));
+        const next = blendFog(peek, fog, weight);
+        hazeNear = next.near - fog.near;
+        hazeFar = next.far - fog.far;
+        fog.near += hazeNear;
+        fog.far += hazeFar;
+      }
+    }
     const scissor = useStage.getState().worldScissor;
     if (scissor) {
       renderer.setScissorTest(true);
@@ -213,6 +234,10 @@ export function EngineRuntime({
     if (fogShift && fog instanceof THREE.Fog) {
       fog.near -= fogShift;
       fog.far -= fogShift;
+    }
+    if ((hazeNear || hazeFar) && fog instanceof THREE.Fog) {
+      fog.near -= hazeNear;
+      fog.far -= hazeFar;
     }
     rig.restore(camera);
     stats.calls = renderer.info.render.calls;

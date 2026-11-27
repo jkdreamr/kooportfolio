@@ -7,7 +7,15 @@ import { canWalk, doors, isInterior } from "../core/world";
 import { belongsToWorld, type WorldId } from "../core/worlds";
 import { leaveRoom, throughDoorway } from "../core/doorway";
 import { usePresented } from "./presented";
-import { benchmarkBudgetMs, stats, summarizeFrames, type FrameSummary } from "./stats";
+import { BUILD_COMMIT } from "../../site/buildInfo";
+import {
+  benchmarkBudgetMs,
+  buildStamp,
+  stats,
+  summarizeFrames,
+  type BuildStamp,
+  type FrameSummary,
+} from "./stats";
 
 const enabled = () => {
   try {
@@ -84,6 +92,9 @@ export type BenchmarkResult = {
   };
   pass: boolean;
   aborted?: string;
+  /** Which build produced this (A13): results pasted back by the owner are
+   * matched to a commit and to the engine chunk's real size. */
+  build: BuildStamp;
 };
 
 function benchDoor(world: WorldId): Scene | null {
@@ -264,6 +275,10 @@ function runBenchmark(onProgress: (text: string) => void): {
     const result: BenchmarkResult = {
       benchmark: "joshua-exe-60s",
       version: 1,
+      build: buildStamp(
+        BUILD_COMMIT,
+        performance.getEntriesByType("resource") as PerformanceResourceTiming[],
+      ),
       at: new Date().toISOString(),
       url: location.pathname + location.search,
       tier: String(tier),

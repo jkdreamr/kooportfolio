@@ -75,6 +75,7 @@ export function writePose(camera: THREE.Camera, pose: Pose) {
 const ease = (kind: RigEase | undefined, t: number) => {
   const x = Math.min(1, Math.max(0, t));
   if (kind === "linear") return x;
+  if (kind === "smootherstep") return x * x * x * (x * (x * 6 - 15) + 10);
   if (kind === "cubic-in-out")
     return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
   return 1 - Math.pow(1 - x, 5);
@@ -130,6 +131,12 @@ export class CameraRigRuntime {
     this.blend(seconds);
   }
 
+  /** Share of the running path's duration flown (0..1), or null if none. */
+  pathProgress(): number | null {
+    if (!this.path) return null;
+    return Math.min(1, this.path.elapsed / Math.max(0.001, this.path.command.duration));
+  }
+
   /** True while a blend or a path still moves the rendered pose: an
    * on-demand frame loop must keep rendering until it settles. */
   get moving() {
@@ -158,17 +165,22 @@ export class CameraRigRuntime {
     } else {
       const poses = command.points.map((p) => fromContract(makePose(), p));
       if (poses.length < 2) poses.push(copyPose(makePose(), poses[0]));
+      const positions = new THREE.CatmullRomCurve3(
+        poses.map((p) => p.position),
+        false,
+        "centripetal",
+      );
+      const targets = new THREE.CatmullRomCurve3(
+        poses.map((p) => p.target),
+        false,
+        "centripetal",
+      );
+      // A dense arc-length table: with a resampled flight (48 points) the
+      // default 200 divisions show up as small speed steps.
+      positions.arcLengthDivisions = targets.arcLengthDivisions = Math.max(200, poses.length * 60);
       this.path = {
-        positions: new THREE.CatmullRomCurve3(
-          poses.map((p) => p.position),
-          false,
-          "centripetal",
-        ),
-        targets: new THREE.CatmullRomCurve3(
-          poses.map((p) => p.target),
-          false,
-          "centripetal",
-        ),
+        positions,
+        targets,
         poses,
         command,
         elapsed: 0,

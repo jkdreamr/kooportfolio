@@ -113,3 +113,25 @@ export function summarizeFrames(ms: readonly number[]): FrameSummary {
 /** p95 frame budget the benchmark passes against: 60 fps on high, 30 below. */
 export const benchmarkBudgetMs = (tier: Tier | string | null | undefined) =>
   tier === "high" ? 16.7 : 33.3;
+
+/** Build identity for benchmark results: the commit and the engine chunk as
+ * the browser actually received it (resource timing). */
+export type BuildStamp = {
+  commit: string;
+  engineChunk: { file: string; transferBytes: number; decodedBytes: number } | null;
+};
+type ResourceLike = Pick<PerformanceResourceTiming, "name" | "transferSize" | "decodedBodySize" | "encodedBodySize">;
+export function buildStamp(commit: string, resources: readonly ResourceLike[]): BuildStamp {
+  const chunk = resources.find((r) => /\/assets\/engine-[\w-]+\.js(\?|$)/.test(r.name));
+  return {
+    commit,
+    engineChunk: chunk
+      ? {
+          file: chunk.name.replace(/^.*\/assets\//, "").replace(/\?.*$/, ""),
+          // A cached load reports 0 transferred; the encoded size is still the wire size.
+          transferBytes: chunk.transferSize || chunk.encodedBodySize,
+          decodedBytes: chunk.decodedBodySize,
+        }
+      : null,
+  };
+}

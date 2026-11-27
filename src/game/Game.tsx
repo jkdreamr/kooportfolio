@@ -19,6 +19,8 @@ import * as THREE from "three";
 import {
   ACTIVITY_FOV,
   TELEPHOTO_FOV,
+  setFlightObstacles,
+  type FlightObstacleBox,
   TIER_BUDGETS,
   gameInputEnabled,
   useStage,
@@ -30,6 +32,7 @@ import { usePresented } from "./engine/presented";
 import { PerfOverlay } from "./engine/PerfOverlay";
 import { installGradeToneMapping } from "./engine/grade";
 import { legacyQuality, pickTier, resolveAo } from "./engine/tier";
+import { setBoomObstacles } from "./engine/view";
 import { Hub } from "./world/Hub";
 import { Interior } from "./scenes/Interior";
 import { Rowing } from "./scenes/Rowing";
@@ -51,7 +54,9 @@ import { WORLDS } from "./core/worlds";
 import { runtime, useGame, type Scene } from "./core/store";
 import { useInput } from "./core/input";
 import { endGameMode, useGameMode } from "./core/gameMode";
-import { doors, isInterior } from "./core/world";
+import { doors, doorsInWorld, isInterior } from "./core/world";
+import { FLIGHT_OBSTACLES } from "./core/heroSpots";
+import type { WorldId } from "../shared/worlds";
 import { useGym } from "./scenes/CognitionGym";
 import { interactWithNpc } from "./core/npcState";
 import { NpcDialog } from "./ui/NpcConversation";
@@ -459,6 +464,9 @@ function ShellSky({ shell }: { shell: React.RefObject<HTMLDivElement | null> }) 
     elapsed.current += delta;
     if (elapsed.current < 0.5) return;
     elapsed.current = 0;
+    // Until the first real frame the page keeps the boot sky (index.html):
+    // the canvas fades in over it, nothing else changes colour first.
+    if (!useStage.getState().ready) return;
     if (!(scene.background instanceof THREE.Color)) return;
     const hex = `#${scene.background.getHexString(THREE.SRGBColorSpace)}`;
     if (hex === last.current) return;
@@ -466,6 +474,30 @@ function ShellSky({ shell }: { shell: React.RefObject<HTMLDivElement | null> }) 
     gl.domElement.style.background = hex;
     shell.current?.style.setProperty("--stage-sky", hex);
     if (shell.current) shell.current.style.background = hex;
+    // The page's own sky (html/body on /play, the stage behind the
+    // portfolio, the browser chrome in game) follows the world's.
+    const root = document.documentElement;
+    root.style.setProperty("--sky", hex);
+    if (root.classList.contains("play")) root.style.background = hex;
+    if (useStage.getState().mode === "game")
+      document.querySelector('meta[name="theme-color"]')?.setAttribute("content", hex);
+  });
+  return null;
+}
+
+/** The first real frame fades in from the boot sky over 0.5 s (0.15 s with
+ * reduced motion), stepped by rendered frames rather than wall time: on a
+ * device that renders slowly at first, the fade takes more frames instead
+ * of skipping to the end in one (each frame moves at most 1/30 s). */
+function CanvasFade({ wrap }: { wrap: React.RefObject<HTMLDivElement | null> }) {
+  const t = useRef(0);
+  useFrame((_, delta) => {
+    const el = wrap.current;
+    if (!el || t.current >= 1 || !useStage.getState().ready) return;
+    const seconds = reducedMotion?.matches ? 0.15 : 0.5;
+    t.current = Math.min(1, t.current + Math.min(delta, 1 / 30) / seconds);
+    const x = t.current;
+    el.style.opacity = (x * x * x * (x * (x * 6 - 15) + 10)).toFixed(3);
   });
   return null;
 }
@@ -489,9 +521,39 @@ const webgl2 = () => {
     return false;
   }
 };
-const DEFAULT_SKY = "#dce5c7";
+/** The sky the page opened on: the inline head script in index.html
+ * computes the world's horizon colour for this hour into --sky before first
+ * paint. The shell, the canvas and its clear colour all start on it, so
+ * nothing changes colour until the first real frame fades in. */
+function bootSky() {
+  if (typeof document === "undefined") return "#dce5c7";
+  return document.documentElement.style.getPropertyValue("--sky").trim() || "#dce5c7";
+}
+
+/** What a camera flight or the explore boom must clear in `world`: the tall
+ * props listed in heroSpots.ts and every building footprint up to its roof. */
+export function worldObstacles(world: WorldId): FlightObstacleBox[] {
+  return [
+    ...FLIGHT_OBSTACLES[world],
+    ...doorsInWorld(world).map(
+      ({ footprint, anchor }) => [footprint[0], footprint[1], footprint[2] + 0.4, footprint[3] + 0.4, anchor[1]] as const,
+    ),
+  ];
+}
 
 export default function Game({ autoEnter = true }: { autoEnter?: boolean } = {}) {
+  // The tear flight (portfolio chunk) reads these through the contract.
+  useEffect(() => {
+    const publish = (world: WorldId) => {
+      const list = worldObstacles(world);
+      setFlightObstacles(list);
+      setBoomObstacles(list);
+    };
+    publish(useGame.getState().world);
+    return useGame.subscribe((state, previous) => {
+      if (state.world !== previous.world) publish(state.world);
+    });
+  }, []);
   useEffect(
     () =>
       useGame.subscribe((state, previous) => {
@@ -504,6 +566,8 @@ export default function Game({ autoEnter = true }: { autoEnter?: boolean } = {})
     [supported] = useState(webgl2),
     [tier, setTier] = useState<Tier | null>(() => useStage.getState().tier);
   const shell = useRef<HTMLDivElement>(null);
+  const [sky] = useState(bootSky);
+  const canvasWrap = useRef<HTMLDivElement>(null);
   const traveling = useGame((s) => s.traveling),
     paused = useGame((s) => s.paused),
     panel = useGame((s) => s.panel);
@@ -590,14 +654,26 @@ export default function Game({ autoEnter = true }: { autoEnter?: boolean } = {})
       data-stage-ready={ready ? "true" : "false"}
       data-scene={presentedScene}
       data-hud={hudRevealed ? "revealed" : "hidden"}
-      style={{ background: DEFAULT_SKY }}
+      // Set once at mount and owned by the HUD from then on (Hud.tsx writes
+      // the dataset): until it mounts, nothing but the canvas may show.
+      data-hud-motion="hidden"
+      style={{ background: sky }}
     >
       <WorldBoundary>
         {/* Large-viewport height: mobile URL-bar show/hide never resizes the
             drawing buffer (the shell clips the overflow instead). */}
         <div
           className="stage-canvas"
-          style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100lvh" }}
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            width: "100%",
+            height: "100lvh",
+            // Faded in by CanvasFade from the first real frame (never a pop).
+            opacity: 0,
+          }}
+          ref={canvasWrap}
         >
           <Canvas
             shadows={budget && budget.shadowMapSize > 0 ? "soft" : false}
@@ -608,12 +684,12 @@ export default function Game({ autoEnter = true }: { autoEnter?: boolean } = {})
               stencil: false,
               powerPreference: "high-performance",
             }}
-            style={{ background: DEFAULT_SKY }}
+            style={{ background: sky }}
             events={events}
             frameloop={idle ? "demand" : "always"}
             onCreated={({ gl }) => {
               installGradeToneMapping();
-              gl.setClearColor(DEFAULT_SKY, 1);
+              gl.setClearColor(sky, 1);
               gl.clear();
               const chosen = useStage.getState().tier ?? pickTier(gl);
               gl.toneMapping =
@@ -637,41 +713,28 @@ export default function Game({ autoEnter = true }: { autoEnter?: boolean } = {})
               <>
                 <EngineRuntime tier={tier} autoEnter={autoEnter} onLost={setLost} />
                 <ShellSky shell={shell} />
+                <CanvasFade wrap={canvasWrap} />
                 <World tier={tier} />
               </>
             )}
           </Canvas>
+          {/* Inside the canvas layer: it arrives with the first frame. */}
+          {budget?.vignette && (
+            <div
+              className="stage-vignette"
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                inset: 0,
+                pointerEvents: "none",
+                zIndex: 1,
+                background:
+                  "radial-gradient(ellipse 120% 95% at 50% 46%, transparent 58%, rgba(20,28,36,.2) 100%)",
+              }}
+            />
+          )}
         </div>
       </WorldBoundary>
-      {/* Veil in the sky colour until the first warm frame: never a spinner,
-          never white. It dissolves as the world arrives. */}
-      <div
-        className="stage-veil"
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          inset: 0,
-          background: "var(--stage-sky, #dce5c7)",
-          opacity: ready ? 0 : 1,
-          transition: "opacity 600ms cubic-bezier(.2,.8,.2,1)",
-          pointerEvents: "none",
-          zIndex: 1,
-        }}
-      />
-      {budget?.vignette && (
-        <div
-          className="stage-vignette"
-          aria-hidden="true"
-          style={{
-            position: "absolute",
-            inset: 0,
-            pointerEvents: "none",
-            zIndex: 1,
-            background:
-              "radial-gradient(ellipse 120% 95% at 50% 46%, transparent 58%, rgba(20,28,36,.2) 100%)",
-          }}
-        />
-      )}
       <Hud interact={interact} />
       {/* A lost context keeps the canvas mounted (so the browser can still
           restore it); the card covers the stage meanwhile and leaves again

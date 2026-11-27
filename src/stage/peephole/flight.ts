@@ -165,3 +165,126 @@ export const TIMELINE = {
   curl: 0.9,
   cameraStart: 0.25,
 } as const;
+
+/* --------------------------------------------- clear path through props */
+
+/** Footprint a flight must clear: [centre x, centre z, half x, half z, top y]. */
+export type Obstacle = readonly [cx: number, cz: number, halfX: number, halfZ: number, topY: number];
+
+/** Quintic smootherstep: zero velocity and acceleration at both ends. */
+export function smootherstep(t: number) {
+  const x = Math.min(1, Math.max(0, t));
+  return x * x * x * (x * (x * 6 - 15) + 10);
+}
+
+/** Centripetal Catmull-Rom through `points` at parameter u ∈ [0, 1]
+ * (uniform in control-point index, like three's CatmullRomCurve3.getPoint). */
+export function catmullRom(points: readonly Vec3[], u: number): V {
+  const n = points.length;
+  if (n === 1) return [...points[0]] as V;
+  const p = (n - 1) * Math.min(1, Math.max(0, u));
+  let i = Math.floor(p);
+  let w = p - i;
+  if (i >= n - 1) {
+    i = n - 2;
+    w = 1;
+  }
+  const p1 = points[i];
+  const p2 = points[i + 1];
+  const p0: Vec3 = i > 0 ? points[i - 1] : sub(scale(p1, 2), p2);
+  const p3: Vec3 = i + 2 < n ? points[i + 2] : sub(scale(p2, 2), p1);
+  const d = (a: Vec3, b: Vec3) => Math.max(Math.sqrt(len(sub(a, b))), 1e-4);
+  let dt0 = d(p0, p1);
+  let dt1 = d(p1, p2);
+  let dt2 = d(p2, p3);
+  if (dt1 < 1e-4) dt1 = 1;
+  if (dt0 < 1e-4) dt0 = dt1;
+  if (dt2 < 1e-4) dt2 = dt1;
+  const out: V = [0, 0, 0];
+  for (let k = 0; k < 3; k++) {
+    let t1 = (p1[k] - p0[k]) / dt0 - (p2[k] - p0[k]) / (dt0 + dt1) + (p2[k] - p1[k]) / dt1;
+    let t2 = (p2[k] - p1[k]) / dt1 - (p3[k] - p1[k]) / (dt1 + dt2) + (p3[k] - p2[k]) / dt2;
+    t1 *= dt1;
+    t2 *= dt1;
+    const c0 = p1[k];
+    const c1 = t1;
+    const c2 = -3 * p1[k] + 3 * p2[k] - 2 * t1 - t2;
+    const c3 = 2 * p1[k] - 2 * p2[k] + t1 + t2;
+    out[k] = c0 + w * (c1 + w * (c2 + w * c3));
+  }
+  return out;
+}
+
+/** Clearance kept round an obstacle's footprint and above its top. */
+export const FLIGHT_MARGIN = 1.5;
+export const FLIGHT_LIFT = 2.0;
+export const FLIGHT_SAMPLES = 48;
+
+/** Lowest height a camera at (x, z) may fly: obstacle tops + FLIGHT_LIFT
+ * inside footprints grown by FLIGHT_MARGIN, else -Infinity. */
+export function flightFloor(x: number, z: number, obstacles: readonly Obstacle[]) {
+  let floor = -Infinity;
+  for (const [cx, cz, hx, hz, top] of obstacles)
+    if (Math.abs(x - cx) < hx + FLIGHT_MARGIN && Math.abs(z - cz) < hz + FLIGHT_MARGIN)
+      floor = Math.max(floor, top + FLIGHT_LIFT);
+  return floor;
+}
+
+/**
+ * The flight resampled at FLIGHT_SAMPLES poses with every camera position
+ * lifted clear of the obstacles, then the heights round the lift relaxed
+ * with three passes of a 1-2-1 kernel (ends fixed, never lowered, never back
+ * under the floor), so the camera
+ * rises over a pergola instead of flying through its beams. Targets, fov
+ * and roll are sampled at the same parameter.
+ */
+export function clearFlightPath(
+  poses: readonly CameraPose[],
+  obstacles: readonly Obstacle[],
+  samples = FLIGHT_SAMPLES,
+): CameraPose[] {
+  const positions = poses.map((p) => p.position);
+  const targets = poses.map((p) => p.target);
+  const out: CameraPose[] = [];
+  for (let s = 0; s < samples; s++) {
+    const u = s / (samples - 1);
+    const scaled = u * (poses.length - 1);
+    const i = Math.min(poses.length - 2, Math.floor(scaled));
+    const w = scaled - i;
+    out.push({
+      position: catmullRom(positions, u),
+      target: catmullRom(targets, u),
+      fov: poses[i].fov + (poses[i + 1].fov - poses[i].fov) * w,
+      roll: (poses[i].roll ?? 0) + ((poses[i + 1].roll ?? 0) - (poses[i].roll ?? 0)) * w,
+    });
+  }
+  if (!obstacles.length) return out;
+  const floors = out.map((p) => flightFloor(p.position[0], p.position[2], obstacles));
+  const lifted = out.map((p, i) => floors[i] > p.position[1]);
+  if (!lifted.some(Boolean)) return out;
+  const heights = out.map((p, i) => Math.max(p.position[1], floors[i]));
+  // Relax only around the lift (a few samples either side), raise-only, so
+  // the rest of the flight is exactly the designed one.
+  const near = lifted.map((_, i) => lifted.slice(Math.max(0, i - 4), i + 5).some(Boolean));
+  for (let pass = 0; pass < 3; pass++) {
+    const prev = heights.slice();
+    for (let i = 1; i < heights.length - 1; i++)
+      if (near[i]) heights[i] = Math.max(floors[i], out[i].position[1], (prev[i - 1] + 2 * prev[i] + prev[i + 1]) / 4);
+  }
+  // The ends stay exactly where they were (the peek, the live pose).
+  heights[0] = out[0].position[1];
+  heights[heights.length - 1] = out[out.length - 1].position[1];
+  return out.map((p, i) => ({ ...p, position: [p.position[0], heights[i], p.position[2]] }));
+}
+
+/* ------------------------------------------------- haze at the peek */
+
+/** Fog for the peek: the island centre at distance d stays nearly clear. */
+export function peekFog(d: number) {
+  return { near: Math.max(1, d - 60), far: d + 420 };
+}
+/** Fog for this frame: peek haze blended into the gameplay values by w (0..1). */
+export function blendFog(peek: { near: number; far: number }, live: { near: number; far: number }, w: number) {
+  const k = Math.min(1, Math.max(0, w));
+  return { near: peek.near + (live.near - peek.near) * k, far: peek.far + (live.far - peek.far) * k };
+}

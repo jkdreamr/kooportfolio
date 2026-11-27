@@ -3,63 +3,85 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
     <meta name="theme-color" content="#fbfbf9" />
-    <script>
-      // Direct /play: paint the sky before anything else, never white.
-      if (/^\/play(\/|$)/.test(location.pathname)) {
-        document.documentElement.className += " play";
-        document.documentElement.style.background = "#dce5c7";
-        document
-          .querySelector('meta[name="theme-color"]')
-          .setAttribute("content", "#dce5c7");
+    <style>
+      html {
+        background: #fbfbf9;
       }
+    </style>
+    <script>
+      // Before first paint. Every route: --sky is the world's horizon colour
+      // at its current hour (the same table and blend as core/daylight.ts),
+      // so the stage, the "o" and a direct /play all open on one colour.
+      // /play also paints it on the page, starts the engine download, and
+      // shows the loading mark (style.css) if the world is not up in 400 ms.
+      (function () {
+        var d = document.documentElement;
+        var play = /^\/play(\/|$)/.test(location.pathname);
+        var K = [[0, "34456c"], [4.5, "696382"], [5.5, "d9a29d"], [6.5, "f3c99d"], [9, "dce5c7"], [12, "dce5c7"], [16, "e4dcc8"], [18, "e9ab85"], [19.5, "9b8098"], [21, "34456c"], [24, "34456c"]];
+        var hour = 16.6;
+        try {
+          var save = localStorage.getItem("joshua-exe-save-v1");
+          var anchor = sessionStorage.getItem("joshua-exe-auto-anchor");
+          if (save || anchor !== null) {
+            var tz = save && JSON.parse(save).world === "korea" ? "Asia/Seoul" : "America/Los_Angeles";
+            var p = new Intl.DateTimeFormat("en-GB", { timeZone: tz, hourCycle: "h23", hour: "2-digit", minute: "2-digit" }).formatToParts(new Date());
+            var v = {};
+            for (var j = 0; j < p.length; j++) v[p[j].type] = +p[j].value;
+            hour = ((((v.hour + v.minute / 60 + (+anchor || 0)) % 24) + 24) % 24);
+          }
+        } catch (e) {}
+        for (var i = 1; i < K.length - 1 && hour >= K[i][0]; i++);
+        var a = K[i - 1], b = K[i], t = (hour - a[0]) / (b[0] - a[0]);
+        t = t * t * (3 - 2 * t);
+        var lin = function (c) { c /= 255; return c < 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+        var enc = function (c) { c = c < 0.0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1 / 2.4) - 0.055; return Math.round(Math.max(0, Math.min(1, c)) * 255); };
+        var sky = "#";
+        for (var k = 0; k < 6; k += 2) {
+          var x = lin(parseInt(a[1].slice(k, k + 2), 16)), y = lin(parseInt(b[1].slice(k, k + 2), 16));
+          sky += (256 + enc(x + (y - x) * t)).toString(16).slice(1);
+        }
+        d.style.setProperty("--sky", sky);
+        if (!play) return;
+        d.className += " play";
+        d.style.background = sky;
+        document.querySelector('meta[name="theme-color"]').setAttribute("content", sky);
+        var P = (window.__enginePreload = /*ENGINE_PRELOAD*/ []);
+        for (var n = 0; n < P.length; n++) {
+          var l = document.createElement("link");
+          l.rel = "modulepreload";
+          l.crossOrigin = "";
+          l.href = P[n][0];
+          document.head.appendChild(l);
+        }
+      })();
     </script>
     <meta
       name="description"
       content="Joshua Koo — Stanford CS + math, coxswain and investment intern at CRV."
     />
+    <meta property="og:type" content="website" />
     <meta property="og:title" content="Joshua Koo" />
     <meta
       property="og:description"
       content="Stanford CS + math, coxswain and investment intern at CRV."
     />
-    <link
-      rel="icon"
-      type="image/svg+xml"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"
-    />
+    <meta property="og:image" content="/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Joshua Koo</title>
   </head>
   <body>
-    <div id="root">
-      <main
-        style="
-          max-width: 760px;
-          margin: 20vh auto;
-          padding: 24px;
-          font:
-            18px/1.7 Georgia,
-            serif;
-        "
-      >
-        <h1>joshua koo</h1>
-        <p>stanford cs + math · coxswain · investment intern @ crv</p>
-        <nav>
-          <a href="/about">about</a> · <a href="/work">work</a> ·
-          <a href="/contact">contact</a> · <a href="/play">play</a>
-        </nav>
-        <p><a href="mailto:joskoo@stanford.edu">joskoo@stanford.edu</a></p>
-        <p>
-          <a href="https://github.com/jkdreamr">github</a> ·
-          <a href="https://linkedin.com/in/joshuaykoo">linkedin</a> ·
-          <a href="https://soundcloud.com/atkelix">soundcloud</a>
-        </p>
-        <noscript
-          >The portfolio works without JavaScript. The optional 3D world needs
-          JavaScript and WebGL.</noscript
-        >
-      </main>
-    </div>
+    <div id="root"></div>
+    <noscript
+      ><p class="noscript-note">
+        The portfolio works without JavaScript. The optional 3D world needs
+        JavaScript and WebGL.
+      </p></noscript
+    >
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -54,7 +54,7 @@ export const EXPLORE_ELEVATION = (12 * Math.PI) / 180;
 export const EXPLORE_LOOK_HEIGHT = 1.4;
 export const EXPLORE_LOOK_RIGHT = 0.8;
 /** Boom safety limits. */
-export const BOOM_MIN_DISTANCE = 3.5;
+export const BOOM_MIN_DISTANCE = 2.2;
 export const BOOM_MAX_ELEVATION = (30 * Math.PI) / 180;
 /** Seconds for a full view toggle (reduced motion: 0.15). */
 export const VIEW_BLEND_SECONDS = 0.9;
@@ -193,14 +193,59 @@ export function stepViewProgress(
 /** Boom samples per check (from near the target out to the camera). */
 const BOOM_SAMPLES = 5;
 /** Candidate boom fractions, longest first. */
-const BOOM_STEPS = [1, 0.85, 0.7, 0.55, 0.42, 0.3, 0] as const;
+const BOOM_STEPS = [1, 0.85, 0.7, 0.55, 0.42, 0.3, 0.18, 0] as const;
+/** Elevations tried at the shortest boom, lowest first. */
+const BOOM_RISE_STEPS = [0.25, 0.5, 0.75, 1] as const;
+/** One boom sample every this many metres (thin props are not skipped). */
+const BOOM_SAMPLE_SPACING = 0.4;
 const boomDirection = new THREE.Vector3();
+
+/** Tall props and footprints the boom must stay out of, for the current
+ * world ([cx, cz, halfX, halfZ, topY]); the engine sets it per world, on top
+ * of whatever the caller's `blocked` test knows. */
+let boomObstacles: readonly (readonly [number, number, number, number, number])[] = [];
+export function setBoomObstacles(list: typeof boomObstacles) {
+  boomObstacles = list;
+}
+export function obstacleAt(
+  list: typeof boomObstacles,
+  x: number,
+  z: number,
+  y: number,
+) {
+  for (let i = 0; i < list.length; i++) {
+    const o = list[i];
+    if (y < o[4] && Math.abs(x - o[0]) < o[2] && Math.abs(z - o[1]) < o[3]) return true;
+  }
+  return false;
+}
+
+function boomClear(
+  target: THREE.Vector3Like,
+  azimuth: number,
+  length: number,
+  elevation: number,
+  blocked: (x: number, z: number, y: number) => boolean,
+) {
+  directionFor(boomDirection, azimuth, elevation);
+  const samples = Math.max(5, Math.ceil(length / BOOM_SAMPLE_SPACING));
+  for (let i = 1; i <= samples; i++) {
+    const s = (length * i) / samples;
+    const x = target.x + boomDirection.x * s;
+    const z = target.z + boomDirection.z * s;
+    const y = target.y + boomDirection.y * s;
+    if (blocked(x, z, y) || obstacleAt(boomObstacles, x, z, y)) return false;
+  }
+  return true;
+}
 
 /**
  * Longest clear boom for the explore camera. `blocked(x, z, y)` reports a
- * solid (building footprint, raised relief) at a sample point. When the full
- * boom is blocked the camera comes closer (never under BOOM_MIN_DISTANCE)
- * and rises (up to BOOM_MAX_ELEVATION). Writes `out` and returns it.
+ * solid (building footprint, raised relief, tree) at a sample point; the
+ * world's tall props (setBoomObstacles) are tested too. A blocked boom first
+ * comes closer at the same angle (never under BOOM_MIN_DISTANCE) and only
+ * then rises (up to BOOM_MAX_ELEVATION), so the frame stays a low
+ * over-the-shoulder view wherever it can. Writes `out` and returns it.
  */
 export function clearBoom(
   out: { distance: number; elevation: number },
@@ -211,32 +256,35 @@ export function clearBoom(
 ) {
   const span = Math.max(0, distance - BOOM_MIN_DISTANCE);
   for (let step = 0; step < BOOM_STEPS.length; step++) {
-    const fraction = BOOM_STEPS[step];
-    const length = BOOM_MIN_DISTANCE + span * fraction;
-    const lift = span > 0 ? 1 - (length - BOOM_MIN_DISTANCE) / span : 0;
-    const elevation =
-      EXPLORE_ELEVATION + (BOOM_MAX_ELEVATION - EXPLORE_ELEVATION) * lift;
-    directionFor(boomDirection, azimuth, elevation);
-    let clear = true;
-    for (let i = 1; i <= BOOM_SAMPLES && clear; i++) {
-      const s = (length * i) / BOOM_SAMPLES;
-      if (
-        blocked(
-          target.x + boomDirection.x * s,
-          target.z + boomDirection.z * s,
-          target.y + boomDirection.y * s,
-        )
-      )
-        clear = false;
-    }
-    if (clear || fraction === 0) {
+    const length = BOOM_MIN_DISTANCE + span * BOOM_STEPS[step];
+    if (boomClear(target, azimuth, length, EXPLORE_ELEVATION, blocked)) {
       out.distance = length;
-      out.elevation = elevation;
+      out.elevation = EXPLORE_ELEVATION;
       return out;
     }
   }
+  out.distance = BOOM_MIN_DISTANCE;
+  for (const rise of BOOM_RISE_STEPS) {
+    const elevation = EXPLORE_ELEVATION + (BOOM_MAX_ELEVATION - EXPLORE_ELEVATION) * rise;
+    out.elevation = elevation;
+    if (boomClear(target, azimuth, BOOM_MIN_DISTANCE, elevation, blocked)) return out;
+  }
+  // Last resort (backed against a tall wall): stop short of whatever is in
+  // the way, rather than put the lens inside it.
+  directionFor(boomDirection, azimuth, BOOM_MAX_ELEVATION);
+  let reach = BOOM_LAST_RESORT;
+  for (let s = 0.1; s <= BOOM_MIN_DISTANCE; s += 0.1) {
+    const x = target.x + boomDirection.x * s;
+    const z = target.z + boomDirection.z * s;
+    const y = target.y + boomDirection.y * s;
+    if (blocked(x, z, y) || obstacleAt(boomObstacles, x, z, y)) break;
+    reach = Math.max(BOOM_LAST_RESORT, s - 0.2);
+  }
+  out.distance = reach;
   return out;
 }
+/** Shortest boom of all, only when even the minimum boom is inside a wall. */
+export const BOOM_LAST_RESORT = 0.6;
 
 /**
  * Write a pose to a perspective camera, recording the equivalent old ortho
@@ -292,7 +340,8 @@ export interface TreeGrid {
 }
 /** Clearance kept round a crown and a trunk (camera near plane + leaf cards). */
 export const TREE_MARGIN = 0.7;
-export const TRUNK_RADIUS = 0.45;
+/** With half the margin added, a trunk blocks a 0.9 m circle. */
+export const TRUNK_RADIUS = 0.55;
 const TREE_CELL = 4;
 
 export function emptyTreeGrid(): TreeGrid {
