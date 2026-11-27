@@ -432,8 +432,9 @@
   }
   .game-shell.game-shell .time-of-day-control select {
     position: absolute;
-    inset: 0;
-    width: 100%;
+    inset: -1px;
+    width: calc(100% + 2px);
+    height: calc(100% + 2px);
     opacity: 0;
   }
   .game-shell.game-shell .time-of-day-control time {
