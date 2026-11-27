@@ -27,6 +27,7 @@ import { keys, touch } from "./input";
 import { journeyGate } from "./journey";
 import type { TravelOption } from "./travel";
 import { useWorldView } from "./worldView";
+import { HERO_SPOTS } from "./heroSpots";
 import { useStage } from "../../stage/contract";
 import { readSoundPrefs, snapLevel, writeSoundPrefs, type SoundPrefs } from "./audio/prefs";
 import { isStampId, stampMemory } from "./passport";
@@ -56,13 +57,20 @@ const soundStorage = () => {
   }
 };
 const initialSound = readSoundPrefs(soundStorage());
-if (!canWalk(initial.position[0], initial.position[1], initial.world))
-  initial.position = [0, 5];
+/* B14: a save with no position of its own (a first visit, an unreadable
+ * save, or a spot that is no longer walkable) lands on the world's composed
+ * hero spot, facing the way the hero frame was chosen for. */
+const ownPosition =
+  savedRaw !== null &&
+  !storageIssue &&
+  canWalk(initial.position[0], initial.position[1], initial.world);
+const landing = HERO_SPOTS[initial.world];
+if (!ownPosition) initial.position = [landing.position[0], landing.position[1]];
 if (storageIssue) writeAllowed = false;
 export const runtime = {
   x: initial.position[0],
   z: initial.position[1],
-  heading: 0,
+  heading: ownPosition ? 0 : landing.heading,
   moving: false,
   target: null as [number, number] | null,
   path: [] as [number, number][],

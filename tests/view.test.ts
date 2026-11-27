@@ -308,3 +308,36 @@ describe("boom memo (A12)", () => {
     expect(calls).toBeGreaterThan(before);
   });
 });
+
+describe("boom spring (B13)", async () => {
+  const { stepSpring, BOOM_SPRING_SECONDS } = await import("../src/game/engine/view");
+  it("settles within 1% in BOOM_SPRING_SECONDS, never overshooting", () => {
+    const spring = { value: 10, velocity: 0 };
+    let t = 0;
+    let previous = 10;
+    while (t < BOOM_SPRING_SECONDS - 1e-9) {
+      const v = stepSpring(spring, 4, 1 / 60);
+      expect(v).toBeLessThanOrEqual(previous + 1e-9);
+      expect(v).toBeGreaterThanOrEqual(4 - 1e-9);
+      previous = v;
+      t += 1 / 60;
+    }
+    expect(Math.abs(spring.value - 4)).toBeLessThan(0.06 + 0.01 * 6);
+  });
+  it("starts from rest: no velocity jump when the target jumps (unlike an exponential damp)", () => {
+    const spring = { value: 10, velocity: 0 };
+    const dt = 1 / 1000;
+    const moved = 10 - stepSpring(spring, 4, dt);
+    // Second order in dt (½ω²x·dt²), where a damp moves λx·dt at once.
+    const damp = (10 - 4) * (1 - Math.exp(-6 * dt));
+    expect(moved).toBeGreaterThan(0);
+    expect(moved).toBeLessThan(damp / 5);
+  });
+  it("is frame-rate independent", () => {
+    const a = { value: 10, velocity: 0 };
+    const b = { value: 10, velocity: 0 };
+    for (let i = 0; i < 30; i++) stepSpring(a, 4, 1 / 120);
+    for (let i = 0; i < 15; i++) stepSpring(b, 4, 1 / 60);
+    expect(a.value).toBeCloseTo(b.value, 6);
+  });
+});

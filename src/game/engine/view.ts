@@ -57,6 +57,28 @@ export const EXPLORE_LOOK_RIGHT = 0.8;
 export const BOOM_MIN_DISTANCE = 2.2;
 export const BOOM_MAX_ELEVATION = (30 * Math.PI) / 180;
 /** Seconds for a full view toggle (reduced motion: 0.15). */
+/** The explore boom follows its collision-safe length and pitch on a
+ * critically damped spring that settles (to 1%) in this long: no velocity
+ * jump when an obstacle appears, no cut when it goes. */
+export const BOOM_SPRING_SECONDS = 0.25;
+/** ωt at which a critically damped spring is within 1% of its target. */
+const SPRING_SETTLE = 6.64;
+export type Spring = { value: number; velocity: number };
+/**
+ * One step of a critically damped spring toward `target` (exact for constant
+ * `target` over the step, so it is stable at any frame time).
+ */
+export function stepSpring(spring: Spring, target: number, dt: number, settle = BOOM_SPRING_SECONDS) {
+  if (dt <= 0) return spring.value;
+  const omega = SPRING_SETTLE / Math.max(1e-3, settle);
+  const x = spring.value - target;
+  const decay = Math.exp(-omega * dt);
+  const k = spring.velocity + omega * x;
+  spring.value = target + (x + k * dt) * decay;
+  spring.velocity = (spring.velocity - omega * k * dt) * decay;
+  return spring.value;
+}
+
 export const VIEW_BLEND_SECONDS = 0.9;
 export const VIEW_BLEND_SECONDS_REDUCED = 0.15;
 

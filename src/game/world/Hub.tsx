@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { gameInputEnabled, useStage } from "../../stage/contract";
 import { aimCamera, viewZoom } from "../engine/camera";
 import {
@@ -12,6 +12,7 @@ import {
   makeViewPose,
   mixView,
   stepViewProgress,
+  stepSpring,
   buildTreeGrid,
   emptyTreeGrid,
   treeBlocked,
@@ -186,7 +187,9 @@ export function Walker({
     mixed: makeViewPose(),
     focus: new THREE.Vector3(),
     feet: new THREE.Vector3(),
-    boom: { distance: 10, elevation: EXPLORE_ELEVATION },
+    // Boom length and pitch ride critically damped springs (B13).
+    boomDistance: { value: 10, velocity: 0 },
+    boomElevation: { value: EXPLORE_ELEVATION, velocity: 0 },
     safe: { distance: 10, elevation: EXPLORE_ELEVATION },
     progress: 0,
     dioramaZoom: 1,
@@ -197,6 +200,11 @@ export function Walker({
      * the far diorama pose. */
     handedOff: false,
   });
+  // The first frame faces the landing heading (a hero spot's, B14) instead
+  // of turning to it.
+  useLayoutEffect(() => {
+    if (avatar.current) avatar.current.rotation.y = runtime.heading;
+  }, []);
   useFrame((_, delta) => {
     if (!active) {
       // Parked behind an interior: explore-only work elsewhere stops.
@@ -469,19 +477,24 @@ export function Walker({
     explorePose(v.explore, v.focus, offset.current, reach, lens.fov);
     clearBoom(v.safe, v.explore.target, azimuthOf(offset.current), reach, boomBlocked);
     if (snap) {
-      v.boom.distance = v.safe.distance;
-      v.boom.elevation = v.safe.elevation;
+      // Only where nothing of the explore pose is on screen yet (blend
+      // starting from the diorama, a new scene under the rig's blend).
+      v.boomDistance.value = v.safe.distance;
+      v.boomElevation.value = v.safe.elevation;
+      v.boomDistance.velocity = v.boomElevation.velocity = 0;
     } else {
-      v.boom.distance = THREE.MathUtils.damp(v.boom.distance, v.safe.distance, 6, dt);
-      v.boom.elevation = THREE.MathUtils.damp(v.boom.elevation, v.safe.elevation, 6, dt);
+      // An obstacle entering or leaving the boom's path eases the camera in
+      // or out over BOOM_SPRING_SECONDS, from rest: never a cut, never a jerk.
+      stepSpring(v.boomDistance, v.safe.distance, dt);
+      stepSpring(v.boomElevation, v.safe.elevation, dt);
     }
     explorePose(
       v.explore,
       v.focus,
       offset.current,
-      v.boom.distance,
+      v.boomDistance.value,
       lens.fov,
-      v.boom.elevation,
+      v.boomElevation.value,
     );
     mixView(v.mixed, v.diorama, v.explore, blend);
     v.ownsLens = true;
