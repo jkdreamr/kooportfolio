@@ -1,11 +1,15 @@
 import { create } from "zustand";
 import {
+  addMemory,
   countBest,
   freshSave,
+  isKitChoice,
   parseSave,
   recordBest,
+  recordDaily,
   SAVE_KEY,
   type BestResult,
+  type DailyResult,
   type BestRule,
   type Save,
   writeGuestSave,
@@ -25,6 +29,8 @@ import type { TravelOption } from "./travel";
 import { useWorldView } from "./worldView";
 import { useStage } from "../../stage/contract";
 import { readSoundPrefs, snapLevel, writeSoundPrefs, type SoundPrefs } from "./audio/prefs";
+import { isStampId, stampMemory } from "./passport";
+import { dayNumber } from "./daily";
 export type Scene = "hub" | "rowing" | "secret" | PlaceId;
 let storageIssue = "";
 let savedRaw: string | null = null;
@@ -73,6 +79,9 @@ export const runtime = {
   steer: 0,
   burst: false,
   active: true,
+  /** The kind of thing in the player's hands ("book", "basket"), or null.
+   * Session-only (PLAN_GAMES §5.2); the carry layer sets it. */
+  carrying: null as string | null,
 };
 export function walkTo(x: number, z: number) {
   const state = useGame.getState();
@@ -137,6 +146,16 @@ type State = {
   recordBest: (key: string, value: number, rule?: BestRule) => BestResult;
   /** Adds one to a counter best (wins). */
   countBest: (key: string) => BestResult;
+  /** Adds a memory flag ("coach:rowing", "sight:bukchon"); persisted at
+   * once. True when it was new. */
+  remember: (id: string) => boolean;
+  /** Earns a Passport stamp by id (memory `stamp:<id>`); unknown ids are
+   * refused. True when it was new. */
+  earnStamp: (id: string) => boolean;
+  /** Sets (or with null clears) a Kit choice, e.g. ("basketball.ball", "sunset"). */
+  setKit: (slot: string, option: string | null) => void;
+  /** Marks a Daily Three task done today (UTC day by default). */
+  recordDaily: (task: string, setSize?: number, day?: number) => DailyResult;
 };
 export const useGame = create<State>((set, get) => ({
   scene: "hub",
@@ -287,6 +306,40 @@ export const useGame = create<State>((set, get) => ({
     const out = countBest(get().save.bests, key);
     if (out.improved) {
       set({ save: { ...get().save, bests: out.bests } });
+      get().persist();
+    }
+    return out;
+  },
+  remember(id) {
+    const save = get().save,
+      next = addMemory(save, id);
+    if (next === save) return false;
+    set({ save: next });
+    get().persist();
+    return true;
+  },
+  earnStamp(id) {
+    return isStampId(id) && get().remember(stampMemory(id));
+  },
+  setKit(slot, option) {
+    const save = get().save,
+      kit = { ...save.kit };
+    if (option === null) {
+      if (!(slot in kit)) return;
+      delete kit[slot];
+    } else {
+      if (!isKitChoice(slot, option) || kit[slot] === option) return;
+      kit[slot] = option;
+    }
+    const next: Save = { ...save, kit };
+    if (!Object.keys(kit).length) delete next.kit;
+    set({ save: next });
+    get().persist();
+  },
+  recordDaily(task, setSize = 3, day = dayNumber(new Date())) {
+    const out = recordDaily(get().save.daily, day, task, setSize);
+    if (out.changed) {
+      set({ save: { ...get().save, daily: out.daily } });
       get().persist();
     }
     return out;

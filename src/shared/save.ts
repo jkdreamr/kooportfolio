@@ -12,7 +12,18 @@ export type Save = {
   /** Personal bests per mini-game measure (see `recordBest`). Optional:
    * older saves have none; bad entries are dropped, never the save. */
   bests?: Record<string, number>;
+  /** Daily Three progress (PLAN_GAMES §3.4). Optional; a bad shape is
+   * dropped, never the save. */
+  daily?: DailyRecord;
+  /** Cosmetic choices from the Passport's Kit page, slot → option
+   * ("basketball.ball" → "sunset"). Optional; bad entries are dropped. */
+  kit?: Record<string, string>;
 };
+
+/** Daily Three: `day` is the UTC day number of `done`; `last` the last day
+ * all three were finished; `streak` consecutive such days; `best` the
+ * longest streak. */
+export type DailyRecord = { day: number; done: string[]; streak: number; best: number; last: number };
 
 /** Higher is better (points, streaks) or lower is better (times, throws). */
 export type BestRule = "max" | "min";
@@ -52,6 +63,97 @@ export function cleanBests(raw: unknown): Record<string, number> | undefined {
     if (isBestKey(k) && typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 1e9) out[k] = v;
   return Object.keys(out).length ? out : undefined;
 }
+/* ------------------------------------------------------------ memories */
+
+const MEMORY = /^[a-z0-9][a-z0-9:._-]{0,95}$/;
+/** A memory flag is short lowercase text ("stamp:home.cat", "coach:rowing"). */
+export const isMemoryId = (id: string) => MEMORY.test(id);
+
+/** True when the save holds memory flag `id`. */
+export const hasMemory = (save: Pick<Save, "memories">, id: string) => save.memories.includes(id);
+
+/** Adds memory flag `id`. Pure: returns the same save when it is already
+ * there or `id` is not a valid flag, else a new save. */
+export function addMemory<S extends Pick<Save, "memories">>(save: S, id: string): S {
+  if (!isMemoryId(id) || save.memories.includes(id)) return save;
+  return { ...save, memories: [...save.memories, id] };
+}
+
+/* --------------------------------------------------------- daily and kit */
+
+const DAY_MAX = 1e6;
+const isCount = (v: unknown, max: number): v is number =>
+  typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= max;
+const TASK = /^[a-z0-9][a-z0-9:._-]{0,63}$/;
+
+/** A well-formed Daily Three record, or undefined (the field is dropped). */
+export function cleanDaily(raw: unknown): DailyRecord | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const d = raw as Record<string, unknown>;
+  if (
+    !isCount(d.day, DAY_MAX) ||
+    !isCount(d.last, DAY_MAX) ||
+    !isCount(d.streak, 1e5) ||
+    !isCount(d.best, 1e5) ||
+    !Array.isArray(d.done) ||
+    d.done.length > 8 ||
+    !d.done.every((t) => typeof t === "string" && TASK.test(t))
+  )
+    return undefined;
+  return {
+    day: d.day,
+    done: [...new Set(d.done as string[])],
+    streak: d.streak,
+    best: Math.max(d.best, d.streak),
+    last: d.last,
+  };
+}
+
+export type DailyResult = { daily: DailyRecord; changed: boolean; completed: boolean };
+/**
+ * Marks `task` done on UTC day `day`. Pure. A new day starts an empty list;
+ * a day earlier than the stored one (the device clock went back) is shown as
+ * today without touching the streak. When `setSize` tasks are done the day is
+ * complete: `streak` grows if `last` was the day before, else restarts at 1,
+ * and `best` keeps the longest. Nothing is ever revoked.
+ */
+export function recordDaily(
+  daily: Readonly<DailyRecord> | undefined,
+  day: number,
+  task: string,
+  setSize = 3,
+): DailyResult {
+  const base: DailyRecord = daily
+    ? { ...daily, done: [...daily.done] }
+    : { day, done: [], streak: 0, best: 0, last: 0 };
+  if (!isCount(day, DAY_MAX) || !TASK.test(task)) return { daily: base, changed: false, completed: false };
+  const done = base.day === day ? base.done : [];
+  if (done.includes(task)) return { daily: base, changed: false, completed: false };
+  const next: DailyRecord = { ...base, day, done: [...done, task] };
+  const completed = next.done.length === setSize;
+  if (completed && day > base.last) {
+    next.streak = base.last === day - 1 && base.last > 0 ? base.streak + 1 : 1;
+    next.best = Math.max(base.best, next.streak);
+    next.last = day;
+  }
+  return { daily: next, changed: true, completed };
+}
+
+const KIT_VALUE = /^[a-z0-9][a-z0-9-]{0,31}$/;
+/** Keeps only well-formed kit choices (best-key style slot, short option). */
+export function cleanKit(raw: unknown): Record<string, string> | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const out: Record<string, string> = {};
+  let n = 0;
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>))
+    if (n < 64 && isBestKey(k) && typeof v === "string" && KIT_VALUE.test(v)) {
+      out[k] = v;
+      n++;
+    }
+  return Object.keys(out).length ? out : undefined;
+}
+export const isKitChoice = (slot: string, option: string) => isBestKey(slot) && KIT_VALUE.test(option);
+
 import { WORLD_BOUNDS } from "./world-bounds";
 import { onStanfordLand, STANFORD_SHORE_CLEARANCE } from "./stanford-ground";
 import { isWorld, type WorldId } from "./worlds";
@@ -111,6 +213,16 @@ export function parseSave(raw: string | null): Save {
     const bests = cleanBests(s.bests);
     if (bests) s.bests = bests;
     else delete (s as Record<string, unknown>).bests;
+  }
+  if (s.daily !== undefined) {
+    const daily = cleanDaily(s.daily);
+    if (daily) s.daily = daily;
+    else delete (s as Record<string, unknown>).daily;
+  }
+  if (s.kit !== undefined) {
+    const kit = cleanKit(s.kit);
+    if (kit) s.kit = kit;
+    else delete (s as Record<string, unknown>).kit;
   }
   // Coins, levels, upgrades and best marks from retired saves are dropped.
   delete (s as Record<string, unknown>).coins;
