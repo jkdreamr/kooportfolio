@@ -320,5 +320,7 @@ export const toggleMuted = () => setMuted(!useGame.getState().sound.muted);
 export const setMusicLevel = (music: number) => useGame.getState().setSound({ music });
 export const setEffectsLevel = (effects: number) => useGame.getState().setSound({ effects });
 useGame.subscribe((next) => {
-  if (next.muted !== next.sound.muted) next.setSound({ muted: next.muted });
+  // Guarded: a partial state (tests, older callers) must never throw here.
+  if (next.sound && typeof next.setSound === "function" && next.muted !== next.sound.muted)
+    next.setSound({ muted: next.muted });
 });
