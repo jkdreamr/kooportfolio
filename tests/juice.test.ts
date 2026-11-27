@@ -64,6 +64,19 @@ describe("feedback kit (D7)", () => {
     pool.release(item);
     expect(pool.acquire()).toBe(item);
   });
+  it("pool: a late finish from a recycled slot's old run does not free the new run", () => {
+    let made = 0;
+    const pool = new SlotPool(() => ++made, () => {}, 2);
+    const a = pool.acquire();
+    const stale = pool.lease(a);
+    pool.acquire();
+    // Past the cap: slot `a` is recycled for a new effect.
+    expect(pool.acquire()).toBe(a);
+    pool.release(a, stale);
+    expect(pool.inUse).toBe(2);
+    pool.release(a, pool.lease(a));
+    expect(pool.inUse).toBe(1);
+  });
   it("haptic patterns and projection", () => {
     expect(HAPTICS.tap).toBe(8);
     expect(HAPTICS.score).toEqual([10, 30, 10]);

@@ -80,12 +80,15 @@ function spawn(className: string, x: number, y: number) {
 }
 
 function run(el: HTMLElement, frames: Keyframe[], ms: number, easing = EASE) {
+  // The slot may be recycled before this run ends; only this run's lease frees it.
+  const slot = el as HTMLDivElement,
+    lease = pool.lease(slot);
   if (typeof el.animate !== "function") {
-    setTimeout(() => pool.release(el as HTMLDivElement), ms);
+    setTimeout(() => pool.release(slot, lease), ms);
     return;
   }
   const a = el.animate(frames, { duration: ms, easing, fill: "forwards" });
-  a.onfinish = () => pool.release(el as HTMLDivElement);
+  a.onfinish = () => pool.release(slot, lease);
   a.oncancel = null;
 }
 

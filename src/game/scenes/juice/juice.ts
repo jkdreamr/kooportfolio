@@ -82,6 +82,9 @@ export class SlotPool<T> {
   private free: T[] = [];
   private busy: T[] = [];
   private made = 0;
+  /** Bumped on every acquire: a release from an earlier run of a recycled
+   * slot (a late timer or queued finish event) carries a stale lease. */
+  private leases = new Map<T, number>();
   constructor(
     private make: () => T,
     private reset: (item: T) => void,
@@ -99,9 +102,16 @@ export class SlotPool<T> {
       }
     }
     this.busy.push(item);
+    this.leases.set(item, (this.leases.get(item) ?? 0) + 1);
     return item;
   }
-  release(item: T) {
+  /** The current lease of an item, to hand back to release(). */
+  lease(item: T): number {
+    return this.leases.get(item) ?? 0;
+  }
+  /** Frees an item; with a lease, only if the slot was not recycled since. */
+  release(item: T, lease?: number) {
+    if (lease !== undefined && lease !== this.lease(item)) return;
     const i = this.busy.indexOf(item);
     if (i < 0) return;
     this.busy.splice(i, 1);
