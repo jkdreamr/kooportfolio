@@ -17,6 +17,8 @@ import { Ball, Box, Cylinder, Ring, Sign } from "../world/Models";
 import { Plant, Stool, Table, gameIsActive } from "./InteriorProps";
 import { runtime, useGame } from "../core/store";
 import { useLauncher, useLauncherHosted } from "../core/launchers";
+import { juice } from "./juice/Juice";
+import { sound } from "../core/sound";
 import { roomFor } from "../core/room";
 import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import {
@@ -392,6 +394,7 @@ export function BeatLabInterior() {
     }
   }, []);
   const refresh = useRef(0);
+  const barsSeen = useRef(0);
   const stopBeatTrack = useCallback(() => {
     beatTrack.current?.();
     beatTrack.current = null;
@@ -476,10 +479,20 @@ export function BeatLabInterior() {
       if (nearby !== near) setNear(nearby);
       return;
     }
+    const before = barsSeen.current;
     const g = syncBeat();
+    barsSeen.current = g.barsDone;
+    if (g.phase === "playing" && g.barsDone > before && g.barsDone % 2 === 0) {
+      // A finished couplet: a chip over the word, on the beat's own sound.
+      const r = document.querySelector(".rhyme-word")?.getBoundingClientRect();
+      if (r) juice.pop(`Couplet ${g.barsDone / 2}`, r.left + r.width / 2, r.top, "great");
+    }
     if (g.phase === "done" && !rewarded.current) {
       stopBeatTrack();
       rewarded.current = true;
+      sound("score");
+      juice.haptic("score");
+      useGame.getState().countBest("music.rounds");
     }
     refresh.current += dt;
     if (refresh.current > 0.04) {
@@ -700,6 +713,11 @@ export function MathLabInterior() {
   const startingBoard = useRef(board),
     boardRef = useRef(board);
   const solved = board === LIGHTS_TARGET;
+  const roundRef = useRef(round);
+  useEffect(() => {
+    roundRef.current = round;
+  }, [round]);
+  const [mathBest, setMathBest] = useState<null | { improved: boolean; bests: Record<string, number> }>(null);
   const resetPuzzle = useCallback((nextRound: number) => {
     startingBoard.current = boardRef.current = newLightsBoard(nextRound);
     setBoard(boardRef.current);
@@ -722,6 +740,13 @@ export function MathLabInterior() {
     setMoves((v) => v + 1);
     setHint(null);
     labTone(tile % 4);
+    if (next === LIGHTS_TARGET) {
+      // Solved: the room lights up; the highest puzzle reached is kept.
+      sound("perfect");
+      juice.confetti(20);
+      juice.haptic("win");
+      setMathBest(useGame.getState().recordBest("math.puzzle", roundRef.current + 1));
+    }
   }, []);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
@@ -826,7 +851,13 @@ export function MathLabInterior() {
               ))}
             </div>
             <footer className="lab-game-bottom lab-math-bottom">
-              <p role="status">{solved ? "All lit" : "Light all nine · 1–9"}</p>
+              <p role="status">
+                {solved
+                  ? mathBest?.improved
+                    ? `All lit · new best: puzzle ${mathBest.bests["math.puzzle"]}`
+                    : "All lit"
+                  : "Light all nine · 1–9"}
+              </p>
               {solved ? (
                 <button
                   className="lab-primary"

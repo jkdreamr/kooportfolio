@@ -1,6 +1,7 @@
 import { StaticBatch } from "../world/StaticBatch";
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
+import { Html } from "@react-three/drei";
 import { create } from "zustand";
 import * as THREE from "three";
 import { Ball, Box, Cylinder, Sign, Tree } from "../world/Models";
@@ -18,6 +19,7 @@ import {
   type RaceState,
 } from "../core/rowing";
 import { sound } from "../core/sound";
+import { useJuice } from "./juice/Juice";
 import { RowingShell } from "./RowingShell";
 import { RowingWater } from "./RowingWater";
 import { RowingBanks } from "./RowingBanks";
@@ -190,6 +192,13 @@ function River({
     </group>
   );
 }
+/** m:ss.s for race times. */
+export function raceClock(seconds: number) {
+  const m = Math.floor(seconds / 60),
+    sec = seconds - m * 60;
+  return `${m}:${sec.toFixed(1).padStart(4, "0")}`;
+}
+
 export function Rowing() {
   const state = useRef({ ...newRace(), x: 2.5 }),
     rivals = useRef(newRivals()),
@@ -199,6 +208,10 @@ export function Rowing() {
   const length = runtime.raceLength,
     seed = runtime.raceSeed;
   const look = useRef(new THREE.Vector3(0, 0, -8));
+  const fx = useJuice();
+  const catches = useRef({ boosted: null as number | null, strokes: 0, streak: 0 });
+  const [announce, setAnnounce] = useState("");
+  const milestone = useRef(-1);
   const desired = useMemo(() => new THREE.Vector3(), []);
   useFrame(({ camera }, delta) => {
     const game = useGame.getState();
@@ -235,6 +248,31 @@ export function Rowing() {
     }
     const s = state.current;
     if (useRaceCatch.getState() !== s) useRaceCatch.setState(s, true);
+    // A catch in the green window: the blade bites, a chip, and a streak.
+    const c = catches.current;
+    if (s.boostedStroke !== null && s.boostedStroke !== c.boosted) {
+      c.boosted = s.boostedStroke;
+      c.streak++;
+      if (c.streak === 5) {
+        sound("perfect");
+        fx.haptic("score");
+      } else sound("oar");
+      const [x, y] = fx.at([s.x, 1.2, -s.distance]);
+      fx.pop(c.streak >= 5 ? `${c.streak} clean` : "Catch", x, y, c.streak >= 5 ? "great" : "good");
+    } else if (s.strokes > c.strokes) {
+      if (s.boostedStroke !== s.strokes) {
+        c.streak = 0;
+        sound("oar", { gain: 0.4 });
+      }
+    }
+    c.strokes = s.strokes;
+    // Spoken progress: start, every 100 m to go, and the finish.
+    const left = Math.max(0, length - s.distance);
+    const mark = s.time <= 0 ? -1 : Math.ceil(left / 100);
+    if (!s.finished && mark !== milestone.current && s.time > 0) {
+      milestone.current = mark;
+      setAnnounce(mark * 100 >= length ? "Race started." : `${mark * 100} metres to go.`);
+    }
     desired.set(s.x * 0.65 + 1.5, 10.5, -s.distance + 19);
     camera.position.lerp(desired, 1 - Math.exp(-delta * 4));
     desired.set(
@@ -257,17 +295,34 @@ export function Rowing() {
     }
     if (s.finished && !done.current) {
       done.current = true;
+      const time = Math.round(s.time * 10) / 10;
+      const best = useGame.getState().recordBest(`rowing.time.${length}`, time, "min");
+      const record = best.bests[`rowing.time.${length}`] ?? time;
       useGame.setState({
         result: {
           game: "rowing",
-          title: "Race complete",
-          detail: `${length} m`,
+          title: best.improved ? "New best time" : "Race complete",
+          detail: `${length} m in ${raceClock(time)}${best.improved ? "" : ` · best ${raceClock(record)}`}`,
+          score: time,
+          best: record,
+          newBest: best.improved,
         },
       });
+      setAnnounce(`Finished ${length} metres in ${raceClock(time)}.${best.improved ? " New best time." : ""}`);
       sound("win");
+      if (best.improved) {
+        fx.confetti();
+        fx.haptic("win");
+      }
     }
   });
   return (
+    <>
+    <Html>
+      <p className="rowing-live" aria-live="polite" role="status">
+        {announce}
+      </p>
+    </Html>
     <StaticBatch id="Rowing">
       <>
         <River length={length} seed={seed} state={() => state.current} />
@@ -282,5 +337,6 @@ export function Rowing() {
         ))}
       </>
     </StaticBatch>
+    </>
   );
 }

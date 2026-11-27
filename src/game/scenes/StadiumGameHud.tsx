@@ -82,6 +82,7 @@ export function StadiumGameHud({
   onAction,
   onSteer,
   onClose,
+  best = null,
 }: {
   attempt: number;
   wind: number;
@@ -98,6 +99,8 @@ export function StadiumGameHud({
   onAction: (sample?: number) => void;
   onSteer: (dir: number) => void;
   onClose: () => void;
+  /** After the fifth kick: made, the record, and whether it is new. */
+  best?: null | { made: number; record: number; newBest: boolean };
 }) {
   const gl = useThree((s) => s.gl);
   const hidden = useGame((s) => s.paused || s.panel !== "none");
@@ -122,7 +125,7 @@ export function StadiumGameHud({
         : phase === "flight"
           ? "Steer it!"
           : finished
-            ? `${outcome} · Round over`
+            ? `${outcome} · Round over${best ? ` · ${best.made}/5 made${best.newBest ? " · new best" : ` · best ${best.record}/5`}` : ""}`
             : outcome;
   const action =
     phase === "power"
@@ -190,6 +193,7 @@ export function StadiumGameHud({
         <div className="stadium-game-dock">
           <p
             role="status"
+            aria-live="polite"
             data-result={phase === "result" ? result : undefined}
           >
             <span key={phase === "result" ? attempt : phase}>{status}</span>

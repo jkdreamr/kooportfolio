@@ -6,6 +6,8 @@ import { Ball, Box, Cylinder } from "../world/Models";
 import { Walker } from "../world/Hub";
 import { runtime, useGame } from "../core/store";
 import { useLauncher, useLauncherHosted } from "../core/launchers";
+import { useJuice } from "./juice/Juice";
+import { useSoundLoop } from "./useSoundLoop";
 import {
   FIELD_GOAL,
   goalClearanceTime,
@@ -161,6 +163,14 @@ export function StadiumInterior() {
   const [results, setResults] = useState<StadiumOutcome[]>([]);
   const [postHit, setPostHit] = useState<"post" | "crossbar" | null>(null);
   const [lockedPower, setLockedPower] = useState(0);
+  const [best, setBest] = useState<null | { made: number; record: number; newBest: boolean }>(null);
+  const fx = useJuice();
+  // The crowd murmurs through the session and roars on a made kick.
+  const crowd = useSoundLoop(playing ? "crowd" : null);
+  const roarTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (roarTimer.current) clearTimeout(roarTimer.current);
+  }, []);
   const ball = useRef<THREE.Group>(null);
   const controls = useRef<THREE.Group>(null);
   const aimMarker = useRef<THREE.Group>(null);
@@ -242,6 +252,8 @@ export function StadiumInterior() {
   function reset() {
     setAttempt(0);
     setResults([]);
+    setBest(null);
+    sound("whistle", { gain: 0.5 });
     setPostHit(null);
     steerDir.current = 0;
     rushT.current = 0;
@@ -254,6 +266,7 @@ export function StadiumInterior() {
 
   function nextAttempt() {
     setAttempt(attempt + 1);
+    sound("whistle", { gain: 0.5 });
     setPostHit(null);
     rushT.current = 0;
     steerDir.current = 0;
@@ -288,9 +301,11 @@ export function StadiumInterior() {
         prevZ: spot.z,
       };
       sound("kick");
+      fx.shake(0.3);
+      fx.haptic("tap");
       timing.current = sample;
       if (cursor.current) cursor.current.style.left = `${sample * 100}%`;
-      sound("whoosh");
+      sound("swish", { delay: 0.05 });
       moveTo("flight");
     } else if (phase === "result") {
       if (finished) reset();
@@ -366,9 +381,34 @@ export function StadiumInterior() {
     if (outcome === "Good") {
       sound("cheer");
       celebrate(finished && results.every((r) => r === "Good"));
-    } else if (hit) sound("clang");
-    else if (outcome === "Blocked") sound("whistle");
-    else sound("bounce");
+      fx.confetti(18);
+      fx.haptic("score");
+      crowd.current?.set(1);
+      if (roarTimer.current) clearTimeout(roarTimer.current);
+      roarTimer.current = setTimeout(() => crowd.current?.set(0), 1500);
+    } else {
+      if (hit) {
+        sound("rim");
+        fx.shake(0.3);
+      } else if (outcome === "Blocked") sound("whistle");
+      sound("miss", { delay: hit ? 0.25 : 0 });
+      // A low groan from the stands.
+      sound("groan", { delay: 0.15 });
+    }
+    const all = [...results, outcome];
+    if (attempt === STADIUM_KICKS.length - 1) {
+      const made = all.filter((r) => r === "Good").length;
+      const g = useGame.getState();
+      const record = g.recordBest("stadium.made", made);
+      const far = all.reduce((m, r, i) => (r === "Good" ? Math.max(m, Math.round(STADIUM_KICKS[i].z - FIELD_GOAL.goalZ)) : m), 0);
+      const distance = far > 0 ? g.recordBest("stadium.distance", far) : null;
+      setBest({
+        made,
+        record: record.bests["stadium.made"] ?? made,
+        newBest: (record.improved && made > 0) || !!distance?.improved,
+      });
+      if (record.improved && made > 0) sound("win", { delay: 0.6 });
+    }
     setPostHit(hit);
     setResults((previous) => [...previous, outcome]);
     moveTo("result");
@@ -679,6 +719,7 @@ export function StadiumInterior() {
             onAction={act}
             onSteer={steer}
             onClose={close}
+            best={best}
           />
         )}
       </group>

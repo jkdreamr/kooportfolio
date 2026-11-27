@@ -15,6 +15,8 @@ import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import { useGame } from "../core/store";
 import { useLauncher, useLauncherHosted } from "../core/launchers";
 import { sound } from "../core/sound";
+import { juice } from "./juice/Juice";
+import { useSoundLoop } from "./useSoundLoop";
 import { GAME_STAGE_Y } from "./InteriorGameStage";
 import { gameIsActive } from "./InteriorProps";
 import { PapaKitchenScene } from "./PapaKitchenScene";
@@ -78,7 +80,9 @@ function KitchenControls({
   center,
   dropZone,
   focusElement,
+  record = null,
 }: {
+  record?: null | { best: number; newBest: boolean };
   game: PapaGame;
   dispatch: Dispatch<PapaAction>;
   close: () => void;
@@ -103,7 +107,7 @@ function KitchenControls({
     dispatch(action);
     if (action.type === "flip" || action.type === "lift") sound("bounce");
     if (action.type === "layer") sound("step");
-    if (action.type === "serve") sound("score");
+    if (action.type === "take") sound("ui-select");
   };
   const drop = (event: PointerEvent<HTMLButtonElement>) => {
     const held = dragging.current;
@@ -496,6 +500,11 @@ function KitchenControls({
               </b>
             </div>
           </div>
+          {record && (
+            <p className="papa-best">
+              {record.newBest ? <span className="papa-new-best">New best</span> : `Best day: ${record.best} served`}
+            </p>
+          )}
           <p>
             {game.missed
               ? `${game.missed} ${game.missed === 1 ? "customer left" : "customers left"}`
@@ -577,6 +586,46 @@ export function PapaKitchenGame() {
       dispatch({ type: "start", burners });
     }
   }, [active, game.phase, burners]);
+  // Feedback follows the reducer's state changes, so every path (keys,
+  // pointer, drag) sounds the same.
+  const previous = useRef(game);
+  const [record, setRecord] = useState<null | { best: number; newBest: boolean }>(null);
+  useSoundLoop(active && game.orders.some((o) => o.onGrill) ? "sizzle" : null);
+  useEffect(() => {
+    const before = previous.current;
+    previous.current = game;
+    if (before === game || !active) return;
+    const mid = () => [size.width / 2, size.height * 0.38] as const;
+    const lifted = game.orders.find((o) => {
+      const was = before.orders.find((b) => b.ticket.id === o.ticket.id);
+      return was?.stage === "grill" && o.stage === "build";
+    });
+    if (lifted && lifted.grillScore >= 90) {
+      sound("perfect", { gain: 0.7 });
+      const [x, y] = mid();
+      juice.pop("Perfect cook", x, y, "great");
+    }
+    if (game.served > before.served && game.grade) {
+      sound("score");
+      const [x, y] = mid();
+      const tip = game.grade.tip;
+      juice.pop(tip > 0 ? "+" + "$" + tip + " tip" : game.grade.name, x, y, game.grade.total >= 85 ? "great" : "good");
+      juice.haptic("score");
+    }
+    if (game.missed > before.missed) {
+      sound("miss");
+      const [x, y] = mid();
+      juice.pop("A customer left", x, y, "miss");
+    }
+    if (game.phase === "results" && before.phase !== "results") {
+      const best = useGame.getState().recordBest("kitchen.served", game.served);
+      const newBest = best.improved && game.served > 0;
+      setRecord({ best: best.bests["kitchen.served"] ?? game.served, newBest });
+      sound(newBest ? "win" : game.missed ? "lose" : "score");
+      if (newBest) juice.confetti();
+    }
+    if (game.phase === "service" && before.phase !== "service" && before.phase !== "grade") setRecord(null);
+  }, [game, active, size]);
   const startKitchen = () => {
     pendingFocus.current = true;
     if (startGameMode("kitchen")) dispatch({ type: "start", burners });
@@ -647,6 +696,7 @@ export function PapaKitchenGame() {
               center={center}
               dropZone={dropZone}
               focusElement={focusElement}
+              record={record}
             />
           ) : (
             <button

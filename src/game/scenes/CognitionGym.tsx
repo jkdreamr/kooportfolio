@@ -14,11 +14,15 @@ import { sound } from "../core/sound";
 import {
   GYM_PERFECT_RADIUS,
   GYM_REP_MS,
+  GYM_ROUND_SIZE,
+  GYM_STREAK_CHEER,
   GYM_TARGET_RADIUS,
   gymMarker,
   gymTarget,
   judgeGymLift,
+  nextGymStreak,
 } from "./gymGame";
+import { juice } from "./juice/Juice";
 import {
   CognitionDeskBadge,
   CognitionPlaque,
@@ -54,6 +58,9 @@ export const useGym = create<{
   pausedAt: number | null;
   strike: number;
   judgment: "Perfect" | "Clean" | "Miss" | "";
+  /** Clean lifts in a row, and the longest this session. */
+  streak: number;
+  longest: number;
   syncClock: () => void;
   startSession: () => boolean;
   cancelSession: () => void;
@@ -65,6 +72,8 @@ export const useGym = create<{
   pausedAt: null,
   strike: 0,
   judgment: "",
+  streak: 0,
+  longest: 0,
   syncClock() {
     if (useGameMode.getState().active?.id !== "gym") return;
     const now = performance.now();
@@ -99,6 +108,8 @@ export const useGym = create<{
       pausedAt: null,
       strike: 0,
       judgment: "",
+      streak: 0,
+      longest: 0,
     });
     return true;
   },
@@ -129,14 +140,37 @@ export const useGym = create<{
     const state = get();
     const strike = gymMarker(state.readyAt, now, state.reps);
     const judgment = judgeGymLift(strike, gymTarget(state.reps));
+    const streak = nextGymStreak(state.streak, judgment);
+    const longest = Math.max(state.longest, streak);
     set({
       reps: state.reps + 1,
       liftedAt: now,
       readyAt: now + GYM_REP_MS,
       strike,
       judgment,
+      streak,
+      longest,
     });
-    sound(judgment === "Miss" ? "bounce" : "score");
+    const x = typeof window === "undefined" ? 0 : window.innerWidth / 2,
+      y = typeof window === "undefined" ? 0 : window.innerHeight * 0.42;
+    if (judgment === "Miss") {
+      sound("ui-error");
+      juice.pop("Miss", x, y, "miss");
+    } else if (streak === GYM_STREAK_CHEER) {
+      sound("perfect");
+      juice.pop(`${streak} in a row`, x, y, "great");
+      juice.haptic("score");
+    } else {
+      sound(judgment === "Perfect" ? "perfect" : "ui-confirm", judgment === "Perfect" ? { gain: 0.6 } : undefined);
+      juice.pop(judgment, x, y, judgment === "Perfect" ? "great" : "good");
+    }
+    if (state.reps + 1 >= GYM_ROUND_SIZE) {
+      const best = useGame.getState().recordBest("gym.streak", longest);
+      if (best.improved && longest > 0) {
+        sound("win", { delay: 0.3 });
+        juice.confetti(18);
+      }
+    }
   },
 }));
 

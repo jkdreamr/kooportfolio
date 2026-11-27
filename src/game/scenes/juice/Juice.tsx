@@ -37,7 +37,7 @@ const coarse = () => typeof matchMedia === "function" && matchMedia("(pointer: c
 
 let layer: HTMLDivElement | null = null;
 function host(): HTMLDivElement | null {
-  if (typeof document === "undefined") return null;
+  if (typeof document === "undefined" || typeof document.createElement !== "function") return null;
   if (layer?.isConnected) return layer;
   layer = document.createElement("div");
   layer.className = "juice-layer";
@@ -165,7 +165,25 @@ function haptic(pattern: Haptic = "tap") {
   }
 }
 
-export const juice = { pop, ring, confetti, shake, flash, haptic, pool };
+/** Effects are garnish: a failure in one never reaches the game's logic. */
+function safe<A extends unknown[]>(fn: (...args: A) => void) {
+  return (...args: A) => {
+    try {
+      fn(...args);
+    } catch {
+      /* No DOM, no animation support: skip the effect. */
+    }
+  };
+}
+export const juice = {
+  pop: safe(pop),
+  ring: safe(ring),
+  confetti: safe(confetti),
+  shake: safe(shake),
+  flash: safe(flash),
+  haptic: safe(haptic),
+  pool,
+};
 
 const scratch = new Vector3();
 /** World point → viewport px with the given camera and canvas. */
@@ -189,10 +207,14 @@ export function useJuice() {
   );
   const score = useCallback(
     (point: readonly [number, number, number] | Vector3, text: string, tone: Tone = "good") => {
-      const [x, y] = at(point);
-      pop(text, x, y, tone);
-      ring(x, y, tone);
-      haptic("score");
+      try {
+        const [x, y] = at(point);
+        juice.pop(text, x, y, tone);
+        juice.ring(x, y, tone);
+        juice.haptic("score");
+      } catch {
+        /* Projection unavailable: skip the effect. */
+      }
     },
     [at],
   );

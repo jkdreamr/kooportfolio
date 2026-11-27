@@ -718,3 +718,17 @@
     display: none;
   }
 }
+
+.papa-best {
+  margin: 6px 0 0;
+  font-size: var(--text-sm, 13px);
+}
+.papa-new-best {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: #ffd97a;
+  color: #3a2a18;
+  font-weight: 700;
+  font-size: var(--text-xs, 12px);
+}

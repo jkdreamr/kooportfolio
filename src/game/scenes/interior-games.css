@@ -436,3 +436,17 @@
     font-size: 11px;
   }
 }
+
+.house-game-best {
+  margin: 4px 0;
+  font-size: var(--text-sm, 13px);
+}
+.house-new-best {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: #ffd97a;
+  color: #2b2418;
+  font-weight: 700;
+  font-size: var(--text-xs, 12px);
+}

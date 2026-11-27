@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import {
@@ -14,6 +14,8 @@ import { Box, Cylinder } from "../world/Models";
 import { BrassStud, CraftedBox } from "./CraftedDetails";
 import { startGameMode, useGameMode } from "../core/gameMode";
 import { sound } from "../core/sound";
+import { useGame } from "../core/store";
+import { juice } from "./juice/Juice";
 import { GAME_STAGE_Y, InteriorGameStage } from "./InteriorGameStage";
 import {
   GameControls,
@@ -137,20 +139,42 @@ export function BlackjackTable() {
     timer.current += dt;
     if (timer.current >= 0.65) {
       timer.current = 0;
-      sound("tap");
       dispatch({ type: "dealer" });
     }
   });
+  // Every card dealt is heard, 90 ms apart; chips click when the stake moves.
+  const seen = useRef({ cards: game.player.length + game.dealer.length, bank: game.bank, bet: game.bet });
+  const [record, setRecord] = useState<null | { best: number; newBest: boolean }>(null);
   useEffect(() => {
-    if (game.phase === "over" && game.result)
-      sound(
-        game.result === "win" || game.result === "blackjack"
-          ? "score"
-          : game.result === "lose"
-            ? "bounce"
-            : "tap",
-      );
-  }, [game.phase, game.result]);
+    const cards = game.player.length + game.dealer.length;
+    const before = seen.current;
+    seen.current = { cards, bank: game.bank, bet: game.bet };
+    if (cards > before.cards)
+      for (let i = 0; i < Math.min(6, cards - before.cards); i++) sound("card", { delay: i * 0.09 });
+    if (game.bet !== before.bet || (game.bank !== before.bank && game.phase !== "over")) sound("chip");
+  }, [game.player.length, game.dealer.length, game.bank, game.bet, game.phase]);
+  useEffect(() => {
+    if (game.phase !== "over" || !game.result) return;
+    const mid = () => [window.innerWidth / 2, window.innerHeight * 0.4] as const;
+    if (game.result === "blackjack") {
+      sound("perfect");
+      const [x, y] = mid();
+      juice.pop("Blackjack", x, y, "great");
+      juice.haptic("score");
+    } else if (game.result === "win") {
+      sound("score");
+      sound("chip", { delay: 0.2 });
+      const [x, y] = mid();
+      juice.pop("Win", x, y, "good");
+    } else if (game.result === "lose") {
+      sound("miss");
+      const [x, y] = mid();
+      juice.pop(handValue(game.player) > 21 ? "Bust" : "Dealer wins", x, y, "miss");
+    } else sound("tap");
+    const best = useGame.getState().recordBest("blackjack.stack", game.bank);
+    setRecord({ best: best.bests["blackjack.stack"] ?? game.bank, newBest: best.improved && game.bank > 100 });
+    if (best.improved && game.bank > 100) juice.confetti(16);
+  }, [game.phase, game.result, game.bank, game.player]);
   useEffect(() => {
     if (!active) return;
     const onKey = (event: KeyboardEvent) => {
@@ -177,7 +201,7 @@ export function BlackjackTable() {
       if (!action) return;
       event.preventDefault();
       event.stopPropagation();
-      sound("tap");
+      if (action.type === "stand") sound("tap");
       dispatch(action);
     };
     window.addEventListener("keydown", onKey, true);
@@ -274,6 +298,9 @@ export function BlackjackTable() {
           <div className="blackjack-bank">
             <span>
               Play chips <b>{game.bank}</b>
+              {record && game.phase === "over" && (
+                record.newBest ? <span className="house-new-best">New best</span> : <small> · best {record.best}</small>
+              )}
             </span>
             <span>
               {game.phase === "over" ? "Last bet" : "Bet"}{" "}
@@ -320,7 +347,6 @@ export function BlackjackTable() {
                 className="blackjack-deal"
                 disabled={game.bank < game.bet}
                 onClick={() => {
-                  sound("tap");
                   dispatch({ type: "deal", deck: shuffledDeck() });
                 }}
               >
@@ -333,7 +359,6 @@ export function BlackjackTable() {
             <button
               disabled={game.phase !== "player"}
               onClick={() => {
-                sound("tap");
                 dispatch({ type: "hit" });
               }}
             >
@@ -351,7 +376,6 @@ export function BlackjackTable() {
             <button
               disabled={!canDouble(game)}
               onClick={() => {
-                sound("tap");
                 dispatch({ type: "double" });
               }}
             >

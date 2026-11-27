@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import {
@@ -12,6 +12,8 @@ import {
   pongSwipe,
 } from "../core/pong";
 import { sound } from "../core/sound";
+import { useGame } from "../core/store";
+import { useJuice } from "./juice/Juice";
 import { Ball, Cylinder, Ring } from "../world/Models";
 import { CraftedBox } from "./CraftedDetails";
 import { GameControls, gameIsActive } from "./InteriorProps";
@@ -82,19 +84,39 @@ export function PongTable() {
   const toss = () => {
     if (!gameIsActive() || game.phase !== "ready") return;
     clock.current = 0;
-    sound("shot");
+    sound("swish");
     dispatch({ type: "throw", aim: aim.current, power: power.current });
   };
   const restart = () => {
+    setRecord(null);
     aim.current = 0;
     power.current = 0.25;
     dispatch({ type: "reset" });
   };
 
+  const fx = useJuice();
+  const [record, setRecord] = useState<null | { best: number; newBest: boolean }>(null);
   useEffect(() => {
     if (game.phase !== "landed" || !game.last) return;
-    if (game.cups.length === 0) sound("win");
-    else sound(game.last.result === "cup" ? "score" : "bounce");
+    const cup = game.last.cup === null ? null : PONG_CUPS[game.last.cup];
+    const at: [number, number, number] = cup ? [cup.x, GAME_STAGE_Y + 1.86, cup.z] : [game.landing.x, GAME_STAGE_Y + 1.6, game.landing.z];
+    if (game.last.result === "cup") {
+      sound("score");
+      fx.score(at, onFire(game) ? "On fire" : "Cup", onFire(game) ? "great" : "good");
+    } else if (game.last.result === "rim") {
+      sound("rim", { gain: 0.6 });
+      const [x, y] = fx.at(at);
+      fx.pop("Rim", x, y, "miss");
+    } else sound("bounce");
+    if (game.cups.length === 0) {
+      // Cleared: fewest throws is the best.
+      const best = useGame.getState().recordBest("pong.throws", game.shots, "min");
+      setRecord({ best: best.bests["pong.throws"] ?? game.shots, newBest: best.improved });
+      sound("win", { delay: 0.3 });
+      fx.confetti();
+      fx.haptic("win");
+    }
+    // Only the landing itself should sound, once.
   }, [game.phase, game.last, game.cups.length, game.shots]);
 
   // Swipe up from anywhere on the stage: height sets depth, sideways sets aim.
@@ -347,6 +369,12 @@ export function PongTable() {
               </span>
             </div>
           </div>
+          {game.phase === "over" && record && (
+            <p className="house-game-best">
+              {record.newBest ? <span className="house-new-best">New best</span> : null} Cleared in {game.shots}
+              {!record.newBest && ` · best ${record.best}`}
+            </p>
+          )}
           {game.phase === "over" && (
             <button className="pong-rack" onClick={restart}>
               New rack

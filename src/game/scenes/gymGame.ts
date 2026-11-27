@@ -24,3 +24,10 @@ export function judgeGymLift(marker: number, target: number) {
       : "Miss";
 }
 
+
+/** A clean or perfect lift extends the streak; a miss resets it. */
+export function nextGymStreak(streak: number, judgment: "Perfect" | "Clean" | "Miss" | "") {
+  return judgment === "Perfect" || judgment === "Clean" ? streak + 1 : 0;
+}
+/** The streak length that earns the big cue. */
+export const GYM_STREAK_CHEER = 5;
