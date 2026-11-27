@@ -127,3 +127,101 @@ export const HAPTICS: Readonly<Record<Haptic, number | number[]>> = {
 export function ndcToScreen(ndc: { x: number; y: number }, rect: { left: number; top: number; width: number; height: number }): [number, number] {
   return [rect.left + ((ndc.x + 1) / 2) * rect.width, rect.top + ((1 - ndc.y) / 2) * rect.height];
 }
+
+/* ------------------------------------------------------ banner and clock */
+
+/** A centred banner line ("Heating up", "It's good!"): on screen 900 ms. */
+export const BANNER_MS = 900;
+/** Slow-motion eases back to full speed over this long after its hold. */
+export const SLOWMO_RELEASE_MS = 120;
+/** Longest hold a single call may ask for (a stuck caller cannot freeze a game). */
+export const SLOWMO_MAX_MS = 5000;
+export const HITSTOP_MAX_MS = 250;
+
+type ClockEffect = { scale: number; start: number; hold: number; release: number };
+
+/** Time scale of one effect at `now`: `scale` for the hold, then a linear
+ * ease back to 1 over `release`; 1 before the start and once it is over. */
+export function effectScale(e: ClockEffect, now: number): number {
+  const t = now - e.start;
+  if (t < 0) return 1;
+  if (t < e.hold) return e.scale;
+  if (e.release > 0 && t < e.hold + e.release) return e.scale + (1 - e.scale) * ((t - e.hold) / e.release);
+  return 1;
+}
+
+export type GameClock = {
+  /** Current multiplier for a game's simulation `dt` (0 during a hit-stop). */
+  readonly scale: number;
+  /** `dt × scale`: what a game's step loop should advance by. */
+  scaled(dt: number): number;
+  /** Runs the game at `scale` (0–1) for `ms`, then eases back to 1 over
+   * SLOWMO_RELEASE_MS. Overlapping calls: the slowest wins at each moment.
+   * Returns a function that ends this one early. */
+  slowMo(scale: number, ms: number): () => void;
+  /** Freezes the simulation for `ms` (≤ 250), with no ease back. */
+  hitStop(ms: number): () => void;
+  /** Clears every effect (a game calls this when it ends or unmounts). */
+  reset(): void;
+};
+
+/**
+ * A game clock. `now` is in ms; `reduced()` true (prefers-reduced-motion)
+ * makes every call a no-op, so the scale stays 1. Slow-motion and hit-stop
+ * scale only the simulation that reads this; never the render loop, the
+ * audio clock or the world clocks.
+ */
+export function createGameClock(
+  now: () => number = () => (typeof performance !== "undefined" ? performance.now() : Date.now()),
+  reduced: () => boolean = () => false,
+): GameClock {
+  let effects: ClockEffect[] = [];
+  const add = (scale: number, ms: number, release: number) => {
+    if (reduced() || !(ms > 0)) return () => {};
+    const e: ClockEffect = { scale: Math.max(0, Math.min(1, Number.isFinite(scale) ? scale : 1)), start: now(), hold: ms, release };
+    effects.push(e);
+    return () => {
+      effects = effects.filter((x) => x !== e);
+    };
+  };
+  const scaleNow = () => {
+    if (!effects.length) return 1;
+    const t = now();
+    let s = 1;
+    for (const e of effects) s = Math.min(s, effectScale(e, t));
+    effects = effects.filter((e) => t - e.start < e.hold + e.release);
+    return s;
+  };
+  return {
+    get scale() {
+      return scaleNow();
+    },
+    scaled: (dt) => dt * scaleNow(),
+    slowMo: (scale, ms) => add(scale, Math.min(ms, SLOWMO_MAX_MS), SLOWMO_RELEASE_MS),
+    hitStop: (ms) => add(0, Math.min(ms, HITSTOP_MAX_MS), 0),
+    reset: () => {
+      effects = [];
+    },
+  };
+}
+
+const prefersReduced = () =>
+  typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+/**
+ * The shared game clock. Game step loops multiply their `dt` by
+ * `gameClock.scale` (or call `gameClock.scaled(dt)`); `juice.hitStop` and
+ * `juice.slowMo` drive it.
+ */
+export const gameClock: GameClock = createGameClock(undefined, prefersReduced);
+
+/** Banner keyframes: a short rise and fade in, hold, fade out (opacity only
+ * with reduced motion). */
+export function bannerKeyframes(still: boolean): Keyframe[] {
+  const frames: Keyframe[] = [
+    { opacity: 0, transform: "translateY(8px) scale(0.96)" },
+    { opacity: 1, offset: 0.15, transform: "translateY(0px) scale(1)" },
+    { opacity: 1, offset: 0.75, transform: "translateY(0px) scale(1)" },
+    { opacity: 0, transform: "translateY(-6px) scale(1)" },
+  ];
+  return still ? frames.map(({ opacity, offset }) => (offset === undefined ? { opacity } : { opacity, offset })) : frames;
+}

@@ -1,6 +1,7 @@
 /**
  * Feedback kit, DOM part: score pops, rings, confetti, screen shake, tinted
- * flash and haptics. Everything is plain DOM animated with the Web Animations
+ * flash, banners and haptics, plus hit-stop and slow-motion on the shared
+ * game clock (`gameClock` in juice.ts). Everything is plain DOM animated with the Web Animations
  * API (transforms and opacity only): no WebGL materials, so no new shader
  * programs, and no per-frame React state. Positions are projected once, at
  * the moment of the event. Nodes come from one pool of at most 40.
@@ -9,10 +10,13 @@ import { useCallback } from "react";
 import { useThree } from "@react-three/fiber";
 import { Vector3, type Camera } from "three";
 import {
+  BANNER_MS,
+  bannerKeyframes,
   CONFETTI_MS,
   confettiPieces,
   EASE,
   FLASH_MS,
+  gameClock,
   FLASH_OPACITY,
   HAPTICS,
   ndcToScreen,
@@ -167,6 +171,51 @@ function haptic(pattern: Haptic = "tap") {
   }
 }
 
+let bannerEl: HTMLDivElement | null = null;
+/** A centred line ("Heating up", "It's good!") for 900 ms. One at a time:
+ * a new banner replaces the one on screen. */
+function banner(text: string, tone: Tone = "good") {
+  // (The pool may have recycled the node for another effect: leave that one.)
+  if (bannerEl?.classList.contains("juice-banner")) pool.release(bannerEl);
+  bannerEl = null;
+  const el = spawn(`juice-banner juice-banner--${tone}`, 0, 0);
+  if (!el) return;
+  bannerEl = el as HTMLDivElement;
+  el.textContent = text;
+  el.style.color = TONES[tone];
+  const frames = bannerKeyframes(reduced());
+  if (typeof el.animate !== "function") {
+    setTimeout(() => {
+      if (bannerEl === el) bannerEl = null;
+      pool.release(el as HTMLDivElement);
+    }, BANNER_MS);
+    return;
+  }
+  const a = el.animate(frames, { duration: BANNER_MS, easing: "linear", fill: "forwards" });
+  a.onfinish = () => {
+    if (bannerEl === el) bannerEl = null;
+    pool.release(el as HTMLDivElement);
+  };
+}
+
+const noop = () => {};
+/** Freezes the game's simulation clock for `ms` (≤ 250). Returns a cancel. */
+function hitStop(ms: number): () => void {
+  try {
+    return gameClock.hitStop(ms);
+  } catch {
+    return noop;
+  }
+}
+/** Runs the game's simulation clock at `scale` for `ms`. Returns a cancel. */
+function slowMo(scale: number, ms: number): () => void {
+  try {
+    return gameClock.slowMo(scale, ms);
+  } catch {
+    return noop;
+  }
+}
+
 /** Effects are garnish: a failure in one never reaches the game's logic. */
 function safe<A extends unknown[]>(fn: (...args: A) => void) {
   return (...args: A) => {
@@ -184,6 +233,10 @@ export const juice = {
   shake: safe(shake),
   flash: safe(flash),
   haptic: safe(haptic),
+  banner: safe(banner),
+  hitStop,
+  slowMo,
+  clock: gameClock,
   pool,
 };
 exposeQa({ juice });

@@ -56,3 +56,23 @@
   top: 0 !important;
   opacity: 0;
 }
+/* A banner line, centred in the upper third of the stage. */
+.juice-banner {
+  position: absolute;
+  left: 50% !important;
+  top: 30% !important;
+  translate: -50% -50%;
+  padding: 6px 20px;
+  border-radius: 999px;
+  background: rgba(16, 36, 44, 0.74);
+  box-shadow:
+    0 2px 14px rgba(16, 36, 44, 0.35),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  font: 800 var(--text-xl, 24px) / 32px var(--font-ui, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+  letter-spacing: 0;
+  white-space: nowrap;
+  max-width: calc(100vw - 32px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  will-change: transform, opacity;
+}

@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  BANNER_MS,
+  bannerKeyframes,
   confettiPieces,
+  createGameClock,
+  effectScale,
+  gameClock,
+  HITSTOP_MAX_MS,
+  SLOWMO_MAX_MS,
+  SLOWMO_RELEASE_MS,
   HAPTICS,
   MAX_NODES,
   ndcToScreen,
@@ -62,5 +70,102 @@ describe("feedback kit (D7)", () => {
     expect(HAPTICS.win).toEqual([20, 40, 60]);
     expect(ndcToScreen({ x: 0, y: 0 }, { left: 10, top: 20, width: 200, height: 100 })).toEqual([110, 70]);
     expect(ndcToScreen({ x: -1, y: 1 }, { left: 0, top: 0, width: 200, height: 100 })).toEqual([0, 0]);
+  });
+});
+
+describe("game clock and banner (J0)", () => {
+  const make = (reduced = false) => {
+    let t = 1000;
+    const clock = createGameClock(() => t, () => reduced);
+    return { clock, at: (ms: number) => (t = 1000 + ms) };
+  };
+  it("rests at 1 with nothing running", () => {
+    const { clock } = make();
+    expect(clock.scale).toBe(1);
+    expect(clock.scaled(0.016)).toBe(0.016);
+    expect(gameClock.scale).toBe(1);
+  });
+  it("slowMo: holds the scale, eases back linearly over the release, then 1", () => {
+    const { clock, at } = make();
+    clock.slowMo(0.4, 1200);
+    at(0);
+    expect(clock.scale).toBeCloseTo(0.4);
+    at(1199);
+    expect(clock.scale).toBeCloseTo(0.4);
+    at(1200 + SLOWMO_RELEASE_MS / 2);
+    expect(clock.scale).toBeCloseTo(0.7);
+    at(1200 + SLOWMO_RELEASE_MS);
+    expect(clock.scale).toBe(1);
+    expect(clock.scaled(0.02)).toBe(0.02);
+  });
+  it("hitStop: freezes for ms with no ease, capped at 250 ms; is slowMo(0, ms)", () => {
+    const { clock, at } = make();
+    clock.hitStop(60);
+    at(0);
+    expect(clock.scale).toBe(0);
+    expect(clock.scaled(0.016)).toBe(0);
+    at(59);
+    expect(clock.scale).toBe(0);
+    at(60);
+    expect(clock.scale).toBe(1);
+    clock.hitStop(10_000);
+    at(60 + HITSTOP_MAX_MS - 1);
+    expect(clock.scale).toBe(0);
+    at(60 + HITSTOP_MAX_MS);
+    expect(clock.scale).toBe(1);
+  });
+  it("overlaps: the slowest wins; a hit-stop inside a slow-mo returns to the slow-mo", () => {
+    const { clock, at } = make();
+    at(0);
+    clock.slowMo(0.5, 1000);
+    at(100);
+    clock.hitStop(80);
+    at(120);
+    expect(clock.scale).toBe(0);
+    at(200);
+    expect(clock.scale).toBeCloseTo(0.5);
+  });
+  it("cancel ends one effect early; reset clears all; bad input is clamped or ignored", () => {
+    const { clock, at } = make();
+    at(0);
+    const stop = clock.slowMo(0.3, 2000);
+    clock.slowMo(0.6, 2000);
+    at(10);
+    expect(clock.scale).toBeCloseTo(0.3);
+    stop();
+    expect(clock.scale).toBeCloseTo(0.6);
+    clock.reset();
+    expect(clock.scale).toBe(1);
+    clock.slowMo(-2, 100);
+    expect(clock.scale).toBe(0);
+    clock.reset();
+    clock.slowMo(5, 100);
+    expect(clock.scale).toBe(1);
+    clock.slowMo(0.5, 0);
+    clock.slowMo(0.5, Number.NaN);
+    clock.reset();
+    clock.slowMo(0.5, 60_000);
+    at(10 + SLOWMO_MAX_MS - 1);
+    expect(clock.scale).toBeCloseTo(0.5);
+    at(10 + SLOWMO_MAX_MS + SLOWMO_RELEASE_MS);
+    expect(clock.scale).toBe(1);
+  });
+  it("reduced motion: the clock stays at 1", () => {
+    const { clock, at } = make(true);
+    clock.hitStop(100);
+    clock.slowMo(0.2, 1000);
+    at(10);
+    expect(clock.scale).toBe(1);
+  });
+  it("effect envelope is 1 before it starts", () => {
+    expect(effectScale({ scale: 0.2, start: 100, hold: 50, release: 0 }, 50)).toBe(1);
+  });
+  it("banner: 900 ms; reduced motion animates opacity only", () => {
+    expect(BANNER_MS).toBe(900);
+    expect(bannerKeyframes(false).some((f) => "transform" in f)).toBe(true);
+    const still = bannerKeyframes(true);
+    expect(still.some((f) => "transform" in f)).toBe(false);
+    expect(still[0].opacity).toBe(0);
+    expect(still.at(-1)!.opacity).toBe(0);
   });
 });
