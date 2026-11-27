@@ -52,6 +52,11 @@ import { showToast, useToasts, TOAST_MAX } from "./toasts";
 import { attachUiSounds } from "./uiSounds";
 import { closeListen, ListenTabs, openListen, useListen } from "./ListenPanel";
 import { ResultCard } from "./ResultCard";
+import { exposeQa, qaEnabled } from "../../stage/qa";
+
+/** QA builds only: how often the HUD commits (C11 measures it). */
+let hudCommits = 0;
+exposeQa({ hudCommits: () => hudCommits });
 
 /** Optional numbers a game may put on its result (score, unit, new best). */
 function resultScore(result: unknown) {
@@ -980,6 +985,9 @@ export function Hud({ interact }: { interact: () => void }) {
   }, [g.panel]);
   const nearDoor =
     hub && !!g.near && doors.some((door) => door.id === g.near);
+  useEffect(() => {
+    if (qaEnabled()) hudCommits++;
+  });
   useNoticeToasts(g.notice);
   const listenOpen = useListen((s) => s.open);
   // The panel belongs to the village; leaving the scene closes it.
