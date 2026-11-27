@@ -66,7 +66,7 @@ const grounds = [
     [54.5, 12.5],
     [50.8, 12.5],
   ]),
-  ground("pond-garden", "#798a6d", [
+  ground("pond-garden", "#7f9a5e", [
     [-30.5, 19],
     [-17, 19],
     [-17, 55.2],

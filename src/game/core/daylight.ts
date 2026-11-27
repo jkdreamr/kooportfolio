@@ -107,7 +107,7 @@ export const DAYLIGHT_KEYS = [
   },
   {
     hour: 9,
-    top: "#aacdda",
+    top: "#7fb0dc",
     horizon: "#dce5c7",
     sun: "#fff0cc",
     sky: "#dceaff",
@@ -120,7 +120,7 @@ export const DAYLIGHT_KEYS = [
   },
   {
     hour: 12,
-    top: "#a7cbd7",
+    top: "#7fb0dc",
     horizon: "#dce5c7",
     sun: "#fff0cc",
     sky: "#dceaff",
@@ -133,8 +133,8 @@ export const DAYLIGHT_KEYS = [
   },
   {
     hour: 16,
-    top: "#a4bbc9",
-    horizon: "#e8d4ae",
+    top: "#6f9fd0",
+    horizon: "#e4dcc8",
     sun: "#ffddaf",
     sky: "#d3dced",
     ground: "#665b3b",
@@ -146,7 +146,7 @@ export const DAYLIGHT_KEYS = [
   },
   {
     hour: 18,
-    top: "#787799",
+    top: "#6f86b0",
     horizon: "#e9ab85",
     sun: "#ffb477",
     sky: "#c6b5d1",

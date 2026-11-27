@@ -45,7 +45,7 @@ const skyFragment = `
     return 1.0 - smoothstep(radius - 0.001, radius + 0.001, d);
   }
   void main() {
-    vec3 sky = mix(horizonColor, topColor, smoothstep(0.05, 1.0, vUv.y));
+    vec3 sky = mix(horizonColor, topColor, smoothstep(0.0, 0.7, vUv.y));
     vec2 grid = vUv * vec2(aspect, 1.0) * 85.0;
     vec2 cell = floor(grid);
     float seed = fract(sin(dot(cell, vec2(127.1, 311.7))) * 43758.5453);
