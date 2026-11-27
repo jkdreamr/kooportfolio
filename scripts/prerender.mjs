@@ -90,8 +90,18 @@ if (existsSync(manifestPath)) {
 // The favicon rides inline (a few hundred bytes), so a portfolio page stays
 // at three requests; public/favicon.svg is the same file for everyone else.
 const favicon = `data:image/svg+xml,${encodeURIComponent(readFileSync("public/favicon.svg", "utf8").trim())}`;
+// The inline head script ships without its comments and indentation (it
+// is in every page's critical bytes).
+const squeeze = (html) =>
+  html.replace(/<script>([\s\S]*?)<\/script>/, (_, code) =>
+    `<script>${code
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith("//"))
+      .join("\n")}</script>`,
+  );
 const withPreload = (html) =>
-  html
+  squeeze(html)
     .replace("/*ENGINE_PRELOAD*/ []", JSON.stringify(preload))
     .replace('href="/favicon.svg"', `href="${favicon}"`);
 

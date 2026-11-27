@@ -449,7 +449,9 @@ html.play body::after {
   left: 50%;
   z-index: 4;
   pointer-events: none;
-  opacity: 0;
+  /* Hidden (not transparent) until 400 ms: becoming visible is a real paint,
+     so the mark is the page's first contentful paint. */
+  visibility: hidden;
   animation: boot-in 200ms linear 400ms forwards;
 }
 html.play body::before {
@@ -485,15 +487,22 @@ html.play.boot-skip body::after {
   content: none;
 }
 @keyframes boot-in {
+  from {
+    visibility: visible;
+    opacity: 0.04;
+  }
   to {
+    visibility: visible;
     opacity: 1;
   }
 }
 @keyframes boot-out {
   from {
+    visibility: visible;
     opacity: 1;
   }
   to {
+    visibility: visible;
     opacity: 0;
   }
 }
