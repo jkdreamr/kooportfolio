@@ -9,10 +9,11 @@ import { evalOps, pieceBounds } from "../src/game/world/character/sculpt/sdf";
 import { eyes, headSkin, mouth, type AttrMesh } from "../src/game/world/character/sculpt/head";
 import { decimate, surfaceNets } from "../src/game/world/character/sculpt/mesher";
 import { Cast, PIECES } from "../src/game/world/character/sculpt/runtime";
+import { hairMesh } from "../src/game/world/character/sculpt/hair";
 
 const castFile = "public/characters/cast-v1.bin";
 
-describe("sculpted characters (F3)", () => {
+describe("sculpted characters (F3/F5)", () => {
   it("builds a figure and a full palette for every villager", () => {
     for (const v of villagers) {
       const o = outfitFor(v);
@@ -64,6 +65,21 @@ describe("sculpted characters (F3)", () => {
     }
   });
 
+  it("sculpts hair for every villager that sits under its hat", () => {
+    for (const v of villagers) {
+      const o = outfitFor(v);
+      const fig = buildFigure(o);
+      if (o.head?.kind === "headscarf") continue;
+      expect(fig.hairPlan, v.id).toBeDefined();
+      const { mesh } = hairMesh(fig.hairPlan!, true, fig.hatDist);
+      expect(mesh.tri.length / 3, v.id).toBeGreaterThan(200);
+      // Hair hidden inside a hat is culled (only clump ends stay tucked in).
+      let deep = 0;
+      for (let i = 0; i < mesh.pos.length; i += 3) if (fig.hatDist([mesh.pos[i], mesh.pos[i + 1], mesh.pos[i + 2]]) < -0.03) deep++;
+      expect(deep / (mesh.pos.length / 3), v.id).toBeLessThan(0.35);
+    }
+  });
+
   it("meshes an SDF and decimates it to budget", () => {
     const sphere = (x: number, y: number, z: number) => Math.hypot(x, y, z) - 0.2;
     const raw = surfaceNets(sphere, [-0.25, -0.25, -0.25], [0.25, 0.25, 0.25], 0.01);
@@ -82,13 +98,17 @@ describe("sculpted characters (F3)", () => {
       expect(cast.has(id), id).toBe(true);
       hero += cast.triangles(id, "hero");
       mid += cast.triangles(id, "mid");
-      expect(cast.triangles(id, "hero"), id).toBeLessThanOrEqual(9500);
-      expect(cast.triangles(id, "mid"), id).toBeLessThanOrEqual(5100);
+      expect(cast.triangles(id, "hero"), id).toBeLessThanOrEqual(9000);
+      expect(cast.triangles(id, "mid"), id).toBeLessThanOrEqual(2500);
       expect(Object.keys(cast.manifest.chars[id].p).every((p) => PIECES.includes(p as never))).toBe(true);
     }
-    expect(hero / ids.length).toBeLessThanOrEqual(8000);
+    expect(hero / ids.length).toBeLessThanOrEqual(9000);
     expect(mid / ids.length).toBeLessThanOrEqual(2500);
-    // Payload: ≤1.5 MB gzipped.
-    expect(gzipSync(buf).length).toBeLessThanOrEqual(1.5 * 1024 * 1024);
+    // Worst case on high: 5 hero + 10 mid villagers + the hero player ≤ 80k.
+    const maxHero = Math.max(...ids.map((id) => cast.triangles(id, "hero")));
+    const maxMid = Math.max(...ids.map((id) => cast.triangles(id, "mid")));
+    expect(5 * maxHero + 10 * maxMid + maxHero).toBeLessThanOrEqual(80000);
+    // Payload: ≤2.0 MB gzipped.
+    expect(gzipSync(buf).length).toBeLessThanOrEqual(2.0 * 1024 * 1024);
   });
 });

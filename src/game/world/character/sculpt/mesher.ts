@@ -293,6 +293,7 @@ export function decimate(
     return s;
   };
   let force = false;
+  let flipMin = 0.25;
   const tryCollapse = (a: number, b: number, cost?: number): boolean => {
       // Link condition (keeps the surface manifold).
       const na = neighbours(a), nb = neighbours(b);
@@ -314,7 +315,7 @@ export function decimate(
           const l = nrm(t, nNew);
           P[v * 3] = sv[0]; P[v * 3 + 1] = sv[1]; P[v * 3 + 2] = sv[2];
           const lo = Math.hypot(nOld[0], nOld[1], nOld[2]);
-          if (l < 1e-14 || (nOld[0] * nNew[0] + nOld[1] * nNew[1] + nOld[2] * nNew[2]) / (lo * l) < 0.25) { ok = false; break; }
+          if (l < 1e-14 || (nOld[0] * nNew[0] + nOld[1] * nNew[1] + nOld[2] * nNew[2]) / (lo * l) < flipMin) { ok = false; break; }
         }
         if (!ok) break;
       }
@@ -366,6 +367,21 @@ export function decimate(
         if (!tryCollapse(a, b)) continue;
       }
     }
+    for (const fm of [0.05, -0.2]) {
+      if (faces <= target * 1.02) break;
+      // Stalled on dense ridged detail: accept stronger normal turns.
+      flipMin = fm;
+      tries.clear();
+      for (let v = 0; v < nV; v++) if (vAlive[v]) { stamp[v]++; pushEdges(v); }
+      while (faces > target) {
+        const e = heap.pop();
+        if (!e) break;
+        const [, a, b, sa, sb] = e;
+        if (!vAlive[a] || !vAlive[b] || stamp[a] !== sa || stamp[b] !== sb) continue;
+        tryCollapse(a, b, e[0]);
+      }
+    }
+    flipMin = 0.25;
     if (faces > target * 1.03 && (globalThis as { __forceDecimate?: boolean }).__forceDecimate) {
       // Still blocked (tangled thin features): relax the link condition.
       force = true;

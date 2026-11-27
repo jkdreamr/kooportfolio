@@ -39,7 +39,7 @@ export type Figure = {
   HC: V3;
   headSkin: Op[];
   glasses?: { slot: number; sun: boolean };
-  face: { expr: Expression; flick: boolean; browLift: number; browRight: number; eye: EyeSpec; lashes: number };
+  face: { expr: Expression; flick: boolean; browLift: number; browRight: number; eye: EyeSpec; lashes: number; lid: number };
   /** Blush centres (head frame). */
   cheeks: V3[];
   /** Lip tint centre (head frame). */
@@ -142,7 +142,7 @@ export function buildFigure(o: Outfit): Figure {
   // Top garment: shell over the torso with a neckline, armholes and hem.
   const hemY = belted && !outer ? -0.07 : -0.15;
   const neckHole: Node[] = [];
-  if (top.kind === "tank" || top.kind === "jersey") neckHole.push(not(ell([0, 0.43, 0.1], [0.075, 0.13, 0.11])));
+  if (top.kind === "tank") neckHole.push(not(ell([0, 0.43, 0.1], [0.075, 0.13, 0.11])));
   else if (top.kind === "turtleneck") neckHole.push(above(0.6));
   else neckHole.push(not(cap([0, 0.3, -0.01], [0, 0.6, 0.015], 0.064)), not(ell([0, 0.41, 0.07], [0.058, 0.04, 0.06])));
   if (sleeves === "none") for (const s of [1, -1]) neckHole.push(not(ell([s * 0.2, 0.3, -0.008], [0.06, 0.085, 0.075])));
@@ -176,7 +176,7 @@ export function buildFigure(o: Outfit): Figure {
       if (!outer) hemRing(SLOT.top, hemY + 0.004, 0.009);
       break;
     case "jersey":
-      chest.push(add(tor([0, 0.39, 0.075], 0.062, 0.01, M.fab(SLOT.topTrim), [-1.0, 0, 0], 1, 1.45), 0.004));
+      chest.push(add(tor([0, 0.405, 0.012], 0.068, 0.011, M.fab(SLOT.topTrim), [-0.38, 0, 0]), 0.004));
       for (const s of [1, -1]) chest.push(add(tor([s * 0.198, 0.3, -0.008], 0.07, 0.009, M.fab(SLOT.topTrim), [0, 0, s * 1.4], 1, 1.2), 0.003));
       hemRing(SLOT.topTrim, hemY + 0.004, 0.01);
       break;
@@ -195,11 +195,6 @@ export function buildFigure(o: Outfit): Figure {
       const kp = front(0, 0.0, topD + 0.006);
       chest.push(add(box(kp, [0.095 * w, 0.055, 0.008], 0.012, M.fab(SLOT.top)), 0.004));
       chest.push(add(box([kp[0], kp[1] + 0.05, kp[2] + 0.003], [0.08 * w, 0.006, 0.007], 0.004, M.fab(SLOT.topTrim)), 0.002));
-      for (const s of [1, -1]) {
-        const a = front(s * 0.03, 0.37, topD + 0.006), b = front(s * 0.034, 0.25, topD + 0.007);
-        chest.push(add(cap(a, b, 0.005, M.fab(SLOT.white)), 0.002));
-        chest.push(add(sph(b, 0.008, M.gloss(SLOT.white)), 0.001));
-      }
       chest.push(add({ ...tor([0, hemY + 0.018, 0.004], 0.134 * w + 0.02, 0.017, M.fab(SLOT.topTrim), undefined, 1, 0.102 / 0.134), disp: { kind: "rib", amp: 0.0018, freq: 44, c: [0, 0, 0] } }, 0.004));
       break;
     }
@@ -207,10 +202,8 @@ export function buildFigure(o: Outfit): Figure {
     case "polo":
     case "chef": {
       const covered = torsoOuter;
-      if (!covered || outer?.kind === "vest") {
-        collarBand(SLOT.top);
-        collarPoints(top.kind === "chef" ? SLOT.white : SLOT.top);
-      }
+      collarBand(SLOT.top);
+      if (!covered || outer?.kind === "vest") collarPoints(top.kind === "chef" ? SLOT.white : SLOT.top);
       if (top.kind === "chef") {
         // Double-breasted with two button rows.
         for (const y of [0.3, 0.2, 0.1, 0.0]) for (const s of [1, -1]) chest.push(add(sph(front(s * 0.058, y, topD + 0.005), 0.011, M.gloss(SLOT.white, 0.25)), 0.001));
@@ -232,12 +225,15 @@ export function buildFigure(o: Outfit): Figure {
   }
   // Outer layer.
   if (outer) {
-    const vWedge = not(grp([
+    // Openings are painted, not cut: the coat stays one smooth surface
+    // (cut layers decimate into shards), the shirt colour shows in the V.
+    const wedge = grp([
       add(plane([1, -0.3, 0], 0.03)),
       { op: "int", k: 0, n: plane([-1, -0.3, 0], 0.03) },
       { op: "int", k: 0, n: plane([0, 0, -1], -0.04) },
-    ]));
-    const armholes = [1, -1].map((s) => not(ell([s * 0.2, 0.3, -0.008], [0.065, 0.09, 0.08])));
+    ], M.fab(SLOT.top));
+    const paint = (n: Node): Op => ({ op: "paint", k: 0, n });
+    const armholes = [1, -1].map((s) => ell([s * 0.2, 0.3, -0.008], [0.07, 0.1, 0.09], M.fab(SLOT.top)));
     const O = M.fab(SLOT.outer, outer.kind === "blazer" ? 0.78 : 0.86);
     const neckOpen = not(cap([0, 0.3, -0.01], [0, 0.6, 0.015], 0.07));
     const oHem = -0.17;
@@ -248,7 +244,8 @@ export function buildFigure(o: Outfit): Figure {
       case "cardigan": {
         const d = outer.kind === "cardigan" ? 0.024 : 0.03;
         const knitC = outer.kind === "cardigan" ? { kind: "rib" as const, amp: 0.0016, freq: 56, c: [0, 0, 0] as V3 } : band(0.003, oHem, oHem + 0.13, 55);
-        chest.push(add(shell(torso, d, O, [vWedge, above(oHem), neckOpen], knitC), 0.003));
+        chest.push(add(shell(torso, d, O, [above(oHem), neckOpen], knitC), 0.003));
+        chest.push(paint(wedge));
         // Lapels / front edges.
         for (const s of [1, -1]) {
           const lapel = outer.kind === "blazer" || outer.kind === "labcoat" || outer.kind === "jacket";
@@ -276,12 +273,11 @@ export function buildFigure(o: Outfit): Figure {
         break;
       }
       case "vest":
-        chest.push(add(shell(torso, 0.024, O, [vWedge, ...armholes, above(oHem + 0.02), neckOpen], folds(0.0015)), 0.003));
+        chest.push(add(shell(torso, 0.024, O, [above(oHem + 0.02), neckOpen], folds(0.0015)), 0.003));
+        chest.push(paint(wedge), ...armholes.map(paint));
         for (const s of [1, -1]) {
           chest.push(add(cap(front(s * 0.03, oHem + 0.04, 0.03), front(s * 0.08, 0.37, 0.03), 0.008, M.fab(SLOT.outerTrim)), 0.003));
-          chest.push(add(box(front(s * 0.085 * w, 0.08, 0.032), [0.036, 0.034, 0.006], 0.008, O), 0.003));
-          chest.push(add(box(front(s * 0.085 * w, 0.112, 0.036), [0.038, 0.012, 0.006], 0.005, M.fab(SLOT.outerTrim)), 0.002));
-          chest.push(add(box(front(s * 0.085 * w, 0.24, 0.032), [0.03, 0.026, 0.006], 0.007, O), 0.003));
+          chest.push(add(box(front(s * 0.085 * w, 0.06, 0.03), [0.04, 0.04, 0.008], 0.008, O), 0.004));
         }
         hemRing(SLOT.outerTrim, oHem + 0.03, 0.011, 0.012);
         break;
@@ -347,7 +343,6 @@ export function buildFigure(o: Outfit): Figure {
       case "number": {
         const p = front(0, 0.17, topD + 0.003), q = backAt(0, 0.19, topD + 0.003);
         chest.push(add(box(p, [0.055, 0.06, 0.004], 0.006, A), 0.002));
-        chest.push(add(box([p[0], p[1], p[2] + 0.004], [0.011, 0.042, 0.003], 0.003, B), 0.001));
         chest.push(add(box(q, [0.065, 0.075, 0.004], 0.006, A), 0.002));
         break;
       }
@@ -406,11 +401,9 @@ export function buildFigure(o: Outfit): Figure {
     // Waistband, fly seam, back pockets.
     pelvis.push(add(tor([0, 0.07, 0.004], 0.14 * w + pd, 0.011, M.fab(pelvisSlot), undefined, 1, 0.104 / 0.14), 0.003));
     if (bottom.kind !== "baji") {
-      pelvis.push(add(cap(pfront(0.012, 0.05, pd + 0.002), pfront(0.016, -0.06, pd + 0.002), 0.005, M.fab(pelvisSlot)), 0.002));
       for (const s of [1, -1]) {
         const bp = pback(s * 0.065 * w, -0.0, pd + 0.004);
         pelvis.push(add(box(bp, [0.036, 0.04, 0.005], 0.008, M.fab(pelvisSlot)), 0.002));
-        pelvis.push(add(cap(pfront(s * 0.07 * w, 0.06, pd + 0.002), pfront(s * 0.11 * w, -0.01, pd + 0.002), 0.004, M.fab(bottom.trim ? SLOT.bottomTrim : pelvisSlot)), 0.002));
       }
     }
   }
@@ -458,9 +451,9 @@ export function buildFigure(o: Outfit): Figure {
   }
   if (bottom.kind === "long-skirt") skirtOps.push(add(S(0.6, 0.15 * w, 0.32 * w, SLOT.bottom, { wave: 0.02 })));
   if (bottom.kind === "chima") {
-    skirtTop = SK.chestUp + 0.25;
-    skirtOps.push(add(S(skirtTop + SK.hip - 0.03, 0.163 * w, 0.42 * w, SLOT.bottom, { wave: 0.024, waves: 11, c: [0, skirtTop, 0], disp: { kind: "folds", amp: 0.006, freq: 15, c: [0, skirtTop, 0] } })));
-    skirtOps.push(add(tor([0, skirtTop - 0.012, 0], 0.165 * w, 0.017, M.fab(SLOT.bottomTrim), undefined, 1, 0.8), 0.006));
+    skirtTop = SK.chestUp + 0.2;
+    skirtOps.push(add(S(skirtTop + SK.hip - 0.03, 0.185 * w, 0.42 * w, SLOT.bottom, { wave: 0.024, waves: 11, c: [0, skirtTop, 0], disp: { kind: "folds", amp: 0.006, freq: 15, c: [0, skirtTop, 0] } })));
+    skirtOps.push(add(tor([0, skirtTop - 0.012, 0], 0.187 * w, 0.017, M.fab(SLOT.bottomTrim), undefined, 1, 0.8), 0.006));
   }
   if (outer?.kind === "durumagi") skirtOps.push(add(S(0.72, 0.162 * w, 0.31 * w, SLOT.outer, { wave: 0.012, gap: 0.12 })));
   if (outer?.kind === "labcoat") skirtOps.push(add(S(0.47, 0.165 * w, 0.25 * w, SLOT.outer, { gap: 0.32, wave: 0.006 })));
@@ -480,13 +473,13 @@ export function buildFigure(o: Outfit): Figure {
   for (const [side, s] of [["L", 1], ["R", -1]] as const) {
     const upperBody = grp([
       add(sph([s * 0.006, -0.008, -0.002], 0.064 * aw, M.skin)),
-      add(cone([0, -0.02, 0], [0, -UA + 0.01, 0], 0.06 * aw, 0.048 * aw, M.skin), 0.03),
+      add(cone([0, -0.02, 0], [0, -UA - 0.03, 0], 0.06 * aw, 0.052 * aw, M.skin), 0.03),
       add(ell([0, -0.12, 0.008], [0.056 * aw, 0.085, 0.057 * aw], M.skin), 0.04),
     ], M.skin);
     const upper: Op[] = [add(upperBody)];
     const wide = top.kind === "jeogori";
     const sm = M.fab(sleeveSlot);
-    if (sleeves === "long") upper.push(add(shell(upperBody, wide ? 0.03 : outerSleeves ? 0.026 : 0.016, sm, [above(-UA - 0.01)], band(0.0028, -UA - 0.01, -UA + 0.08, 85)), 0.003));
+    if (sleeves === "long") upper.push(add(shell(upperBody, wide ? 0.03 : outerSleeves ? 0.026 : 0.016, sm, [above(-UA - 0.045)], band(0.0028, -UA - 0.04, -UA + 0.08, 85)), 0.003));
     if (sleeves === "short") {
       upper.push(add(shell(upperBody, 0.016, sm, [above(-0.12)], band(0.002, -0.1, -0.02, 60)), 0.003));
       upper.push(add(tor([0, -0.115, 0.004], 0.053 * aw + 0.015, 0.01, M.fab(top.kind === "polo" || top.kind === "shirt" ? SLOT.top : SLOT.topTrim)), 0.003));
@@ -498,8 +491,8 @@ export function buildFigure(o: Outfit): Figure {
     pieces[`upper${side}`] = { ops: upper };
 
     const foreBody = grp([
-      add(sph([0, 0, 0], 0.048 * aw, M.skin)),
-      add(cone([0, -0.01, 0], [0, -FA + 0.012, 0], 0.05 * aw, 0.033 * aw, M.skin), 0.025),
+      add(sph([0, -0.008, 0], 0.041 * aw, M.skin)),
+      add(cone([0, -0.01, 0], [0, -FA + 0.012, 0], 0.044 * aw, 0.033 * aw, M.skin), 0.025),
       add(ell([0, -0.065, 0.004], [0.054 * aw, 0.08, 0.05 * aw], M.skin), 0.04),
     ], M.skin);
     const fore: Op[] = [add(foreBody)];
@@ -511,17 +504,20 @@ export function buildFigure(o: Outfit): Figure {
     }
     // Hand: palm (facing the body), grouped fingers, a thumb; slightly curled.
     const hy = -FA;
-    const hand: Op[] = [add(box([-s * 0.003, hy - 0.048, 0.004], [0.017, 0.042, 0.038], 0.016, handMat))];
+    // Hands slightly oversized (stylised), modelled about the wrist.
+    const HSc = 1.15;
+    const hp = (x: number, y: number, z: number): V3 => [x * HSc, hy + (y - hy) * HSc, z * HSc];
+    const hand: Op[] = [add(box(hp(-s * 0.003, hy - 0.048, 0.004), [0.017 * HSc, 0.042 * HSc, 0.038 * HSc], 0.016 * HSc, handMat))];
     const fingers: [number, number, number][] = [[0.027, 0.04, 0.0115], [0.009, 0.044, 0.0118], [-0.009, 0.041, 0.0114], [-0.025, 0.033, 0.0104]];
     fingers.forEach(([z, lenF, r], i) => {
-      const k0: V3 = [-s * 0.002, hy - 0.086, z];
-      const k1: V3 = [-s * 0.012, hy - 0.086 - lenF * 0.95, z * 1.02];
-      const k2: V3 = [-s * 0.03, hy - 0.086 - lenF * 1.55, z * 1.02];
-      hand.push(add(cap(k0, k1, r, handMat), i === 0 ? 0.004 : 0.008));
-      hand.push(add(cone(k1, k2, r * 0.95, r * 0.82, handMat), 0.004));
+      const k0 = hp(-s * 0.002, hy - 0.086, z);
+      const k1 = hp(-s * 0.012, hy - 0.086 - lenF * 0.95, z * 1.02);
+      const k2 = hp(-s * 0.03, hy - 0.086 - lenF * 1.55, z * 1.02);
+      hand.push(add(cap(k0, k1, r * HSc, handMat), i === 0 ? 0.004 : 0.008));
+      hand.push(add(cone(k1, k2, r * 0.95 * HSc, r * 0.82 * HSc, handMat), 0.004));
     });
-    hand.push(add(cone([-s * 0.012, hy - 0.022, 0.03], [-s * 0.026, hy - 0.058, 0.052], 0.016, 0.013, handMat), 0.012));
-    hand.push(add(cone([-s * 0.026, hy - 0.058, 0.052], [-s * 0.034, hy - 0.083, 0.05], 0.013, 0.011, handMat), 0.004));
+    hand.push(add(cone(hp(-s * 0.012, hy - 0.022, 0.03), hp(-s * 0.026, hy - 0.058, 0.052), 0.016 * HSc, 0.013 * HSc, handMat), 0.012));
+    hand.push(add(cone(hp(-s * 0.026, hy - 0.058, 0.052), hp(-s * 0.034, hy - 0.083, 0.05), 0.013 * HSc, 0.011 * HSc, handMat), 0.004));
     fore.push(add(grp(hand, handMat), 0.018));
     // Props held in this hand. With a hold pose the fore frame's −y points
     // forward and +z up, so props are modelled upright along +z.
@@ -585,7 +581,7 @@ export function buildFigure(o: Outfit): Figure {
       }
       if (!right && e.kind === "basket") {
         const bc = H([0, -0.21, 0.02]);
-        fore.push(add({ ...box(bc, [0.095, 0.065, 0.12], 0.028, M.fab(extraColorSlot(o, "basket"))), disp: { kind: "rib", amp: 0.003, freq: 40, c: bc } }, 0.0));
+        fore.push(add(box(bc, [0.095, 0.065, 0.12], 0.028, M.fab(extraColorSlot(o, "basket"))), 0.0));
         fore.push(add(tor(H([0, -0.14, 0.02]), 0.1, 0.009, M.fab(extraColorSlot(o, "basket")), [Math.PI / 2, 0, 0]), 0.0));
         fore.push(add(box(H([0, -0.145, 0.02]), [0.085, 0.01, 0.11], 0.01, M.fab(extraColorSlot(o, "basket", true))), 0.0));
       }
@@ -595,12 +591,12 @@ export function buildFigure(o: Outfit): Figure {
     // ---------------------------------------------------------------- legs
     const TH = SK.thigh, SH = SK.shin;
     const thighBody = grp([
-      add(cone([0, 0.02, 0], [0, -TH + 0.01, 0], 0.082 * aw, 0.058 * aw, M.skin)),
+      add(cone([0, 0.02, 0], [0, -TH - 0.035, 0.004], 0.082 * aw, 0.063 * aw, M.skin)),
       add(ell([s * 0.006, -0.12, 0.01], [0.078 * aw, 0.13, 0.078 * aw], M.skin), 0.05),
     ], M.skin);
     const shinBody = grp([
-      add(sph([0, 0, 0.006], 0.06 * aw, M.skin)),
-      add(cone([0, -0.01, 0], [0, -SH + 0.015, 0], 0.056 * aw, 0.038 * aw, M.skin), 0.03),
+      add(sph([0, -0.01, 0.002], 0.048 * aw, M.skin)),
+      add(cone([0, -0.01, 0], [0, -SH + 0.015, 0], 0.049 * aw, 0.038 * aw, M.skin), 0.03),
       add(ell([0, -0.1, -0.014], [0.058 * aw, 0.1, 0.06 * aw], M.skin), 0.045),
     ], M.skin);
     const trousers = bottom.kind === "trousers" || bottom.kind === "baji" || outer?.kind === "overalls";
@@ -611,7 +607,6 @@ export function buildFigure(o: Outfit): Figure {
       if (trousers || bottom.kind === "shorts")
         thigh.push(add(shell(thighBody, baji ? 0.03 : 0.013, M.fab(legSlot), bottom.kind === "shorts" ? [above(-0.19)] : [], trousers ? band(0.0026, -TH - 0.01, -TH + 0.07, 75) : folds(0.002)), 0.003));
       if (bottom.kind === "shorts") thigh.push(add(tor([0, -0.185, 0.002], 0.068 * aw + 0.017, 0.011, M.fab(bottom.trim ? SLOT.bottomTrim : SLOT.bottom)), 0.003));
-      if (trousers && !baji) thigh.push(add(cap([s * 0.075 * aw, 0.0, 0.0], [s * 0.062 * aw, -TH, 0.0], 0.004, M.fab(legSlot)), 0.002));
       pieces[`thigh${side}`] = { ops: thigh };
     }
     if (bottom.kind !== "chima") {
@@ -627,7 +622,6 @@ export function buildFigure(o: Outfit): Figure {
       if (o.feet.kind === "boots") {
         shin.push(add(shell(shinBody, trousers ? 0.03 : 0.02, M.leather(SLOT.shoe), [below(-0.17)]), 0.004));
         shin.push(add(tor([0, -0.17, 0], 0.05 * aw + 0.024, 0.013, M.leather(SLOT.shoe)), 0.003));
-        for (const y of [-0.21, -0.25, -0.29]) shin.push(add(cap([-0.02, y, 0.06 * aw], [0.02, y - 0.012, 0.06 * aw], 0.0045, M.fab(SLOT.sole)), 0.002));
       }
       pieces[`shin${side}`] = { ops: shin };
     }
@@ -689,12 +683,12 @@ export function buildFigure(o: Outfit): Figure {
     const tilt: V3 = [-0.1, 0, 0];
     switch (o.head.kind) {
       case "straw":
-        crown({ ...cyl(at(0, 0.2, -0.01), 0.012, 0.58, 0.012, Hm, tilt), disp: { kind: "rib", amp: 0.002, freq: 60, c: HC } });
-        crown({ ...cyl(at(0, 0.3, -0.02), 0.11, 0.31, 0.07, Hm, tilt), disp: { kind: "rib", amp: 0.002, freq: 60, c: HC } }, 0.02);
+        crown(cyl(at(0, 0.2, -0.01), 0.014, 0.58, 0.012, Hm, tilt));
+        crown(cyl(at(0, 0.3, -0.02), 0.11, 0.31, 0.07, Hm, tilt), 0.02);
         deco(tor(at(0, 0.235, -0.015), 0.312, 0.024, B, tilt), 0.006);
         break;
       case "gat":
-        crown(cyl(at(0, 0.21, -0.01), 0.006, 0.62, 0.006, M.gloss(SLOT.hat, 0.5), [-0.06, 0, 0]));
+        crown(cyl(at(0, 0.21, -0.01), 0.011, 0.62, 0.01, M.gloss(SLOT.hat, 0.5), [-0.06, 0, 0]));
         crown(cyl(at(0, 0.38, -0.02), 0.16, 0.185, 0.04, M.gloss(SLOT.hat, 0.5), [-0.06, 0, 0]));
         deco(tor(at(0, 0.23, -0.015), 0.19, 0.015, B, [-0.06, 0, 0]), 0.004);
         for (const s of [1, -1]) {
@@ -810,7 +804,7 @@ export function buildFigure(o: Outfit): Figure {
     glasses: (o.extras ?? []).some((e) => e.kind === "glasses" || e.kind === "sunglasses")
       ? { slot: extraColorSlot(o, (o.extras ?? []).some((e) => e.kind === "glasses") ? "glasses" : "sunglasses"), sun: (o.extras ?? []).some((e) => e.kind === "sunglasses") }
       : undefined,
-    face: { expr, flick, lashes: lashy ? 1 : 0, browLift, browRight: expr === "thoughtful" ? 0.02 : 0, eye: { cx: 0.165, cy: -0.06, rx: 0.084, ry: 0.098, iris: [0.05, 0.03] } },
+    face: { expr, flick, lashes: lashy ? 1 : 0, lid: expr === "thoughtful" ? 0.2 : expr === "proud" ? 0.12 : 0, browLift, browRight: expr === "thoughtful" ? 0.02 : 0, eye: { cx: 0.165, cy: -0.06, rx: 0.084, ry: expr === "excited" ? 0.104 : 0.098, iris: [0.05, 0.03] } },
   };
 }
 

@@ -176,7 +176,7 @@ export function buildHair(style: HairStyle, mat: Mat, hatClip: Node[], hatted: b
       const part = lay ? 0 : 0.12;
       const yEnd = lay ? -0.4 : -0.33;
       massTo(yEnd + 0.04, 0.04, 0.0);
-      const n = lay ? 16 : 14;
+      const n = lay ? 13 : 12;
       for (let i = 0; i < n; i++) {
         const th = -2.9 + (i / (n - 1)) * 5.8;
         if (Math.abs(th - part) < 0.62) continue;
@@ -186,7 +186,7 @@ export function buildHair(style: HairStyle, mat: Mat, hatClip: Node[], hatted: b
         const ln = lay ? [-0.12, 0.05, -0.04, 0.02][i % 4] : Math.abs(th) > 2.3 ? 0.02 : 0;
         hang(th, root, yEnd + ln, lay ? 0.22 : 0.25, { flare: lay ? 0.05 : 0.03, curl: lay ? 0.05 : -0.04, rad: 0.355 });
       }
-      for (let i = 0; i < 4; i++) hang(PI - 0.5 + i * 0.33, S(PI, 0.3, 0), yEnd - (lay ? 0.08 : 0) + 0.02, 0.25, { flare: 0.03, curl: lay ? 0.05 : -0.04, rad: 0.36 });
+      for (let i = 0; i < 3; i++) hang(PI - 0.42 + i * 0.42, S(PI, 0.3, 0), yEnd - (lay ? 0.08 : 0) + 0.02, 0.25, { flare: 0.03, curl: lay ? 0.05 : -0.04, rad: 0.36 });
       if (!hatted) {
         if (lay) {
           // Curtain bangs split at the centre, framing the face.
@@ -205,15 +205,15 @@ export function buildHair(style: HairStyle, mat: Mat, hatClip: Node[], hatted: b
       shift = 0.35;
       const part = 0.35;
       massTo(-0.74, 0.08, 0.0);
-      for (let i = 0; i < 15; i++) {
-        const th = -2.9 + (i / 14) * 5.8;
+      for (let i = 0; i < 12; i++) {
+        const th = -2.9 + (i / 11) * 5.8;
         if (Math.abs(th - 0.1) < 0.7) continue;
         const front = Math.abs(th) < 1.45;
         const sd = th > part ? 1 : -1;
         const ph0 = 0.18 + 0.5 * Math.min(1, Math.abs(th - part) / 2.8) ** 1.5;
         hang(th, S(part + sd * 0.03, ph0, 0), front ? -0.62 + 0.05 * (i % 2) : -0.8 + 0.05 * (i % 3), front ? 0.24 : 0.27, { flare: front ? 0.0 : 0.035, curl: 0.035, zb: front ? -0.04 : -0.07, rad: front ? 0.33 : 0.36 });
       }
-      for (let i = 0; i < 4; i++) hang(PI - 0.48 + i * 0.32, S(PI, 0.3, 0), -0.84 + 0.04 * (i % 2), 0.27, { flare: 0.035, curl: 0.035, zb: -0.09 });
+      for (let i = 0; i < 3; i++) hang(PI - 0.4 + i * 0.4, S(PI, 0.3, 0), -0.84 + 0.04 * (i % 2), 0.27, { flare: 0.035, curl: 0.035, zb: -0.09 });
       if (!hatted) {
         for (let i = 0; i < 3; i++) L([S(part - 0.05, 0.7 + i * 0.07, 0.01), S(0.05 - i * 0.15, 1.0, 0.065), S(-0.4 - i * 0.15, 1.22 + i * 0.05, 0.05), S(-0.68 - i * 0.1, 1.55 + i * 0.05, 0.05)], 0.15, 0.04, { th0: 0.05, th1: 0.026 });
         L([S(part + 0.1, 0.75, 0.01), S(0.62, 1.05, 0.06), S(0.82, 1.42, 0.05)], 0.13, 0.04, { th0: 0.045, th1: 0.026 });
@@ -326,14 +326,18 @@ function hlPhi(knots: number[], th: number) {
   return knots[knots.length - 1];
 }
 /** `hat(p)`: signed distance to the headwear (head frame); geometry inside is culled. */
-export function hairMesh(h: HairBuild, hi: boolean, hat: (p: V3) => number): { mesh: AttrMesh; segs: HairSeg[] } {
+/** Detail levels (sides, ring spacing) for hero; the bake picks the finest
+ * that fits the character's budget. */
+const LEVELS: [number, number][] = [[6, 0.06], [5, 0.075], [4, 0.095]];
+export function hairMesh(h: HairBuild, hi: boolean, hat: (p: V3) => number, level = 0): { mesh: AttrMesh; segs: HairSeg[] } {
+  const [KH, stepH] = LEVELS[Math.min(LEVELS.length - 1, level)];
   const out = emptyMesh();
   const segs: HairSeg[] = [];
   const inside = (p: V3, m = 0) => hat(p) < -m;
   // Scalp cap up to the hairline (tucked to the skin at its edge).
   {
     const m = emptyMesh();
-    const segsT = hi ? 30 : 12, rings = hi ? 9 : 4;
+    const segsT = hi ? 30 - level * 4 : 12 - level * 2, rings = hi ? 9 - level : 4;
     const grid: number[][] = [];
     const off = (j: number) => h.cap.thick * (j === rings ? 0.25 : 0.62);
     const top = m.pos.length / 3;
@@ -355,7 +359,7 @@ export function hairMesh(h: HairBuild, hi: boolean, hat: (p: V3) => number): { m
       grid.push(row);
     }
     const P = (k: number): V3 => [m.pos[k * 3], m.pos[k * 3 + 1], m.pos[k * 3 + 2]];
-    const keep = (...k: number[]) => !k.every((v) => inside(P(v), 0.004));
+    const keep = (...k: number[]) => k.filter((v) => !inside(P(v), 0.004)).length >= Math.min(2, k.length - 1);
     for (let i = 0; i < segsT; i++) if (keep(top, grid[0][i], grid[0][(i + 1) % segsT])) m.tri.push(top, grid[0][i], grid[0][(i + 1) % segsT]);
     for (let j = 0; j < rings - 1; j++)
       for (let i = 0; i < segsT; i++) {
@@ -364,13 +368,13 @@ export function hairMesh(h: HairBuild, hi: boolean, hat: (p: V3) => number): { m
       }
     orient(m);
     vertexNormals(m);
-    appendMesh(out, m);
+    appendMesh(out, compactMesh(m));
   }
   // Inner curtain under long styles.
   if (h.curtain) {
     const c = h.curtain;
     const m = emptyMesh();
-    const cols = hi ? 22 : 9, rows = hi ? 7 : 3;
+    const cols = hi ? 22 - level * 4 : 9 - level, rows = hi ? 7 - level : 3;
     const span = Math.PI * 2 - c.front * 2;
     for (let j = 0; j <= rows; j++)
       for (let i = 0; i <= cols; i++) {
@@ -405,7 +409,7 @@ export function hairMesh(h: HairBuild, hi: boolean, hat: (p: V3) => number): { m
     const cum = [0];
     for (let i = 1; i < raw.length; i++) cum.push(cum[i - 1] + len([raw[i][0] - raw[i - 1][0], raw[i][1] - raw[i - 1][1], raw[i][2] - raw[i - 1][2]]));
     const L = cum[cum.length - 1];
-    const R = Math.max(hi ? 5 : 3, Math.min(hi ? 13 : 6, Math.round(L / (hi ? 0.045 : 0.1)))) + 1;
+    const R = Math.max(hi ? 4 : 3, Math.min(hi ? 10 : 5, Math.round(L / (hi ? stepH : 0.12 + level * 0.02)))) + 1;
     const P: V3[] = [];
     for (let r = 0; r < R; r++) {
       const d = (r / (R - 1)) * L;
@@ -418,7 +422,7 @@ export function hairMesh(h: HairBuild, hi: boolean, hat: (p: V3) => number): { m
     let s0 = 0;
     for (let r = 0; r < R; r++) if (inside(P[r], wid(r / (R - 1)) * 0.2)) s0 = r;
     if (s0 >= R - 2) continue;
-    const K = hi ? 7 : 4;
+    const K = hi ? KH : level >= 2 ? 3 : 4;
     const m = emptyMesh();
     const ringIds: number[][] = [];
     for (let r = s0; r < R; r++) {
@@ -471,6 +475,25 @@ export function hairMesh(h: HairBuild, hi: boolean, hat: (p: V3) => number): { m
     appendMesh(out, m);
   }
   return { mesh: out, segs };
+}
+
+/** Drop vertices no triangle uses (culled under a hat). */
+function compactMesh(m: AttrMesh): AttrMesh {
+  const map = new Map<number, number>();
+  const o = emptyMesh();
+  for (const v of m.tri) {
+    let n = map.get(v);
+    if (n === undefined) {
+      n = o.pos.length / 3;
+      map.set(v, n);
+      o.pos.push(m.pos[v * 3], m.pos[v * 3 + 1], m.pos[v * 3 + 2]);
+      o.nrm.push(m.nrm[v * 3], m.nrm[v * 3 + 1], m.nrm[v * 3 + 2]);
+      o.a.push(m.a[v * 4], m.a[v * 4 + 1], m.a[v * 4 + 2], m.a[v * 4 + 3]);
+      o.b.push(m.b[v * 4], m.b[v * 4 + 1], m.b[v * 4 + 2], m.b[v * 4 + 3]);
+    }
+    o.tri.push(n);
+  }
+  return o;
 }
 
 /** SDF stand-in of the clumps (AO between them; never meshed). */

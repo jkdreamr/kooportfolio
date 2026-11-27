@@ -87,7 +87,8 @@ export type Node = Base &
     | { t: "shell"; of: Node; d: number; clip?: Node[] }
     | { t: "not"; n: Node }
   );
-export type Op = { op: "add" | "sub" | "int"; k: number; n: Node };
+/** `paint` changes only the material inside its region (no geometry). */
+export type Op = { op: "add" | "sub" | "int" | "paint"; k: number; n: Node };
 export type Piece = { ops: Op[] };
 
 // --- vector helpers ------------------------------------------------------------
@@ -263,7 +264,7 @@ export function dist(n: Node, p: V3): number {
       break;
     case "shell": {
       d = dist(n.of, p) - n.d;
-      for (const c of n.clip ?? []) d = smax(d, dist(c, p), 0.008);
+      for (const c of n.clip ?? []) d = smax(d, dist(c, p), 0.012);
       break;
     }
     case "not":
@@ -297,7 +298,7 @@ export function bbox(n: Node): BB {
       break;
     }
     case "grp": {
-      const adds = n.ops.filter((o) => o.op !== "sub");
+      const adds = n.ops.filter((o) => o.op === "add" || o.op === "int");
       b = adds.length ? adds.map((o) => pad(bbox(o.n), o.k)).reduce(union) : INF_BB;
       break;
     }
@@ -339,6 +340,9 @@ export function evalOps(ops: Op[], p: V3, hit: Hit | null): number {
       const mn = hit && o.n.t === "grp" ? hit.m : (o.n.m ?? null);
       if (hit && (dn < d || m === null)) m = mn ?? m;
       d = d >= 1e8 ? dn : smin(d, dn, o.k);
+    } else if (o.op === "paint") {
+      if (!hit || bbDist(b, p) > 0) continue;
+      if (dist(o.n, p) < 0 && o.n.m) m = o.n.m;
     } else if (o.op === "sub") {
       if (bbDist(b, p) > o.k + 0.001 && b !== INF_BB) continue;
       const dn = dist(o.n, p);

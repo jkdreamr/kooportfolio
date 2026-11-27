@@ -74,6 +74,8 @@ export type Gait = {
   blinkTimer: number;
   blink: number;
   initialised: boolean;
+  /** Talking gesture blend (0..1). */
+  gesture?: number;
 };
 
 const zeroPose = (): Pose => ({
@@ -133,6 +135,7 @@ export function createGait(seed = 1): Gait {
   };
 }
 
+const lerpN = (a: number, b: number, t: number) => a + (b - a) * t;
 const damp = (from: number, to: number, rate: number, dt: number) =>
   from + (to - from) * (1 - Math.exp(-rate * dt));
 const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
@@ -153,7 +156,14 @@ export function stepGait(
   vx: number,
   vz: number,
   heading: number,
-  options: { forceWalk?: boolean; still?: boolean } = {},
+  options: {
+    forceWalk?: boolean;
+    still?: boolean;
+    /** Speaking: hand gestures and small nods. */
+    talking?: boolean;
+    /** Head look-at target relative to the facing (radians), or null. */
+    look?: { yaw: number; pitch: number } | null;
+  } = {},
 ) {
   dt = Math.min(Math.max(dt, 0), 0.05);
   const p = gait.pose;
@@ -191,7 +201,11 @@ export function stepGait(
   const ph = gait.phase;
   const s = Math.sin(ph),
     c = Math.cos(ph);
-  const stride = 0.62 * walk + 0.12 * Math.max(0, w - 1);
+  // Stride matched to the ground speed so planted feet do not slide: each
+  // stance half-cycle sweeps the foot back by the distance the body moves.
+  const LEG = 0.7;
+  const match = Math.asin(clamp(gait.speed / (4 * cadence * LEG), 0, 0.85));
+  const stride = walk > 0.02 ? Math.min(0.72, match * 1.05) * Math.min(1, walk * 4) : 0;
 
   // Legs: left uses phase, right half a cycle later.
   const leg = (sn: number, cs: number) => {
@@ -249,16 +263,25 @@ export function stepGait(
   p.chestPitch = idle * breathe * 0.012 + walk * 0.04;
   p.breath = 1 + idle * breathe * 0.025 + walk * 0.01 * Math.cos(2 * ph);
 
-  const lookYaw =
-    idle * gait.lookYaw + walk * clamp(gait.turn * 0.12, -0.5, 0.5);
-  p.headYaw = damp(p.headYaw, lookYaw - p.chestYaw * 0.6, 5, dt);
+  const look = options.look;
+  const talk = options.talking ? 1 : 0;
+  gait.gesture = damp(gait.gesture ?? 0, talk, 3, dt);
+  const g = gait.gesture;
+  const nod = g * (Math.sin(t * 2.3) * 0.05 + Math.sin(t * 5.1) * 0.02);
+  const lookYaw = look
+    ? clamp(look.yaw, -1.05, 1.05)
+    : idle * gait.lookYaw + walk * clamp(gait.turn * 0.12, -0.5, 0.5);
+  const lookPitch = look ? clamp(look.pitch, -0.3, 0.35) : idle * gait.lookPitch;
+  // Looking at someone turns the chest a little too.
+  if (look) p.chestYaw += clamp(look.yaw, -1, 1) * 0.22 * idle;
+  p.headYaw = damp(p.headYaw, lookYaw - p.chestYaw * 0.6, look ? 4 : 5, dt);
   p.headPitch = damp(
     p.headPitch,
-    idle * gait.lookPitch - p.lean * 0.6 + walk * 0.04 * Math.cos(2 * ph),
+    lookPitch - p.lean * 0.6 + walk * 0.04 * Math.cos(2 * ph) + nod,
     6,
     dt,
   );
-  p.headRoll = -p.bank * 0.4 - p.hipRoll * 0.3;
+  p.headRoll = -p.bank * 0.4 - p.hipRoll * 0.3 + g * Math.sin(t * 0.9) * 0.06;
 
   // Idle stance: weight on one leg, the other knee relaxed.
   p.hipL = tl + idle * 0.03;
@@ -275,6 +298,19 @@ export function stepGait(
   p.spreadR = 0.1 + walk * 0.05 + idle * breathe * 0.01;
   p.elbowL = 0.25 + walk * (0.35 + 0.35 * Math.max(0, -s));
   p.elbowR = 0.25 + walk * (0.35 + 0.35 * Math.max(0, s));
+  if (g > 0.01) {
+    // Talking: an open-handed gesture that rises and settles, sometimes
+    // with both hands, between relaxed beats.
+    const k = g * idle;
+    const beat = Math.max(0, Math.sin(t * 1.3 + gait.seed)) ** 0.7;
+    const both = Math.max(0, Math.sin(t * 0.55 + gait.seed * 2)) ** 2;
+    p.armR = lerpN(p.armR, 0.55 + 0.25 * Math.sin(t * 2.7), k * beat);
+    p.elbowR = lerpN(p.elbowR, 1.35 + 0.25 * Math.sin(t * 3.1), k * beat);
+    p.spreadR = lerpN(p.spreadR, 0.28, k * beat);
+    p.armL = lerpN(p.armL, 0.45 + 0.2 * Math.sin(t * 2.2 + 1), k * beat * both);
+    p.elbowL = lerpN(p.elbowL, 1.25 + 0.2 * Math.sin(t * 2.9 + 2), k * beat * both);
+    p.spreadL = lerpN(p.spreadL, 0.24, k * beat * both);
+  }
   return p;
 }
 

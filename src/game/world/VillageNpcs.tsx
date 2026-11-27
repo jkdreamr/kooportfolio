@@ -50,6 +50,8 @@ const up = new THREE.Vector3(0, 1, 0);
 const HERO_MAX = 5;
 const HERO_RADIUS = 13;
 const MID_RADIUS = { high: 20, medium: 10, low: 0 } as const;
+/** At most this many mid-tier villagers at once (worst-case triangle cap). */
+const MID_MAX = { high: 10, medium: 8, low: 0 } as const;
 
 /** The whole crowd: hero + mid sculpted BatchedMeshes (one draw each) and
  * the low primitive rig (≤8 instanced draws). Before the bake loads, the
@@ -132,18 +134,29 @@ function CrowdRig({ crowd }: { crowd: NpcEntry[] }) {
       prev[i * 2] = x;
       prev[i * 2 + 1] = z;
       const frozen = game.paused || game.panel !== "none";
+      // Look at the player when they come close (and always while talking).
+      const isTalking = talking === actor.id && !game.paused;
+      const pdx = runtime.x - x, pdz = runtime.z - z;
+      const pd = Math.hypot(pdx, pdz);
+      let look: { yaw: number; pitch: number } | null = null;
+      if (isTalking || (pd < 3.2 && pd > 0.2 && !actor.moving)) {
+        const yaw = Math.atan2(Math.sin(Math.atan2(pdx, pdz) - actor.heading), Math.cos(Math.atan2(pdx, pdz) - actor.heading));
+        if (Math.abs(yaw) < 1.9) look = { yaw, pitch: pd < 1.2 ? -0.08 : 0 };
+      }
       const pose = stepGait(gaits[i], dt, vx, vz, actor.heading, {
         forceWalk:
           actor.moving && !frozen && Math.hypot(vx, vz) < 0.5 && seated < 0.1,
-        still: frozen || seated > 0.5,
+        still: (frozen && !isTalking) || seated > 0.5,
+        talking: isTalking,
+        look,
       });
       seatPose(pose, seated);
       if (seated <= 0) pose.seat = 0;
       // The villager you are talking to moves their mouth.
-      pose.talk =
-        talking === actor.id && !game.paused
-          ? Math.max(0, Math.sin(clock * 11 + i) * 0.5 + Math.sin(clock * 6.3) * 0.35)
-          : 0;
+      // Syllable-like mouth motion while speaking (with short pauses).
+      pose.talk = isTalking
+        ? Math.max(0, Math.sin(clock * 11 + i) * 0.5 + Math.sin(clock * 6.3) * 0.35) * (Math.sin(clock * 1.7 + i) > -0.6 ? 1 : 0)
+        : 0;
       const seatY = HIP * NPC_SCALE - 0.008;
       at.set(x, 0.2 + ((actor.seat?.height ?? seatY) + 0.04 - seatY) * seated, z);
       turn.setFromAxisAngle(up, actor.heading);
@@ -152,7 +165,7 @@ function CrowdRig({ crowd }: { crowd: NpcEntry[] }) {
       const was = slots.tier[i];
       const hero =
         !!sculpt && heroRadius > 0 && heroRank[i] < HERO_MAX && nearRig(d, fov, heroRadius, was === 2);
-      const close = hero || (radius > 0 && nearRig(d, fov, radius, was >= 1));
+      const close = hero || (radius > 0 && heroRank[i] < (sculpt ? HERO_MAX + MID_MAX[tier] : 999) && nearRig(d, fov, radius, was >= 1));
       slots.tier[i] = hero ? 2 : close ? 1 : 0;
       if (sculpt) {
         if (hero) sculpt.hero.write(i, pose, base);

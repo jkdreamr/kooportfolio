@@ -69,6 +69,7 @@ import {
   ISLAND_CAMERA_OFFSET,
 } from "../core/islandCamera";
 import { NpcCrowd } from "./VillageNpcs";
+import { applyQaCamera } from "./qaCamera";
 import { nearbyNpcId } from "../core/npcState";
 import { BadmintonPavilion } from "../scenes/BadmintonCourt";
 import { Wildlife } from "./Wildlife";
@@ -485,6 +486,7 @@ export function Walker({
     mixView(v.mixed, v.diorama, v.explore, blend);
     v.ownsLens = true;
     applyViewPose(perspective, v.mixed, size.height);
+    applyQaCamera(perspective);
   });
   /** Another controller (travel, train, a game mode) takes the hub camera:
    * drop the explore blend at once and let the rig smooth the cut. */

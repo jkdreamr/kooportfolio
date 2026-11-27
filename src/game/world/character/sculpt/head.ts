@@ -201,12 +201,12 @@ function eyeArc(hc: V3, spec: EyeSpec, s: number, a0: number, a1: number, rr: nu
  * gradient, pupil, two catchlights), an upper lash line that thickens to the
  * outer corner (with a flick and lash tips on some characters), a soft lid
  * crease above and a fine lower lash line. */
-export function eyes(hc: V3, spec: EyeSpec, flick: boolean, hi: boolean, lashes = 0): AttrMesh {
+export function eyes(hc: V3, spec: EyeSpec, flick: boolean, hi: boolean, lashes = 0, lid = 0): AttrMesh {
   const out = emptyMesh();
   for (const s of [1, -1]) {
     const cx = s * spec.cx;
     const cap = decal(
-      hc, hi ? 22 : 10, hi ? 5 : 3,
+      hc, hi ? 22 : 8, hi ? 5 : 2,
       (_, t) => 0.002 + 0.007 * (1 - t * t),
       (a, t) => {
         const ang = a * Math.PI * 2;
@@ -222,6 +222,27 @@ export function eyes(hc: V3, spec: EyeSpec, flick: boolean, hi: boolean, lashes 
       },
     );
     appendMesh(out, cap);
+    if (lid > 0.01) {
+      // Relaxed upper lid (expression): skin over the top of the eye, the
+      // lash line along its edge.
+      const edge = (k: number) => spec.cy + spec.ry * (1 - 2 * lid) + spec.ry * 0.12 * (1 - k * k) - spec.ry * 0.05 * k * s;
+      const top = (k: number) => spec.cy + spec.ry * Math.sqrt(Math.max(0, 1 - k * k));
+      appendMesh(out, decal(hc, hi ? 14 : 6, 2, () => 0.0102, (q, t) => {
+        const k = (q * 2 - 1) * 1.04;
+        const kk = Math.max(-1, Math.min(1, k));
+        const e = Math.min(edge(kk), top(kk));
+        return [cx + s * k * spec.rx, e + (top(kk) + 0.008 - e) * t];
+      }, () => ({ a: [SLOT.skin, SLOT.skin, 0, 238], b: B(0.5) })));
+      appendMesh(out, decal(hc, hi ? 16 : 6, 1, () => 0.0108, (q, t) => {
+        const k = (q * 2 - 1) * 1.02;
+        const kk = Math.max(-1, Math.min(1, k));
+        const half = 0.004 + 0.006 * (0.5 + 0.5 * k * s) ;
+        return [cx + s * k * spec.rx, Math.min(edge(kk), top(kk)) + (t - 0.35) * 2 * half];
+      }, () => ({ a: [SLOT.dark, SLOT.dark, 0, 235], b: B(0.55) })));
+      appendMesh(out, eyeArc(hc, spec, s, 150, 32, 1.3, (q) => 0.022 * Math.sin(Math.PI * q), SLOT.skinShade, hi ? 14 : 6, 0.0035, 0.6));
+      appendMesh(out, eyeArc(hc, spec, s, -100, -12, 1.03, (q) => 0.028 * Math.sin(Math.PI * q), SLOT.brow, hi ? 12 : 5, 0.006, 0.6));
+      continue;
+    }
     // Upper lash line: thin at the inner corner, bold at the outer one.
     const a1 = flick ? -12 : 6;
     appendMesh(out, eyeArc(hc, spec, s, 176, a1, 1.02, (q) => 0.03 + 0.1 * Math.pow(Math.sin(Math.PI * Math.min(1, q * 0.92)), 0.6) * (0.55 + 0.45 * q), SLOT.dark, hi ? 22 : 8, 0.0105, 0.55,

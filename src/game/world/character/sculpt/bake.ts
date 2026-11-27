@@ -21,7 +21,7 @@ export const PLAYER_IDS = { hat: "player:hat", bare: "player:bare" } as const;
 
 const TARGET: Record<string, [number, number]> = {
   head: [1000, 260], eyes: [0, 0], chest: [1050, 240], pelvis: [300, 80], skirt: [480, 120],
-  upper: [190, 48], fore: [300, 80], thigh: [170, 45], shin: [160, 40], foot: [170, 42], mouth: [0, 0],
+  upper: [190, 40], fore: [300, 64], thigh: [170, 38], shin: [160, 34], foot: [170, 36], mouth: [0, 0],
 };
 const CELL: Record<string, number> = {
   head: 0.005, eyes: 0.0032, chest: 0.0056, pelvis: 0.007, skirt: 0.007, upper: 0.006, fore: 0.005, thigh: 0.008, shin: 0.008, foot: 0.0055, mouth: 0.003,
@@ -79,19 +79,46 @@ export function bakePart(ids: string[], log: (s: string) => void = console.log):
       return d;
     };
     part.chars[id] = { p: {}, skirtTop: fig.skirtTop };
-    for (const [pid, piece] of entries) {
-      if (only && !only.includes(base(pid)) && !only.includes(pid)) continue;
-      const key = pieceKey(pid, piece.ops, fig);
-      let idx = cache.get(key);
-      if (idx === undefined) {
-        const lods = meshPiece(pid, piece.ops, fig, rest[PIECE_JOINT[pid]], global);
-        for (const m of lods) toRest(pid, m, rest);
-        idx = part.shapes.length;
-        part.shapes.push(lods.map(finalize) as [Shape, Shape]);
-        part.keys.push(key);
-        cache.set(key, idx);
+    const plan = budgetPlan(fig, entries);
+    const meshAll = (adjOnly: boolean) => {
+      for (const [pid, piece] of entries) {
+        if (only && !only.includes(base(pid)) && !only.includes(pid)) continue;
+        const adj = ADJUSTABLE.has(base(pid));
+        if (adjOnly && !adj) continue;
+        const sc: [number, number] = adj ? plan.scale : [1, 1];
+        const lv: [number, number] = pid === "head" ? plan.hair : [0, 0];
+        const key = pieceKey(pid, piece.ops, fig) + (adj ? `@${sc[0].toFixed(3)},${sc[1].toFixed(3)}` : "") + (pid === "head" ? `#${lv.join(",")}` : "");
+        let idx = cache.get(key);
+        if (idx === undefined) {
+          const lods = meshPiece(pid, piece.ops, fig, rest[PIECE_JOINT[pid]], global, sc, lv);
+          for (const m of lods) toRest(pid, m, rest);
+          idx = part.shapes.length;
+          part.shapes.push(lods.map(finalize) as [Shape, Shape]);
+          part.keys.push(key);
+          cache.set(key, idx);
+        }
+        part.chars[id].p[pid] = idx;
       }
-      part.chars[id].p[pid] = idx;
+    };
+    meshAll(false);
+    // Enforce the budget exactly: shrink the unique pieces until it fits.
+    for (let attempt = 0; attempt < 5 && !only; attempt++) {
+      let over = false;
+      for (const lod of [0, 1]) {
+        let total = 0, adjT = 0;
+        for (const [pid, i] of Object.entries(part.chars[id].p) as [PieceId, number][]) {
+          if (pid.startsWith("mouth") && pid !== "mouth0") continue;
+          const t = part.shapes[i][lod].idx.length / 3;
+          total += t;
+          if (ADJUSTABLE.has(base(pid))) adjT += t;
+        }
+        if (total > (lod ? 2500 : 9000)) {
+          over = true;
+          plan.scale[lod] *= Math.max(0.1, (BUDGET[lod] - (total - adjT)) / Math.max(1, adjT)) * 0.95;
+        }
+      }
+      if (!over) break;
+      meshAll(true);
     }
     log(`${id}: ${entries.length} pieces, ${part.shapes.length} shapes so far (${((Date.now() - t0) / 1000).toFixed(1)}s)`);
     t0 = Date.now();
@@ -99,9 +126,42 @@ export function bakePart(ids: string[], log: (s: string) => void = console.log):
   return part;
 }
 
+/** Per-character budgets: hero ≤ 9k and mid ≤ 2.5k triangles. Analytic
+ * parts (face, hair) and shared limbs are fixed; the unique pieces (chest,
+ * pelvis, skirt, hat/ears) scale down to fit what is left. */
+const BUDGET = [8900, 2450];
+const ADJUSTABLE = new Set(["chest", "pelvis", "skirt", "head"]);
+function budgetPlan(fig: Figure, entries: [PieceId, { ops: unknown[] }][]): { scale: [number, number]; hair: [number, number] } {
+  const scale: [number, number] = [1, 1], hair: [number, number] = [0, 0];
+  for (const lod of [0, 1]) {
+    const hi = lod === 0;
+    let fixed = 0, adj = 0;
+    const tris = (m: AttrMesh) => m.tri.length / 3;
+    fixed += tris(headSkin(fig.HC, hi ? 22 : 10, hi ? 30 : 14, () => ({ slotB: 0, mix: 0 })));
+    fixed += tris(brows(fig.HC, 0, 0, hi)) + tris(eyes(fig.HC, fig.face.eye, fig.face.flick, hi, fig.face.lashes, fig.face.lid)) + tris(mouth(fig.HC, fig.face.expr, hi));
+    if (fig.glasses) fixed += tris(glasses(fig.HC, fig.face.eye, fig.glasses.slot, fig.glasses.sun, hi));
+    for (const [pid, piece] of entries) {
+      if (!piece.ops.length || pid.startsWith("mouth") || pid === "eyes") continue;
+      const t = TARGET[base(pid)][lod];
+      if (ADJUSTABLE.has(base(pid))) adj += t;
+      else fixed += t;
+    }
+    // The finest hair that leaves the unique pieces at least ~55%.
+    let hairT = 0;
+    if (fig.hairPlan)
+      for (let lv = 0; lv < 3; lv++) {
+        hair[lod] = lv;
+        hairT = tris(hairMesh(fig.hairPlan, hi, fig.hatDist, lv).mesh);
+        if (fixed + hairT + adj * 0.55 <= BUDGET[lod]) break;
+      }
+    scale[lod] = Math.max(0.3, Math.min(1, (BUDGET[lod] - fixed - hairT) / Math.max(1, adj)));
+  }
+  return { scale, hair };
+}
+
 function pieceKey(pid: PieceId, ops: unknown, fig: Figure) {
   if (pid.startsWith("mouth")) return pid + mouthKind(pid, fig);
-  if (pid === "eyes") return pid + JSON.stringify([fig.face.eye, fig.face.flick, fig.face.lashes]);
+  if (pid === "eyes") return pid + JSON.stringify([fig.face.eye, fig.face.flick, fig.face.lashes, fig.face.lid]);
   return pid + JSON.stringify(ops) + (pid === "head" ? JSON.stringify(fig.face) + JSON.stringify(fig.glasses ?? null) + JSON.stringify(fig.hairPlan ? [fig.hairPlan.clumps, fig.hairPlan.cap, fig.hairPlan.curtain] : null) : "");
 }
 const mouthKind = (pid: PieceId, fig: Figure): MouthKind => (pid === "mouth0" ? fig.face.expr : (["talk1", "talk2", "talk3"] as const)[+pid.slice(5) - 1]);
@@ -112,7 +172,11 @@ export function packParts(parts: BakePart[]) {
   const at = new Map<string, [number, number]>();
   const manifest: Record<string, CharManifest> = {};
   for (const part of parts) {
+    // Shapes left behind by budget retries are not shipped.
+    const used = new Set<number>();
+    for (const c of Object.values(part.chars)) for (const i of Object.values(c.p)) used.add(i as number);
     const local = part.keys.map((k, i) => {
+      if (!used.has(i)) return [-1, -1] as [number, number];
       let ids = at.get(k);
       if (!ids) {
         shapes.push(part.shapes[i][0], part.shapes[i][1]);
@@ -135,7 +199,7 @@ export function bake(log: (s: string) => void = console.log, only?: string[]) {
   return packParts([bakePart(castList(only).map((c) => c.id), log)]);
 }
 
-function meshPiece(pid: PieceId, ops: Parameters<typeof evalOps>[0], fig: Figure, restM: THREE.Matrix4, global: (p: V3) => number): [AttrMesh, AttrMesh] {
+function meshPiece(pid: PieceId, ops: Parameters<typeof evalOps>[0], fig: Figure, restM: THREE.Matrix4, global: (p: V3) => number, scale: [number, number] = [1, 1], hairLv: [number, number] = [0, 0]): [AttrMesh, AttrMesh] {
   const kind = base(pid);
   const ctx = { pid, fig, restM, global };
   const lods: [AttrMesh, AttrMesh] = [emptyMesh(), emptyMesh()];
@@ -154,7 +218,7 @@ function meshPiece(pid: PieceId, ops: Parameters<typeof evalOps>[0], fig: Figure
     };
     // Each LOD is meshed on its own grid (the mid one coarser), so thin
     // features cannot stall the mid decimation.
-    const meshes = ([[h, ht], [h * 1.9, mt]] as const).map(([cell, target]) => {
+    const meshes = ([[h, Math.round(ht * scale[0])], [h * 1.9, Math.round(mt * scale[1])]] as const).map(([cell, target]) => {
       const raw = surfaceNets(f, bb.min, bb.max, cell);
       project(f, raw.pos, cell * 0.5, 1);
       const hit: Hit = { d: 0, m: null };
@@ -165,8 +229,17 @@ function meshPiece(pid: PieceId, ops: Parameters<typeof evalOps>[0], fig: Figure
         slots[i] = hit.m!.slot;
         vw[i] = isCloth(slots[i]) ? 0.6 : 1;
       }
+      // Colour borders are kept by weight (hard border constraints tangle
+      // on dense meshes): vertices next to another colour cost more to move.
+      for (let t = 0; t < raw.tri.length; t += 3)
+        for (let c = 0; c < 3; c++) {
+          const u = raw.tri[t + c], v2 = raw.tri[t + ((c + 1) % 3)];
+          if (slots[u] !== slots[v2]) { vw[u] = 6; vw[v2] = 6; }
+        }
       const w2 = (x: number, y: number, z: number, i?: number) => weight(x, y, z) * (i === undefined ? 1 : vw[i]);
-      const out = raw.tri.length / 3 > target ? decimate(raw, [target], w2, slots)[0] : raw;
+      // Mid: geometry-only decimation (colour constraints stall on small
+      // details at this density; colours are re-evaluated per vertex anyway).
+      const out = raw.tri.length / 3 > target ? decimate(raw, [target], w2, cell === h ? slots : undefined)[0] : raw;
       if (env.BAKE_DEBUG) console.log(`  ${pid}: raw ${raw.tri.length / 3} → ${out.tri.length / 3}`);
       return out;
     });
@@ -191,12 +264,12 @@ function meshPiece(pid: PieceId, ops: Parameters<typeof evalOps>[0], fig: Figure
         const light = Math.min(1, nose * 1.0 + cheek * 0.7 + brow * 0.5);
         return lip * 0.3 > bl ? { slotB: SLOT.lip, mix: lip * 0.3, light } : { slotB: SLOT.blush, mix: bl * 0.8, light };
       };
-      parts.push(headSkin(HC, hi ? 22 : 11, hi ? 30 : 15, paint));
+      parts.push(headSkin(HC, hi ? 22 : 10, hi ? 30 : 14, paint));
       parts.push(brows(HC, fig.face.browLift, fig.face.browRight, hi));
-      if (fig.hairPlan) parts.push(hairMesh(fig.hairPlan, hi, fig.hatDist).mesh);
+      if (fig.hairPlan) parts.push(hairMesh(fig.hairPlan, hi, fig.hatDist, hairLv[lod]).mesh);
       if (fig.glasses) parts.push(glasses(HC, fig.face.eye, fig.glasses.slot, fig.glasses.sun, hi));
     } else if (pid === "eyes") {
-      parts.push(eyes(HC, fig.face.eye, fig.face.flick, hi, fig.face.lashes));
+      parts.push(eyes(HC, fig.face.eye, fig.face.flick, hi, fig.face.lashes, fig.face.lid));
       ao = false;
     } else if (pid.startsWith("mouth")) {
       parts.push(mouth(HC, mouthKind(pid, fig), hi));
@@ -358,7 +431,7 @@ function sdfAttributes(ctx: Ctx, m: RawMesh, ops: Parameters<typeof evalOps>[0],
     const gl = Math.hypot(gx, gy, gz) || 1;
     // Blend the field normal with the smoothed mesh normal (no facets,
     // no shading that disagrees with the silhouette).
-    gx = gx / gl + out.nrm[i * 3]; gy = gy / gl + out.nrm[i * 3 + 1]; gz = gz / gl + out.nrm[i * 3 + 2];
+    gx = (gx / gl) * 2.5 + out.nrm[i * 3]; gy = (gy / gl) * 2.5 + out.nrm[i * 3 + 1]; gz = (gz / gl) * 2.5 + out.nrm[i * 3 + 2];
     const nl = Math.hypot(gx, gy, gz) || 1;
     gx /= nl; gy /= nl; gz /= nl;
     out.nrm[i * 3] = gx; out.nrm[i * 3 + 1] = gy; out.nrm[i * 3 + 2] = gz;
