@@ -34,6 +34,7 @@ import {
 import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import { runtime, useGame } from "../core/store";
 import { sound } from "../core/sound";
+import { useLauncher, useLauncherHosted } from "../core/launchers";
 import { Box, Cylinder } from "../world/Models";
 import "./paper-toss.css";
 
@@ -182,6 +183,13 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
     setAim(0);
     setHud(round.current);
   };
+  const startToss = () => {
+    if (startGameMode("paper-toss")) reset(0);
+  };
+  // The room header launches the game; the in-world button only shows when
+  // no header is rendering this room's launchers.
+  const hosted = useLauncherHosted("office");
+  useLauncher("office", "paper-toss", "Play Paper Toss", startToss, { enabled: !playing, hint: "Enter" });
   const ready = () => playing && !hidden && canThrowPaper(round.current);
   const toss = (strength: number) => {
     if (!ready()) return;
@@ -566,13 +574,8 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
                   )}
                 </div>
               </>
-            ) : (
-              <button
-                ref={focusLauncher}
-                onClick={() => {
-                  if (startGameMode("paper-toss")) reset(0);
-                }}
-              >
+            ) : hosted ? null : (
+              <button ref={focusLauncher} onClick={startToss}>
                 Play Paper Toss
               </button>
             )}

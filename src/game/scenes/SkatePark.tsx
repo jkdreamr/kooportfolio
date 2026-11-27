@@ -16,6 +16,7 @@ import { setViewZoom, viewZoom, zoomedOffset } from "../engine/camera";
 
 const skateOffset = new THREE.Vector3();
 import { runtime, useGame } from "../core/store";
+import { useLauncher, useLauncherHosted } from "../core/launchers";
 import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import { keys, movement, movementSpeed, touch } from "../core/input";
 import { footstep, sound } from "../core/sound";
@@ -492,6 +493,9 @@ export function SkateParkInterior() {
       },
     };
   };
+  const hosted = useLauncherHosted("skate");
+  useLauncher("skate", "skate-free", "Free skate", () => begin("free"), { enabled: !riding, hint: "Enter" });
+  useLauncher("skate", "skate-run", "60s run", () => begin("run"), { enabled: !riding });
   return (
     <>
       <group
@@ -550,7 +554,7 @@ export function SkateParkInterior() {
               )}
             </div>
             {!riding ? (
-              <section className="skate-card" aria-label="Skate park">
+              hosted ? null : <section className="skate-card" aria-label="Skate park">
                 <span className="skate-eyebrow">Bowl + street</span>
                 <h2>Skate park</h2>
                 <p>Find a line. Link flips and grinds.</p>

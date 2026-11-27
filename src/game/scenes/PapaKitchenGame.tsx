@@ -13,6 +13,7 @@ import { screenOverlayNoOcclude } from "../world/screenOverlay";
 import { useFrame, useThree } from "@react-three/fiber";
 import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import { useGame } from "../core/store";
+import { useLauncher, useLauncherHosted } from "../core/launchers";
 import { sound } from "../core/sound";
 import { GAME_STAGE_Y } from "./InteriorGameStage";
 import { gameIsActive } from "./InteriorProps";
@@ -576,6 +577,13 @@ export function PapaKitchenGame() {
       dispatch({ type: "start", burners });
     }
   }, [active, game.phase, burners]);
+  const startKitchen = () => {
+    pendingFocus.current = true;
+    if (startGameMode("kitchen")) dispatch({ type: "start", burners });
+    else pendingFocus.current = false;
+  };
+  const hosted = useLauncherHosted("kitchen");
+  useLauncher("kitchen", "kitchen", "Play Kitchen", startKitchen, { enabled: !active, hint: "Enter" });
   const focusElement = (node: HTMLButtonElement | null) => {
     if (node && pendingFocus.current) {
       node.focus({ preventScroll: true });
@@ -613,7 +621,7 @@ export function PapaKitchenGame() {
           dropZone={dropZone}
         />
       )}
-      {!hidden && (
+      {!hidden && (active || !hosted) && (
         <Html onOcclude={screenOverlayNoOcclude}
           portal={portal}
           fullscreen={active}
@@ -655,10 +663,7 @@ export function PapaKitchenGame() {
               }}
               onClick={(event) => {
                 event.stopPropagation();
-                pendingFocus.current = true;
-                if (startGameMode("kitchen")) {
-                  dispatch({ type: "start", burners });
-                } else pendingFocus.current = false;
+                startKitchen();
               }}
             >
               Play Kitchen

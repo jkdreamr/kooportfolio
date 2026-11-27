@@ -18,6 +18,7 @@ import {
   type BadmintonShot,
 } from "../core/badminton";
 import { runtime, useGame } from "../core/store";
+import { useLauncher, useLauncherHosted } from "../core/launchers";
 import { startGameMode, endGameMode, useGameMode } from "../core/gameMode";
 import { keys, touch } from "../core/input";
 import { sound } from "../core/sound";
@@ -529,6 +530,8 @@ export function BadmintonCourt({
   const end = () => {
     endGameMode();
   };
+  const hosted = useLauncherHosted("badminton");
+  useLauncher("badminton", "badminton", "Play a match", begin, { enabled: !playing, hint: "Enter" });
   const serving =
     snapshot.phase === "ready" && game.current.server === "player";
   const receiving = snapshot.phase === "ready" && !serving;
@@ -576,7 +579,7 @@ export function BadmintonCourt({
         >
           <div className={`badminton-ui ${playing ? "is-playing" : ""}`}>
             {!playing ? (
-              <section className="badminton-start" aria-label="Badminton match">
+              hosted ? null : <section className="badminton-start" aria-label="Badminton match">
                 <p>Quick singles · first to 7</p>
                 <button onClick={begin}>Play a match</button>
               </section>

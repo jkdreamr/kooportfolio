@@ -4,6 +4,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { Box, Ball, Cylinder, Ring } from "../world/Models";
 import { useGame } from "../core/store";
+import { useLauncher, useLauncherHosted } from "../core/launchers";
 import { startGameMode, endGameMode, useGameMode } from "../core/gameMode";
 import { GAME_STAGE_Y } from "./InteriorGameStage";
 import "./interior-games.css";
@@ -72,6 +73,13 @@ export function GameControls({
     }
   };
   const open = mode ? modeActive : !collapsible || expanded;
+  // Mini-games here (Pong, Blackjack) launch from the room header.
+  const scene = useGame((s) => s.scene);
+  const hosted = useLauncherHosted(scene);
+  useLauncher(scene, mode ?? "panel", `Play ${collapsible ?? name}`, () => toggle(true), {
+    enabled: !!mode && !modeActive && !otherMode,
+    hint: launcherIndex === 0 ? "Enter" : undefined,
+  });
   const gl = useThree((s) => s.gl);
   // Drei otherwise changes targets when R3F connects its event source on the
   // first frame, tearing down its React root during another root's commit.
@@ -98,7 +106,7 @@ export function GameControls({
     window.addEventListener("interior-game-close", close);
     return () => window.removeEventListener("interior-game-close", close);
   }, [collapsible, onClose, mode, modeActive]);
-  return hidden || otherMode ? null : (
+  return hidden || otherMode || (mode && !open && hosted) ? null : (
     <Html
       portal={portal}
       wrapperClass="interior-game-root"

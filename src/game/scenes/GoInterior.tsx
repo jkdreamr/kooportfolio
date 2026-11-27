@@ -5,6 +5,7 @@ import { useThree } from "@react-three/fiber";
 import { Ball, Box, Cylinder, Ring } from "../world/Models";
 import { CraftedBox, WallSconce } from "./CraftedDetails";
 import { useGame } from "../core/store";
+import { useLauncher, useLauncherHosted } from "../core/launchers";
 import { keys, touch } from "../core/input";
 import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import {
@@ -150,6 +151,8 @@ export function GoInterior() {
     keys.clear(); touch.x = 0; touch.z = 0;
     setConfirmNew(false);
   };
+  const hosted = useLauncherHosted("go");
+  useLauncher("go", "go", "Play Go", open, { enabled: !started, hint: "Enter" });
   const reset = () => {
     focusTarget.current = "board";
     setFocus(40);
@@ -263,7 +266,7 @@ export function GoInterior() {
           </group>
         ) : null)}
       </group>
-      {!hidden && <Html onOcclude={screenOverlayNoOcclude} fullscreen portal={portal} zIndexRange={[80, 0]}
+      {!hidden && (started || !hosted) && <Html onOcclude={screenOverlayNoOcclude} fullscreen portal={portal} zIndexRange={[80, 0]}
         calculatePosition={(_, __, size) => [size.width / 2, size.height / 2]}
         style={{ pointerEvents: "none" }}>
         <div className={`go-room-ui${started ? " go-room-ui--playing" : ""}`}>

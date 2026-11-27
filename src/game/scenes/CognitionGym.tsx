@@ -7,6 +7,7 @@ import { create } from "zustand";
 import * as THREE from "three";
 import { Box, Cylinder, Ball, Bench, Flowers, Ring } from "../world/Models";
 import { runtime, useGame } from "../core/store";
+import { useLauncher, useLauncherHosted } from "../core/launchers";
 import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import { COGNITION_OFFICE_WALL } from "../core/houseRooms";
 import { sound } from "../core/sound";
@@ -205,6 +206,9 @@ function GymControls() {
   const marker = useRef<HTMLSpanElement>(null);
   const ready = phase === "ready";
   const complete = reps === 8 && ready;
+  // Walk-up station: the header offers Play while you stand at the bench.
+  const hosted = useLauncherHosted("gym");
+  useLauncher("gym", "gym", "Play", () => useGym.getState().startSession(), { enabled: !active && near, hint: "Enter" });
   const gl = useThree((s) => s.gl);
   const portal = useMemo(
     () => ({ current: gl.domElement.parentElement! }),
@@ -398,7 +402,7 @@ function GymControls() {
           <>
             <strong>Bench press</strong>
             <p>{near ? "8 timed lifts" : "Walk up to the bench."}</p>
-            {near && (
+            {near && !hosted && (
               <button
                 className="gym-primary"
                 onClick={() => useGym.getState().startSession()}

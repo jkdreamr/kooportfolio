@@ -7,6 +7,7 @@ import { create } from "zustand";
 import * as THREE from "three";
 import { Ball, Cylinder, Flowers, Ring, Sign, Tree } from "../world/Models";
 import { runtime, useGame } from "../core/store";
+import { useLauncher, useLauncherHosted } from "../core/launchers";
 import { keys, movement, touch } from "../core/input";
 import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import {
@@ -86,6 +87,7 @@ export function CourtControls({ focused = false }: { focused?: boolean } = {}) {
   const playing = useGameMode((s) => s.active?.id === "basketball");
   const { mode, style, assist } = useBasketOptions();
   const { challenge, target } = useBasketHud();
+  const hosted = useLauncherHosted("basketball");
   if (playing !== focused) return null;
   return (
     <div
@@ -134,9 +136,11 @@ export function CourtControls({ focused = false }: { focused?: boolean } = {}) {
       </nav>
       {!playing ? (
         <div className="basketball-lobby-actions">
-          <button className="basketball-play" onClick={() => beginRound()}>
-            Play
-          </button>
+          {!hosted && (
+            <button className="basketball-play" onClick={() => beginRound()}>
+              Play
+            </button>
+          )}
           <button onClick={() => useGame.getState().go("hub")}>
             ← Village
           </button>
@@ -417,6 +421,7 @@ function CourtSessionHud({ close }: { close: () => void }) {
 
 export function Basketball() {
   const playing = useGameMode((s) => s.active?.id === "basketball");
+  useLauncher("basketball", "basketball", "Play", () => beginRound(), { enabled: !playing, hint: "Enter" });
   const round = useBasketOptions((s) => s.round);
   const hidden = useGame((s) => s.paused || s.panel !== "none");
   const gl = useThree((s) => s.gl);

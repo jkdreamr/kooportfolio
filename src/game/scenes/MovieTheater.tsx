@@ -12,6 +12,9 @@ import { useThree } from "@react-three/fiber";
 import { create } from "zustand";
 import { Box, Cylinder, Sign } from "../world/Models";
 import { runtime, useGame } from "../core/store";
+import { useLauncher, useLauncherHosted } from "../core/launchers";
+import { cue } from "../core/audio/cues";
+import { useSoundLoop } from "./useSoundLoop";
 import {
   THEATER_PROGRAM,
   youtubeEmbedUrl,
@@ -585,6 +588,14 @@ export function MovieTheaterInterior({
     restoreSeatFocus.current = true;
     useTheater.getState().stand();
   }, []);
+  const sit = useCallback(() => {
+    cue("ui-confirm");
+    useTheater.getState().sit();
+  }, []);
+  const hosted = useLauncherHosted("theater");
+  useLauncher("theater", "theater-seat", "Take a seat", sit, { enabled: !seated, hint: "Enter" });
+  // The hall is never dead quiet: faint air and ventilation under the film.
+  useSoundLoop("room-tone");
   const seatButton = useCallback((button: HTMLButtonElement | null) => {
     if (button && restoreSeatFocus.current) {
       restoreSeatFocus.current = false;
@@ -669,14 +680,14 @@ export function MovieTheaterInterior({
         )),
       )}
       <Sign text="EXIT ↓" p={[0, 3, 10.6]} size={[2, 0.55]} />
-      {!seated && (
+      {!seated && !hosted && (
         <GameControls
           name="Picture house seating"
           position={[0, 1, 7]}
           mobileSheet
         >
           <h2>{title}</h2>
-          <button ref={seatButton} onClick={() => useTheater.getState().sit()}>
+          <button ref={seatButton} onClick={sit}>
             Take a seat
           </button>
         </GameControls>

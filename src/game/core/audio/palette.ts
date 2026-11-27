@@ -681,7 +681,7 @@ export function voiceLevel(name: PaletteName, levelJitter = 1, gain = 1) {
 
 /* ----------------------------------------------------------------- loops */
 
-export type LoopName = "sizzle" | "wheels" | "fountain-bed" | "crowd";
+export type LoopName = "sizzle" | "wheels" | "fountain-bed" | "crowd" | "room-tone";
 export type LoopHandle = {
   /** 0–1 drive (speed for wheels, swell for crowd). */
   set: (drive: number) => void;
@@ -692,6 +692,7 @@ export const LOOP_SPECS: Record<LoopName, { bus: Bus; level: number; send: numbe
   wheels: { bus: "sfx", level: 0.03, send: 0.05 },
   "fountain-bed": { bus: "ambience", level: 0.05, send: 0.15 },
   crowd: { bus: "ambience", level: 0.06, send: 0.2 },
+  "room-tone": { bus: "ambience", level: 0.02, send: 0 },
 };
 
 /**
@@ -757,6 +758,22 @@ export function buildLoop(ctx: BaseAudioContext, out: GainNode, name: LoopName) 
     hiss.connect(mix);
     body.connect(mix);
     mix.connect(out);
+  } else if (name === "room-tone") {
+    // A quiet hall: low air movement and the faintest ventilation hum.
+    const low = ctx.createBiquadFilter(),
+      hum = ctx.createOscillator(),
+      humLevel = ctx.createGain();
+    low.type = "lowpass";
+    low.frequency.value = 220;
+    low.Q.value = 0.5;
+    hum.frequency.value = 118;
+    humLevel.gain.value = 0.04;
+    src.connect(low);
+    low.connect(out);
+    hum.connect(humLevel);
+    humLevel.connect(out);
+    hum.start(t);
+    sources.push(hum);
   } else {
     const band = ctx.createBiquadFilter(),
       swell = ctx.createGain();

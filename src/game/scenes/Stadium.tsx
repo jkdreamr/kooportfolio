@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { Ball, Box, Cylinder } from "../world/Models";
 import { Walker } from "../world/Hub";
 import { runtime, useGame } from "../core/store";
+import { useLauncher, useLauncherHosted } from "../core/launchers";
 import {
   FIELD_GOAL,
   goalClearanceTime,
@@ -153,6 +154,8 @@ type Flight = {
 export function StadiumInterior() {
   const nearExit = useGame((state) => state.near === "exit");
   const playing = useGameMode((state) => state.active?.id === "stadium");
+  const hosted = useLauncherHosted("stadium");
+  useLauncher("stadium", "stadium", "Play", () => play(), { enabled: !playing, hint: "Enter" });
   const [attempt, setAttempt] = useState(0);
   const [phase, setPhase] = useState<StadiumPhase>("power");
   const [results, setResults] = useState<StadiumOutcome[]>([]);
@@ -641,7 +644,7 @@ export function StadiumInterior() {
         <Walker interior locked={playing} followCamera={false} />
         <StadiumView ballRef={ball} playing={playing} controlsRef={controls} />
         <group ref={controls}>
-          {!nearExit && !playing && (
+          {!nearExit && !playing && !hosted && (
             <GameControls name="49ers field goals" position={[0, 0, 0]}>
               <button
                 ref={(button) => {

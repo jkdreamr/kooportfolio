@@ -16,6 +16,7 @@ import type { Group } from "three";
 import { Ball, Box, Cylinder, Ring, Sign } from "../world/Models";
 import { Plant, Stool, Table, gameIsActive } from "./InteriorProps";
 import { runtime, useGame } from "../core/store";
+import { useLauncher, useLauncherHosted } from "../core/launchers";
 import { roomFor } from "../core/room";
 import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import {
@@ -500,6 +501,9 @@ export function BeatLabInterior() {
       syncBeatTrack();
     }
   };
+  // Walk-up room: the header offers Play while you stand in the ring.
+  const hosted = useLauncherHosted("music");
+  useLauncher("music", "music", "Play", () => start("playing"), { enabled: !active && near, hint: "Enter" });
   const setBeat = (beat: number) => {
     if (game.current.phase === "playing") return;
     game.current = newRhymeGame(game.current.seed, beat);
@@ -594,16 +598,18 @@ export function BeatLabInterior() {
             {near ? (
               <>
                 <p>Rhyme words to the beat.</p>
-                <footer className="beat-launch">
-                  <button
-                    className="lab-primary"
-                    data-beat-launcher="playing"
-                    ref={focusLauncher}
-                    onClick={() => start("playing")}
-                  >
-                    Play
-                  </button>
-                </footer>
+                {!hosted && (
+                  <footer className="beat-launch">
+                    <button
+                      className="lab-primary"
+                      data-beat-launcher="playing"
+                      ref={focusLauncher}
+                      onClick={() => start("playing")}
+                    >
+                      Play
+                    </button>
+                  </footer>
+                )}
               </>
             ) : (
               <p>Walk up to the ring.</p>
@@ -742,6 +748,8 @@ export function MathLabInterior() {
     if (!near || !gameIsActive() || !startGameMode("math")) return;
     cancelRound();
   };
+  const hosted = useLauncherHosted("math");
+  useLauncher("math", "math", "Play", start, { enabled: !active && near, hint: "Enter" });
   return (
     <>
       {active && <LabCamera id="math" />}
@@ -854,9 +862,11 @@ export function MathLabInterior() {
             {near ? (
               <>
                 <p>Light all nine. A tile flips its neighbours too.</p>
-                <button className="lab-primary" onClick={start}>
-                  Play
-                </button>
+                {!hosted && (
+                  <button className="lab-primary" onClick={start}>
+                    Play
+                  </button>
+                )}
               </>
             ) : (
               <p>Walk up to the nine tiles.</p>
