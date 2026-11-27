@@ -49,7 +49,9 @@ export type Disp =
   | { kind: "folds"; amp: number; freq: number; c: V3 } // vertical folds around c
   | { kind: "locks"; amp: number; freq: number; c: V3 } // hair clumps around c
   | { kind: "rib"; amp: number; freq: number; c: V3 } // horizontal knit ribs
-  | { kind: "bumps"; amp: number; freq: number };
+  | { kind: "bumps"; amp: number; freq: number }
+  /** Horizontal compression wrinkles between y0 and y1 (elbows, knees, waist). */
+  | { kind: "band"; amp: number; freq: number; y0: number; y1: number; c: V3 };
 
 type Base = { m?: Mat; disp?: Disp };
 export type Node = Base &
@@ -77,6 +79,9 @@ export type Node = Base &
         front?: number;
       }
     | { t: "plane"; n: V3; o: number }
+    /** Hairline: negative where the polar angle from +y (about c) is below
+     * the knot curve phi(|theta - shift|) (theta: azimuth from +z to +x). */
+    | { t: "hl"; c: V3; knots: number[]; shift?: number }
     | { t: "grp"; ops: Op[] }
     /** Offset shell of a group (garment layer), clipped by regions. */
     | { t: "shell"; of: Node; d: number; clip?: Node[] }
@@ -136,6 +141,13 @@ function dispValue(d: Disp, p: V3) {
     case "rib": {
       const a = Math.atan2(p[0] - d.c[0], p[2] - d.c[2]);
       return d.amp * Math.abs(Math.sin(a * d.freq));
+    }
+    case "band": {
+      const y = p[1];
+      const w = Math.max(0, Math.min(1, (y - d.y0) / 0.02, (d.y1 - y) / 0.02));
+      if (w <= 0) return 0;
+      const a = Math.atan2(p[0] - d.c[0], p[2] - d.c[2]);
+      return d.amp * w * Math.sin((y - d.c[1]) * d.freq + 1.4 * Math.sin(a * 2 + y * 9) + a * 0.5);
     }
     case "bumps":
       return d.amp * (Math.sin(p[0] * d.freq) * Math.sin(p[1] * d.freq * 1.13 + 1) * Math.sin(p[2] * d.freq * 0.91 + 2));
@@ -228,6 +240,24 @@ export function dist(n: Node, p: V3): number {
     case "plane":
       d = p[0] * n.n[0] + p[1] * n.n[1] + p[2] * n.n[2] - n.o;
       break;
+    case "hl": {
+      const x = p[0] - n.c[0], y = p[1] - n.c[1], z = p[2] - n.c[2];
+      const r = len3(x, y, z) || 1e-6;
+      const phi = Math.acos(clamp(y / r, -1, 1));
+      let th = Math.abs(Math.atan2(x, z) - (n.shift ?? 0));
+      if (th > Math.PI) th = 2 * Math.PI - th;
+      const k = n.knots;
+      let lim = k[k.length - 1];
+      for (let i = 2; i < k.length; i += 2)
+        if (th <= k[i]) {
+          const t = (th - k[i - 2]) / (k[i] - k[i - 2] || 1);
+          const s = t * t * (3 - 2 * t);
+          lim = k[i - 1] + (k[i + 1] - k[i - 1]) * s;
+          break;
+        }
+      d = (phi - lim) * r;
+      break;
+    }
     case "grp":
       d = evalOps(n.ops, p, null);
       break;

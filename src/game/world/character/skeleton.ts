@@ -3,23 +3,27 @@ import type { Pose } from "./locomotion";
 
 /**
  * The character skeleton (character units, y up, +z forward, feet at y=0).
- * Chunky stylised proportions: a head about a third of the height, a short
- * squashed torso and short legs. Shared by the primitive rig, the sculpted
- * (baked) rig and the offline sculpt, so every LOD poses identically.
+ * Stylised-heroic proportions: a large head (about 1/3.4 of the height), a
+ * visible neck, sloped shoulders, a tapered waist and slightly long limbs.
+ * Shared by the primitive rig, the sculpted (baked) rig and the offline
+ * sculpt, so every LOD poses identically.
  */
 export const SK = {
-  hip: 0.62,
-  chestUp: 0.08,
-  neckUp: 0.44,
+  hip: 0.8,
+  chestUp: 0.1,
+  neckUp: 0.42,
   headUp: 0.06,
-  /** Head sphere centre above the head joint. */
+  /** Head sphere centre above the head joint (head-local units). */
   headCenter: 0.33,
-  shoulder: [0.25, 0.37, -0.01] as const,
-  upperArm: 0.23,
-  foreArm: 0.21,
-  hipOff: [0.11, -0.03] as const,
-  thigh: 0.27,
-  shin: 0.255,
+  /** Uniform scale of everything parented to the head joint: heads are
+   * modelled at the old size and scaled down here. */
+  headScale: 0.8,
+  shoulder: [0.205, 0.355, -0.01] as const,
+  upperArm: 0.27,
+  foreArm: 0.245,
+  hipOff: [0.092, -0.04] as const,
+  thigh: 0.355,
+  shin: 0.345,
 } as const;
 export const HIP = SK.hip;
 
@@ -66,6 +70,7 @@ export const makeJoints = (): JointMatrices =>
   Object.fromEntries(JOINTS.map((j) => [j, new THREE.Matrix4()])) as JointMatrices;
 
 const joints = makeJoints();
+const headScaleM = new THREE.Matrix4().makeScale(SK.headScale, SK.headScale, SK.headScale);
 const local = new THREE.Matrix4(),
   euler = new THREE.Euler(),
   quat = new THREE.Quaternion(),
@@ -102,6 +107,7 @@ export function solveJoints(
   link(out.chest, out.pelvis, 0, SK.chestUp, 0, pose.chestPitch, pose.chestYaw, pose.chestRoll);
   link(out.neck, out.chest, 0, SK.neckUp, 0.0);
   link(out.head, out.neck, 0, SK.headUp, 0.01, pose.headPitch, pose.headYaw, pose.headRoll);
+  out.head.multiply(headScaleM);
   for (const [side, sign] of [
     ["L", 1],
     ["R", -1],
