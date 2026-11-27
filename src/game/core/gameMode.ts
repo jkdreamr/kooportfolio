@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { keys, touch } from "./input";
 import { runtime, useGame, type Scene } from "./store";
 import { isNearPhotoBooth } from "./photoBoothLayout";
+// QA builds: `window.__qa.games` exists from the start (games register into it).
+import "./gameQa";
 
 export type GameModeId =
   | "badminton"
@@ -16,7 +18,6 @@ export type GameModeId =
   | "music"
   | "math"
   | "gym"
-  | "cognition"
   | "photo-booth";
 type ActiveGame = {
   id: GameModeId;
@@ -42,7 +43,6 @@ const rooms: Record<GameModeId, Scene> = {
   music: "music",
   math: "math",
   gym: "gym",
-  cognition: "cognition",
   "photo-booth": "hub",
 };
 function clearInput() {
@@ -94,11 +94,43 @@ export function endGameMode() {
   }
 }
 
+type EscapeClaim = { id: GameModeId; handler: () => boolean | void };
+const escapeClaims: EscapeClaim[] = [];
+/**
+ * Lets a running game take Escape (to pause itself) instead of Escape ending
+ * the game mode. While game `id` is the active mode, Escape calls `handler`;
+ * returning `false` lets the mode end as before. The latest claim for the
+ * active game wins. Returns the release; claim from an effect:
+ *
+ *   useEffect(() => claimEscape("basketball", () => setPaused((p) => !p)), []);
+ */
+export function claimEscape(id: GameModeId, handler: () => boolean | void): () => void {
+  const claim: EscapeClaim = { id, handler };
+  escapeClaims.push(claim);
+  return () => {
+    const i = escapeClaims.indexOf(claim);
+    if (i >= 0) escapeClaims.splice(i, 1);
+  };
+}
+
 // Escape dismisses the pause/settings layer first, not the game underneath it.
 export function escapeGameMode(repeat = false): boolean {
   const state = useGame.getState();
-  if (repeat || !useGameMode.getState().active || state.paused || state.panel !== "none")
+  const active = useGameMode.getState().active;
+  if (repeat || !active || state.paused || state.panel !== "none")
     return false;
+  for (let i = escapeClaims.length - 1; i >= 0; i--) {
+    const claim = escapeClaims[i];
+    if (claim.id !== active.id) continue;
+    let taken: boolean | void = true;
+    try {
+      taken = claim.handler();
+    } catch {
+      /* A failing handler still counts as handled: never end a run on a bug. */
+    }
+    if (taken !== false) return true;
+    break;
+  }
   if (typeof window !== "undefined")
     window.dispatchEvent(new Event("interior-game-close"));
   endGameMode();
