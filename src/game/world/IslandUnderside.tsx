@@ -15,6 +15,7 @@ import { sculptedMaterial } from "./Surface";
 import { crystalMaterial, gemGeometry, glassMaterial, gloss } from "./GlossKit";
 import { NaturalTrees } from "./TreeArt";
 import { useEnvTier } from "./env/tier";
+import { journeyVeilUniform } from "./env/atmosphere";
 import {
   undersideDetail,
   type DetailPart,
@@ -183,6 +184,8 @@ const fallUniforms = {
   uGlossSky: gloss.sky,
   uGlossWarm: gloss.warm,
   uGlossNight: gloss.night,
+  // Drawn without fog: fades with the travel veil instead.
+  uVeil: journeyVeilUniform,
 };
 // A glassy sheet: clear teal body, sky-bright fresnel edges where the ribbon
 // curls away, a specular thread down each lane, scalloped foam at the lip and
@@ -209,6 +212,7 @@ const fallMaterial = new THREE.ShaderMaterial({
     uniform vec3 uGlossSky;
     uniform vec3 uGlossWarm;
     uniform float uGlossNight;
+    uniform float uVeil;
     varying vec2 vUv;
     varying float vFade;
     void main() {
@@ -233,7 +237,7 @@ const fallMaterial = new THREE.ShaderMaterial({
       float lit = 1.0 - smoothstep(0.0, 9.0, vUv.y);
       water += uGlossWarm * uGlossNight * (0.07 + 0.3 * lit * (0.5 + 0.5 * foam + 0.4 * thread));
       float alpha = (0.6 + 0.28 * foam + 0.2 * fresnel + 0.16 * thread + 0.25 * lip) * edge * vFade;
-      gl_FragColor = vec4(min(water, vec3(0.96)), min(alpha, 0.94));
+      gl_FragColor = vec4(min(water, vec3(0.96)), min(alpha, 0.94) * (1.0 - uVeil));
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
     }

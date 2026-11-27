@@ -8,6 +8,7 @@ import { sampleDaylight, sampleSkyPalette } from "../core/daylight";
 import {
   FOUNTAIN_FAR,
   FOUNTAIN_MAX_JETS,
+  FOUNTAIN_TIME_WRAP,
   fountainParticleCount,
   type FountainSpec,
 } from "../core/fountain";
@@ -140,7 +141,7 @@ export function FountainWater({
     if (!shown) return;
     const u = built.uniforms;
     // Calmer, not frozen: slower water under prefers-reduced-motion.
-    u.uTime.value = (u.uTime.value + Math.min(delta, 0.1) * (reduced ? 0.45 : 1)) % 3600;
+    u.uTime.value = (u.uTime.value + Math.min(delta, 0.1) * (reduced ? 0.45 : 1)) % FOUNTAIN_TIME_WRAP;
     const hour = daylightClock.hour;
     if (Math.abs(hour - lastHour.current) > 0.02 || Number.isNaN(lastHour.current)) {
       lastHour.current = hour;

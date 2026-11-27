@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   boardingPose,
+  canSwapWorld,
+  cancelSwapsBack,
+  JOURNEY_SHOT,
+  journeyVeil,
+  rideProgress,
   journeyEase,
   journeyGate,
   journeyPose,
@@ -187,5 +192,36 @@ describe("world-space transport", () => {
         }
       }
     }
+  });
+
+  it("never passes the swap point unswapped, so even a long frame swaps behind a full veil", () => {
+    for (const reduced of [true, false]) {
+      const rideSeconds = reduced ? JOURNEY_SHOT.reducedSeconds : JOURNEY_SHOT.rideSeconds.plane;
+      // The largest step the journey takes (dt is clamped to 0.1 s), and
+      // a step chosen to land just either side of the reduced veil window.
+      for (const dt of [0.1, 0.0999, 0.073]) {
+        let seconds = 0,
+          swappedAt = -1;
+        for (let frame = 0; frame < 10000 && seconds < rideSeconds; frame++) {
+          seconds += dt;
+          const p = rideProgress(seconds, rideSeconds, swappedAt >= 0);
+          if (swappedAt < 0) seconds = Math.min(seconds, p * rideSeconds);
+          if (swappedAt < 0 && p >= JOURNEY_SHOT.swap && canSwapWorld(journeyVeil(p, reduced, rideSeconds))) swappedAt = p;
+          if (swappedAt < 0) expect(p).toBeLessThanOrEqual(JOURNEY_SHOT.swap);
+        }
+        expect(swappedAt).toBeGreaterThanOrEqual(JOURNEY_SHOT.swap);
+        expect(swappedAt).toBeLessThan(JOURNEY_SHOT.swap + 0.02);
+        expect(rideProgress(seconds, rideSeconds, true)).toBe(1);
+      }
+    }
+  });
+
+  it("swaps back on a cancel right after the swap, before the world prop catches up", () => {
+    // onArrive() ran this frame: the store shows the destination already.
+    expect(cancelSwapsBack(true, "korea", "home")).toBe(true);
+    // Store updated, the journey flag lost (remount): the store still decides.
+    expect(cancelSwapsBack(false, "korea", "home")).toBe(true);
+    // Cancelled before the swap: nothing to swap back.
+    expect(cancelSwapsBack(false, "home", "home")).toBe(false);
   });
 });

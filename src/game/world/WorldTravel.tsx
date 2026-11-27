@@ -113,9 +113,11 @@ export function WorldTravel({
     () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
   const traveling = !!trip;
+  // Ends any trip. Only a landing disarms Departures (in onComplete): after
+  // a cancel the visitor is back at the gate they booked from, and the
+  // panel stays open for another choice.
   const finish = useCallback(() => {
     clearTravelInput();
-    departuresArmed.current = false;
     journeyControl.current.cancel = false;
     setTrip(null);
   }, []);
@@ -127,11 +129,26 @@ export function WorldTravel({
   }, [trip, finish]);
   const cancelled = useCallback(() => {
     if (trip) {
+      // Safety net: never put origin coordinates into another region.
+      if (useGame.getState().world !== trip.from) onArrive(trip.from, trip.mode);
       [runtime.x, runtime.z] = trip.origin;
       useGame.getState().persist();
     }
     finish();
-  }, [trip, finish]);
+  }, [trip, finish, onArrive]);
+  // Landing: the destination's gate, in the destination. If the swap never
+  // took (a refused travel), try once more; failing that, back to the origin.
+  const completed = useCallback(() => {
+    if (trip) {
+      if (useGame.getState().world !== trip.destination) onArrive(trip.destination, trip.mode);
+      [runtime.x, runtime.z] =
+        useGame.getState().world === trip.destination ? journeyGate(trip.mode, trip.destination) : trip.origin;
+    }
+    departuresArmed.current = false;
+    finish();
+    // The world's name, briefly, where Departures used to open.
+    if (trip && useGame.getState().world === trip.destination) announceArrival(trip.destination);
+  }, [trip, finish, onArrive]);
   useEffect(() => {
     onTravelChange?.(traveling);
     return () => onTravelChange?.(false);
@@ -200,12 +217,7 @@ export function WorldTravel({
           onArrive={() => onArrive(trip.destination, trip.mode)}
           onSwapBack={() => onArrive(trip.from, trip.mode)}
           onCancelled={cancelled}
-          onComplete={() => {
-            [runtime.x, runtime.z] = journeyGate(trip.mode, trip.destination);
-            finish();
-            // The world's name, briefly, where Departures used to open.
-            announceArrival(trip.destination);
-          }}
+          onComplete={completed}
         />
       )}
       {!hidden && !trip && nearAirport && (

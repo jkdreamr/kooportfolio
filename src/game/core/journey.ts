@@ -102,6 +102,20 @@ export function journeyVeil(p: number, reduced = false, seconds: number = JOURNE
 /** The world swaps only behind a complete veil. */
 export const canSwapWorld = (veil: number) => veil >= 0.999;
 
+/** Ride progress for a clock reading. Until the world has swapped it never
+ * passes the swap point (where the veil is complete, reduced or not), so a
+ * long frame cannot step over the narrow fully-veiled window. */
+export function rideProgress(seconds: number, rideSeconds: number, swapped: boolean) {
+  const p = Math.min(1, Math.max(0, seconds / rideSeconds));
+  return swapped ? p : Math.min(p, JOURNEY_SHOT.swap);
+}
+
+/** Cancel, once the veil is up: swap back if this journey swapped (or the
+ * store already shows another region). The `world` prop lags the store by
+ * a render, so it cannot decide. */
+export const cancelSwapsBack = (arrived: boolean, storeWorld: WorldId, from: WorldId) =>
+  arrived || storeWorld !== from;
+
 /** Chase-camera weight (0 boarding/overview framing → 1 chase). */
 export function journeyChase(p: number, reduced = false) {
   if (reduced) return 0;
@@ -167,13 +181,15 @@ export function boardingPose(
   };
 }
 
+export type JourneyPose = { x: number; y: number; z: number; heading: number; pitch: number; roll?: number };
+
 /** Same-world camera/vehicle path. The region changes offshore at the midpoint. */
 export function journeyPose(
   mode: TravelMode,
   progress: number,
   world?: WorldId,
   coach = 0,
-) {
+): JourneyPose {
   const p = Math.max(0, Math.min(1, progress));
   if (mode === "plane") {
     // Taxi before lifting off, ease into cruise, then flare and roll to a stop.
@@ -200,8 +216,12 @@ export function journeyPose(
     };
   }
   const rail = railForWorld(world);
-  const pose = railPose(p, mode === "train" ? coach * rail.coachTurns : 0, world);
-  return { ...pose, y: mode === "train" ? rail.height : 0.4, pitch: 0 };
+  // railPose hands back a fresh object: fill it in rather than copy it
+  // (this runs per coach per frame for the whole ride).
+  const pose = railPose(p, mode === "train" ? coach * rail.coachTurns : 0, world) as JourneyPose;
+  pose.y = mode === "train" ? rail.height : 0.4;
+  pose.pitch = 0;
+  return pose;
 }
 
 /** Trains follow the mounted region's rails, never an interpolated coastline. */

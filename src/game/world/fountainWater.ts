@@ -1,5 +1,13 @@
 import * as THREE from "three";
-import { FOUNTAIN_MAX_JETS, fountainInstances, type FountainSpec } from "../core/fountain";
+import { FOUNTAIN_MAX_JETS, FOUNTAIN_TIME_WRAP, fountainInstances, type FountainSpec } from "../core/fountain";
+import { journeyVeilUniform } from "./env/atmosphere";
+
+/** Angular rate `rad/s` rounded to whole cycles per FOUNTAIN_TIME_WRAP, as a
+ * GLSL literal: every sin(uTime * k) is seamless where the clock wraps. */
+const wrapRate = (rad: number) => {
+  const cycles = Math.round((rad * FOUNTAIN_TIME_WRAP) / (2 * Math.PI));
+  return ((cycles * 2 * Math.PI) / FOUNTAIN_TIME_WRAP).toFixed(7);
+};
 
 /** Fountain water shaders, materials and geometry (three.js only; the React
  * component and warmup live in Fountain.tsx). */
@@ -57,10 +65,10 @@ void main() {
     alpha = (1.0 - s) * smoothstep(0.0, 0.06, s) * 0.7;
   } else {
     // Mist: big, faint, slow sprites hanging over the landing ring.
-    float a = aA.y + uTime * 0.05 + aB.z;
+    float a = aA.y + uTime * ${wrapRate(0.05)} + aB.z;
     vec2 m = vec2(cos(a), sin(a)) * rl * (0.5 + aB.x * 0.6);
-    p = vec3(m.x, yw + 0.1 + aB.y * 0.35 + 0.05 * sin(uTime * 0.4 + aB.z * 6.2831853), m.y);
-    alpha = 0.055 + 0.03 * sin(uTime * 0.5 + aB.z * 6.2831853);
+    p = vec3(m.x, yw + 0.1 + aB.y * 0.35 + 0.05 * sin(uTime * ${wrapRate(0.4)} + aB.z * 6.2831853), m.y);
+    alpha = 0.055 + 0.03 * sin(uTime * ${wrapRate(0.5)} + aB.z * 6.2831853);
   }
   vec4 mv = modelViewMatrix * vec4(p, 1.0);
   vec2 vv = (mat3(modelViewMatrix) * v).xy;
@@ -74,7 +82,9 @@ void main() {
   vUv = position.xy;
   vAlpha = alpha;
   vMist = kind > 2.5 ? 1.0 : 0.0;
-  float flick = fract(sin(dot(aB.xy + floor(uTime * 8.0 + aB.z * 9.0), vec2(12.9898, 78.233))) * 43758.5453);
+  // A small step count keeps the hash's sin() argument where mobile GPUs
+  // are still precise (the pattern repeats every 64 s; nobody can tell).
+  float flick = fract(sin(dot(aB.xy + mod(floor(uTime * 8.0 + aB.z * 9.0), 512.0), vec2(12.9898, 78.233))) * 43758.5453);
   vSparkle = step(0.9, flick) * (1.0 - vMist);
 }
 `;
@@ -90,6 +100,7 @@ const particleFragment = /* glsl */ `
 precision highp float;
 uniform vec3 uColor;
 uniform vec3 uGlint;
+uniform float uVeil;
 ${encode}
 in vec2 vUv;
 in float vAlpha;
@@ -104,7 +115,8 @@ void main() {
   // Premultiplied: the droplet body blends, the glint adds (alpha 0).
   vec3 rgb = encode(uColor * (0.86 + 0.14 * (1.0 - d))) * a
     + encode(uGlint) * vSparkle * (1.0 - d) * vAlpha;
-  fragColor = vec4(rgb, a);
+  // Drawn without fog: fades with the travel veil instead (premultiplied).
+  fragColor = vec4(rgb, a) * (1.0 - uVeil);
 }
 `;
 const rippleVertex = /* glsl */ `
@@ -127,6 +139,7 @@ uniform float uTime;
 uniform vec4 uShape;
 uniform vec2 uJets; // count, first angle
 uniform vec3 uColor;
+uniform float uVeil;
 ${encode}
 in vec2 vXZ;
 in vec2 vDisc;
@@ -156,10 +169,10 @@ void main() {
       rings += ring(d, fract(uTime * 0.55 + float(k) / 3.0), reach);
     foam += exp(-d * d * 140.0) * 0.8;
   }
-  float shimmer = 0.5 + 0.5 * sin(vXZ.x * 31.0 + uTime * 1.7) * sin(vXZ.y * 27.0 - uTime * 1.3);
+  float shimmer = 0.5 + 0.5 * sin(vXZ.x * 31.0 + uTime * ${wrapRate(1.7)}) * sin(vXZ.y * 27.0 - uTime * ${wrapRate(1.3)});
   float edge = 1.0 - smoothstep(radius * 0.86, radius, d);
   float a = clamp(rings * 0.4 + foam * 0.38 + shimmer * 0.05, 0.0, 0.75) * edge;
-  fragColor = vec4(encode(uColor) * a, a);
+  fragColor = vec4(encode(uColor) * a, a) * (1.0 - uVeil);
 }
 `;
 
@@ -172,6 +185,7 @@ export type FountainUniforms = {
   uGlint: { value: THREE.Color };
   uRippleColor: { value: THREE.Color };
   uSRGB: { value: number };
+  uVeil: { value: number };
 };
 export function makeUniforms(): FountainUniforms {
   return {
@@ -183,6 +197,7 @@ export function makeUniforms(): FountainUniforms {
     uGlint: { value: new THREE.Color(1, 0.97, 0.9) },
     uRippleColor: { value: new THREE.Color(0.86, 0.94, 1) },
     uSRGB: { value: 0 },
+    uVeil: journeyVeilUniform,
   };
 }
 const premultiplied = {
@@ -207,6 +222,7 @@ export function makeMaterials(u: FountainUniforms) {
       uColor: u.uColor,
       uGlint: u.uGlint,
       uSRGB: u.uSRGB,
+      uVeil: u.uVeil,
     },
     ...premultiplied,
   });
@@ -221,6 +237,7 @@ export function makeMaterials(u: FountainUniforms) {
       uJets: u.uJets,
       uColor: u.uRippleColor,
       uSRGB: u.uSRGB,
+      uVeil: u.uVeil,
     },
     polygonOffset: true,
     polygonOffsetFactor: -2,

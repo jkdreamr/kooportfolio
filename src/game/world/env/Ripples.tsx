@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { insidePolygon } from "../../core/coast";
@@ -6,6 +6,7 @@ import type { WorldId } from "../../core/worlds";
 import { useWorldActive } from "../../engine/active";
 import { envUniforms } from "./uniforms";
 import { lakesFor, pondFor } from "./placement";
+import { journeyVeilUniform } from "./atmosphere";
 
 /**
  * Expanding ripple rings on still water — rising fish, a drip from a reed —
@@ -70,6 +71,8 @@ function ringMaterial() {
       uEnvTime: envUniforms.uEnvTime,
       uEnvSky: envUniforms.uEnvSky,
       uEnvNight: envUniforms.uEnvNight,
+      // Drawn without fog: fades with the travel veil instead.
+      uVeil: journeyVeilUniform,
     },
     transparent: true,
     depthWrite: false,
@@ -88,13 +91,14 @@ function ringMaterial() {
     fragmentShader: `
       uniform vec3 uEnvSky;
       uniform float uEnvNight;
+      uniform float uVeil;
       varying vec2 vRingUv;
       varying float vRingAge;
       void main() {
         float d = length(vRingUv);
         float ring = smoothstep(0.78, 0.9, d) * (1.0 - smoothstep(0.92, 1.0, d))
           + 0.5 * smoothstep(0.42, 0.5, d) * (1.0 - smoothstep(0.52, 0.6, d)) * (1.0 - vRingAge);
-        float alpha = ring * (1.0 - vRingAge) * smoothstep(0.0, 0.08, vRingAge) * 0.55;
+        float alpha = ring * (1.0 - vRingAge) * smoothstep(0.0, 0.08, vRingAge) * 0.55 * (1.0 - uVeil);
         if (alpha < 0.004) discard;
         vec3 color = mix(vec3(0.92, 0.97, 1.0), uEnvSky, 0.35) * (1.0 - uEnvNight * 0.6);
         gl_FragColor = vec4(color, alpha);
@@ -108,35 +112,48 @@ const noRaycast = () => undefined;
 export function Ripples({ world }: { world: WorldId }) {
   const active = useWorldActive();
   const surfaces = useMemo(() => surfacesFor(world), [world]);
+  const total = useMemo(() => surfaces.reduce((s, x) => s + x.weight, 0), [surfaces]);
   const geometry = useMemo(() => {
     const g = new THREE.InstancedBufferGeometry();
+    // Its own quad attributes (not shared): disposing an old geometry frees
+    // GL buffers that a newer one's vertex array could still point at.
     const plane = new THREE.PlaneGeometry(1, 1);
     g.index = plane.index;
     g.setAttribute("position", plane.getAttribute("position"));
+    plane.dispose();
     g.setAttribute("aRing", new THREE.InstancedBufferAttribute(new Float32Array(POOL * 4), 4));
     g.setAttribute("aSize", new THREE.InstancedBufferAttribute(new Float32Array(POOL), 1));
     g.instanceCount = surfaces.length ? POOL : 0;
     return g;
   }, [surfaces]);
-  const seed = useRef(1);
+  // Every world swap builds a new one: free the old one's buffers.
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  // Park–Miller, made once (not a closure per frame).
+  const rand = useMemo(() => {
+    let seed = 1;
+    return () => {
+      seed = (seed * 16807) % 2147483647;
+      return seed / 2147483647;
+    };
+  }, []);
   useFrame(() => {
     if (!active || !surfaces.length) return;
     const now = envUniforms.uEnvTime.value;
     const ring = geometry.getAttribute("aRing") as THREE.InstancedBufferAttribute;
     const size = geometry.getAttribute("aSize") as THREE.InstancedBufferAttribute;
-    const total = surfaces.reduce((s, x) => s + x.weight, 0);
-    const rand = () => {
-      seed.current = (seed.current * 16807) % 2147483647;
-      return seed.current / 2147483647;
-    };
     let dirty = false;
     for (let i = 0; i < POOL; i++) {
       const birth = ring.getW(i);
       const age = now - birth;
       // Running, or waiting for its staggered start.
       if (birth !== 0 && age < LIFE && age > -4) continue;
-      let pick = rand() * total;
-      const surface = surfaces.find((s) => (pick -= s.weight) <= 0) ?? surfaces[0];
+      let pick = rand() * total,
+        surface = surfaces[0];
+      for (const s of surfaces)
+        if ((pick -= s.weight) <= 0) {
+          surface = s;
+          break;
+        }
       const at = surface.sample(rand);
       if (!at) continue;
       // Stagger: each ring waits a little before starting.

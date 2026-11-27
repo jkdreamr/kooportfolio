@@ -9,6 +9,7 @@ import { moveJourneyApproach } from "../core/journeyApproach";
 import {
   boardingPose,
   canSwapWorld,
+  cancelSwapsBack,
   journeyChase,
   journeyEase,
   journeyGate,
@@ -17,6 +18,7 @@ import {
   journeyRidePose,
   journeyVeil,
   JOURNEY_SHOT,
+  rideProgress,
 } from "../core/journey";
 import type { TravelOption, TravelWorld } from "../core/travel";
 import { WORLDS } from "../core/worlds";
@@ -135,6 +137,14 @@ export function IslandJourney({
   );
   const time = useRef(0),
     arrived = useRef(false);
+  // The vehicle's parked pose per region (approach, board, leave), so the
+  // frame loop does not rebuild it.
+  const [parkedPoses] = useState(() => new Map<TravelWorld, ReturnType<typeof journeyPose>>());
+  const parkedIn = (w: TravelWorld) => {
+    let pose = parkedPoses.get(w);
+    if (!pose) parkedPoses.set(w, (pose = journeyPose(trip.mode, 0, w)));
+    return pose;
+  };
   // The ride as one shot: its own clock (held while the swap waits for the
   // destination to be drawn), the veil and the sky's hour arc.
   const ride = useRef({
@@ -203,18 +213,22 @@ export function IslandJourney({
     const dt = Math.min(delta, 0.1);
     const plane = trip.mode === "plane";
     // This prop changes in the same commit as the scenery and railway.
-    const localWorld = world;
-    const initial = journeyPose(trip.mode, 0, localWorld);
-    let pose = initial;
+    let pose = parkedIn(world);
     let progress = 0;
     let actorVisible = true;
     let heading = actor.current?.rotation.y ?? trip.heading;
     const r = ride.current;
     walking.current = false;
     time.current += dt;
+    // Once landed (the walk off the stairs) the trip is over: a cancel then
+    // would fly the visitor all the way back, so it is ignored.
+    if (control.current?.cancel && phase.current === "leave") control.current.cancel = false;
     if (control.current?.cancel && phase.current !== "cancel") {
       control.current.cancel = false;
-      if (r.veil <= 0 && world === trip.from && phase.current !== "ride") {
+      // The store is the truth: it changes the moment onArrive() runs, the
+      // `world` prop only after the hub re-renders.
+      const shown = useGame.getState().world;
+      if (r.veil <= 0 && world === trip.from && shown === trip.from && phase.current !== "ride") {
         // Nothing to hide: hand straight back, as before.
         phase.current = "done";
         onCancelled();
@@ -234,15 +248,10 @@ export function IslandJourney({
       } else {
         // Consume nearby grid nodes in the same frame instead of pausing at
         // each, easing up to speed and back down into the gate.
-        const remaining = route.current.reduce((distance, point, i) => {
-          const previous = i
-            ? route.current[i - 1]
-            : [position.current.x, position.current.z];
-          return (
-            distance +
-            Math.hypot(point[0] - previous[0], point[1] - previous[1])
-          );
-        }, 0);
+        const points = route.current;
+        let remaining = Math.hypot(points[0][0] - position.current.x, points[0][1] - position.current.z);
+        for (let i = 1; i < points.length; i++)
+          remaining += Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]);
         speed.current = THREE.MathUtils.damp(
           speed.current,
           Math.min(6, Math.max(0.4, remaining * 3)),
@@ -317,7 +326,10 @@ export function IslandJourney({
           veilCompile.current?.reveal();
         }
       } else r.seconds += dt;
-      const p = Math.min(1, r.seconds / rideSeconds);
+      // Never past the midpoint without the swap: hold there (fully veiled)
+      // until it happens, however large a frame's step was.
+      const p = rideProgress(r.seconds, rideSeconds, arrived.current);
+      if (!arrived.current) r.seconds = Math.min(r.seconds, p * rideSeconds);
       r.p = p;
       r.veil = journeyVeil(p, reduced, rideSeconds);
       r.chase = journeyChase(p, reduced);
@@ -381,7 +393,9 @@ export function IslandJourney({
         // Raise the veil (from wherever it is).
         r.veil = Math.min(1, r.veil + dt / 0.6);
         if (canSwapWorld(r.veil)) {
-          if (world !== trip.from) onSwapBack();
+          // From the store, not the prop: a cancel in the frame after the
+          // swap still sees the prop at the origin.
+          if (cancelSwapsBack(arrived.current, useGame.getState().world, trip.from)) onSwapBack();
           c.stage = 1;
           c.hold = 0;
           c.frozenFrames = 0;
@@ -390,7 +404,7 @@ export function IslandJourney({
         // Behind the veil: wait for the origin to be drawn, and pull the
         // camera back out into the fog so the vehicle fades into it.
         c.hold += dt;
-        if (world === trip.from) c.frozenFrames++;
+        if (world === trip.from && useGame.getState().world === trip.from) c.frozenFrames++;
         r.chase = Math.max(0, r.chase - dt / 1.2);
         if (r.chase <= 0 && (c.frozenFrames >= 3 || c.hold >= JOURNEY_SHOT.holdCap)) c.stage = 2;
       } else {
@@ -434,12 +448,13 @@ export function IslandJourney({
       if (trip.mode === "train") {
         vehicle.current.position.set(0, 0, 0);
         vehicle.current.rotation.set(0, 0, 0);
-        trainCars.current?.children.forEach((car, coach) => {
+        const cars = trainCars.current?.children ?? NO_CARS;
+        for (let coach = 0; coach < cars.length; coach++) {
           const p = journeyPose("train", progress, world, coach);
-          car.position.set(p.x, p.y, p.z);
-          car.rotation.set(0, p.heading, 0);
+          cars[coach].position.set(p.x, p.y, p.z);
+          cars[coach].rotation.set(0, p.heading, 0);
           if (coach === 0) vehicleHeading = p.heading;
-        });
+        }
       } else {
         vehicle.current.position.set(pose.x, pose.y, pose.z);
         vehicle.current.rotation.set(
@@ -616,6 +631,7 @@ export function IslandJourney({
 }
 
 const WHITE = new THREE.Color(1, 1, 1);
+const NO_CARS: THREE.Object3D[] = [];
 /** The scene's fog colour (the sky's horizon), read each frame for the wisps. */
 const journeyFogColor = new THREE.Color("#dce5c7");
 function FogColorProbe() {

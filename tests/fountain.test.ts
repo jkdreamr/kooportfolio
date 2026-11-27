@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   FOUNTAIN_KIND,
+  FOUNTAIN_TIME_WRAP,
   fountainInstances,
   fountainParticleCount,
   fountainParticleTotal,
@@ -65,5 +66,14 @@ describe("fountain water", () => {
     expect(spray[0].position[2]).toBeCloseTo(campusFountainWorld[1], 6);
     for (const world of ["home", "korea"] as const)
       expect(emittersFor(world).some((e) => e.layer === "spray")).toBe(false);
+  });
+
+  it("runs every particle a whole number of cycles per clock wrap (no hourly jump)", () => {
+    const { a, count } = fountainInstances(spec);
+    for (let i = 0; i < count; i++) {
+      // Float32 storage: within a hair of a whole cycle count.
+      const cycles = a[i * 4 + 3] * FOUNTAIN_TIME_WRAP;
+      expect(Math.abs(cycles - Math.round(cycles))).toBeLessThan(0.01);
+    }
   });
 });

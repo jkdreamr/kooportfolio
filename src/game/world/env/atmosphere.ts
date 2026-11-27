@@ -92,7 +92,19 @@ const cool = new THREE.Color();
  * flattens to the same colour, so a world swap behind it cannot be seen.
  * IslandJourney is the only writer.
  */
-export const journeyAtmosphere = { veil: 0, near: 8, far: 60 };
+/** The veil as a shader uniform, for materials drawn without fog (ripple
+ * rings, the underside falls, fountain water): they fade by `1 - veil`. */
+export const journeyVeilUniform = { value: 0 };
+export const journeyAtmosphere = {
+  near: 8,
+  far: 60,
+  get veil() {
+    return journeyVeilUniform.value;
+  },
+  set veil(v: number) {
+    journeyVeilUniform.value = v;
+  },
+};
 
 /**
  * B8: damp the haze's focus distance toward the camera's new focus, but snap

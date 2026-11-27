@@ -68,6 +68,11 @@ function random(seed: number) {
   };
 }
 
+/** The water clock wraps here (seconds). Every particle rate is a whole
+ * number of cycles per wrap, so the wrap is seamless. */
+export const FOUNTAIN_TIME_WRAP = 3600;
+const wholeCycles = (rate: number) => Math.round(rate * FOUNTAIN_TIME_WRAP) / FOUNTAIN_TIME_WRAP;
+
 /**
  * Per-particle instance data, rank-sorted so that any prefix (a tier's
  * share) is an even thinning of every stream. Two vec4s per particle:
@@ -78,8 +83,10 @@ export function fountainInstances(spec: FountainSpec, seed = 7) {
   const L = FOUNTAIN_LAYOUT;
   const rand = random(seed);
   const rows: { rank: number; a: number[]; b: number[] }[] = [];
-  const push = (rank: number, a: number[], b: number[]) =>
+  const push = (rank: number, a: number[], b: number[]) => {
+    a[3] = wholeCycles(a[3]);
     rows.push({ rank, a, b });
+  };
   const jets = Math.min(FOUNTAIN_MAX_JETS, spec.jets);
   for (let j = 0; j < jets; j++) {
     const angle = spec.jetAngle + (j / jets) * Math.PI * 2;

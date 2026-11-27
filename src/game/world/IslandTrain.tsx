@@ -169,10 +169,13 @@ const wheelM = new THREE.Matrix4(),
   wheelS = new THREE.Vector3();
 function writeWheels(meshes: (THREE.InstancedMesh | null)[], phase: number) {
   wheelSpin.makeRotationX(phase);
-  WHEEL_PARTS.forEach((part, k) => {
-    const mesh = meshes[k];
-    if (!mesh) return;
-    WHEEL_SPOTS.forEach(([x, z], i) => {
+  // Plain loops: this runs per car per frame while the train moves.
+  for (let k = 0; k < WHEEL_PARTS.length; k++) {
+    const part = WHEEL_PARTS[k],
+      mesh = meshes[k];
+    if (!mesh) continue;
+    for (let i = 0; i < WHEEL_SPOTS.length; i++) {
+      const [x, z] = WHEEL_SPOTS[i];
       wheelE.set(0, 0, "box" in part ? 0 : Math.PI / 2);
       wheelLocal.compose(
         wheelV.set(x * part.dx, 0, 0),
@@ -181,9 +184,9 @@ function writeWheels(meshes: (THREE.InstancedMesh | null)[], phase: number) {
       );
       wheelM.makeTranslation(x * 0.96, 0.45, z).multiply(wheelSpin).multiply(wheelLocal);
       mesh.setMatrixAt(i, wheelM);
-    });
+    }
     mesh.instanceMatrix.needsUpdate = true;
-  });
+  }
 }
 
 function Wheels({ phase }: { phase: React.RefObject<number> }) {
