@@ -1,26 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { DatabaseSync, type SQLInputValue } from "node:sqlite";
-import { readFileSync } from "node:fs";
+import type { DatabaseSync } from "node:sqlite";
 import worker from "../worker/index";
 import type { WritingEnv } from "../worker/writing";
+import { fakeD1 } from "./helpers/d1";
 
 let sqlite: DatabaseSync, env: WritingEnv;
-function statement(sql: string, values: SQLInputValue[] = []) {
-  return {
-    bind: (...bound: SQLInputValue[]) => statement(sql, bound),
-    async first<T>() {
-      return (sqlite.prepare(sql).get(...values) ?? null) as T | null;
-    },
-    async all<T>() {
-      return { results: sqlite.prepare(sql).all(...values) as T[] };
-    },
-    async run() {
-      return {
-        meta: { changes: Number(sqlite.prepare(sql).run(...values).changes) },
-      };
-    },
-  };
-}
 const token = "a".repeat(64);
 const post = (extra = {}) => ({
   id: crypto.randomUUID(),
@@ -43,15 +27,10 @@ function request(method = "GET", body?: unknown, path = "", headers = {}) {
   });
 }
 beforeEach(() => {
-  sqlite = new DatabaseSync(":memory:");
-  sqlite.exec(
-    readFileSync(
-      new URL("../migrations/0001_writing.sql", import.meta.url),
-      "utf8",
-    ),
-  );
+  const fake = fakeD1();
+  sqlite = fake.sqlite;
   env = {
-    WRITING_DB: { prepare: statement },
+    WRITING_DB: fake.db,
     WRITING_ADMIN_TOKEN: "b".repeat(64),
   };
 });
@@ -139,6 +118,8 @@ describe("shared public writing", () => {
       expect((await worker.fetch(request("POST", draft), env)).status).toBe(
         201,
       );
+      // Past the one-minute cooldown between two posts.
+      sqlite.exec("UPDATE writing_receipts SET created_at = created_at - 61000");
       expect(
         (
           await worker.fetch(

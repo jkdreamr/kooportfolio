@@ -1,71 +1,42 @@
-import { validateWriting } from "../src/shared/writing";
+import {
+  checkPublicText,
+  POST_COOLDOWN_MS,
+  textCheckCopy,
+  validateWriting,
+  type WritingPost,
+} from "../src/shared/writing";
 import { isAllowedOrigin, type CorsEnv } from "./cors";
-import type { WritingPost } from "../src/shared/writing";
+import {
+  BodyTooLarge,
+  bearer,
+  dailyNetwork,
+  isAdmin,
+  readJsonBody,
+  reply,
+  REPORT_HIDE_AT,
+  retryAfter,
+  sha256Hex,
+  tokenPattern,
+  type AdminEnv,
+  type Database,
+} from "./http";
 
-// Small structural types keep this module usable in local SQLite tests too.
-type Statement = {
-  bind(...values: (string | number)[]): Statement;
-  first<T>(): Promise<T | null>;
-  all<T>(): Promise<{ results: T[] }>;
-  run(): Promise<{ meta: { changes?: number } }>;
-};
-export type WritingEnv = CorsEnv & {
-  WRITING_DB?: { prepare(sql: string): Statement };
-  WRITING_ADMIN_TOKEN?: string;
-};
+export type WritingEnv = CorsEnv &
+  AdminEnv & {
+    WRITING_DB?: Database;
+  };
+
 const fields = "id, title, author, body, created_at AS createdAt";
 const idPattern = /^[a-f0-9-]{36}$/i;
-const tokenPattern = /^[a-f0-9]{64}$/i;
-const reply = (
-  data: unknown,
-  status = 200,
-  headers: Record<string, string> = {},
-) =>
-  Response.json(data, {
-    status,
-    headers: {
-      "Cache-Control": "no-store",
-      "X-Content-Type-Options": "nosniff",
-      ...headers,
-    },
-  });
-async function hash(value: string) {
-  const bytes = new Uint8Array(
-    await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)),
-  );
-  return Array.from(bytes, (v) => v.toString(16).padStart(2, "0")).join("");
-}
-async function readBody(request: Request): Promise<unknown> {
-  if (
-    !request.headers
-      .get("Content-Type")
-      ?.toLowerCase()
-      .startsWith("application/json")
-  )
-    throw new Error("json");
-  // Enforce bytes while streaming, not only a caller-supplied Content-Length.
-  const reader = request.body?.getReader();
-  if (!reader) throw new Error("json");
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > 32000) {
-      await reader.cancel();
-      throw new Error("large");
-    }
-    chunks.push(value);
-  }
-  const buffer = new Uint8Array(size);
-  let at = 0;
-  for (const chunk of chunks) {
-    buffer.set(chunk, at);
-    at += chunk.length;
-  }
-  return JSON.parse(new TextDecoder().decode(buffer));
-}
+/** Posts with REPORT_HIDE_AT reports or more stay off the shelf. */
+const VISIBLE = `id NOT IN (SELECT target_id FROM reports WHERE kind = 'writing'
+  GROUP BY target_id HAVING COUNT(*) >= ${REPORT_HIDE_AT})`;
+/** Per network: 3 posts an hour and a minute between two; 100 posts an
+ * hour across everyone; 500 posts kept in all. */
+export const WRITING_LIMITS_PER_HOUR = 3;
+const GLOBAL_PER_HOUR = 100;
+const TOTAL_POSTS = 500;
+const HOUR = 3600000;
 
 export async function writingApi(
   request: Request,
@@ -89,7 +60,7 @@ export async function writingApi(
       const [time, cursorId] = before?.split(":") ?? ["9007199254740991", ""];
       const { results } = await db
         .prepare(
-          `SELECT ${fields} FROM writing_posts WHERE created_at < ? OR (created_at = ? AND id < ?) ORDER BY created_at DESC, id DESC LIMIT 25`,
+          `SELECT ${fields} FROM writing_posts WHERE (created_at < ? OR (created_at = ? AND id < ?)) AND ${VISIBLE} ORDER BY created_at DESC, id DESC LIMIT 25`,
         )
         .bind(Number(time), Number(time), cursorId)
         .all<WritingPost>();
@@ -105,42 +76,45 @@ export async function writingApi(
       return reply({ error: "Method not allowed." }, 405, {
         Allow: collection ? "GET, POST" : "DELETE",
       });
-    const origin = request.headers.get("Origin");
-    if (!origin || !isAllowedOrigin(origin, request.url, env))
-      return reply({ error: "Open the writing room to post." }, 403);
     if (request.method === "DELETE" && id) {
-      const token =
-        request.headers.get("Authorization")?.replace(/^Bearer /, "") ?? "";
-      if (!tokenPattern.test(token))
+      // The owner's admin token works from anywhere (a bearer token is no
+      // ambient credential); an author's own token only from the site.
+      const admin = await isAdmin(request, env);
+      const origin = request.headers.get("Origin");
+      if (!admin && (!origin || !isAllowedOrigin(origin, request.url, env)))
+        return reply({ error: "Open the writing room to post." }, 403);
+      const token = bearer(request);
+      if (!admin && !tokenPattern.test(token))
         return reply({ error: "Not allowed." }, 403);
-      const admin =
-        env.WRITING_ADMIN_TOKEN && token === env.WRITING_ADMIN_TOKEN;
       const statement = admin
         ? db.prepare("DELETE FROM writing_posts WHERE id = ?").bind(id)
         : db
             .prepare(
               "DELETE FROM writing_posts WHERE id = ? AND delete_hash = ?",
             )
-            .bind(id, await hash(token));
+            .bind(id, await sha256Hex(token));
       const result = await statement.run();
-      return result.meta.changes
-        ? reply({ deleted: true })
-        : reply({ error: "Post not found or not yours." }, 404);
+      if (!result.meta.changes)
+        return reply({ error: "Post not found or not yours." }, 404);
+      await db
+        .prepare("DELETE FROM reports WHERE kind = 'writing' AND target_id = ?")
+        .bind(id)
+        .run();
+      return reply({ deleted: true });
     }
     if (!collection || request.method !== "POST")
       return reply({ error: "Not found." }, 404);
+    const origin = request.headers.get("Origin");
+    if (!origin || !isAllowedOrigin(origin, request.url, env))
+      return reply({ error: "Open the writing room to post." }, 403);
     let raw: unknown;
     try {
-      raw = await readBody(request);
+      raw = await readJsonBody(request, 32000);
     } catch (error) {
+      const large = error instanceof BodyTooLarge;
       return reply(
-        {
-          error:
-            error instanceof Error && error.message === "large"
-              ? "Post is too large."
-              : "Send a JSON post.",
-        },
-        error instanceof Error && error.message === "large" ? 413 : 400,
+        { error: large ? "Post is too large." : "Send a JSON post." },
+        large ? 413 : 400,
       );
     }
     const draft = validateWriting(raw);
@@ -156,7 +130,14 @@ export async function writingApi(
         { error: "Add a name, title and writing within the length limits." },
         400,
       );
-    const deleteHash = await hash(input.deleteToken);
+    // The same public-text check the client runs, enforced here: no links,
+    // no slurs or abuse (leetspeak and spaced letters included).
+    for (const text of [draft.title, draft.author, draft.body]) {
+      const check = checkPublicText(text);
+      if (!check.ok)
+        return reply({ error: textCheckCopy(check.reason), reason: check.reason }, 400);
+    }
+    const deleteHash = await sha256Hex(input.deleteToken);
     const existing = await db
       .prepare(
         `SELECT ${fields}, delete_hash AS deleteHash FROM writing_posts WHERE id = ?`,
@@ -177,21 +158,20 @@ export async function writingApi(
       });
     }
     const now = Date.now();
-    // Daily rotating network hash: no raw IPs. CF overwrites this header at the edge.
-    // Local requests without it share one bucket. Never trust client author names.
-    const network = await hash(
-      `${Math.floor(now / 86400000)}:${request.headers.get("CF-Connecting-IP") ?? "local"}`,
-    );
-    // One atomic SQLite statement enforces 3 posts/hour, a global 100/hour and
-    // 500 total posts. Separate receipts prevent deletion from resetting limits.
+    // Daily rotating network hash: no raw IPs. Never trust client author names.
+    const network = await dailyNetwork(request, now);
+    // One atomic statement enforces every limit. Receipts (inserted by a
+    // trigger in the same transaction) outlive deletion, so deleting your
+    // own post never resets your limit.
     const inserted = await db
       .prepare(
         `
       INSERT OR IGNORE INTO writing_posts (id, title, author, body, created_at, delete_hash, network)
       SELECT ?, ?, ?, ?, ?, ?, ?
-      WHERE (SELECT COUNT(*) FROM writing_posts) < 500
-        AND (SELECT COUNT(*) FROM writing_receipts WHERE created_at > ?) < 100
-        AND (SELECT COUNT(*) FROM writing_receipts WHERE network = ? AND created_at > ?) < 3
+      WHERE (SELECT COUNT(*) FROM writing_posts) < ${TOTAL_POSTS}
+        AND (SELECT COUNT(*) FROM writing_receipts WHERE created_at > ?) < ${GLOBAL_PER_HOUR}
+        AND (SELECT COUNT(*) FROM writing_receipts WHERE network = ? AND created_at > ?) < ${WRITING_LIMITS_PER_HOUR}
+        AND NOT EXISTS (SELECT 1 FROM writing_receipts WHERE network = ? AND created_at > ?)
     `,
       )
       .bind(
@@ -202,18 +182,25 @@ export async function writingApi(
         now,
         deleteHash,
         network,
-        now - 3600000,
+        now - HOUR,
         network,
-        now - 3600000,
+        now - HOUR,
+        network,
+        now - POST_COOLDOWN_MS,
       )
       .run();
-    if (!inserted.meta.changes)
+    if (!inserted.meta.changes) {
+      const last = await db
+        .prepare("SELECT MAX(created_at) AS last FROM writing_receipts WHERE network = ?")
+        .bind(network)
+        .first<{ last: number | null }>();
+      const cooling = last?.last != null && last.last > now - POST_COOLDOWN_MS;
       return reply(
         { error: "The room’s posting limit is reached. Try again later." },
         429,
-        { "Retry-After": "3600" },
+        { "Retry-After": cooling ? retryAfter(last.last!, POST_COOLDOWN_MS, now) : "3600" },
       );
-    // Receipt insertion/pruning are triggers in the migration, in this transaction.
+    }
     return reply({ post: { ...draft, id: input.id, createdAt: now } }, 201);
   } catch {
     return reply(
@@ -221,4 +208,9 @@ export async function writingApi(
       503,
     );
   }
+}
+
+/** Exists only for the report handler: is this post on the shelf? */
+export async function postExists(db: Database, id: string) {
+  return !!(await db.prepare("SELECT 1 AS found FROM writing_posts WHERE id = ?").bind(id).first());
 }

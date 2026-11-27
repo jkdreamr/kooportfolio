@@ -1,5 +1,4 @@
-import { DatabaseSync, type SQLInputValue } from "node:sqlite";
-import { readFileSync } from "node:fs";
+import type { DatabaseSync } from "node:sqlite";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   MAX_STRIP_BYTES,
@@ -9,46 +8,15 @@ import {
 } from "../src/shared/booth";
 import worker from "../worker/index";
 import type { BoothEnv } from "../worker/booth";
+import { fakeD1 } from "./helpers/d1";
 
 let sqlite: DatabaseSync;
 let env: BoothEnv;
 
-function statement(sql: string, values: SQLInputValue[] = []) {
-  return {
-    bind: (...bound: SQLInputValue[]) => statement(sql, bound),
-    async all<T>() {
-      return { results: sqlite.prepare(sql).all(...values) as T[] };
-    },
-  };
-}
-
 beforeEach(() => {
-  sqlite = new DatabaseSync(":memory:");
-  for (const migration of ["0001_booth.sql", "0002_post_limits.sql"]) {
-    sqlite.exec(
-      readFileSync(
-        new URL(`../migrations/booth/${migration}`, import.meta.url),
-        "utf8",
-      ),
-    );
-  }
-  env = {
-    BOOTH_DB: {
-      prepare: statement,
-      async batch(statements) {
-        sqlite.exec("BEGIN");
-        try {
-          const results = [];
-          for (const query of statements) results.push(await query.all());
-          sqlite.exec("COMMIT");
-          return results;
-        } catch (error) {
-          sqlite.exec("ROLLBACK");
-          throw error;
-        }
-      },
-    },
-  };
+  const fake = fakeD1();
+  sqlite = fake.sqlite;
+  env = { BOOTH_DB: fake.db };
 });
 
 afterEach(() => sqlite.close());
@@ -133,8 +101,11 @@ describe("photo wall", () => {
         }),
         env,
       );
-    for (let count = 0; count < 3; count++)
+    for (let count = 0; count < 3; count++) {
       expect((await post(ip)).status).toBe(201);
+      // Past the one-minute cooldown between two strips.
+      sqlite.exec("UPDATE booth_post_limits SET posted_at = posted_at - 61");
+    }
     const before = await (await worker.fetch(request(), env)).json();
     const rejected = await post(ip);
     expect(rejected.status).toBe(429);
@@ -183,5 +154,51 @@ describe("photo wall", () => {
     sqlite.exec("DROP TABLE booth_strips");
     expect((await worker.fetch(request(), env)).status).toBe(503);
     expect((await worker.fetch(request("POST", jpeg()), env)).status).toBe(503);
+  });
+
+  it("keeps a minute between two strips from one visitor", async () => {
+    const post = () =>
+      worker.fetch(request("POST", jpeg(), { "CF-Connecting-IP": "192.0.2.40" }), env);
+    expect((await post()).status).toBe(201);
+    const early = await post();
+    expect(early.status).toBe(429);
+    const wait = Number(early.headers.get("Retry-After"));
+    expect(wait).toBeGreaterThan(0);
+    expect(wait).toBeLessThanOrEqual(60);
+    sqlite.exec("UPDATE booth_post_limits SET posted_at = posted_at - 61");
+    expect((await post()).status).toBe(201);
+  });
+
+  it("hides a strip after three reports and lets the owner delete it", async () => {
+    const created = await worker.fetch(request("POST", jpeg(), { "CF-Connecting-IP": "192.0.2.50" }), env);
+    const { id } = await created.json();
+    const report = (ip: string) =>
+      worker.fetch(
+        new Request("https://preview.test/api/report", {
+          method: "POST",
+          headers: { Origin: "https://preview.test", "Content-Type": "application/json", "CF-Connecting-IP": ip },
+          body: JSON.stringify({ kind: "strip", id }),
+        }),
+        env,
+      );
+    for (const ip of ["198.51.100.1", "198.51.100.2"]) expect((await report(ip)).status).toBe(202);
+    // A repeat from the same network counts once.
+    expect((await report("198.51.100.2")).status).toBe(202);
+    expect((await (await worker.fetch(request(), env)).json()).strips).toHaveLength(1);
+    expect((await report("198.51.100.3")).status).toBe(202);
+    expect((await (await worker.fetch(request(), env)).json()).strips).toEqual([]);
+    const admin = "e".repeat(64);
+    const remove = (token: string) =>
+      worker.fetch(
+        new Request(`https://preview.test/api/booth/${id}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        { ...env, ADMIN_TOKEN: admin },
+      );
+    expect((await remove("f".repeat(64))).status).toBe(403);
+    expect((await remove(admin)).status).toBe(200);
+    expect((await remove(admin)).status).toBe(404);
+    expect(sqlite.prepare("SELECT COUNT(*) AS count FROM reports").get()?.count).toBe(0);
   });
 });

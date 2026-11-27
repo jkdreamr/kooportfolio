@@ -9,11 +9,14 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"],
   },
+  // Local preview only: one emulated D1 (under .wrangler) holds the wall,
+  // the shelf and reports, as in production. `npm run prepreview` applies
+  // every migration in migrations/.
   "d1_databases": [
     {
-      "binding": "BOOTH_DB",
+      "binding": "DB",
       "database_name": "joshua-booth-local",
-      "migrations_dir": "migrations/booth",
+      "migrations_dir": "migrations",
       "remote": false,
     },
   ],

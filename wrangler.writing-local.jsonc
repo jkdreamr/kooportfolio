@@ -12,7 +12,7 @@
   },
   "d1_databases": [
     {
-      "binding": "WRITING_DB",
+      "binding": "DB",
       "database_name": "joshua-writing-local",
       "migrations_dir": "migrations",
       "remote": false,

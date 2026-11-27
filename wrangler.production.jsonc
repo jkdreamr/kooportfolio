@@ -1,24 +1,25 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  // API-only Worker for the Vercel-hosted frontend. Fill each database_id
-  // from `wrangler d1 create`, apply migrations with --remote, then deploy.
+  // API-only Worker for the Vercel-hosted frontend, on Cloudflare's FREE
+  // plan only: one Worker and one D1 database (no R2, no paid features).
+  // Setup, step by step: CLOUDFLARE_SETUP.md (handed to the owner).
+  //   1. npx wrangler d1 create joshua-api      → paste its database_id below
+  //   2. npx wrangler d1 migrations apply joshua-api --remote --config wrangler.production.jsonc
+  //   3. npx wrangler secret put ADMIN_TOKEN --config wrangler.production.jsonc
+  //      (64 hex characters: openssl rand -hex 32)
+  //   4. npx wrangler deploy --config wrangler.production.jsonc
   "name": "joshua-exe",
   "main": "worker/index.ts",
   "compatibility_date": "2026-11-01",
   "workers_dev": true,
   "vars": {
+    // Exact origins, or host suffixes (no scheme) for preview deployments.
     "ALLOWED_ORIGINS": "https://kooportfolio.vercel.app,-jkdreamrs-projects.vercel.app",
   },
   "d1_databases": [
     {
-      "binding": "BOOTH_DB",
-      "database_name": "joshua-booth",
-      "database_id": "FILL_FROM_WRANGLER_D1_CREATE",
-      "migrations_dir": "migrations/booth",
-    },
-    {
-      "binding": "WRITING_DB",
-      "database_name": "joshua-writing",
+      "binding": "DB",
+      "database_name": "joshua-api",
       "database_id": "FILL_FROM_WRANGLER_D1_CREATE",
       "migrations_dir": "migrations",
     },

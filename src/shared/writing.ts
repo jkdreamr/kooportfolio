@@ -60,7 +60,8 @@ export function checkPublicText(text: string): TextCheck {
   // Letters spaced out to dodge the filter: "f u c k".
   const squeezed = normal.replace(/\b([a-z])\s(?=[a-z]\b)/g, "$1");
   for (const word of squeezed.split(/[^a-z]+/))
-    if (word.length > 3 && BLOCKED.has(word)) return { ok: false, reason: "language" };
+    if (word.length > 3 && stems(word).some((w) => BLOCKED.has(w)))
+      return { ok: false, reason: "language" };
   return { ok: true };
 }
 

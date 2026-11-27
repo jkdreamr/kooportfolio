@@ -23,7 +23,7 @@ describe("public text filter", () => {
   });
   it("stops abusive words, including common disguises", () => {
     const word = "shpx".replace(/[a-z]/g, (c) => String.fromCharCode(((c.charCodeAt(0) - 97 + 13) % 26) + 97));
-    for (const t of [word, `${word}ing`, word.toUpperCase(), word.replace("u", "*").replace("*", "u").replace("c", "c"), word.split("").join(" ")])
+    for (const t of [word, `${word}ing`, word.toUpperCase(), word.replace("u", "*").replace("*", "u").replace("c", "c"), word.split("").join(" "), `${word}ing`.split("").join(" ")])
       expect(checkPublicText(`oh ${t} this`).ok, t).toBe(false);
   });
 });

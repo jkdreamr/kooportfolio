@@ -1,54 +1,36 @@
 import {
+  BOOTH_PATH,
   MAX_STRIP_BYTES,
   STRIP_HEIGHT,
   STRIP_WIDTH,
   WALL_LIMIT,
   type WallStrip,
 } from "../src/shared/booth";
+import { POST_COOLDOWN_MS } from "../src/shared/writing";
 import { isAllowedOrigin, type CorsEnv } from "./cors";
+import {
+  BodyTooLarge,
+  clientIp,
+  isAdmin,
+  readBytes,
+  reply,
+  REPORT_HIDE_AT,
+  retryAfter,
+  type AdminEnv,
+  type Database,
+} from "./http";
 
-type Statement = {
-  bind(...values: (number | string)[]): Statement;
-  all<T>(): Promise<{ results: T[] }>;
-};
-
-export type BoothEnv = CorsEnv & {
-  BOOTH_DB?: {
-    prepare(sql: string): Statement;
-    batch(statements: Statement[]): Promise<{ results: unknown[] }[]>;
+export type BoothEnv = CorsEnv &
+  AdminEnv & {
+    BOOTH_DB?: Database;
   };
-};
 
-const POST_LIMIT = 3;
-const POST_WINDOW_SECONDS = 3600;
-
-function reply(data: unknown, status = 200, headers?: Record<string, string>) {
-  return Response.json(data, {
-    status,
-    headers: {
-      "Cache-Control": "no-store",
-      "X-Content-Type-Options": "nosniff",
-      ...headers,
-    },
-  });
-}
-
-async function readJpeg(request: Request) {
-  const reader = request.body?.getReader();
-  if (!reader) return new Uint8Array();
-  const bytes = new Uint8Array(MAX_STRIP_BYTES);
-  let length = 0;
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) return bytes.subarray(0, length);
-    if (length + value.length > bytes.length) {
-      await reader.cancel();
-      return null;
-    }
-    bytes.set(value, length);
-    length += value.length;
-  }
-}
+/** Per visitor: 3 strips an hour, and a minute between two (the client
+ * shows the same cooldown before it even asks). */
+export const BOOTH_POST_LIMIT = 3;
+export const BOOTH_POST_WINDOW_SECONDS = 3600;
+const COOLDOWN_SECONDS = POST_COOLDOWN_MS / 1000;
+const stripIdPattern = /^[a-f0-9-]{36}$/i;
 
 function isStripJpeg(bytes: Uint8Array) {
   if (
@@ -94,6 +76,9 @@ function isStripJpeg(bytes: Uint8Array) {
   return false;
 }
 
+/** Base64 of the JPEG: D1 has no object storage, so a strip is a ≤ 160 KB
+ * JPEG kept as text (≤ ~214 KB a row, well under D1's 2 MB row limit), and
+ * the wall keeps only the newest WALL_LIMIT of them. */
 function encode(bytes: Uint8Array) {
   let value = "";
   for (let start = 0; start < bytes.length; start += 8192) {
@@ -103,16 +88,39 @@ function encode(bytes: Uint8Array) {
 }
 
 async function visitorHash(request: Request) {
-  const ip = request.headers.get("CF-Connecting-IP") ?? "local";
   const digest = await crypto.subtle.digest(
     "SHA-256",
-    new TextEncoder().encode(`photo-booth:${ip}`),
+    new TextEncoder().encode(`photo-booth:${clientIp(request)}`),
   );
   return encode(new Uint8Array(digest));
 }
 
+/** Strips with REPORT_HIDE_AT reports or more stay off the wall. */
+const VISIBLE = `id NOT IN (SELECT target_id FROM reports WHERE kind = 'strip'
+  GROUP BY target_id HAVING COUNT(*) >= ${REPORT_HIDE_AT})`;
+
 export async function boothApi(request: Request, env: BoothEnv) {
   const { BOOTH_DB: db } = env;
+  const path = new URL(request.url).pathname;
+  const id = path.startsWith(`${BOOTH_PATH}/`) ? path.slice(BOOTH_PATH.length + 1) : null;
+  if (id !== null) {
+    // The owner removes a strip: DELETE /api/booth/<id> with the admin token.
+    if (request.method !== "DELETE")
+      return reply({ error: "Method not allowed." }, 405, { Allow: "DELETE" });
+    if (!stripIdPattern.test(id)) return reply({ error: "Not found." }, 404);
+    if (!(await isAdmin(request, env))) return reply({ error: "Not allowed." }, 403);
+    if (!db) return reply({ error: "Wall unavailable." }, 503);
+    try {
+      const [removed] = await db.batch([
+        db.prepare("DELETE FROM booth_strips WHERE id = ?").bind(id),
+        db.prepare("DELETE FROM reports WHERE kind = 'strip' AND target_id = ?").bind(id),
+      ]);
+      const changes = (removed as { meta?: { changes?: number } }).meta?.changes ?? 0;
+      return changes ? reply({ deleted: true }) : reply({ error: "Not found." }, 404);
+    } catch {
+      return reply({ error: "Wall unavailable." }, 503);
+    }
+  }
   if (request.method !== "GET" && request.method !== "POST") {
     return reply({ error: "Method not allowed." }, 405, { Allow: "GET, POST" });
   }
@@ -120,7 +128,7 @@ export async function boothApi(request: Request, env: BoothEnv) {
   try {
     if (request.method === "GET") {
       const { results } = await db
-        .prepare("SELECT id, jpeg FROM booth_strips ORDER BY seq DESC LIMIT ?")
+        .prepare(`SELECT id, jpeg FROM booth_strips WHERE ${VISIBLE} ORDER BY seq DESC LIMIT ?`)
         .bind(WALL_LIMIT)
         .all<WallStrip>();
       return reply({ strips: results });
@@ -131,27 +139,37 @@ export async function boothApi(request: Request, env: BoothEnv) {
     if (request.headers.get("Content-Type")?.toLowerCase() !== "image/jpeg") {
       return reply({ error: "JPEG required." }, 415);
     }
-    const bytes = await readJpeg(request);
-    if (!bytes) return reply({ error: "Strip too large." }, 413);
+    let bytes: Uint8Array;
+    try {
+      bytes = await readBytes(request, MAX_STRIP_BYTES);
+    } catch (error) {
+      if (error instanceof BodyTooLarge) return reply({ error: "Strip too large." }, 413);
+      throw error;
+    }
     if (!isStripJpeg(bytes)) return reply({ error: "Invalid strip." }, 400);
-    const id = crypto.randomUUID();
+    const stripId = crypto.randomUUID();
     const visitor = await visitorHash(request);
     const now = Math.floor(Date.now() / 1000);
-    const since = now - POST_WINDOW_SECONDS;
+    const since = now - BOOTH_POST_WINDOW_SECONDS;
+    // One batch (one transaction): the insert happens only under both
+    // limits, its receipt is written with it, and the wall is pruned to the
+    // newest WALL_LIMIT strips.
     const [insert] = await db.batch([
       db
         .prepare(
           `INSERT INTO booth_strips (id, jpeg)
            SELECT ?, ? WHERE (SELECT COUNT(*) FROM booth_post_limits
              WHERE visitor_hash = ? AND posted_at > ?) < ?
+           AND NOT EXISTS (SELECT 1 FROM booth_post_limits
+             WHERE visitor_hash = ? AND posted_at > ?)
            RETURNING id`,
         )
-        .bind(id, encode(bytes), visitor, since, POST_LIMIT),
+        .bind(stripId, encode(bytes), visitor, since, BOOTH_POST_LIMIT, visitor, now - COOLDOWN_SECONDS),
       db
         .prepare(
           "INSERT INTO booth_post_limits (post_id, visitor_hash, posted_at) SELECT id, ?, ? FROM booth_strips WHERE id = ?",
         )
-        .bind(visitor, now, id),
+        .bind(visitor, now, stripId),
       db
         .prepare("DELETE FROM booth_post_limits WHERE posted_at <= ?")
         .bind(since),
@@ -160,13 +178,30 @@ export async function boothApi(request: Request, env: BoothEnv) {
           "DELETE FROM booth_strips WHERE seq <= (SELECT seq FROM booth_strips ORDER BY seq DESC LIMIT 1 OFFSET ?)",
         )
         .bind(WALL_LIMIT),
+      db
+        .prepare(
+          "DELETE FROM reports WHERE kind = 'strip' AND target_id NOT IN (SELECT id FROM booth_strips)",
+        ),
     ]);
-    if (!insert.results.length)
+    if (!insert.results.length) {
+      const last = await db
+        .prepare("SELECT MAX(posted_at) AS last FROM booth_post_limits WHERE visitor_hash = ?")
+        .bind(visitor)
+        .first<{ last: number | null }>();
+      const cooling = last?.last != null && last.last > now - COOLDOWN_SECONDS;
       return reply({ error: "Too many posts. Try again later." }, 429, {
-        "Retry-After": String(POST_WINDOW_SECONDS),
+        "Retry-After": cooling
+          ? retryAfter(last.last! * 1000, POST_COOLDOWN_MS, now * 1000)
+          : String(BOOTH_POST_WINDOW_SECONDS),
       });
-    return reply({ id }, 201);
+    }
+    return reply({ id: stripId }, 201);
   } catch {
     return reply({ error: "Wall unavailable." }, 503);
   }
+}
+
+/** Exists only for the report handler: is this strip on the wall? */
+export async function stripExists(db: Database, id: string) {
+  return !!(await db.prepare("SELECT 1 AS found FROM booth_strips WHERE id = ?").bind(id).first());
 }
