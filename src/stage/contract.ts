@@ -169,6 +169,10 @@ export const useStage = create<StageState>((set, get) => ({
       ...(mode === "site" ? { hudRevealed: false, worldScissor: null } : {}),
       ...(mode !== "site" ? { worldVisible: true } : {}),
     });
+    // Mirrored on <html> in the same task (page CSS hides the HUD outside
+    // the game): a React effect could land seconds later on a busy frame,
+    // after the page had already started fading in under the HUD.
+    if (typeof document !== "undefined") document.documentElement.dataset.stageMode = mode;
     return true;
   },
   setWorldVisible(worldVisible) {

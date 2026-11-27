@@ -750,6 +750,9 @@ export class PeepholeController {
     this.sink?.setSeam(null);
     this.paperDone = false;
     this.flightStarted = false;
+    // At rest the page is the DOM again: no WebGL copy of it underneath
+    // (a stale sheet showed as a doubled page while the DOM faded in).
+    this.sheetFrames = 0;
     this.resetSim();
     this.sim.tune.commitT = this.armedFlag ? 1 : Infinity;
     this.sim.tune.flickT = this.armedFlag ? 0.85 : Infinity;
