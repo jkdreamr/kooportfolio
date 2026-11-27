@@ -23,7 +23,16 @@ export type Cue =
   | "land"
   | "travel-depart"
   | "travel-arrive"
-  | "fountain";
+  | "fountain"
+  // Living world (PLAN_GAMES §4.6) and the stadium (§2.4).
+  | "flutter"
+  | "purr"
+  | "quack"
+  | "splash"
+  | "rustle"
+  | "chirp"
+  | "crowd-hush"
+  | "groan";
 
 export type CueOptions = {
   pan?: number;
@@ -46,6 +55,7 @@ export function cue(name: Cue, opts?: CueOptions): void {
 const CUES: ReadonlySet<string> = new Set<Cue>([
   "ui-open", "ui-close", "ui-hover", "ui-select", "ui-confirm", "ui-back", "ui-toggle",
   "ui-error", "toast", "tear", "flight", "land", "travel-depart", "travel-arrive", "fountain",
+  "flutter", "purr", "quack", "splash", "rustle", "chirp", "crowd-hush", "groan",
 ]);
 export const isCue = (v: unknown): v is Cue => typeof v === "string" && CUES.has(v);
 

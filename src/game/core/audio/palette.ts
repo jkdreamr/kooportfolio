@@ -585,6 +585,112 @@ export const SPECS = {
     noise(ctx, out, t, v, { type: "lowpass", f: 520 * v.pitch, q: 0.7, dur: 0.075, attack: 0.006, level: 0.83 }),
     thump(ctx, out, t, 58 * v.pitch, 38, 0.07, 0.33),
   ], 0.075),
+  /* Living world (PLAN_GAMES §4.6) and the stadium's hush. */
+  flutter: {
+    bus: "sfx", level: 0.04, send: 0.08, dur: 0.35, vary: { pitch: 0.08, level: 0.15 },
+    build: (ctx, out, t, v) => {
+      // Wings: a band of noise with an 18 Hz tremolo.
+      const trem = ctx.createGain(),
+        lfo = ctx.createOscillator(),
+        depth = ctx.createGain();
+      trem.gain.value = 0.55;
+      lfo.frequency.value = 18 * v.pitch;
+      depth.gain.value = 0.45;
+      lfo.connect(depth);
+      depth.connect(trem.gain);
+      trem.connect(out);
+      lfo.start(t);
+      lfo.stop(t + 0.38);
+      return built(t + 0.35, lfo,
+        noise(ctx, trem, t, v, { type: "bandpass", f: 2500 * v.pitch, q: 1.4, dur: 0.35, attack: 0.02, level: 1 }));
+    },
+  },
+  purr: {
+    bus: "sfx", level: 0.03, send: 0.05, dur: 1.4, vary: { pitch: 0.04, level: 0.1 },
+    build: (ctx, out, t, v) => {
+      // A 110 Hz triangle, amplitude-modulated at 26 Hz, held then let go.
+      const body = ctx.createGain(),
+        am = ctx.createGain(),
+        lfo = ctx.createOscillator(),
+        depth = ctx.createGain(),
+        osc = ctx.createOscillator(),
+        warm = ctx.createBiquadFilter();
+      osc.type = "triangle";
+      osc.frequency.value = 110 * v.pitch;
+      lfo.type = "triangle";
+      lfo.frequency.value = 26 * v.pitch;
+      am.gain.value = 0.5;
+      depth.gain.value = 0.5;
+      warm.type = "lowpass";
+      warm.frequency.value = 700;
+      warm.Q.value = 0.6;
+      body.gain.setValueAtTime(0, t);
+      body.gain.linearRampToValueAtTime(1, t + 0.18);
+      body.gain.setValueAtTime(1, t + 0.95);
+      body.gain.exponentialRampToValueAtTime(0.01, t + 1.4);
+      body.gain.linearRampToValueAtTime(0, t + 1.406);
+      lfo.connect(depth);
+      depth.connect(am.gain);
+      osc.connect(warm);
+      warm.connect(am);
+      am.connect(body);
+      body.connect(out);
+      for (const o of [osc, lfo]) {
+        o.start(t);
+        o.stop(t + 1.43);
+      }
+      return built(t + 1.4, osc, lfo);
+    },
+  },
+  quack: {
+    bus: "sfx", level: 0.035, send: 0.08, dur: 0.28, vary: { pitch: 0.06, level: 0.1 },
+    build: (ctx, out, t, v) => {
+      // Two nasal calls: a falling sawtooth through a 1.2 kHz band.
+      const band = ctx.createBiquadFilter();
+      band.type = "bandpass";
+      band.frequency.value = 1200;
+      band.Q.value = 2.2;
+      band.connect(out);
+      const sources = [0, 0.16].flatMap((dt, i) =>
+        tone(ctx, band, t + dt, { f: 520 * v.pitch * (i ? 0.96 : 1), to: 380 * v.pitch, type: "sawtooth", dur: 0.12, attack: 0.008, level: 1 }));
+      return built(t + 0.28, sources);
+    },
+  },
+  splash: {
+    bus: "sfx", level: 0.04, send: 0.12, dur: 0.22, vary: UI_VARY,
+    build: (ctx, out, t, v) => built(t + 0.22,
+      noise(ctx, out, t, v, { type: "lowpass", f: 1400 * v.pitch, to: 700 * v.pitch, q: 0.8, dur: 0.22, attack: 0.004, level: 1 }),
+      noise(ctx, out, t + 0.03, v, { type: "bandpass", f: 2600 * v.pitch, q: 1.5, dur: 0.12, attack: 0.004, level: 0.3 })),
+  },
+  rustle: {
+    bus: "sfx", level: 0.03, send: 0.06, dur: 0.5, vary: { pitch: 0.06, level: 0.12 },
+    build: (ctx, out, t, v) => {
+      // Leaves: a 3.5 kHz band of noise with three dips.
+      const dips = ctx.createGain();
+      dips.gain.setValueAtTime(1, t);
+      for (const at of [0.12, 0.25, 0.37]) {
+        dips.gain.setValueAtTime(1, t + at - 0.02);
+        dips.gain.linearRampToValueAtTime(0.3, t + at);
+        dips.gain.linearRampToValueAtTime(1, t + at + 0.03);
+      }
+      dips.connect(out);
+      return built(t + 0.5,
+        noise(ctx, dips, t, v, { type: "bandpass", f: 3500 * v.pitch, q: 1.2, dur: 0.5, attack: 0.06, level: 1 }));
+    },
+  },
+  chirp: {
+    bus: "ambience", level: 0.02, send: 0.15, dur: 0.16, vary: { pitch: 0.06, level: 0.15 },
+    build: (ctx, out, t, v) => built(t + 0.16,
+      [0, 0.1].flatMap((dt) =>
+        tone(ctx, out, t + dt, { f: 3200 * v.pitch, to: 4100 * v.pitch, dur: 0.06, attack: 0.004, level: 1 }))),
+  },
+  "crowd-hush": {
+    bus: "sfx", level: 0.04, send: 0.3, dur: 1.1, vary: { pitch: 0.03, level: 0.08 },
+    build: (ctx, out, t, v) => built(t + 1.1,
+      // A stand going quiet: the murmur band falls and thins, with a soft "shh".
+      noise(ctx, out, t, v, { type: "bandpass", f: 1000 * v.pitch, to: 420 * v.pitch, q: 0.7, dur: 1.1, attack: 0.04, level: 1 }),
+      noise(ctx, out, t + 0.05, v, { type: "bandpass", f: 4200 * v.pitch, q: 1.2, dur: 0.6, attack: 0.08, level: 0.25 })),
+  },
   /* Older names kept working. */
   shot: {
     bus: "sfx", level: 0.05, send: 0.08, dur: 0.18, vary: UI_VARY,
@@ -662,6 +768,13 @@ export const TRIM: Partial<Record<PaletteName, number>> = {
   whistle: 1.428,
   cheer: 1.136,
   groan: 4.835,
+  flutter: 2.563,
+  purr: 1.111,
+  quack: 2.27,
+  splash: 2.39,
+  rustle: 1.685,
+  chirp: 1.149,
+  "crowd-hush": 2.139,
   "foot-grass": 1.389,
   "foot-gravel": 1.797,
   "foot-stone": 1.294,
