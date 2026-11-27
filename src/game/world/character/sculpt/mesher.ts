@@ -786,13 +786,15 @@ export function decimateLabeled(mesh: LabMesh, target: number, weight: (x: numbe
       if (c !== Infinity) heap.push(c, v, u, stamp[v], stamp[u]);
     }
   }
+  const dbgY = (globalThis as { __dbgY?: number }).__dbgY;
   const run = () => {
     while (faces > target) {
       const e = heap.pop();
       if (!e) break;
       const [cost, a, b, sa, sb] = e;
       if (!vAlive[a] || !vAlive[b] || stamp[a] !== sa || stamp[b] !== sb) continue;
-      tryCollapse(a, b, cost);
+      const ya = P[a * 3 + 1], yb = P[b * 3 + 1];
+      if (tryCollapse(a, b, cost) && dbgY !== undefined && (ya > dbgY || yb > dbgY) && P[a * 3 + 1] < dbgY - 0.03) console.log("DROP", faces, cost, ya, yb, P[a * 3 + 1], vf[a].length);
     }
   };
   const restart = () => {
