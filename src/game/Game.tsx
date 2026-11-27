@@ -23,6 +23,7 @@ import {
   type FlightObstacleBox,
   TIER_BUDGETS,
   gameInputEnabled,
+  revealHud,
   useStage,
   type Tier,
 } from "../stage/contract";
@@ -498,6 +499,8 @@ function CanvasFade({ wrap }: { wrap: React.RefObject<HTMLDivElement | null> }) 
     t.current = Math.min(1, t.current + Math.min(delta, 1 / 30) / seconds);
     const x = t.current;
     el.style.opacity = (x * x * x * (x * (x * 6 - 15) + 10)).toFixed(3);
+    // Direct /play: the HUD enters once the world is fully in.
+    if (t.current >= 1 && useStage.getState().mode === "game") revealHud();
   });
   return null;
 }

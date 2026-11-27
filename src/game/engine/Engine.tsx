@@ -7,7 +7,6 @@ import {
   onWarmupRegistered,
   pendingWarmTasks,
   registerWarmup,
-  revealHud,
   useStage,
   type Tier,
   type WarmContext,
@@ -427,10 +426,9 @@ export function EngineRuntime({
           stats.linksAtReady = stats.links;
           await nextFrame();
           useStage.setState({ ready: true, warmProgress: 1 });
-          if (autoEnter) {
-            useStage.getState().setMode("game");
-            revealHud();
-          }
+          // Direct /play: playable at once; the HUD follows once the first
+          // frame has faded in (Game.tsx CanvasFade), never over empty sky.
+          if (autoEnter) useStage.getState().setMode("game");
         }
       } finally {
         running = false;

@@ -850,7 +850,7 @@ export class PeepholeController {
     }
     if (!this.armedFlag) this.loadTick();
     // After a hand-off the tension ceiling lifts over ~0.8 s, never at once.
-    else if (Number.isFinite(sim.tune.maxT)) sim.setMaxTension(rampTension(sim.tune.maxT, dt));
+    else if (Number.isFinite(sim.tune.maxT)) sim.setMaxTension(rampTension(sim.tune.maxT, Math.min(dt, 1 / 12)));
     if (this.phase === "peek") this.peekTick();
     if (this.phase === "tearing" || this.phase === "flying") this.tearTick(dt);
     this.publish();
