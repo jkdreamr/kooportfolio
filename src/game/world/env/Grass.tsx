@@ -376,9 +376,11 @@ function grassMaterial() {
 const geometry = tuftGeometry();
 /** Far LOD: three wide blades (9 tris). */
 const farGeometry = tuftGeometry(3, 2, 1.7);
-/** Medium's only tuft: four fine blades (12 tris; B4 allowance +3 per tuft),
- * tagged near (so it never fades out inside the near radius). */
-const mediumGeometry = tuftGeometry(4, 1, 1.15);
+/** Medium's tufts, tagged near (so they never fade out inside the near
+ * radius): three fine blades in the diorama (9 tris, as before) and four in
+ * the walk view (12 tris; B4's +15k allowance at the 5,000-tuft cap). */
+const mediumGeometry = tuftGeometry(3, 1, 1.15);
+const mediumExplore = tuftGeometry(4, 1, 1.15);
 /** Explore, high tier: the soft near tuft (12 blades, 24 tris) and the
  * soft far tuft (5 blades, 10 tris). Swapped in on the same meshes when the
  * view turns to explore (geometry only: same material and program). */
@@ -583,6 +585,9 @@ export function Grass({ world }: { world: WorldId }) {
     // diorama's own tuft otherwise (its look is unchanged).
     if (soft) {
       const nearGeometry = explore ? softNear : geometry;
+      if (mesh.geometry !== nearGeometry) mesh.geometry = nearGeometry;
+    } else if (tier === "medium") {
+      const nearGeometry = explore ? mediumExplore : mediumGeometry;
       if (mesh.geometry !== nearGeometry) mesh.geometry = nearGeometry;
     }
     // Softer explore look, eased with the blend (uniforms only).
