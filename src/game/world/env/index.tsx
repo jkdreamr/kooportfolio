@@ -21,7 +21,7 @@ import { Understory } from "./Understory";
 import { ContactShadows } from "./ContactShadows";
 import { Clouds } from "./Clouds";
 import { tickReflection } from "./reflection";
-import { surfaceDetail } from "../Surface";
+import { surfaceDetail, surfaceExplore } from "../Surface";
 import { useEnvTier } from "./tier";
 import { exposeQa } from "../../../stage/qa";
 import { viewRuntime } from "../../core/worldView";
@@ -81,8 +81,13 @@ let hemisphere: THREE.HemisphereLight | null = null;
 /** Writes the shared environment uniforms and the hub's atmosphere. */
 function EnvironmentDriver() {
   const active = useWorldActive();
+  const tier = useEnvTier();
   useFrame(({ scene, camera }, delta) => {
-    if (!active) return;
+    // The explore grade is a shared Surface uniform: interiors never get it.
+    if (!active) {
+      surfaceExplore.value = 0;
+      return;
+    }
     tickReflection();
     if (import.meta.env.DEV)
       (window as unknown as { __w3scene?: THREE.Scene }).__w3scene = scene;
@@ -119,7 +124,10 @@ function EnvironmentDriver() {
       0.3 + weather.wind * 0.7,
       Math.min(1, delta),
     );
-    if (useGame.getState().scene === "hub") driveAtmosphere(scene, camera, delta);
+    // F4 explore grade: high tier only (medium/low keep their look).
+    const look = tier === "high" ? viewRuntime.blend : 0;
+    surfaceExplore.value = look;
+    if (useGame.getState().scene === "hub") driveAtmosphere(scene, camera, delta, look);
   });
   return null;
 }

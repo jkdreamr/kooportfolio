@@ -8,6 +8,27 @@ import { detailUniform } from "./env/detail";
 export const surfaceSky = { value: new THREE.Color(0, 0, 0) };
 /** 0..1 strength of the painted detail (a continuous tier knob; 0 on low). */
 export const surfaceDetail = { value: 1 };
+/** 0..1 explore grade (F4): the view blend on the high tier, else 0 (the
+ * environment driver writes it). Lawns ("ground", up-facing, green) take a
+ * richer, warmer green and every sculpted surface a slightly warmer sun and
+ * cooler, lower shade — sun/shade contrast without a post pass. */
+export const surfaceExplore = { value: 0 };
+const LAWN_TINT = [0.92, 1.12, 0.74] as const;
+/** The lawn grade as the shader applies it (exported so grass roots match). */
+export function lawnGrade(color: THREE.Color, amount: number) {
+  const green = THREE.MathUtils.smoothstep(color.g - Math.max(color.r, color.b), 0, 0.04) * amount;
+  if (green <= 0) return color;
+  const l = color.r * 0.2126 + color.g * 0.7152 + color.b * 0.0722;
+  const r = l + (color.r - l) * 1.45,
+    g = l + (color.g - l) * 1.45,
+    b = l + (color.b - l) * 1.45;
+  return color.setRGB(
+    THREE.MathUtils.lerp(color.r, r * LAWN_TINT[0], green),
+    THREE.MathUtils.lerp(color.g, g * LAWN_TINT[1], green),
+    THREE.MathUtils.lerp(color.b, b * LAWN_TINT[2], green),
+  );
+}
+
 
 /* ------------------------------------------------------------ surface kind */
 
@@ -187,6 +208,7 @@ export function sculptedMaterial(
     shader.uniforms.uSurfaceLayers = detailUniform;
     shader.uniforms.uSurfaceDetail = surfaceDetail;
     shader.uniforms.uSurfaceKind = kindUniform;
+    shader.uniforms.uSurfaceExplore = surfaceExplore;
     shader.vertexShader = shader.vertexShader
       .replace(
         "#include <common>",
@@ -211,6 +233,7 @@ export function sculptedMaterial(
         uniform sampler2D uSurfaceNoise;
         uniform sampler2DArray uSurfaceLayers;
         uniform float uSurfaceDetail;
+        uniform float uSurfaceExplore;
         ${KIND_FRAGMENT}
         float sculptGrain;
         float sculptRough;
@@ -234,7 +257,15 @@ export function sculptedMaterial(
         sculptRough = sculptFine.b;
         sculptHeight = sculptFine.g;
         diffuseColor.rgb *= 1.0 + (sculptGrain - 0.5) * mix(0.14, 0.2, sculptTagged) * uSurfaceDetail;
-        diffuseColor.rgb *= mix(vec3(1.0), mix(vec3(0.965, 0.985, 1.02), vec3(1.035, 1.01, 0.965), sculptBroad), uSurfaceDetail);`,
+        diffuseColor.rgb *= mix(vec3(1.0), mix(vec3(0.965, 0.985, 1.02), vec3(1.035, 1.01, 0.965), sculptBroad), uSurfaceDetail);
+        if (uSurfaceExplore > 0.0) {
+          // Explore lawn grade (mirrors lawnGrade()): green, up-facing ground.
+          vec3 sculptC = diffuseColor.rgb;
+          float sculptGreen = smoothstep(0.0, 0.04, sculptC.g - max(sculptC.r, sculptC.b))
+            * (1.0 - step(0.5, abs(sculptKind - 5.0))) * smoothstep(0.55, 0.85, sculptN.y) * uSurfaceExplore;
+          float sculptL = dot(sculptC, vec3(0.2126, 0.7152, 0.0722));
+          diffuseColor.rgb = mix(sculptC, (sculptL + (sculptC - sculptL) * 1.45) * vec3(${LAWN_TINT.join(", ")}), sculptGreen);
+        }`,
       )
       .replace(
         "#include <roughnessmap_fragment>",
@@ -261,12 +292,15 @@ export function sculptedMaterial(
       .replace(
         "#include <lights_fragment_end>",
         `#include <lights_fragment_end>
+        // Explore: warmer sun, cooler and lower shade (sun/shade contrast).
+        reflectedLight.directDiffuse *= mix(vec3(1.0), vec3(1.08, 1.02, 0.93), uSurfaceExplore);
+        reflectedLight.indirectDiffuse *= mix(vec3(1.0), vec3(0.82, 0.87, 0.97), uSurfaceExplore);
         float sculptRim = 1.0 - saturate(dot(geometryNormal, geometryViewDir));
         sculptRim = sculptRim * sculptRim * sculptRim * (0.35 + 0.65 * sculptLight);
         reflectedLight.indirectSpecular += uSurfaceSky * sculptRim;`,
       );
   };
-  material.customProgramCacheKey = () => "sculpted-surface-v4";
+  material.customProgramCacheKey = () => "sculpted-surface-v5";
   return material;
 }
 

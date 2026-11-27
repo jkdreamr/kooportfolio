@@ -2,6 +2,8 @@ import * as THREE from "three";
 import { sculptedMaterial } from "../Surface";
 import { chamferBoxSized } from "../chamferBox";
 import type { Pose } from "./locomotion";
+import { solveJoints, type Joint } from "./skeleton";
+export type { Joint };
 
 /**
  * Rounded stylised character rig, drawn entirely with instancing: every
@@ -36,25 +38,6 @@ export const DEFAULT_PALETTE: Palette = {
   band: "#b0573a",
   hasHat: true,
 };
-
-export type Joint =
-  | "body"
-  | "pelvis"
-  | "chest"
-  | "neck"
-  | "head"
-  | "shoulderL"
-  | "shoulderR"
-  | "elbowL"
-  | "elbowR"
-  | "handL"
-  | "handR"
-  | "hipL"
-  | "hipR"
-  | "kneeL"
-  | "kneeR"
-  | "ankleL"
-  | "ankleR";
 
 /**
  * Geometry kinds. Each is one InstancedMesh per batch.
@@ -419,145 +402,14 @@ export function rigKindMaterial(kind: Kind) {
   }
 }
 
-// --- Pose → joint matrices ------------------------------------------------
-const HIP = 0.77;
-const joints: Record<Joint, THREE.Matrix4> = Object.fromEntries(
-  [
-    "body",
-    "pelvis",
-    "chest",
-    "neck",
-    "head",
-    "shoulderL",
-    "shoulderR",
-    "elbowL",
-    "elbowR",
-    "handL",
-    "handR",
-    "hipL",
-    "hipR",
-    "kneeL",
-    "kneeR",
-    "ankleL",
-    "ankleR",
-  ].map((j) => [j, new THREE.Matrix4()]),
-) as Record<Joint, THREE.Matrix4>;
-const local = new THREE.Matrix4(),
-  euler = new THREE.Euler(),
+// --- Pose → joint matrices (skeleton.ts) ------------------------------------
+const euler = new THREE.Euler(),
   quat = new THREE.Quaternion(),
   pos = new THREE.Vector3(),
-  one = new THREE.Vector3(1, 1, 1),
   scl = new THREE.Vector3(),
   partMatrix = new THREE.Matrix4(),
   sized = new THREE.Matrix4();
-
-function link(
-  out: THREE.Matrix4,
-  parent: THREE.Matrix4,
-  x: number,
-  y: number,
-  z: number,
-  rx = 0,
-  ry = 0,
-  rz = 0,
-) {
-  euler.set(rx, ry, rz, "YXZ");
-  quat.setFromEuler(euler);
-  pos.set(x, y, z);
-  local.compose(pos, quat, one);
-  out.multiplyMatrices(parent, local);
-}
-
-/** Solve the joint chain for one pose under `base` (root/world transform). */
-export function solveJoints(pose: Pose, base: THREE.Matrix4) {
-  const seat = pose.seat;
-  link(
-    joints.body,
-    base,
-    pose.sway,
-    HIP + pose.bob - seat * 0.02,
-    0,
-    pose.lean,
-    0,
-    pose.bank,
-  );
-  link(joints.pelvis, joints.body, 0, 0, 0, 0, pose.hipYaw, pose.hipRoll);
-  link(
-    joints.chest,
-    joints.pelvis,
-    0,
-    0.1,
-    0,
-    pose.chestPitch,
-    pose.chestYaw,
-    pose.chestRoll,
-  );
-  link(joints.neck, joints.chest, 0, 0.5, 0.0);
-  link(
-    joints.head,
-    joints.neck,
-    0,
-    0.07,
-    0.01,
-    pose.headPitch,
-    pose.headYaw,
-    pose.headRoll,
-  );
-  for (const [side, sign] of [
-    ["L", 1],
-    ["R", -1],
-  ] as const) {
-    const arm = side === "L" ? pose.armL : pose.armR;
-    const spread = side === "L" ? pose.spreadL : pose.spreadR;
-    const elbow = side === "L" ? pose.elbowL : pose.elbowR;
-    const hip = side === "L" ? pose.hipL : pose.hipR;
-    const knee = side === "L" ? pose.kneeL : pose.kneeR;
-    const ankle = side === "L" ? pose.ankleL : pose.ankleR;
-    link(
-      joints[`shoulder${side}`],
-      joints.chest,
-      sign * 0.268,
-      0.415,
-      -0.01,
-      -arm,
-      0,
-      sign * spread,
-    );
-    link(
-      joints[`elbow${side}`],
-      joints[`shoulder${side}`],
-      0,
-      -0.255,
-      0,
-      -elbow,
-      0,
-      0,
-    );
-    link(joints[`hand${side}`], joints[`elbow${side}`], 0, -0.245, 0);
-    link(
-      joints[`hip${side}`],
-      joints.pelvis,
-      sign * 0.118,
-      -0.035,
-      0,
-      -hip,
-      0,
-      sign * 0.025,
-    );
-    link(joints[`knee${side}`], joints[`hip${side}`], 0, -0.345, 0, knee, 0, 0);
-    link(
-      joints[`ankle${side}`],
-      joints[`knee${side}`],
-      0,
-      -0.325,
-      0,
-      -ankle + 0,
-      0,
-      -sign * 0.025,
-    );
-  }
-  return joints;
-}
+export { solveJoints };
 
 const held: Pose = {} as Pose;
 function applyHold(pose: Pose, look: Look): Pose {

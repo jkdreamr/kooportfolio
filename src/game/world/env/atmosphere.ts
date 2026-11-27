@@ -91,7 +91,13 @@ let focusSmoothed = 0;
  * Hub only: centre the fog's near/far on the camera's focus (where its view
  * ray meets the ground). Called every frame by the environment driver.
  */
-export function driveAtmosphere(scene: THREE.Scene, camera: THREE.Camera, delta = 1 / 60) {
+export function driveAtmosphere(
+  scene: THREE.Scene,
+  camera: THREE.Camera,
+  delta = 1 / 60,
+  /** The F4 explore grade (blend on high, else 0): haze push and cool tint. */
+  look = 0,
+) {
   const fog = scene.fog;
   if (!(fog instanceof THREE.Fog)) return;
   camera.getWorldDirection(forward);
@@ -106,18 +112,19 @@ export function driveAtmosphere(scene: THREE.Scene, camera: THREE.Camera, delta 
   const blend = viewRuntime.blend;
   // Explore: the haze starts a little further out, so the midground keeps
   // its contrast (F4: +10 near, span 260 → 165 rather than 140).
-  fog.near = Math.max(1, focusSmoothed - atmosphere.clear) + blend * exploreHaze.push;
-  // The explore view sees to the horizon: thicker depth haze.
-  fog.far = fog.near + atmosphere.span * (1 - blend * (95 / 260));
+  fog.near = Math.max(1, focusSmoothed - atmosphere.clear) + look * exploreHaze.push;
+  // The explore view sees to the horizon: thicker depth haze (260 → 140;
+  // → 165 with the F4 grade).
+  fog.far = fog.near + atmosphere.span * (1 - blend * (120 / 260) + look * (25 / 260));
   // Explore: cool the horizon haze from TimeOfDayLighting's warm horizon
   // toward a blue-grey of the same brightness (aerial perspective). The
   // colour is re-copied by TimeOfDayLighting every frame (priority -1,
   // before this driver), so nothing accumulates; interiors never get here.
-  if (blend > 0) {
+  if (look > 0) {
     const c = fog.color;
     const l = c.r * 0.2126 + c.g * 0.7152 + c.b * 0.0722;
     cool.setRGB(l * exploreHaze.cool[0], l * exploreHaze.cool[1], l * exploreHaze.cool[2]);
-    c.lerp(cool, exploreHaze.mix * blend);
+    c.lerp(cool, exploreHaze.mix * look);
   }
 }
 

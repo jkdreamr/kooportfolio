@@ -10,6 +10,7 @@ import { ENV_UNIFORMS_GLSL, bindEnvUniforms } from "./uniforms";
 import { grassField, grassFieldAsync, type GrassTuft } from "./placement";
 import { envBudget, useEnvTier } from "./tier";
 import { nextSlice } from "./slice";
+import { lawnGrade } from "../Surface";
 
 /**
  * Instanced grass tufts: tapered blades with a root→tip gradient, wind, a
@@ -106,8 +107,8 @@ function softTuftGeometry(blades: number, lod: number, spread = 1) {
     const ring = (b % 3) / 2;
     const reach = (0.015 + ring * 0.07) * spread;
     const height = 0.2 - ring * 0.07 + ((b * 37) % 5) * 0.012;
-    const lean = (0.05 + ring * 0.11) * spread;
-    const width = (0.042 + (b % 2) * 0.012) * spread;
+    const lean = (0.04 + ring * 0.085) * spread;
+    const width = (0.054 + (b % 2) * 0.014) * spread;
     const dx = Math.cos(angle),
       dz = Math.sin(angle);
     const ox = dx * reach,
@@ -338,12 +339,19 @@ function grassMaterial() {
         // Explore: lawn root → body → a long, light tip; flower centres
         // (uv.x = 2) cream-yellow.
         vec3 grassSoft = mix(uGrassRoot, grassInst, smoothstep(0.0, 0.4, vGrassT));
-        grassSoft = mix(grassSoft, uGrassTip, smoothstep(0.3, 1.0, vGrassT) * 0.6);
+        grassSoft = mix(grassSoft, uGrassTip, smoothstep(0.3, 1.0, vGrassT) * 0.5);
         grassSoft = mix(grassSoft, vec3(1.0, 0.86, 0.36), smoothstep(1.5, 1.9, vGrassU));
         diffuseColor.rgb = mix(grassBody, grassSoft, uGrassStyle);
         // Explore: a lighter, sunnier carpet (the low camera sees blades
         // against the lawn, where the diorama's dark roots read as sockets).
         diffuseColor.rgb *= 1.0 + 0.14 * uGrassLod.w * smoothstep(0.2, 0.9, vGrassT);`,
+      )
+      .replace(
+        "#include <lights_fragment_end>",
+        `#include <lights_fragment_end>
+        // Explore: the same sun/shade grade as sculpted surfaces (Surface.ts).
+        reflectedLight.directDiffuse *= mix(vec3(1.0), vec3(1.08, 1.02, 0.93), uGrassStyle);
+        reflectedLight.indirectDiffuse *= mix(vec3(1.0), vec3(0.82, 0.87, 0.97), uGrassStyle);`,
       )
       .replace(
         "#include <emissivemap_fragment>",
@@ -575,6 +583,8 @@ export function Grass({ world }: { world: WorldId }) {
     }
     // Softer explore look, eased with the blend (uniforms only).
     rootColor.set(PALETTES[world].root).lerp(lawnRoot.set(LAWN_ROOT[world]), blend);
+    // High: roots follow the explore lawn grade, so tufts grow out of the turf.
+    if (soft) lawnGrade(rootColor, blend);
     grassUniforms.uGrassRoot.value.copy(rootColor);
     camera.getWorldDirection(forward);
     const zoom = useWorldView.getState().zoom;
