@@ -56,7 +56,15 @@ const material = new THREE.MeshBasicMaterial({
   alphaMap: blob(),
 });
 material.customProgramCacheKey = () => "env-contact-blob-v1";
-const geometry = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+/** Same parameters (same program) with its own opacity: interior props. */
+export function contactBlobMaterial(opacity: number) {
+  const own = material.clone();
+  own.opacity = opacity;
+  own.customProgramCacheKey = () => "env-contact-blob-v1";
+  return own;
+}
+export const contactBlobGeometry = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+const geometry = contactBlobGeometry;
 
 type Spot = { x: number; y: number; z: number; r: number; k: number };
 

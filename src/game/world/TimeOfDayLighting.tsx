@@ -7,6 +7,7 @@ import { runtime, useGame } from "../core/store";
 import { isInterior } from "../core/world";
 import { usePresented } from "../engine/presented";
 import { journeyAtmosphere } from "./env/atmosphere";
+import { PropShadows } from "./env/PropShadows";
 
 const palettes = DAYLIGHT_KEYS.map((key) => ({
   zenith: new THREE.Color(key.zenith),
@@ -224,6 +225,7 @@ export function TimeOfDayLighting({ dimmed = false }: { dimmed?: boolean }) {
 
   return (
     <>
+      <PropShadows />
       <mesh
         ref={sky}
         frustumCulled={false}
