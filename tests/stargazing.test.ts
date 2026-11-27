@@ -118,7 +118,7 @@ describe("real telescope sky", () => {
     expect(names(new Date("2027-05-24T06:00:00Z"))).not.toEqual(names(instant));
   });
 
-  it("bases day/night on the observer's real Sun instead of the village preset", () => {
+  it("computes the observer's real Sun (eyepiece glare, Moon phase)", () => {
     expect(solarAltitude(instant, bay)).toBeLessThan(-6);
     expect(solarAltitude(instant, SKY_LOCATIONS.korea)).toBeGreaterThan(0);
     expect(
