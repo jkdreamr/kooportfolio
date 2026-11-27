@@ -40,6 +40,16 @@ import { npcName } from "../core/npcState";
 import { TravelMap } from "./TravelMap";
 import { useLaunchers } from "../core/launchers";
 import { cue } from "../core/audio/cues";
+import {
+  isMuteKey,
+  setSoundPrefs,
+  takeSoundHint,
+  toggleMute,
+  useEffectsLevel,
+  useMusicLevel,
+  useMuted,
+} from "./soundPrefs";
+import { showToast, useToasts, TOAST_MAX } from "./toasts";
 
 /** Knob travel in px from the centre of the 100px pad. */
 const STICK_TRAVEL = 30;
@@ -488,17 +498,148 @@ function QualitySetting() {
     </>
   );
 }
-function Toast({ notice }: { notice: string }) {
-  const phase = useContext(PresencePhase);
+/** Notices that must stay until read (a save conflict, blocked storage). */
+const stickyNotice = (text: string) =>
+  text.includes("Another tab") ||
+  text.includes("storage") ||
+  text.includes("saved file");
+/** Toasts, bottom-centre: at most two, 4 s each, paused while hovered. */
+function ToastStack() {
+  const toasts = useToasts((s) => s.toasts);
+  const { dismiss, setPaused, tick } = useToasts.getState();
+  const live = toasts.some((t) => !t.sticky);
+  useEffect(() => {
+    if (!live) return;
+    let last = performance.now();
+    const timer = window.setInterval(() => {
+      const now = performance.now();
+      tick(now - last);
+      last = now;
+    }, 200);
+    return () => window.clearInterval(timer);
+  }, [live, tick]);
+  useEffect(() => {
+    if (!toasts.length) setPaused(false);
+  }, [toasts.length, setPaused]);
+  if (!toasts.length) return null;
   return (
-    <div className="game-toast" role="status" data-phase={phase}>
-      {notice}
+    <div
+      className="toast-stack"
+      onPointerEnter={() => setPaused(true)}
+      onPointerLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+    >
+      {toasts.slice(-TOAST_MAX).map((toast) => (
+        <div key={toast.id} className="game-toast" role="status">
+          <span>{toast.text}</span>
+          <button
+            aria-label="Dismiss notification"
+            onClick={() => {
+              cue("ui-back");
+              dismiss(toast.id);
+            }}
+          >
+            ×
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+/** Mirrors the store's single `notice` into the toast stack, and clears it
+ * when its toast leaves, so the rest of the game sees it as read. */
+function useNoticeToasts(notice: string) {
+  useEffect(() => {
+    if (!notice) return;
+    showToast(notice, { sticky: stickyNotice(notice) });
+    cue("toast");
+    return useToasts.subscribe((state) => {
+      if (
+        !state.toasts.some((t) => t.text === notice) &&
+        useGame.getState().notice === notice
+      )
+        useGame.setState({ notice: "" });
+    });
+  }, [notice]);
+}
+/**
+ * M mutes anywhere outside a text field. The first time the HUD appears in
+ * this browser, say so: a toast with the key on a keyboard, a callout on the
+ * header button on touch (no key there).
+ */
+function useSoundShortcut(hudShown: boolean) {
+  const [touchHint, setTouchHint] = useState(false);
+  useEffect(() => {
+    const key = (event: KeyboardEvent) => {
+      if (!isMuteKey(event)) return;
+      const shell = document.querySelector(".game-shell");
+      if (!shell?.isConnected) return;
+      toggleMute();
+      cue("ui-toggle");
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, []);
+  useEffect(() => {
+    if (!hudShown || !takeSoundHint()) return;
+    const muted = useGame.getState().muted;
+    if (window.matchMedia?.("(pointer: coarse)").matches) {
+      setTouchHint(true);
+      const timer = window.setTimeout(() => setTouchHint(false), 4000);
+      return () => window.clearTimeout(timer);
+    }
+    showToast(
+      muted
+        ? "Sound is off · press M for sound"
+        : "Sound is on · press M to mute",
+    );
+  }, [hudShown]);
+  return touchHint;
+}
+/** Master switch and the two levels, as in Settings. */
+function SoundSettings() {
+  const muted = useMuted();
+  const music = useMusicLevel();
+  const effects = useEffectsLevel();
+  return (
+    <div className="sound-settings" role="group" aria-label="Sound">
       <button
-        aria-label="Dismiss notification"
-        onClick={() => useGame.setState({ notice: "" })}
+        className="setting-row"
+        aria-pressed={!muted}
+        onClick={() => {
+          setSoundPrefs({ muted: !muted });
+          cue("ui-toggle");
+        }}
       >
-        ×
+        <span>Sound</span>
+        <b>{muted ? "Off" : "On"}</b>
       </button>
+      {(
+        [
+          ["Music", music, "music"],
+          ["Effects", effects, "effects"],
+        ] as const
+      ).map(([label, value, key]) => (
+        <label key={key} className="setting-slider" data-muted={muted || undefined}>
+          <span>{label}</span>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={value}
+            aria-valuetext={`${value}%`}
+            onChange={(event) =>
+              setSoundPrefs({ [key]: Number(event.target.value) })
+            }
+          />
+          <output aria-hidden="true">{value}</output>
+        </label>
+      ))}
+      {muted && (
+        <p className="setting-pending">Levels apply when sound is on.</p>
+      )}
     </div>
   );
 }
@@ -812,17 +953,8 @@ export function Hud({ interact }: { interact: () => void }) {
   }, [g.panel]);
   const nearDoor =
     hub && !!g.near && doors.some((door) => door.id === g.near);
-  useEffect(() => {
-    if (
-      !g.notice ||
-      g.notice.includes("Another tab") ||
-      g.notice.includes("storage") ||
-      g.notice.includes("saved file")
-    )
-      return;
-    const t = setTimeout(() => useGame.setState({ notice: "" }), 6000);
-    return () => clearTimeout(t);
-  }, [g.notice]);
+  useNoticeToasts(g.notice);
+  const soundTouchHint = useSoundShortcut(hudMotion === "shown");
   return (
     <div
       className={`game-ui scene-${g.scene} world-${g.world}${g.traveling ? " is-traveling" : ""}${g.paused ? " is-paused" : ""}`}
@@ -842,12 +974,22 @@ export function Hud({ interact }: { interact: () => void }) {
         </a>
         <div className="resources">
           <button
-            className="icon-button"
+            className="icon-button sound-button"
             aria-label={g.muted ? "Unmute sound" : "Mute sound"}
-            onClick={() => useGame.setState({ muted: !g.muted })}
+            aria-keyshortcuts="M"
+            title={g.muted ? "Sound on (M)" : "Mute (M)"}
+            onClick={() => {
+              toggleMute();
+              cue("ui-toggle");
+            }}
           >
             <Icon name={g.muted ? "muted" : "sound"} />
           </button>
+          {soundTouchHint && (
+            <span className="sound-touch-hint" role="status">
+              {g.muted ? "Tap for sound" : "Sound on · tap to mute"}
+            </span>
+          )}
           <button
             className="icon-button"
             aria-label="Pause game"
@@ -1086,9 +1228,7 @@ export function Hud({ interact }: { interact: () => void }) {
           <span className="touch-hint">Controls</span>
         </button>
       </div>
-      <Presence show={!!g.notice}>
-        <Toast notice={g.notice} />
-      </Presence>
+      <ToastStack />
       <Presence show={g.panel === "avatar"}>
         <Modal eyebrow="" title="Your character" close={closePanel}>
           <div className="color-swatches">
@@ -1130,13 +1270,7 @@ export function Hud({ interact }: { interact: () => void }) {
       </Presence>
       <Presence show={g.panel === "settings"}>
         <Modal eyebrow="" title="Settings" close={closePanel}>
-          <button
-            className="setting-row"
-            onClick={() => useGame.setState({ muted: !g.muted })}
-          >
-            <span>Sound</span>
-            <b>{g.muted ? "Off" : "On"}</b>
-          </button>
+          <SoundSettings />
           <QualitySetting />
           <p className="local-note">
             Saved in this browser only. Back up your save to keep a copy.
