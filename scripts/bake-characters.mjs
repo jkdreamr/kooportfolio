@@ -35,7 +35,8 @@ const { bakePart } = await import(workerData.url);
 const part = bakePart(workerData.ids, (s) => parentPort.postMessage({ log: s }));
 parentPort.postMessage({ part });
 `);
-const parts = await Promise.all(groups.map((group) => new Promise((res, rej) => {
+const { bakePart } = await import(url);
+const parts = n === 1 ? [bakePart(ids)] : await Promise.all(groups.map((group) => new Promise((res, rej) => {
   const w = new Worker(workerFile, { workerData: { url, ids: group } });
   w.on("message", (m) => { if (m.log) console.log(m.log); else res(m.part); });
   w.on("error", rej);

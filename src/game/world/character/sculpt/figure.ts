@@ -12,8 +12,8 @@
 import { SK, type Joint } from "../skeleton";
 import type { Expression, Outfit } from "../outfit";
 import type { EyeSpec } from "./head";
-import { buildHair, type HairSeg } from "./hair";
-import { dist, SLOT, type Mat, type Node, type Op, type Piece, type V3 } from "./sdf";
+import { buildHair, hairAO, hairMesh, type HairBuild, type HairSeg } from "./hair";
+import { dist, evalOps, SLOT, type Mat, type Node, type Op, type Piece, type V3 } from "./sdf";
 
 export type PieceId =
   | "pelvis" | "chest" | "head" | "eyes"
@@ -46,6 +46,11 @@ export type Figure = {
   mouth: V3;
   /** Hair lock segments (head frame) for the root→tip paint and strand direction. */
   hair: HairSeg[];
+  /** Explicit hair geometry plan, headwear distance (culls covered hair),
+   * and the hair's SDF stand-in for AO (head frame). */
+  hairPlan?: HairBuild;
+  hatDist: (p: V3) => number;
+  hairAO: Op[];
 };
 
 // --- node helpers ----------------------------------------------------------------
@@ -58,9 +63,14 @@ const M = {
 };
 const sph = (c: V3, r: number, m?: Mat): Node => ({ t: "sph", c, r, m });
 const ell = (c: V3, r: V3, m?: Mat, rot?: V3): Node => ({ t: "ell", c, r, m, rot });
-const cap = (a: V3, b: V3, r: number, m?: Mat): Node => ({ t: "cap", a, b, r, m });
+/** Details are never thinner than the mesh grid can resolve (no slivers). */
+const MINR = 0.0068;
+const cap = (a: V3, b: V3, r: number, m?: Mat): Node => ({ t: "cap", a, b, r: Math.max(MINR, r), m });
 const cone = (a: V3, b: V3, ra: number, rb: number, m?: Mat): Node => ({ t: "cone", a, b, ra, rb, m });
-const box = (c: V3, h: V3, r: number, m?: Mat, rot?: V3): Node => ({ t: "box", c, h, r, m, rot });
+const box = (c: V3, h: V3, r: number, m?: Mat, rot?: V3): Node => {
+  const hh: V3 = [Math.max(MINR, h[0]), Math.max(MINR, h[1]), Math.max(MINR, h[2])];
+  return { t: "box", c, h: hh, r: Math.min(r, Math.min(...hh) * 0.9), m, rot };
+};
 const tor = (c: V3, R: number, r: number, m?: Mat, rot?: V3, sx?: number, sz?: number): Node => ({ t: "tor", c, R, r, m, rot, sx, sz });
 const cyl = (c: V3, h: number, r: number, rr: number, m?: Mat, rot?: V3): Node => ({ t: "cyl", c, h, r, rr, m, rot });
 const plane = (n: V3, o: number): Node => ({ t: "plane", n, o });
@@ -469,9 +479,9 @@ export function buildFigure(o: Outfit): Figure {
   const UA = SK.upperArm, FA = SK.foreArm;
   for (const [side, s] of [["L", 1], ["R", -1]] as const) {
     const upperBody = grp([
-      add(sph([s * 0.006, -0.008, -0.002], 0.06 * aw, M.skin)),
-      add(cone([0, -0.02, 0], [0, -UA + 0.01, 0], 0.054 * aw, 0.043 * aw, M.skin), 0.03),
-      add(ell([0, -0.12, 0.008], [0.05 * aw, 0.08, 0.051 * aw], M.skin), 0.04),
+      add(sph([s * 0.006, -0.008, -0.002], 0.064 * aw, M.skin)),
+      add(cone([0, -0.02, 0], [0, -UA + 0.01, 0], 0.06 * aw, 0.048 * aw, M.skin), 0.03),
+      add(ell([0, -0.12, 0.008], [0.056 * aw, 0.085, 0.057 * aw], M.skin), 0.04),
     ], M.skin);
     const upper: Op[] = [add(upperBody)];
     const wide = top.kind === "jeogori";
@@ -488,9 +498,9 @@ export function buildFigure(o: Outfit): Figure {
     pieces[`upper${side}`] = { ops: upper };
 
     const foreBody = grp([
-      add(sph([0, 0, 0], 0.045 * aw, M.skin)),
-      add(cone([0, -0.01, 0], [0, -FA + 0.012, 0], 0.046 * aw, 0.03 * aw, M.skin), 0.025),
-      add(ell([0, -0.065, 0.004], [0.05 * aw, 0.075, 0.046 * aw], M.skin), 0.04),
+      add(sph([0, 0, 0], 0.048 * aw, M.skin)),
+      add(cone([0, -0.01, 0], [0, -FA + 0.012, 0], 0.05 * aw, 0.033 * aw, M.skin), 0.025),
+      add(ell([0, -0.065, 0.004], [0.054 * aw, 0.08, 0.05 * aw], M.skin), 0.04),
     ], M.skin);
     const fore: Op[] = [add(foreBody)];
     if (sleeves === "long") {
@@ -604,7 +614,7 @@ export function buildFigure(o: Outfit): Figure {
       if (trousers && !baji) thigh.push(add(cap([s * 0.075 * aw, 0.0, 0.0], [s * 0.062 * aw, -TH, 0.0], 0.004, M.fab(legSlot)), 0.002));
       pieces[`thigh${side}`] = { ops: thigh };
     }
-    if (!longHem) {
+    if (bottom.kind !== "chima") {
       const shin: Op[] = [add(shinBody)];
       if (trousers || longCoat) {
         const d = baji ? 0.032 : 0.014;
@@ -724,11 +734,11 @@ export function buildFigure(o: Outfit): Figure {
         crown(sph(at(0, 0.53, -0.05), 0.18, Hm), 0.08);
         break;
       case "visor":
-        crown(tor(at(0, 0.13, 0), 0.385, 0.028, Hm, [-0.12, 0, 0], 1, 0.98));
+        deco(tor(at(0, 0.13, 0), 0.4, 0.028, Hm, [-0.12, 0, 0], 1, 0.98));
         deco(box(at(0, 0.11, 0.4), [0.17, 0.01, 0.1], 0.01, B, [0.22, 0, 0]), 0.01);
         break;
       case "headband":
-        crown(tor(at(0, 0.15, 0), 0.392, 0.03, Hm, [-0.18, 0, 0]));
+        deco(tor(at(0, 0.15, 0), 0.41, 0.03, Hm, [-0.18, 0, 0]));
         break;
       case "helmet":
         crown({ t: "shell", of: ell(at(0, 0.06, -0.04), [0.44, 0.405, 0.485]), d: 0, m: M.gloss(SLOT.hat, 0.3), clip: [above(HC[1] + 0.08)] });
@@ -762,13 +772,16 @@ export function buildFigure(o: Outfit): Figure {
   }
   // Hair (none under a headscarf).
   const hatted = !!hat && hat !== "headband" && hat !== "visor";
-  const HM: Mat = { slot: SLOT.hair, rough: 0.42, paint: "hair" };
+  const HM: Mat = { slot: SLOT.hair, rough: 0.62, paint: "hair" };
   let hairSegs: HairSeg[] = [];
+  let hairPlan: HairBuild | undefined;
+  const hatDist = (p: V3) => (hatOps.length ? evalOps(hatOps, p, null) : 1);
   if (hat !== "headscarf") {
     const clip = hatVol.length ? [not({ t: "shell", of: grp(hatVol.map((n) => add(n, 0.004))), d: 0.006 })] : [];
     const hair = buildHair(style, HM, clip, hatted, M.gloss(has(o, "binyeo") ? extraColorSlot(o, "binyeo") : SLOT.topTrim, 0.5));
     head.push(...hair.ops);
-    hairSegs = hair.segs;
+    hairPlan = hair;
+    hairSegs = [...hair.segs, ...hairMesh(hair, true, hatDist).segs];
     if (style === "bun" && has(o, "binyeo")) {
       head.push(add(cap(at(-0.2, 0.17, -0.37), at(0.22, 0.19, -0.37), 0.012, M.metal(extraColorSlot(o, "binyeo"))), 0.0));
       head.push(add(sph(at(0.235, 0.19, -0.37), 0.022, M.metal(extraColorSlot(o, "binyeo"))), 0.0));
@@ -784,15 +797,15 @@ export function buildFigure(o: Outfit): Figure {
     }
     if (e.kind === "pencil") head.push(add(cone(at(0.35, 0.06, 0.12), at(0.37, 0.05, -0.08), 0.012, 0.008, M.gloss(SLOT.accent + 7, 0.5)), 0.0));
   }
-  // Hollow out the skull so hair and hat cut faces sit inside the skin.
-  head.push(sub(ell(HC, [0.33, 0.318, 0.31]), 0.008));
+  // (No hollowing: solid hair and hats have no hidden inner surface, so
+  // every triangle of the budget is spent on the visible one.)
   pieces.head = { ops: head };
 
   // ---------------------------------------------------------------- face layers
   pieces.eyes = { ops: [] };
   for (const m of MOUTHS) pieces[m] = { ops: [] };
   return {
-    pieces, skirtTop, cheeks, headSkin, HC, hair: hairSegs,
+    pieces, skirtTop, cheeks, headSkin, HC, hair: hairSegs, hairPlan, hatDist, hairAO: hairPlan ? hairAO(hairPlan) : [],
     mouth: at(0, -0.226, 0.31),
     glasses: (o.extras ?? []).some((e) => e.kind === "glasses" || e.kind === "sunglasses")
       ? { slot: extraColorSlot(o, (o.extras ?? []).some((e) => e.kind === "glasses") ? "glasses" : "sunglasses"), sun: (o.extras ?? []).some((e) => e.kind === "sunglasses") }

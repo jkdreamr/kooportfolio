@@ -9,19 +9,19 @@ import * as THREE from "three";
 import { villagers } from "../../../core/npcs";
 import { outfitFor } from "../cast";
 import { outfitFromPalette, type Outfit } from "../outfit";
-import { restPose, solveJoints, makeJoints, SK } from "../skeleton";
+import { restPose, solveJoints, makeJoints, SK, JOINTS } from "../skeleton";
 import { buildFigure, PIECE_JOINT, type Figure, type PieceId } from "./figure";
 import { evalOps, pieceBounds, pad, SLOT, type Hit, type V3 } from "./sdf";
 import { decimate, project, surfaceNets, type RawMesh } from "./mesher";
 import { appendMesh, brows, emptyMesh, eyes, glasses, headSkin, mouth, vertexNormals, type AttrMesh, type MouthKind } from "./head";
-import type { HairSeg } from "./hair";
+import { hairMesh, type HairSeg } from "./hair";
 
 const DEFAULT = { shirt: "#6f8670", pants: "#3a4547", skin: "#efc5a0", hair: "#3e3632", shoe: "#efe2c8", hat: "#e0b86d", band: "#b0573a" };
 export const PLAYER_IDS = { hat: "player:hat", bare: "player:bare" } as const;
 
 const TARGET: Record<string, [number, number]> = {
-  head: [2600, 560], eyes: [0, 0], chest: [880, 230], pelvis: [300, 80], skirt: [480, 120],
-  upper: [190, 48], fore: [360, 90], thigh: [170, 45], shin: [160, 40], foot: [170, 42], mouth: [0, 0],
+  head: [1000, 260], eyes: [0, 0], chest: [1050, 240], pelvis: [300, 80], skirt: [480, 120],
+  upper: [190, 48], fore: [300, 80], thigh: [170, 45], shin: [160, 40], foot: [170, 42], mouth: [0, 0],
 };
 const CELL: Record<string, number> = {
   head: 0.005, eyes: 0.0032, chest: 0.0056, pelvis: 0.007, skirt: 0.007, upper: 0.006, fore: 0.005, thigh: 0.008, shin: 0.008, foot: 0.0055, mouth: 0.003,
@@ -75,6 +75,7 @@ export function bakePart(ids: string[], log: (s: string) => void = console.log):
       }
       v3.set(p[0], p[1], p[2]).applyMatrix4(inv.head);
       d = Math.min(d, evalOps(fig.headSkin, [v3.x, v3.y, v3.z], null) * SK.headScale);
+      if (fig.hairAO.length) d = Math.min(d, evalOps(fig.hairAO, [v3.x, v3.y, v3.z], null) * SK.headScale);
       return d;
     };
     part.chars[id] = { p: {}, skirtTop: fig.skirtTop };
@@ -84,6 +85,7 @@ export function bakePart(ids: string[], log: (s: string) => void = console.log):
       let idx = cache.get(key);
       if (idx === undefined) {
         const lods = meshPiece(pid, piece.ops, fig, rest[PIECE_JOINT[pid]], global);
+        for (const m of lods) toRest(pid, m, rest);
         idx = part.shapes.length;
         part.shapes.push(lods.map(finalize) as [Shape, Shape]);
         part.keys.push(key);
@@ -100,7 +102,7 @@ export function bakePart(ids: string[], log: (s: string) => void = console.log):
 function pieceKey(pid: PieceId, ops: unknown, fig: Figure) {
   if (pid.startsWith("mouth")) return pid + mouthKind(pid, fig);
   if (pid === "eyes") return pid + JSON.stringify([fig.face.eye, fig.face.flick, fig.face.lashes]);
-  return pid + JSON.stringify(ops) + (pid === "head" ? JSON.stringify(fig.face) + JSON.stringify(fig.glasses ?? null) : "");
+  return pid + JSON.stringify(ops) + (pid === "head" ? JSON.stringify(fig.face) + JSON.stringify(fig.glasses ?? null) + JSON.stringify(fig.hairPlan ? [fig.hairPlan.clumps, fig.hairPlan.cap, fig.hairPlan.curtain] : null) : "");
 }
 const mouthKind = (pid: PieceId, fig: Figure): MouthKind => (pid === "mouth0" ? fig.face.expr : (["talk1", "talk2", "talk3"] as const)[+pid.slice(5) - 1]);
 
@@ -139,18 +141,9 @@ function meshPiece(pid: PieceId, ops: Parameters<typeof evalOps>[0], fig: Figure
   const lods: [AttrMesh, AttrMesh] = [emptyMesh(), emptyMesh()];
   if (ops.length) {
     const h = CELL[kind] * FAST;
-    const bb = pad(pieceBounds({ ops }), h * 3);
+    const bb = pad(pieceBounds({ ops }), h * 4);
     const f = (x: number, y: number, z: number) => evalOps(ops, [x, y, z], null);
-    const raw = surfaceNets(f, bb.min, bb.max, h);
-    project(f, raw.pos, h * 0.5, 1);
     const [ht, mt] = TARGET[kind];
-    // Material per raw vertex (colour borders survive decimation).
-    const hit: Hit = { d: 0, m: null };
-    const slots = new Int32Array(raw.pos.length / 3);
-    for (let i = 0; i < slots.length; i++) {
-      evalOps(ops, [raw.pos[i * 3], raw.pos[i * 3 + 1], raw.pos[i * 3 + 2]], hit);
-      slots[i] = hit.m!.slot;
-    }
     const isCloth = (s: number) => s >= SLOT.top && s <= SLOT.outerTrim;
     // Error weights: keep hands, hair locks and the face front; spend less
     // on broad cloth.
@@ -159,12 +152,25 @@ function meshPiece(pid: PieceId, ops: Parameters<typeof evalOps>[0], fig: Figure
       if (kind === "head") return z > 0.05 && y < fig.HC[1] + 0.25 ? 3 : 1.6;
       return 1;
     };
-    const vw = new Float32Array(slots.length);
-    for (let i = 0; i < slots.length; i++) vw[i] = isCloth(slots[i]) ? 0.6 : 1;
-    const w2 = (x: number, y: number, z: number, i?: number) => weight(x, y, z) * (i === undefined ? 1 : vw[i]);
-    const meshes = raw.tri.length / 3 > ht ? decimate(raw, [ht, mt], w2, slots) : [raw, ...decimate(raw, [mt], w2, slots)];
-    if (env.BAKE_DEBUG) console.log(`  ${pid}: raw ${raw.tri.length / 3} → ${meshes.map((m) => m.tri.length / 3).join(" / ")}`);
-    meshes.forEach((m, lod) => appendMesh(lods[lod], sdfAttributes(ctx, m, ops, h, lod)));
+    // Each LOD is meshed on its own grid (the mid one coarser), so thin
+    // features cannot stall the mid decimation.
+    const meshes = ([[h, ht], [h * 1.9, mt]] as const).map(([cell, target]) => {
+      const raw = surfaceNets(f, bb.min, bb.max, cell);
+      project(f, raw.pos, cell * 0.5, 1);
+      const hit: Hit = { d: 0, m: null };
+      const slots = new Int32Array(raw.pos.length / 3);
+      const vw = new Float32Array(slots.length);
+      for (let i = 0; i < slots.length; i++) {
+        evalOps(ops, [raw.pos[i * 3], raw.pos[i * 3 + 1], raw.pos[i * 3 + 2]], hit);
+        slots[i] = hit.m!.slot;
+        vw[i] = isCloth(slots[i]) ? 0.6 : 1;
+      }
+      const w2 = (x: number, y: number, z: number, i?: number) => weight(x, y, z) * (i === undefined ? 1 : vw[i]);
+      const out = raw.tri.length / 3 > target ? decimate(raw, [target], w2, slots)[0] : raw;
+      if (env.BAKE_DEBUG) console.log(`  ${pid}: raw ${raw.tri.length / 3} → ${out.tri.length / 3}`);
+      return out;
+    });
+    meshes.forEach((m, lod) => appendMesh(lods[lod], sdfAttributes(ctx, m, ops, lod ? h * 1.9 : h, lod)));
   }
   const HC = fig.HC;
   for (const lod of [0, 1]) {
@@ -185,8 +191,9 @@ function meshPiece(pid: PieceId, ops: Parameters<typeof evalOps>[0], fig: Figure
         const light = Math.min(1, nose * 1.0 + cheek * 0.7 + brow * 0.5);
         return lip * 0.3 > bl ? { slotB: SLOT.lip, mix: lip * 0.3, light } : { slotB: SLOT.blush, mix: bl * 0.8, light };
       };
-      parts.push(headSkin(HC, hi ? 24 : 12, hi ? 32 : 16, paint));
+      parts.push(headSkin(HC, hi ? 22 : 11, hi ? 30 : 15, paint));
       parts.push(brows(HC, fig.face.browLift, fig.face.browRight, hi));
+      if (fig.hairPlan) parts.push(hairMesh(fig.hairPlan, hi, fig.hatDist).mesh);
       if (fig.glasses) parts.push(glasses(HC, fig.face.eye, fig.glasses.slot, fig.glasses.sun, hi));
     } else if (pid === "eyes") {
       parts.push(eyes(HC, fig.face.eye, fig.face.flick, hi, fig.face.lashes));
@@ -201,6 +208,64 @@ function meshPiece(pid: PieceId, ops: Parameters<typeof evalOps>[0], fig: Figure
     }
   }
   return lods;
+}
+
+/**
+ * Move a piece from its bone frame into the character's rest space and add
+ * joint blending: vertices near a joint take a second bone (rigB.z = joint
+ * index, rigB.w = weight) so limbs bend smoothly instead of hinging like a
+ * doll. At the joint plane both sides take the average transform.
+ */
+type Blend = { bone: number; at: V3; axis: V3; r: number };
+function toRest(pid: PieceId, m: AttrMesh, rest: Record<string, THREE.Matrix4>) {
+  const restM = rest[PIECE_JOINT[pid]];
+  const nm = new THREE.Matrix3().getNormalMatrix(restM);
+  const P = (j: string) => new THREE.Vector3().setFromMatrixPosition(rest[j]);
+  const blends: Blend[] = [];
+  const jb = (bone: string, at: THREE.Vector3, toward: THREE.Vector3, r: number) => {
+    const ax = toward.clone().sub(at).normalize();
+    blends.push({ bone: JOINTS.indexOf(bone as never), at: [at.x, at.y, at.z], axis: [ax.x, ax.y, ax.z], r });
+  };
+  const side = pid.endsWith("L") ? "L" : "R";
+  const kind = pid.replace(/[LR]$/, "");
+  switch (kind) {
+    case "upper": jb("chest", P(`shoulder${side}`), P(`elbow${side}`), 0.05); jb(`elbow${side}`, P(`elbow${side}`), P(`shoulder${side}`), 0.055); break;
+    case "fore": jb(`shoulder${side}`, P(`elbow${side}`), P(`hand${side}`), 0.055); break;
+    case "thigh": jb("pelvis", P(`hip${side}`).add(new THREE.Vector3(0, 0.03, 0)), P(`knee${side}`), 0.07); jb(`knee${side}`, P(`knee${side}`), P(`hip${side}`), 0.065); break;
+    case "shin": jb(`hip${side}`, P(`knee${side}`), P(`ankle${side}`), 0.065); jb(`ankle${side}`, P(`ankle${side}`), P(`knee${side}`), 0.05); break;
+    case "foot": jb(`knee${side}`, P(`ankle${side}`), P(`ankle${side}`).add(new THREE.Vector3(0, -1, 0)), 0.04); break;
+    case "chest": {
+      const waist = P("chest").add(new THREE.Vector3(0, -0.06, 0));
+      jb("pelvis", waist, P("neck"), 0.08);
+      jb("head", P("head").add(new THREE.Vector3(0, -0.03, 0)), P("chest"), 0.06);
+      break;
+    }
+    case "pelvis": {
+      const waist = P("chest").add(new THREE.Vector3(0, -0.06, 0));
+      jb("chest", waist, P("pelvis").add(new THREE.Vector3(0, -1, 0)), 0.08);
+      break;
+    }
+  }
+  const v = new THREE.Vector3();
+  for (let i = 0; i < m.pos.length / 3; i++) {
+    v.set(m.pos[i * 3], m.pos[i * 3 + 1], m.pos[i * 3 + 2]).applyMatrix4(restM);
+    m.pos[i * 3] = v.x; m.pos[i * 3 + 1] = v.y; m.pos[i * 3 + 2] = v.z;
+    let best = 0, bone = -1;
+    for (const b of blends) {
+      // Signed distance into this piece's own side of the joint.
+      const sd = (v.x - b.at[0]) * b.axis[0] + (v.y - b.at[1]) * b.axis[1] + (v.z - b.at[2]) * b.axis[2];
+      const w = Math.max(0, Math.min(1, 0.5 - sd / (2 * b.r)));
+      const ws = w * w * (3 - 2 * w);
+      if (ws > best) { best = ws; bone = b.bone; }
+    }
+    v.set(m.nrm[i * 3], m.nrm[i * 3 + 1], m.nrm[i * 3 + 2]).applyMatrix3(nm).normalize();
+    m.nrm[i * 3] = v.x; m.nrm[i * 3 + 1] = v.y; m.nrm[i * 3 + 2] = v.z;
+    const slot = m.a[i * 4];
+    if (blends.length && slot !== SLOT.hair && slot !== SLOT.iris && !env.BAKE_NOSKIN) {
+      m.b[i * 4 + 2] = bone >= 0 && best > 0.004 ? bone : 255;
+      m.b[i * 4 + 3] = Math.round(best * 255);
+    }
+  }
 }
 
 type Ctx = { pid: PieceId; fig: Figure; restM: THREE.Matrix4; global: (p: V3) => number };
@@ -225,7 +290,8 @@ function bakeShade(ctx: Ctx, m: AttrMesh, lod: number) {
     const p: V3 = [m.pos[i * 3], m.pos[i * 3 + 1], m.pos[i * 3 + 2]];
     const n: V3 = [m.nrm[i * 3], m.nrm[i * 3 + 1], m.nrm[i * 3 + 2]];
     // Skin AO is softened (vinyl-smooth faces); decals keep their own shade.
-    const sh = m.a[i * 4] === SLOT.skin ? 0.35 + 0.65 * Math.max(0.55, shadeAt(ctx, p, n, lod)) : Math.max(0.85, shadeAt(ctx, p, n, lod));
+    const slot = m.a[i * 4];
+    const sh = slot === SLOT.skin ? 0.35 + 0.65 * Math.max(0.55, shadeAt(ctx, p, n, lod)) : slot === SLOT.hair ? shadeAt(ctx, p, n, lod) : Math.max(0.85, shadeAt(ctx, p, n, lod));
     m.a[i * 4 + 3] = Math.round(Math.min(1, sh * (m.a[i * 4 + 3] / 255)) * 255);
   }
 }

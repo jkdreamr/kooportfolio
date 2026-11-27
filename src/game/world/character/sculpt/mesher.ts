@@ -219,19 +219,20 @@ export function decimate(
     }
   }
   const opt = [0, 0, 0];
+  let penalty = false;
   const edgeCost = (a: number, b: number): number => {
     const q = new Array(10);
     for (let i = 0; i < 10; i++) q[i] = Q[a * 10 + i] + Q[b * 10 + i];
     const err = (x: number, y: number, z: number) =>
       q[0] * x * x + 2 * q[1] * x * y + 2 * q[2] * x * z + 2 * q[3] * x + q[4] * y * y + 2 * q[5] * y * z + 2 * q[6] * y + q[7] * z * z + 2 * q[8] * z + q[9];
     if (border[a] || border[b]) {
-      if (border[a] && border[b] && slot[a] !== slot[b]) return Infinity;
+      if (border[a] && border[b] && slot[a] !== slot[b] && !penalty) return Infinity;
       let best = Infinity;
       for (const v of border[a] && border[b] ? [a, b] : [border[a] ? a : b]) {
         const e = err(P[v * 3], P[v * 3 + 1], P[v * 3 + 2]);
         if (e < best) { best = e; opt[0] = P[v * 3]; opt[1] = P[v * 3 + 1]; opt[2] = P[v * 3 + 2]; }
       }
-      return Math.max(0, best) + dist2(P, a, b) * 1e-6;
+      return Math.max(0, best) + dist2(P, a, b) * 1e-6 + (penalty && slot[a] !== slot[b] ? 1 + dist2(P, a, b) * 1e3 : 0);
     }
     // Solve the 3×3 system for the optimal point.
     const A = [q[0], q[1], q[2], q[1], q[4], q[5], q[2], q[5], q[7]];
@@ -291,12 +292,13 @@ export function decimate(
     s.delete(v);
     return s;
   };
+  let force = false;
   const tryCollapse = (a: number, b: number, cost?: number): boolean => {
       // Link condition (keeps the surface manifold).
       const na = neighbours(a), nb = neighbours(b);
       let common = 0;
       for (const u of na) if (nb.has(u)) common++;
-      if (common !== 2) { if (cost !== undefined) retry(a, b, cost); return false; }
+      if (common !== 2 && !(force && common > 0)) { if (cost !== undefined) retry(a, b, cost); return false; }
       if (edgeCost(a, b) === Infinity) return false;
       const nx = opt[0], ny = opt[1], nz = opt[2];
       // Reject collapses that flip a face.
@@ -352,8 +354,9 @@ export function decimate(
       tryCollapse(a, b, e[0]);
     }
     if (faces > target && slots) {
-      // Colour borders blocked the budget: finish without them.
-      border.fill(0);
+      // Colour borders blocked the budget: allow the cheapest colour merges
+      // last (small details shrink before big areas change colour).
+      penalty = !env_nopen();
       for (let v = 0; v < nV; v++) if (vAlive[v]) { stamp[v]++; pushEdges(v); }
       while (faces > target) {
         const e = heap.pop();
@@ -362,6 +365,20 @@ export function decimate(
         if (!vAlive[a] || !vAlive[b] || stamp[a] !== sa || stamp[b] !== sb) continue;
         if (!tryCollapse(a, b)) continue;
       }
+    }
+    if (faces > target * 1.03 && (globalThis as { __forceDecimate?: boolean }).__forceDecimate) {
+      // Still blocked (tangled thin features): relax the link condition.
+      force = true;
+      border.fill(0);
+      for (let v = 0; v < nV; v++) if (vAlive[v]) { stamp[v]++; pushEdges(v); }
+      while (faces > target) {
+        const e = heap.pop();
+        if (!e) break;
+        const [, a, b, sa, sb] = e;
+        if (!vAlive[a] || !vAlive[b] || stamp[a] !== sa || stamp[b] !== sb) continue;
+        tryCollapse(a, b);
+      }
+      force = false;
     }
     out.push(compact(P, T, alive));
   }
@@ -380,4 +397,7 @@ function compact(P: Float64Array, T: Int32Array, alive: Uint8Array): RawMesh {
     }
   }
   return { pos: Float64Array.from(pos), tri: Uint32Array.from(tri) };
+}
+function env_nopen() {
+  return !!(globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.BAKE_NOPEN;
 }

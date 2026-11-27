@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { registerWarmup, useStage } from "../../../../stage/contract";
-import { paletteTexture, sculptMaterial } from "./runtime";
+import { boneTexture, paletteTexture, sculptDepthMaterial, sculptMaterial } from "./runtime";
 
 /**
  * The sculpted characters arrive after `ready` (their geometry is lazy), so
@@ -11,6 +11,7 @@ import { paletteTexture, sculptMaterial } from "./runtime";
  */
 let registered = false;
 let keep: THREE.MeshStandardMaterial | null = null;
+let keepDepth: THREE.MeshDepthMaterial | null = null;
 export function registerSculptWarmup() {
   if (registered) return;
   registered = true;
@@ -26,8 +27,10 @@ export function registerSculptWarmup() {
       geometry.setAttribute("rigB", new THREE.BufferAttribute(new Uint8Array(12), 4, true));
       geometry.setIndex(new THREE.BufferAttribute(new Uint16Array([0, 1, 2]), 1));
       const palette = paletteTexture(1);
-      const material = (keep ??= sculptMaterial(palette));
+      const bones = boneTexture(1);
+      const material = (keep ??= sculptMaterial(palette, bones));
       const proxy = new THREE.BatchedMesh(1, 3, 3, material);
+      proxy.customDepthMaterial = keepDepth ??= sculptDepthMaterial(palette, bones);
       proxy.addInstance(proxy.addGeometry(geometry));
       proxy.setMatrixAt(0, new THREE.Matrix4().makeTranslation(0, -80, 0));
       proxy.frustumCulled = false;

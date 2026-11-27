@@ -7,7 +7,7 @@
  */
 import * as THREE from "three";
 import type { Pose } from "../locomotion";
-import { solveJoints, makeJoints, type JointMatrices } from "../skeleton";
+import { solveJoints, makeJoints, restPose, JOINTS, type JointMatrices } from "../skeleton";
 import type { Hold } from "../outfit";
 import { EYE_Y, PIECE_JOINT, type PieceId } from "./figure";
 
@@ -132,6 +132,7 @@ const VERT_PARS = /* glsl */ `
 attribute vec4 rigA;
 attribute vec4 rigB;
 uniform highp sampler2D rigPalette;
+uniform highp sampler2D rigBones;
 varying vec3 vRigColor;
 varying vec3 vRigHi;
 varying vec2 vRigSurf;
@@ -147,6 +148,23 @@ vec3 rigOct(vec2 e) {
   if (v.z < 0.0) v.xy = (1.0 - abs(v.yx)) * vec2(v.x >= 0.0 ? 1.0 : -1.0, v.y >= 0.0 ? 1.0 : -1.0);
   return normalize(v);
 }
+`;
+const SKIN = /* glsl */ `
+#ifdef USE_BATCHING
+  {
+    // Joint blending: a second bone (rigB.z) weighted by rigB.w.
+    int rigI = int(getIndirectIndex(gl_DrawID));
+    float rigBone = floor(rigB.z * 255.0 + 0.5);
+    float rigSa = floor(rigA.x * 255.0 + 0.5);
+    if (rigBone < 20.0 && rigSa != 3.0 && rigSa != 6.0 && rigB.w > 0.0) {
+      int rigChar = int(texelFetch(rigPalette, ivec2(0, rigI), 0).a + 0.5);
+      int bx = int(rigBone) * 4;
+      mat4 rigQ = mat4(texelFetch(rigBones, ivec2(bx, rigChar), 0), texelFetch(rigBones, ivec2(bx + 1, rigChar), 0),
+        texelFetch(rigBones, ivec2(bx + 2, rigChar), 0), texelFetch(rigBones, ivec2(bx + 3, rigChar), 0));
+      batchingMatrix = batchingMatrix * (1.0 - rigB.w) + rigQ * rigB.w;
+    }
+  }
+#endif
 `;
 const VERT_MAIN = /* glsl */ `
 #ifdef USE_BATCHING
@@ -235,8 +253,8 @@ const FRAG_COLOR = /* glsl */ `
     } else {
       // Hair: strands streak along the lock direction.
       vec3 vt = vRigTan;
-      float strand = rigTri(rp * vec3(1.0, 0.18, 1.0), rn, 9.0).b;
-      rigCol *= 0.86 + 0.26 * strand;
+      float strand = rigTri(rp * vec3(1.0, 0.18, 1.0), rn, 5.0).b;
+      rigCol *= 0.95 + 0.09 * strand;
     }
   }
   diffuseColor.rgb *= rigCol;
@@ -256,10 +274,10 @@ const RIM = /* glsl */ `
       vec3 t1 = normalize(rigT + normal * (0.18 + jit * 0.5));
       vec3 t2 = normalize(rigT - normal * (0.12 - jit * 0.3));
       float th1 = dot(t1, rigH), th2 = dot(t2, rigH);
-      float s1 = pow(sqrt(max(0.0, 1.0 - th1 * th1)), 90.0);
-      float s2 = pow(sqrt(max(0.0, 1.0 - th2 * th2)), 22.0);
+      float s1 = pow(sqrt(max(0.0, 1.0 - th1 * th1)), 160.0);
+      float s2 = pow(sqrt(max(0.0, 1.0 - th2 * th2)), 36.0);
       float lit = saturate(dot(normal, rigL) * 0.6 + 0.4);
-      outgoingLight += directionalLights[0].color * lit * (s1 * 0.32 * mix(vec3(1.0), vRigHi, 0.5) + s2 * 0.14 * vRigHi);
+      outgoingLight += directionalLights[0].color * lit * (s1 * 0.2 * mix(vec3(1.0), vRigHi, 0.6) + s2 * 0.1 * vRigHi);
     }
 #endif
     outgoingLight = mix(outgoingLight, vec3(1.7), saturate(rigGlow));
@@ -291,7 +309,7 @@ export function detailTexture() {
       const over = Math.sin(u / 2) * Math.sin(v / 2) > 0;
       const weave = 0.5 + 0.5 * (over ? Math.abs(Math.sin(v)) * 0.8 + 0.2 * Math.sin(u) : Math.abs(Math.sin(u)) * 0.8 + 0.2 * Math.sin(v));
       const grain = 0.6 * vnoise(x, y, 4, 1) + 0.4 * vnoise(x, y, 2, 2);
-      const strand = 0.55 * vnoise(x, y * 0.25, 2, 3) + 0.45 * vnoise(x, y * 0.25, 1, 4);
+      const strand = 0.6 * vnoise(x, y * 0.25, 4, 3) + 0.4 * vnoise(x, y * 0.25, 2, 4);
       const mottle = 0.6 * vnoise(x, y, 16, 5) + 0.4 * vnoise(x, y, 8, 6);
       data[o] = Math.round((0.75 * weave + 0.25 * grain) * 255);
       data[o + 1] = Math.round(grain * 255);
@@ -328,16 +346,17 @@ function lightsChunk() {
 }
 
 /** The sculpt material (one per palette texture; all share one program). */
-export function sculptMaterial(palette: THREE.DataTexture) {
+export function sculptMaterial(palette: THREE.DataTexture, bones: THREE.DataTexture = boneTexture(1)) {
   const m = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 1 });
   m.onBeforeCompile = (shader) => {
     shader.uniforms.rigPalette = { value: palette };
+    shader.uniforms.rigBones = { value: bones };
     shader.uniforms.rigRim = sculptUniforms.rigRim;
     shader.uniforms.rigWarm = sculptUniforms.rigWarm;
     shader.uniforms.rigDetail = { value: detailTexture() };
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", `#include <common>\n${VERT_PARS}`)
-      .replace("#include <batching_vertex>", `#include <batching_vertex>\n${VERT_MAIN}`);
+      .replace("#include <batching_vertex>", `#include <batching_vertex>\n${SKIN}\n${VERT_MAIN}`);
     shader.fragmentShader = shader.fragmentShader
       .replace("#include <common>", `#include <common>\n${FRAG_PARS}`)
       .replace("#include <lights_physical_pars_fragment>", lightsChunk())
@@ -350,6 +369,27 @@ export function sculptMaterial(palette: THREE.DataTexture) {
   m.userData.noBake = true;
   return m;
 }
+/** The matching shadow-depth material (same joint blending). */
+export function sculptDepthMaterial(palette: THREE.DataTexture, bones: THREE.DataTexture) {
+  const m = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
+  m.onBeforeCompile = (shader) => {
+    shader.uniforms.rigPalette = { value: palette };
+    shader.uniforms.rigBones = { value: bones };
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nattribute vec4 rigA;\nattribute vec4 rigB;\nuniform highp sampler2D rigPalette;\nuniform highp sampler2D rigBones;")
+      .replace("#include <batching_vertex>", `#include <batching_vertex>\n${SKIN}`);
+  };
+  m.customProgramCacheKey = () => "rig-sculpt-depth-v1";
+  m.userData.noBake = true;
+  return m;
+}
+/** Per character: every joint's pose delta (posed × inverse rest), 4 texels each. */
+export const BONES = JOINTS.length;
+export function boneTexture(rows: number) {
+  const t = new THREE.DataTexture(new Float32Array(BONES * 4 * Math.max(1, rows) * 4), BONES * 4, Math.max(1, rows), THREE.RGBAFormat, THREE.FloatType);
+  t.needsUpdate = true;
+  return t;
+}
 export function paletteTexture(rows: number) {
   const t = new THREE.DataTexture(new Float32Array(PALETTE_WIDTH * rows * 4), PALETTE_WIDTH, rows, THREE.RGBAFormat, THREE.FloatType);
   t.needsUpdate = true;
@@ -357,13 +397,13 @@ export function paletteTexture(rows: number) {
 }
 const col = new THREE.Color();
 /** Write an sRGB hex palette into texture row `row` (linear floats). */
-export function writePalette(t: THREE.DataTexture, row: number, hexes: string[], glow: number[] = []) {
+export function writePalette(t: THREE.DataTexture, row: number, hexes: string[], glow: number[] = [], char = 0) {
   const data = t.image.data as Float32Array;
   for (let i = 0; i < PALETTE_WIDTH; i++) {
     col.set(hexes[i] ?? "#ff00ff");
     const g = glow[i] ?? 1;
     const o = (row * PALETTE_WIDTH + i) * 4;
-    data[o] = col.r * g; data[o + 1] = col.g * g; data[o + 2] = col.b * g; data[o + 3] = 1;
+    data[o] = col.r * g; data[o + 1] = col.g * g; data[o + 2] = col.b * g; data[o + 3] = i === 0 ? char : 1;
   }
   t.needsUpdate = true;
 }
@@ -372,12 +412,19 @@ export function writePalette(t: THREE.DataTexture, row: number, hexes: string[],
 export type SculptChar = { id: string; palette: string[]; glow?: number[]; holds: { holdL?: Hold; holdR?: Hold }; scale: number };
 const scratchPose = {} as Pose;
 const pm = new THREE.Matrix4(), tmpM = new THREE.Matrix4(), sizedBase = new THREE.Matrix4();
+/** Inverse rest-pose joint matrices: baked shapes live in rest space. */
+const invRest = (() => {
+  const r = solveJoints(restPose(), new THREE.Matrix4(), makeJoints());
+  return Object.fromEntries(JOINTS.map((j) => [j, r[j].clone().invert()])) as JointMatrices;
+})();
+const delta = makeJoints();
 const v = new THREE.Vector3(), q = new THREE.Quaternion(), e = new THREE.Euler(), s = new THREE.Vector3();
 
 /** One BatchedMesh holding every piece of every character it may draw. */
 export class SculptBatch {
   mesh: THREE.BatchedMesh;
   palette: THREE.DataTexture;
+  bones: THREE.DataTexture;
   material: THREE.MeshStandardMaterial;
   /** Instance ids per character, in PIECES order (−1: piece absent). */
   instances: Int32Array[];
@@ -403,8 +450,10 @@ export class SculptBatch {
       }
     }
     this.palette = paletteTexture(Math.max(1, inst));
-    this.material = sculptMaterial(this.palette);
+    this.bones = boneTexture(chars.length);
+    this.material = sculptMaterial(this.palette, this.bones);
     this.mesh = new THREE.BatchedMesh(Math.max(1, inst), Math.max(3, verts), Math.max(3, idx), this.material);
+    this.mesh.customDepthMaterial = sculptDepthMaterial(this.palette, this.bones);
     this.mesh.frustumCulled = false;
     this.mesh.perObjectFrustumCulled = true;
     this.mesh.sortObjects = false;
@@ -419,7 +468,7 @@ export class SculptBatch {
         const id = this.mesh.addInstance(shapes.get(sh)!);
         this.mesh.setVisibleAt(id, false);
         this.owner[id] = ci;
-        writePalette(this.palette, id, c.palette, c.glow);
+        writePalette(this.palette, id, c.palette, c.glow, ci);
         return id;
       });
     });
@@ -428,7 +477,7 @@ export class SculptBatch {
     this.mesh.visible = false;
   }
   setPalette(ci: number, hexes: string[], glow?: number[]) {
-    for (const id of this.instances[ci]) if (id >= 0) writePalette(this.palette, id, hexes, glow);
+    for (const id of this.instances[ci]) if (id >= 0) writePalette(this.palette, id, hexes, glow, ci);
   }
   private visibleCount = 0;
   hide(ci: number) {
@@ -445,6 +494,14 @@ export class SculptBatch {
     if (c.scale !== 1) sizedBase.makeScale(c.scale, c.scale, c.scale).premultiply(base);
     else sizedBase.copy(base);
     const J = solveJoints(posed, sizedBase, this.joints);
+    // Pose deltas (posed × inverse rest) for every joint, into the bone row.
+    const bd = this.bones.image.data as Float32Array;
+    for (let j = 0; j < JOINTS.length; j++) {
+      const name = JOINTS[j];
+      delta[name].multiplyMatrices(J[name], invRest[name]);
+      delta[name].toArray(bd, (ci * BONES + j) * 16);
+    }
+    this.bones.needsUpdate = true;
     const ids = this.instances[ci];
     const top = this.cast.manifest.chars[c.id]?.skirtTop ?? 0.12;
     const stride = Math.min(1.2, Math.abs(posed.hipL - posed.hipR));
@@ -456,7 +513,8 @@ export class SculptBatch {
       const id = ids[k];
       if (id < 0) continue;
       const pid = PIECES[k];
-      const jm = J[PIECE_JOINT[pid]];
+      const jn = PIECE_JOINT[pid];
+      const jm = delta[jn];
       if (k >= MOUTH0) {
         const want = k - MOUTH0 === mouth;
         if (want) this.mesh.setMatrixAt(id, jm);
@@ -466,7 +524,7 @@ export class SculptBatch {
       if (pid === "chest" && posed.breath !== 1) {
         // Breathing: the ribcage swells a touch.
         const b = posed.breath - 1;
-        pm.makeScale(1 + b * 0.5, 1 + b * 0.25, 1 + b * 0.9).premultiply(jm);
+        pm.makeScale(1 + b * 0.5, 1 + b * 0.25, 1 + b * 0.9).premultiply(J[jn]).multiply(invRest[jn]);
         this.mesh.setMatrixAt(id, pm);
         if (!this.shown[ci]) this.mesh.setVisibleAt(id, true);
         continue;
@@ -476,7 +534,8 @@ export class SculptBatch {
         pm.makeTranslation(0, EYE_Y, 0)
           .multiply(tmpM.makeScale(1, Math.max(0.1, posed.eyes), 1))
           .multiply(tmpM.makeTranslation(0, -EYE_Y, 0))
-          .premultiply(jm);
+          .premultiply(J[jn])
+          .multiply(invRest[jn]);
       } else if (pid === "skirt") {
         // Cloth flare with the stride; the hem trails with the walk.
         const fx = 1 + stride * 0.3 + posed.walk * 0.04;
@@ -488,7 +547,8 @@ export class SculptBatch {
         q.setFromEuler(e);
         pm.compose(v.set(0, top, 0), q, s.set(fx, sy, fz))
           .multiply(tmpM.makeTranslation(0, -top, 0))
-          .premultiply(jm);
+          .premultiply(J[jn])
+          .multiply(invRest[jn]);
       } else pm.copy(jm);
       this.mesh.setMatrixAt(id, pm);
       if (!this.shown[ci]) this.mesh.setVisibleAt(id, true);
@@ -506,6 +566,8 @@ export class SculptBatch {
   dispose() {
     this.mesh.dispose();
     this.palette.dispose();
+    this.bones.dispose();
+    (this.mesh.customDepthMaterial as THREE.Material | undefined)?.dispose();
     this.material.dispose();
   }
 }

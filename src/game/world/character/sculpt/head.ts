@@ -124,7 +124,7 @@ export function headSkin(hc: V3, rings: number, segs: number, paint: (p: V3) => 
 }
 
 /** Make every triangle face along its vertices' normals (outward). */
-function orient(m: AttrMesh) {
+export function orient(m: AttrMesh) {
   const P = m.pos, N = m.nrm;
   for (let t = 0; t < m.tri.length; t += 3) {
     const a = m.tri[t] * 3, b = m.tri[t + 1] * 3, c = m.tri[t + 2] * 3;
