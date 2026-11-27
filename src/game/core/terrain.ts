@@ -97,9 +97,15 @@ function finish(
   };
 }
 
-/** The scaled outline of one tier. */
-export const terrainTierLoop = (feature: TerrainFeature, tier: number) =>
-  scaleLoop(feature.outline, feature.focus, feature.tiers[tier].scale);
+/** Scaled tier outlines, built once per feature: terrainHeightAt runs every
+ * frame for the player, villagers and blobs, so it must not allocate. */
+const tierLoops = new WeakMap<TerrainFeature, (readonly P2[])[]>();
+/** The scaled outline of one tier (cached; do not mutate). */
+export function terrainTierLoop(feature: TerrainFeature, tier: number): readonly P2[] {
+  let loops = tierLoops.get(feature);
+  if (!loops) tierLoops.set(feature, (loops = []));
+  return (loops[tier] ??= scaleLoop(feature.outline, feature.focus, feature.tiers[tier].scale));
+}
 
 // ---------------------------------------------------------------- Home
 

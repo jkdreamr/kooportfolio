@@ -15,7 +15,7 @@ export const HOME_LAKE_SHELVES = [
  * lawn's edge. */
 export const lakeWaterY = (floorY: number) => Math.min(floorY + 0.95, -0.28);
 
-let loops: P2[][] | null = null;
+let loops: (readonly P2[])[] | null = null;
 /** Distance from (x, z) to the nearest lake shelf's top outline (pure). */
 export function distanceToLakeShelf(x: number, z: number) {
   loops ??= TERRAIN.home
