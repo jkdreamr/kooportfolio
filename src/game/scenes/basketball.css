@@ -17,10 +17,31 @@
     12px/1.4 system-ui,
     sans-serif;
 }
+/* The modes read as one segmented control, not loose chips. */
 .basketball-controls nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 0;
+  padding: 3px;
+  border: 1px solid #627467;
+  border-radius: 9px;
+  background: #172e27e6;
+  box-shadow: 0 3px 0 #142b24;
+  pointer-events: auto;
+}
+.basketball-controls nav button {
+  border: 0;
+  border-radius: 6px;
+  box-shadow: none;
+  background: transparent;
+  padding: 8px 10px;
+  min-height: 36px;
+  font-size: var(--text-sm, 13px);
+  white-space: nowrap;
+}
+.basketball-controls nav button[aria-pressed="true"] {
+  background: #3d5547;
+  box-shadow: inset 0 0 0 1px #c7a269;
 }
 .basketball-controls button,
 .basketball-mode-select,
@@ -429,4 +450,42 @@
     width: calc(100% - 220px);
     min-width: 80px;
   }
+}
+
+/* Live points and streak in the session header. */
+.court-session-points {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.court-session-points > span {
+  font-size: 30px;
+  line-height: 1;
+  font-weight: 600;
+}
+.court-session-points small {
+  font-size: var(--text-xs, 12px);
+  font-weight: 600;
+  color: #d5b67d;
+  margin-left: 5px;
+}
+.court-session-points em {
+  font-style: normal;
+  font-size: var(--text-sm, 13px);
+  color: #f7d995;
+}
+.court-finished-score b {
+  font-size: var(--text-lg, 18px);
+  color: #f7d995;
+}
+.court-new-best {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #f7d995;
+  color: #253f35;
+  font-weight: 700;
+  font-size: var(--text-xs, 12px);
+  letter-spacing: 0.02em;
 }

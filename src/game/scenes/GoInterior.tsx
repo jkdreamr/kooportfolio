@@ -6,6 +6,7 @@ import { Ball, Box, Cylinder, Ring } from "../world/Models";
 import { CraftedBox, WallSconce } from "./CraftedDetails";
 import { useGame } from "../core/store";
 import { useLauncher, useLauncherHosted } from "../core/launchers";
+import { juice } from "./juice/Juice";
 import { keys, touch } from "../core/input";
 import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import {
@@ -141,6 +142,29 @@ export function GoInterior() {
     window.addEventListener("interior-game-close", close);
     return () => window.removeEventListener("interior-game-close", close);
   }, [close]);
+  /** A stone on the board: a wood click; a capture counts its stones. */
+  const stoneFeedback = (point: number, captured: number) => {
+    sound(captured ? "capture" : "stone");
+    if (!captured) return;
+    const r = buttons.current[point]?.getBoundingClientRect();
+    if (r) juice.pop(`+${captured}`, r.left + r.width / 2, r.top, captured >= 3 ? "great" : "good");
+  };
+  const [record, setRecord] = useState<null | { won: boolean; wins: number }>(null);
+  const finishGame = () => {
+    const won = score.winner === 1;
+    if (computer) {
+      const result = won ? useGame.getState().countBest(`go.wins.${level}`) : null;
+      setRecord({ won, wins: result?.bests[`go.wins.${level}`] ?? useGame.getState().save.bests?.[`go.wins.${level}`] ?? 0 });
+      sound(won ? "win" : "lose");
+      if (won) {
+        juice.confetti();
+        juice.haptic("win");
+      }
+    } else {
+      setRecord(null);
+      sound("win");
+    }
+  };
   const commit = (next: GoGame) => {
     setMatch((old) => ({ game: next, past: [...old.past, old.game] }));
     setConfirmNew(false);
@@ -154,6 +178,7 @@ export function GoInterior() {
   const hosted = useLauncherHosted("go");
   useLauncher("go", "go", "Play Go", open, { enabled: !started, hint: "Enter" });
   const reset = () => {
+    setRecord(null);
     focusTarget.current = "board";
     setFocus(40);
     setMatch(freshMatch());
@@ -165,8 +190,8 @@ export function GoInterior() {
     if (game.phase === "scoring") { setMatch((old) => ({ ...old, game: toggleGoDead(old.game, point) })); return; }
     if (thinking || game.phase !== "playing") return;
     const move = playGo(game, point);
-    if (!move.ok) { setMessage(move.reason); return; }
-    sound(move.captured ? "score" : "tap");
+    if (!move.ok) { setMessage(move.reason); sound("ui-error"); return; }
+    stoneFeedback(point, move.captured);
     if (move.game.phase === "scoring") sound("chime");
     commit(move.game);
     setMessage(`${colorName(game.turn)} ${coordinate(point)}${move.captured ? ` · captured ${move.captured}` : ""}`);
@@ -179,7 +204,8 @@ export function GoInterior() {
       timer = window.setTimeout(() => {
         const move = point === null ? null : playGo(game, point);
         const next = move?.ok ? move.game : passGo(game);
-        if (move?.ok) sound(move.captured ? "score" : "tap");
+        if (move?.ok && point !== null) stoneFeedback(point, move.captured);
+        else sound("ui-back");
         if (next.phase === "scoring") { sound("chime"); focusTarget.current = "resume"; }
         setMatch((old) => old.game === game ? { game: next, past: [...old.past, game] } : old);
         setMessage(next.phase === "scoring" ? "" : move?.ok && point !== null
@@ -322,7 +348,7 @@ export function GoInterior() {
                     <div className="go-actions">
                       <button disabled={thinking || confirmNew} onClick={() => {
                         const next = passGo(game);
-                        sound("tap");
+                        sound("ui-back");
                         if (next.phase === "scoring") sound("chime");
                         focusTarget.current = next.phase === "scoring" ? "resume" : "board";
                         commit(next); setMessage(next.phase === "scoring" ? "" : `${colorName(game.turn)} passed.`);
@@ -350,9 +376,13 @@ export function GoInterior() {
                       }}>Resume</button>
                         <button className="go-primary" disabled={confirmNew} onClick={() => {
                           focusTarget.current = "new"; setMatch((old) => ({ ...old, game: { ...old.game, phase: "finished" } })); setMessage("");
+                          finishGame();
                         }}>Finish</button></div>
                     </>}
                   </>}
+                  {game.phase === "finished" && record && (
+                    <p className="go-record">{record.won ? <><span className="go-new-best">Win</span> {record.wins} {record.wins === 1 ? "win" : "wins"} on {level}</> : `No win this time · ${record.wins} on ${level}`}</p>
+                  )}
                   <p id="go-help" className="go-message" role="status">{game.phase === "finished" ? "Final score · stones + territory + komi" : game.phase === "scoring" ? "Tap a group to mark or restore it." : message || "Tap a point, or use arrows + Enter / Space."}</p>
                   </div>
                   {confirmNew ? <div className="go-confirm" role="alertdialog" aria-modal="true" aria-label="Start a new Go game?"><p>Start over?</p><div className="go-actions">
@@ -362,17 +392,24 @@ export function GoInterior() {
                     if (game.moves && game.phase !== "finished") { focusTarget.current = "confirm"; setConfirmNew(true); }
                     else reset();
                   }}>New game</button>}
-                  {game.moves === 0 && <label className="go-mode" inert={confirmNew}>Opponent <select value={computer ? level : "local"} onChange={(e) => {
-                    const next = GO_LEVELS.find((option) => option === e.target.value);
-                    setComputer(Boolean(next));
-                    if (next) {
-                      setLevel(next);
-                      try { localStorage.setItem(GO_LEVEL_KEY, next); } catch { /* Keep the in-session selection. */ }
-                    }
-                  }}>
-                    <optgroup label="Computer">{GO_LEVELS.map((option) =>
-                      <option key={option} value={option}>{option[0].toUpperCase() + option.slice(1)}</option>)}</optgroup>
-                    <option value="local">Local player</option></select></label>}
+                  {game.moves === 0 && <div className="go-mode" role="radiogroup" aria-label="Opponent" inert={confirmNew}>
+                    <span aria-hidden="true">Opponent</span>
+                    <div className="go-segments">
+                      {[...GO_LEVELS, "local" as const].map((option) => {
+                        const selected = option === "local" ? !computer : computer && level === option;
+                        return <button key={option} role="radio" aria-checked={selected} className={selected ? "is-selected" : undefined}
+                          onClick={() => {
+                            const next = GO_LEVELS.find((value) => value === option);
+                            setComputer(Boolean(next));
+                            sound("ui-toggle");
+                            if (next) {
+                              setLevel(next);
+                              try { localStorage.setItem(GO_LEVEL_KEY, next); } catch { /* Keep the in-session selection. */ }
+                            }
+                          }}>{option === "local" ? "Local" : option[0].toUpperCase() + option.slice(1)}</button>;
+                      })}
+                    </div>
+                  </div>}
                   <details className="go-rules" inert={confirmNew}><summary>Rules</summary><p>Black starts. Connect stones and surround space. Groups with no adjacent empty points are captured. No suicide or repeated positions. Pass twice to count; mark dead groups by agreement, or resume to capture them.</p>
                     <p>Area scoring: stones + surrounded space. White gets {GO_KOMI} komi. Captures aren’t added again. Arrow keys move; Enter places. Local game, no online opponent.</p></details>
                 </div>

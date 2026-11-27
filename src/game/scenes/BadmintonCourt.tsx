@@ -19,6 +19,7 @@ import {
 } from "../core/badminton";
 import { runtime, useGame } from "../core/store";
 import { useLauncher, useLauncherHosted } from "../core/launchers";
+import { useJuice } from "./juice/Juice";
 import { startGameMode, endGameMode, useGameMode } from "../core/gameMode";
 import { keys, touch } from "../core/input";
 import { sound } from "../core/sound";
@@ -329,6 +330,8 @@ export function BadmintonCourt({
     movement = useRef({ x: 0, z: 0 });
   const playing = useGameMode((s) => s.active?.id === "badminton");
   const [snapshot, setSnapshot] = useState(() => view(game.current));
+  const [record, setRecord] = useState<null | { won: boolean; longest: number; bestRally: number; newRally: boolean; wins: number }>(null);
+  const fx = useJuice();
   const [aim, setAim] = useState<-1 | 0 | 1>(0),
     [shot, setShot] = useState<BadmintonShot>("clear");
   const blocked = useGame((s) => s.paused || s.panel !== "none");
@@ -436,16 +439,44 @@ export function BadmintonCourt({
         score: [...game.current.score],
         phase: game.current.phase,
       };
+      const chosenShot = input.current.shot;
       stepBadminton(game.current, input.current, Math.min(delta, 0.05));
       input.current.swing = false;
       {
         const now = game.current;
-        if (now.phase === "over" && prev.phase !== "over")
-          sound(now.winner === "player" ? "win" : "bounce");
-        else if (now.score[0] > prev.score[0]) sound("score");
-        else if (now.score[1] > prev.score[1]) sound("bounce");
-        else if (now.rally > prev.rally)
-          sound(now.lastHit === "player" ? "whoosh" : "tap");
+        const landing: [number, number, number] = [now.shuttle.x * COURT_SCALE, 0.4, (now.shuttle.z - 2) * COURT_SCALE];
+        if (now.phase === "over" && prev.phase !== "over") {
+          const won = now.winner === "player";
+          const g = useGame.getState();
+          const rally = g.recordBest("badminton.rally", now.longestRally);
+          const wins = won ? g.countBest("badminton.wins") : null;
+          setRecord({
+            won,
+            longest: now.longestRally,
+            bestRally: rally.bests["badminton.rally"] ?? now.longestRally,
+            newRally: rally.improved && now.longestRally > 0,
+            wins: wins?.bests["badminton.wins"] ?? g.save.bests?.["badminton.wins"] ?? 0,
+          });
+          sound(won ? "win" : "lose");
+          if (won) {
+            fx.confetti();
+            fx.haptic("win");
+          }
+        } else if (now.score[0] > prev.score[0]) {
+          sound("score");
+          fx.score(landing, "Point", "good");
+        } else if (now.score[1] > prev.score[1]) {
+          sound("miss");
+          const [x, y] = fx.at(landing);
+          fx.pop("Their point", x, y, "miss");
+        } else if (now.rally > prev.rally) {
+          if (now.lastHit === "player") {
+            const smash = chosenShot === "smash";
+            sound("shuttle", { intensity: smash ? 1 : 0 });
+            if (smash) fx.shake(0.3);
+            fx.haptic("tap");
+          } else sound("shuttle", { gain: 0.7, pan: Math.max(-0.6, Math.min(0.6, now.shuttle.x / 4)) });
+        }
       }
       clock.current += delta;
       if (clock.current >= 0.08) {
@@ -521,6 +552,7 @@ export function BadmintonCourt({
   });
   const begin = () => {
     if (!playing && !startGameMode("badminton")) return;
+    setRecord(null);
     game.current = newBadmintonGame();
     input.current = noInput();
     setAim(0);
@@ -585,6 +617,11 @@ export function BadmintonCourt({
               </section>
             ) : (
               <>
+                <p className="badminton-live" aria-live="polite" role="status">
+                  {snapshot.phase === "over"
+                    ? `Match over. ${snapshot.winner === "player" ? "You won" : "You lost"} ${snapshot.score[0]} to ${snapshot.score[1]}.`
+                    : `You ${snapshot.score[0]}, opponent ${snapshot.score[1]}`}
+                </p>
                 <section className="badminton-score" aria-label="Rally">
                   <small>
                     {snapshot.message ||
@@ -596,8 +633,18 @@ export function BadmintonCourt({
                     className="badminton-result"
                     aria-label="Match result"
                   >
-                    <h2>Match over</h2>
-                    <button onClick={begin}>Rematch</button>
+                    <h2>{snapshot.winner === "player" ? "You win" : "Match over"}</h2>
+                    <p className="badminton-final">
+                      <b>{snapshot.score[0]}</b> – <b>{snapshot.score[1]}</b>
+                    </p>
+                    {record && (
+                      <p className="badminton-bests">
+                        Longest rally {record.longest}
+                        {record.newRally ? <span className="badminton-new-best">New best</span> : <> · best {record.bestRally}</>}
+                        {record.wins > 0 && <> · {record.wins} won</>}
+                      </p>
+                    )}
+                    <button ref={(node) => node?.focus({ preventScroll: true })} onClick={begin}>Rematch</button>
                     <button className="badminton-quiet" onClick={end}>
                       Back to room
                     </button>

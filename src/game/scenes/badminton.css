@@ -369,3 +369,30 @@
     padding: 12px;
   }
 }
+
+/* Screen-reader score: announced, not shown. */
+.badminton-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.badminton-final {
+  font-size: var(--text-xl, 24px);
+  font-variant-numeric: tabular-nums;
+}
+.badminton-bests {
+  font-size: var(--text-sm, 13px);
+}
+.badminton-new-best {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--hud-gold, #e7c27e);
+  color: #21353e;
+  font-weight: 700;
+  font-size: var(--text-xs, 12px);
+}

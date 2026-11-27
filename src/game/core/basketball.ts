@@ -269,3 +269,23 @@ export function dailyCourtSeed(date = new Date()) {
     seed = Math.imul(seed ^ c.charCodeAt(0), 16777619);
   return seed >>> 0;
 }
+
+/** Running totals for a timed session: points, makes, streaks. */
+export type ShotTally = { points: number; makes: number; shots: number; streak: number; bestStreak: number };
+export const freshTally = (): ShotTally => ({ points: 0, makes: 0, shots: 0, streak: 0, bestStreak: 0 });
+
+/** One finished shot: a make adds its points and extends the streak; a miss resets it. */
+export function tallyShot(t: ShotTally, made: boolean, points = 0): ShotTally {
+  const streak = made ? t.streak + 1 : 0;
+  return {
+    points: t.points + (made ? Math.max(0, points) : 0),
+    makes: t.makes + (made ? 1 : 0),
+    shots: t.shots + 1,
+    streak,
+    bestStreak: Math.max(t.bestStreak, streak),
+  };
+}
+
+/** The gold window on the power meter (the "Clean release"). */
+export const PERFECT_CHARGE = 0.62;
+export const isPerfectRelease = (charge: number) => Math.abs(charge - PERFECT_CHARGE) < 0.045;

@@ -354,3 +354,18 @@
     scroll-behavior: auto;
   }
 }
+
+.skate-best {
+  margin: 4px 0 10px;
+  font-size: var(--text-sm, 13px);
+}
+.skate-new-best {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #ffd97a;
+  color: #24302b;
+  font-weight: 700;
+  font-size: var(--text-xs, 12px);
+}

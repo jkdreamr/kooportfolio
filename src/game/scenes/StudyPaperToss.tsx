@@ -35,6 +35,7 @@ import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import { runtime, useGame } from "../core/store";
 import { sound } from "../core/sound";
 import { useLauncher, useLauncherHosted } from "../core/launchers";
+import { useJuice } from "./juice/Juice";
 import { Box, Cylinder } from "../world/Models";
 import "./paper-toss.css";
 
@@ -136,6 +137,9 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
   const look = useMemo(() => new Vector3(0, 0.9, -1.1), []);
   const restoreLauncher = useRef(false);
   const [hud, setHud] = useState(newTossRound);
+  const [bestLevel, setBestLevel] = useState<null | { level: number; fresh: boolean }>(null);
+  const fx = useJuice();
+  const rimScratch = useMemo(() => new Vector3(), []);
   const [lane, setLane] = useState(0);
   const level = TOSS_LEVELS[hud.level];
   const finished = roundOver(hud);
@@ -194,7 +198,7 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
   const toss = (strength: number) => {
     if (!ready()) return;
     round.current = throwPaper(round.current, aim.current, strength);
-    sound("whoosh");
+    sound("paper");
     setHud(round.current);
   };
   const begin = (source: "key" | "pointer" | "button") => {
@@ -246,9 +250,35 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
     const step = Math.min(dt, 0.1);
     const next = stepToss(before, step);
     if (next.attempts > before.attempts) {
-      if (next.attempts >= TOSS_LEVELS[next.level].attempts)
-        sound(levelCleared(next) ? "win" : "bounce");
-      else sound(next.result === "hit" ? "score" : "bounce");
+      const lvl = TOSS_LEVELS[next.level];
+      const binNow = binPosition(next.railAngle);
+      // The bin's real world position (its parent group may be offset).
+      const rimWorld = bin.current ? bin.current.getWorldPosition(rimScratch) : rimScratch.set(binNow, 0, lvl.binZ);
+      const rimPoint: [number, number, number] = [rimWorld.x, rimWorld.y + BIN_RIM, rimWorld.z];
+      if (next.result === "hit") {
+        sound("score");
+        fx.score(rimPoint, "In", "good");
+      } else if (
+        next.landing &&
+        Math.hypot(next.landing.x - binNow, next.landing.z - lvl.binZ) <= lvl.binRadius + 0.35
+      ) {
+        // Off the rim and out.
+        sound("rim", { gain: 0.5 });
+        const [x, y] = fx.at(rimPoint);
+        fx.pop("Rim", x, y, "miss");
+      } else sound("bounce", { gain: 0.6 });
+      if (next.attempts >= lvl.attempts) {
+        if (levelCleared(next)) {
+          const best = useGame.getState().recordBest("paper-toss.level", next.level + 1);
+          setBestLevel({ level: best.bests["paper-toss.level"] ?? next.level + 1, fresh: best.improved });
+          sound("win", { delay: 0.25 });
+          fx.confetti();
+          fx.haptic("win");
+        } else {
+          setBestLevel({ level: useGame.getState().save.bests?.["paper-toss.level"] ?? 0, fresh: false });
+          sound("lose", { delay: 0.25 });
+        }
+      }
     }
     round.current = next;
     if (
@@ -478,8 +508,10 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
                     <p className="toss-status" role="status">
                       {finished
                         ? cleared
-                          ? "Level cleared"
-                          : `${hud.made} of ${level.target} made`
+                          ? bestLevel?.fresh
+                            ? "Level cleared · new best"
+                            : "Level cleared"
+                          : `${hud.made} of ${level.target} made${bestLevel?.level ? ` · best: level ${bestLevel.level}` : ""}`
                         : !hud.landing &&
                           `Shot ${hud.attempts + 1} of ${level.attempts}`}
                       {!finished && hud.result && (

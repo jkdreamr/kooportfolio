@@ -15,7 +15,10 @@ import {
   COURT_SPOTS,
   HOOP,
   dailyCourtSeed,
+  freshTally,
+  isPerfectRelease,
   launchBall,
+  tallyShot,
   shotValue,
   stepBall,
   type BallState,
@@ -23,6 +26,7 @@ import {
 } from "../core/basketball";
 import { footstep, sound } from "../core/sound";
 import { BasketballPlayer } from "./BasketballPlayer";
+import { useJuice } from "./juice/Juice";
 import {
   CourtBall,
   CourtBlock as Box,
@@ -46,6 +50,10 @@ export const useBasketOptions = create<{
   round: number;
 }>(() => ({ mode: "warmup", style: "arc", assist: true, round: 0 }));
 export const useBasketHud = create<{
+  points: number;
+  streak: number;
+  /** Set at the buzzer: the session's bests and whether they are new. */
+  best: null | { points: number; streak: number; newPoints: boolean; newStreak: boolean };
   time: number;
   charge: number;
   feedback: string;
@@ -54,6 +62,9 @@ export const useBasketHud = create<{
   target: number;
   finished: boolean;
 }>(() => ({
+  points: 0,
+  streak: 0,
+  best: null,
   time: 30,
   charge: 0,
   feedback: "",
@@ -72,6 +83,9 @@ function beginRound(mode = useBasketOptions.getState().mode) {
   runtime.aim = 0;
   runtime.shoot = runtime.shooting = runtime.moving = false;
   useBasketHud.setState({
+    points: 0,
+    streak: 0,
+    best: null,
     time: MODES[mode].duration,
     charge: 0,
     feedback: "",
@@ -267,6 +281,13 @@ function CourtSessionHud({ close }: { close: () => void }) {
           <span>COURT 01</span>
           <strong>{MODES[mode].label}</strong>
         </div>
+        <div className="court-session-points" aria-label="Points" aria-live="polite">
+          <span>
+            {hud.points}
+            <small>PTS</small>
+          </span>
+          {hud.streak > 1 && <em>{hud.streak} in a row</em>}
+        </div>
         {mode !== "practice" && (
           <div className="court-session-score" aria-label="Time left">
             <span>
@@ -411,6 +432,15 @@ function CourtSessionHud({ close }: { close: () => void }) {
         <div className="court-finished" role="status">
           <span>TIME</span>
           <h2>Session done</h2>
+          <p className="court-finished-score">
+            <b>{hud.points}</b> points · longest streak {hud.best?.streak ?? hud.streak}
+          </p>
+          {hud.best && (
+            <p className="court-finished-best">
+              {hud.best.newPoints ? <span className="court-new-best">New best</span> : <>Best {hud.best.points}</>}
+              {hud.best.newStreak && !hud.best.newPoints && <span className="court-new-best">New streak best</span>}
+            </p>
+          )}
           <button onClick={() => beginRound()}>Play again</button>
           <button onClick={close}>Close</button>
         </div>
@@ -489,7 +519,9 @@ function BasketballCourt({ playing }: { playing: boolean }) {
     nextHud = useRef(0),
     lastBounce = useRef(-1),
     scoredAt = useRef(-10),
+    tally = useRef(freshTally()),
     velocity = useRef({ x: 0, z: 0 });
+  const fx = useJuice();
   const save = useGame((s) => s.save);
   const { mode } = useBasketOptions();
   const startSpot = mode === "daily" ? seed.current % COURT_SPOTS.length : 0;
@@ -632,15 +664,20 @@ function BasketballCourt({ playing }: { playing: boolean }) {
         options.style,
       );
       release.current = 0;
-      feedback.current =
-        Math.abs(charge.current - 0.62) < 0.045
-          ? "Clean release"
-          : charge.current < 0.62
-            ? "Early"
-            : "Late";
+      const clean = isPerfectRelease(charge.current);
+      feedback.current = clean
+        ? "Clean release"
+        : charge.current < 0.62
+          ? "Early"
+          : "Late";
       charge.current = 0;
       chargeAge.current = 0;
-      sound("shot");
+      sound("swish");
+      if (clean) {
+        sound("perfect", { gain: 0.7 });
+        const [x, y] = fx.at([runtime.x, 2.2, runtime.z]);
+        fx.pop("Clean", x, y, "great");
+      }
     }
     runtime.shoot = false;
     accumulator.current += dt;
@@ -652,9 +689,14 @@ function BasketballCourt({ playing }: { playing: boolean }) {
           1 / 120,
           hoopAt(physicsTime.current),
         );
+        const rimBefore = ball.current.contacts?.rim ?? 0;
         ball.current = result.ball;
         if (result.collision && elapsed.current - lastBounce.current > 0.1) {
-          sound("bounce");
+          // The rim rings and jolts the frame; everything else is a bounce.
+          if ((result.ball.contacts?.rim ?? 0) > rimBefore) {
+            sound("rim");
+            fx.shake(0.3);
+          } else sound("bounce");
           lastBounce.current = elapsed.current;
         }
         if (result.score) {
@@ -662,7 +704,11 @@ function BasketballCourt({ playing }: { playing: boolean }) {
           feedback.current = value.label;
           if (spotShot.current) challenge.current++;
           scoredAt.current = elapsed.current;
+          tally.current = tallyShot(tally.current, true, value.points);
           sound("score");
+          const rim = hoopAt(physicsTime.current);
+          fx.score([rim.x, rim.y, rim.z], `+${value.points}`, value.label === "Swish" ? "great" : "good");
+          useBasketHud.setState({ points: tally.current.points, streak: tally.current.streak });
         }
       }
       accumulator.current -= 1 / 120;
@@ -693,6 +739,8 @@ function BasketballCourt({ playing }: { playing: boolean }) {
       ) {
         if (!b.scored) {
           feedback.current = b.age > 5.5 ? "Next ball" : "Rebound";
+          tally.current = tallyShot(tally.current, false);
+          useBasketHud.setState({ streak: 0 });
         } else feedback.current = "";
         ball.current = null;
         holding.current = true;
@@ -788,8 +836,27 @@ function BasketballCourt({ playing }: { playing: boolean }) {
       (!ball.current || elapsed.current > duration + 5.5)
     ) {
       done.current = true;
-      useBasketHud.setState({ finished: true });
-      sound("win");
+      // The buzzer, then the session's bests (timed modes only).
+      sound("whistle");
+      const t = tally.current;
+      const game = useGame.getState();
+      const points = game.recordBest(`basketball.points.${mode}`, t.points);
+      const streak = game.recordBest("basketball.streak", t.bestStreak);
+      useBasketHud.setState({
+        finished: true,
+        points: t.points,
+        best: {
+          points: points.bests[`basketball.points.${mode}`] ?? t.points,
+          streak: Math.max(t.bestStreak, streak.bests["basketball.streak"] ?? 0),
+          newPoints: points.improved && t.points > 0,
+          newStreak: streak.improved && t.bestStreak > 0,
+        },
+      });
+      sound(points.improved && t.points > 0 ? "win" : "score", { delay: 0.35 });
+      if (points.improved && t.points > 0) {
+        fx.confetti();
+        fx.haptic("win");
+      }
     }
   });
   const threeArc = useMemo(

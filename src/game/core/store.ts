@@ -1,5 +1,15 @@
 import { create } from "zustand";
-import { freshSave, parseSave, SAVE_KEY, type Save, writeGuestSave } from "../../shared/save";
+import {
+  countBest,
+  freshSave,
+  parseSave,
+  recordBest,
+  SAVE_KEY,
+  type BestResult,
+  type BestRule,
+  type Save,
+  writeGuestSave,
+} from "../../shared/save";
 import { canWalk, findPath, isInterior, type PlaceId } from "./world";
 import { roomFor } from "./room";
 import { findInteriorPath } from "./houseRooms";
@@ -108,6 +118,12 @@ type State = {
     game: string;
     title: string;
     detail: string;
+    /** Optional score for the result card's count-up. */
+    score?: number;
+    /** Personal best for this result's measure, after this game. */
+    best?: number;
+    /** This game set a new personal best. */
+    newBest?: boolean;
   };
   run: number;
   go: (scene: Scene) => void;
@@ -115,6 +131,10 @@ type State = {
   setNear: (near: string) => void;
   persist: () => void;
   customize: (color: string, hat: boolean) => void;
+  /** Keeps a personal best in the save (persisted at once). */
+  recordBest: (key: string, value: number, rule?: BestRule) => BestResult;
+  /** Adds one to a counter best (wins). */
+  countBest: (key: string) => BestResult;
 };
 export const useGame = create<State>((set, get) => ({
   scene: "hub",
@@ -252,6 +272,22 @@ export const useGame = create<State>((set, get) => ({
   customize(color, hat) {
     set({ save: { ...get().save, color, hat } });
     get().persist();
+  },
+  recordBest(key, value, rule = "max") {
+    const out = recordBest(get().save.bests, key, value, rule);
+    if (out.improved) {
+      set({ save: { ...get().save, bests: out.bests } });
+      get().persist();
+    }
+    return out;
+  },
+  countBest(key) {
+    const out = countBest(get().save.bests, key);
+    if (out.improved) {
+      set({ save: { ...get().save, bests: out.bests } });
+      get().persist();
+    }
+    return out;
   },
 }));
 

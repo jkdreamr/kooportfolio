@@ -17,6 +17,8 @@ import { setViewZoom, viewZoom, zoomedOffset } from "../engine/camera";
 const skateOffset = new THREE.Vector3();
 import { runtime, useGame } from "../core/store";
 import { useLauncher, useLauncherHosted } from "../core/launchers";
+import { useJuice } from "./juice/Juice";
+import { useSoundLoop } from "./useSoundLoop";
 import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import { keys, movement, movementSpeed, touch } from "../core/input";
 import { footstep, sound } from "../core/sound";
@@ -320,15 +322,49 @@ export function SkateParkInterior() {
           score: g.score,
           phase: g.phase,
           bail: g.bailTime,
+          rail: g.rail,
+          label: g.lastTrick,
         };
+        const pushing = input.current.push > 0.2;
         stepSkate(g, input.current, delta);
-        if (g.phase !== before.phase && g.phase === "done")
-          sound(g.score >= 800 ? "win" : "score");
-        else if (g.bailTime > before.bail) sound("bounce");
-        else if (g.score > before.score) sound("score");
-        else if (!before.grounded && g.grounded) sound("land");
-        else if (before.grounded && !g.grounded) sound("whoosh");
-        else if (g.trick && g.trick !== before.trick) sound("whoosh");
+        const board: [number, number, number] = [g.x * S, g.y * S + 1.2, g.z * S];
+        if (g.phase !== before.phase && g.phase === "done") {
+          const best = useGame.getState().recordBest("skate.combo", g.bestCombo);
+          const run = mode === "run" ? useGame.getState().recordBest("skate.score.run", g.score) : null;
+          setResult({
+            score: g.score,
+            combo: g.bestCombo,
+            bestCombo: best.bests["skate.combo"] ?? g.bestCombo,
+            newBest: (best.improved && g.bestCombo > 0) || (!!run?.improved && g.score > 0),
+          });
+          sound(best.improved && g.bestCombo > 0 ? "win" : "score");
+          if (best.improved && g.bestCombo > 0) fx.confetti();
+        } else if (g.bailTime > before.bail) {
+          sound("miss");
+          fx.shake(0.6);
+          fx.haptic("score");
+        } else if (g.score > before.score) {
+          // A banked combo: the clean landing, with the trick that ended it.
+          sound("land");
+          const [x, y] = fx.at(board);
+          fx.pop(`${before.label || "Line"} +${(g.score - before.score).toLocaleString("en-US")}`, x, y, g.score - before.score >= 800 ? "great" : "good");
+          fx.haptic("tap");
+        } else if (!before.grounded && g.grounded) sound("bounce", { gain: 0.6 });
+        else if (before.grounded && !g.grounded) sound("swish");
+        else if (g.trick && g.trick !== before.trick) sound("swish", { gain: 1.2 });
+        else if (pushing && !pushedRef.current && g.grounded) sound("bounce", { gain: 0.35 });
+        pushedRef.current = pushing;
+        // Rolling wheels follow the speed; a grind sings higher and sparks.
+        const grinding = g.rail >= 0;
+        wheels.current?.set(Math.min(1, g.speed / 9) * (grinding ? 1 : 0.75) + (grinding ? 0.25 : 0));
+        if (grinding) {
+          sparkClock.current += delta;
+          if (sparkClock.current > 0.12) {
+            sparkClock.current = 0;
+            const [x, y] = fx.at([board[0], board[1] - 1, board[2]]);
+            fx.ring(x, y, "great");
+          }
+        } else sparkClock.current = 0;
         input.current.jump = false;
         input.current.trick = null;
         runtime.x = g.x * S;
@@ -417,6 +453,7 @@ export function SkateParkInterior() {
 
   const begin = (nextMode: SkateState["mode"]) => {
     if (!riding && !startGameMode("skate")) return;
+    setResult(null);
     game.current = newSkateGame(nextMode);
     game.current.x = THREE.MathUtils.clamp(runtime.x / S, -7, 7);
     game.current.z = THREE.MathUtils.clamp(runtime.z / S, -9, 9);
@@ -494,6 +531,11 @@ export function SkateParkInterior() {
     };
   };
   const hosted = useLauncherHosted("skate");
+  const fx = useJuice();
+  const wheels = useSoundLoop(riding ? "wheels" : null);
+  const pushedRef = useRef(false),
+    sparkClock = useRef(0);
+  const [result, setResult] = useState<null | { score: number; combo: number; bestCombo: number; newBest: boolean }>(null);
   useLauncher("skate", "skate-free", "Free skate", () => begin("free"), { enabled: !riding, hint: "Enter" });
   useLauncher("skate", "skate-run", "60s run", () => begin("run"), { enabled: !riding });
   return (
@@ -578,7 +620,13 @@ export function SkateParkInterior() {
                     aria-label="Skate run result"
                   >
                     <span className="skate-eyebrow">Run complete</span>
-                    <h2>Nice line</h2>
+                    <h2>{result ? `${result.score.toLocaleString("en-US")} points` : "Nice line"}</h2>
+                    {result && (
+                      <p className="skate-best">
+                        Best combo {result.combo.toLocaleString("en-US")}
+                        {result.newBest ? <span className="skate-new-best">New best</span> : <> · record {result.bestCombo.toLocaleString("en-US")}</>}
+                      </p>
+                    )}
                     <div className="skate-modes">
                       <button onClick={() => begin("run")}>Ride again</button>
                       <button onClick={leaveBoard}>Step off</button>

@@ -9,7 +9,49 @@ export type Save = {
   /** Hub camera the visitor last chose. Optional: older saves have none,
    * and an unknown value is dropped rather than rejecting the save. */
   view?: "diorama" | "explore";
+  /** Personal bests per mini-game measure (see `recordBest`). Optional:
+   * older saves have none; bad entries are dropped, never the save. */
+  bests?: Record<string, number>;
 };
+
+/** Higher is better (points, streaks) or lower is better (times, throws). */
+export type BestRule = "max" | "min";
+export type BestResult = { bests: Record<string, number>; improved: boolean; previous?: number };
+const BEST_KEY = /^[a-z][a-z0-9-]*(\.[a-z0-9-]+){1,3}$/;
+export const isBestKey = (key: string) => BEST_KEY.test(key) && key.length <= 64;
+
+/**
+ * Records `value` under `key` if it beats the stored best. Pure: returns a
+ * new map (the same one when nothing changed). A first value is a best.
+ */
+export function recordBest(
+  bests: Readonly<Record<string, number>> | undefined,
+  key: string,
+  value: number,
+  rule: BestRule = "max",
+): BestResult {
+  const current = bests ?? {};
+  const previous = current[key];
+  if (!isBestKey(key) || !Number.isFinite(value) || value < 0 || value > 1e9)
+    return { bests: { ...current }, improved: false, previous };
+  const improved = previous === undefined || (rule === "max" ? value > previous : value < previous);
+  return { bests: improved ? { ...current, [key]: value } : { ...current }, improved, previous };
+}
+
+/** Adds one to a counter best (matches won, wins at a level). */
+export function countBest(bests: Readonly<Record<string, number>> | undefined, key: string): BestResult {
+  const previous = bests?.[key] ?? 0;
+  return recordBest(bests, key, previous + 1, "max");
+}
+
+/** Keeps only well-formed entries (string key, finite non-negative number). */
+export function cleanBests(raw: unknown): Record<string, number> | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>))
+    if (isBestKey(k) && typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 1e9) out[k] = v;
+  return Object.keys(out).length ? out : undefined;
+}
 import { WORLD_BOUNDS } from "./world-bounds";
 import { onStanfordLand, STANFORD_SHORE_CLEARANCE } from "./stanford-ground";
 import { isWorld, type WorldId } from "./worlds";
@@ -65,6 +107,11 @@ export function parseSave(raw: string | null): Save {
     s.position = [0, 5];
   if (s.view !== undefined && s.view !== "diorama" && s.view !== "explore")
     delete (s as Record<string, unknown>).view;
+  if (s.bests !== undefined) {
+    const bests = cleanBests(s.bests);
+    if (bests) s.bests = bests;
+    else delete (s as Record<string, unknown>).bests;
+  }
   // Coins, levels, upgrades and best marks from retired saves are dropped.
   delete (s as Record<string, unknown>).coins;
   delete (s as Record<string, unknown>).xp;

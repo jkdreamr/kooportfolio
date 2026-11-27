@@ -136,6 +136,8 @@
 .go-point:focus-visible .go-cursor { display: block; }
 .go-board .go-point[aria-disabled="true"] { cursor: default; }
 .go-last::after { content: ""; width: 22%; height: 22%; background: #c96530; position: absolute; left: 39%; top: 39%; border-radius: 50%; box-shadow: 0 0 0 1px #ffc97a; }
+/* Last move: a ring around the stone as well as the dot. */
+.go-last::before { content: ""; position: absolute; inset: -14%; border-radius: 50%; border: 2px solid #d18443; opacity: 0.9; }
 .go-dead { opacity: .35; }
 .go-star { width: 5px; height: 5px; border-radius: 50%; background: #513721; position: absolute; }
 .go-territory { position: absolute; width: 22%; aspect-ratio: 1; border: 1px solid #5d4a2a; }
@@ -154,8 +156,15 @@
 .go-message { min-height: 18px; font-size: 11px; line-height: 1.45; color: var(--hud-ink, #f4f6f7); margin: 9px 0; }
 .go-card .go-new { min-height: 32px; padding: 4px 8px; font-size: 11px; background: #21353f; }
 .go-confirm p { margin: 6px 0; }
-.go-mode { display: flex; gap: 8px; align-items: center; font-size: 11px; margin-top: 9px; }
-.go-mode select { flex: 1; min-height: 36px; }
+.go-mode { display: flex; gap: 8px; align-items: center; font-size: var(--text-xs, 12px); margin-top: 9px; }
+/* Opponent picker: one segmented control in the glass style, not a native select. */
+.go-segments { flex: 1; display: flex; padding: 3px; gap: 2px; border-radius: 9px; background: #00000026; box-shadow: inset 0 0 0 1px #ffffff1f; }
+.go-segments button { flex: 1; min-height: 34px; padding: 4px 6px; border: 0; border-radius: 6px; background: transparent; color: inherit; font: 600 var(--text-xs, 12px) / 1 var(--font-ui, system-ui, sans-serif); cursor: pointer; }
+.go-segments button.is-selected { background: #f5ecd8; color: #3b2a1a; box-shadow: 0 1px 3px #0003; }
+.go-segments button:focus-visible { outline: 2px solid #ffc97a; outline-offset: 2px; }
+@media (pointer: coarse) { .go-segments button { min-height: 44px; font-size: var(--text-sm, 13px); } }
+.go-record { margin: 6px 0; font-size: var(--text-sm, 13px); }
+.go-new-best { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #ffc97a; color: #3b2a1a; font-weight: 700; font-size: var(--text-xs, 12px); }
 .go-rules { font-size: 11px; line-height: 1.55; color: var(--hud-muted, #c3d0d0); margin-top: 10px; }
 .go-rules summary { cursor: pointer; padding: 6px 0; }
 .go-rules p { margin: 6px 0; }
