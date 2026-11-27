@@ -6,8 +6,8 @@ import type { PlaceId } from "../game/core/world";
  * or from his own message of 2026-11-27 ([owner]). Fictional rooms do not
  * imply membership or employment.
  *
- * PENDING_OWNER marks text already in the game that his site does not show;
- * it stays until he confirms or removes it (tests list every such phrase).
+ * PENDING_OWNER marks text his site does not show and he has not yet
+ * confirmed; tests pin where each such phrase may appear.
  */
 export type RoomStoryEntry = { text: string; link?: string; label?: string };
 
@@ -36,10 +36,10 @@ export const roomStories: Partial<Record<PlaceId, RoomStoryEntry>> = {
     text: "Josh plays Go. He speaks Korean, English and Chinese.",
     ...ABOUT,
   },
-  // Verses: J data.ts:82. Poems, songs and essays: [owner]. His site
-  // publishes no poem, lyric or essay, so nothing is quoted.
+  // Verses: J data.ts:82. Poetry, songwriting and essays: [owner]. No
+  // quotes, at his request (and his site publishes none).
   writing: {
-    text: "Josh writes a lot: poems, songs and essays. He built Verses, a songwriting surface, for the songs.",
+    text: "Josh loves to write: poetry, songwriting and essays. He even built Verses, a songwriting surface, for his songs.",
     link: "https://verses-zeta.vercel.app/",
     label: "Verses",
   },
@@ -59,10 +59,10 @@ export const roomStories: Partial<Record<PlaceId, RoomStoryEntry>> = {
     text: "Josh is a lifelong LeBron fan.",
     ...ABOUT,
   },
-  // CRV, NEAR, Pantera: J data.ts:68–70.
-  // PENDING_OWNER: "Alphag3n… Coinbase, Solana and Polygon" (not on his site).
+  // Alphag3n: [owner] confirmed 2026-11-27 and asked for it to be featured
+  // (not on his site). CRV, NEAR, Pantera: J data.ts:68–70.
   office: {
-    text: "Josh is an investment intern at CRV. Before that: NEAR Protocol and Pantera Capital. Before Stanford he founded Alphag3n, a startup backed by sponsors like Coinbase, Solana and Polygon.",
+    text: "Before Stanford, Josh founded Alphag3n, a startup backed by sponsors like Coinbase, Solana and Polygon. Today he's an investment intern at CRV, after NEAR Protocol and Pantera Capital.",
     ...LINKEDIN,
   },
   // Kappa Sigma, TreeHacks, Blockchain Club: J data.ts:49–53.
@@ -71,7 +71,7 @@ export const roomStories: Partial<Record<PlaceId, RoomStoryEntry>> = {
     ...ABOUT,
   },
   // Korea efforts, Devin: J data.ts:67, 101. Hiring line: [owner].
-  // PENDING_OWNER: "Chief of Staff, APAC" (not on his site).
+  // "Chief of Staff, APAC": [owner] confirmed 2026-11-27 (not on his site).
   cognition: {
     text: "Josh leads Cognition's Korea efforts as Chief of Staff, APAC. Cognition makes Devin, the AI software engineer. They're hiring for Korea: message or DM Joshua.",
     link: LINKEDIN.link,
@@ -87,11 +87,13 @@ export const roomStories: Partial<Record<PlaceId, RoomStoryEntry>> = {
     text: "Josh lifts a lot, and trains with Stanford men's rowing, where he coxes.",
     ...ABOUT,
   },
-  // Debut, Spotify, kelix: J data.ts:109, Messages.tsx:35–36. dreamr: [owner]
-  // (no dreamr link exists on his site, so none is given).
+  // Debut single "Fairytale", Dejavu Group: J data.ts:109; its video on
+  // YouTube: data.ts:36. kelix on SoundCloud: data.ts:34. "all i need" on
+  // Spotify: data.ts:35. @atkelix on Instagram: data.ts:33.
+  // dreamr, his old music name: [owner] (no link exists, so none is given).
   // PENDING_OWNER: the tracks "back room" and "please be" (not on his site).
   music: {
-    text: "Josh debuted with the single “Fairytale” under Dejavu Group, a Korean hip hop label. He also releases music on his own: “all i need” is on Spotify, and he posts as kelix on SoundCloud (try ‘back room’ or ‘please be’). He makes music as dreamr, too.",
+    text: "Josh debuted with the digital single “Fairytale” under Korean hip hop label Dejavu Group (the video is on YouTube). On his own he posts as kelix on SoundCloud (try ‘back room’ or ‘please be’), “all i need” is on Spotify, and he's @atkelix on Instagram. He previously released music as dreamr.",
     link: "https://soundcloud.com/atkelix",
     label: "SoundCloud",
   },

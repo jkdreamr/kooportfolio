@@ -152,7 +152,7 @@ const topics: Record<string, readonly NpcTopic[]> = {
       id: "kelix",
       label: "Who is kelix?",
       reply:
-        "Josh's name on SoundCloud, @atkelix on Instagram. He debuted with the single “Fairytale” under Dejavu Group, a Korean hip hop label.",
+        "Josh's name on SoundCloud, @atkelix on Instagram. He debuted with the digital single “Fairytale” under Dejavu Group, a Korean hip hop label.",
     },
   ],
   hooper: [
@@ -330,7 +330,7 @@ const topics: Record<string, readonly NpcTopic[]> = {
     ask(
       "josh",
       "What does Josh write?",
-      "Poems, songs, essays. Lots of all three. He even built his own songwriting tool, Verses.",
+      "He loves to write: poetry, songwriting, essays. He even built his own songwriting tool, Verses.",
     ),
   ],
   "play-caller": [
@@ -646,7 +646,7 @@ const topics: Record<string, readonly NpcTopic[]> = {
     ask(
       "else",
       "What else does he do?",
-      "Makes music as kelix on SoundCloud, writes poems and essays, plays Go and badminton, and cheers for LeBron and the 49ers. His code's on GitHub under jkdreamr.",
+      "Makes music as kelix on SoundCloud, loves writing poetry and essays, plays Go and badminton, and cheers for LeBron and the 49ers. His code's on GitHub under jkdreamr.",
     ),
     ask(
       "site",
@@ -702,7 +702,7 @@ const topics: Record<string, readonly NpcTopic[]> = {
     ask(
       "kelix",
       "Is kelix Josh?",
-      "Yeah, that's his. kelix on SoundCloud, @atkelix on Instagram. He makes music as dreamr too.",
+      "Yeah, that's his. kelix on SoundCloud, @atkelix on Instagram. He previously released music as dreamr.",
     ),
     ask(
       "tracks",

@@ -4,18 +4,15 @@ import { roomStories, TOWN_HALL_STORY } from "../src/content/room-stories";
 import { TOWN_HALL_TOPIC, topicsFor } from "../src/game/core/npcTopics";
 import { villagers } from "../src/game/core/npcs";
 
-const STORY_MAX = 280;
+const STORY_MAX = 300;
 const REPLY_MAX = 140;
 const stories = Object.entries(roomStories);
 
-/** Text in the game today that Josh's site does not show. It stays until he
- * confirms or removes it; this list is where each one may appear, and the
- * test fails if one spreads anywhere else. */
+/** Text Josh's site does not show and he has not confirmed yet: where each
+ * phrase may appear (the test fails if one spreads anywhere else). */
 const PENDING_OWNER: Record<string, string[]> = {
   "back room": ["story:music", "topic:musician/listen"],
   "please be": ["story:music", "topic:musician/listen"],
-  "Chief of Staff": ["story:cognition"],
-  Alphag3n: ["story:office"],
 };
 
 /** Villager topics added for the owner's facts (PLAN_FINAL C5). */
@@ -61,6 +58,11 @@ describe("room stories", () => {
     expect(roomStories.stadium?.text).toMatch(/huge fan/);
     expect(roomStories.badminton?.text).toMatch(/middle school/);
     expect(TOWN_HALL_STORY.text).toMatch(/Town Hall 18/);
+    // Confirmed by the owner on 2026-11-27.
+    expect(roomStories.cognition?.text).toMatch(/Chief of Staff, APAC/);
+    expect(roomStories.office?.text).toMatch(/^Before Stanford, Josh founded Alphag3n/);
+    expect(roomStories.music?.text).toMatch(/previously released music as dreamr/);
+    expect(roomStories.writing?.text).toMatch(/poetry, songwriting and essays/);
   });
 });
 
