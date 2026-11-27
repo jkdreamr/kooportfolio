@@ -90,47 +90,115 @@ function tuftGeometry(blades = BLADES, lod = 1, widthScale = 1) {
   return geometry;
 }
 
-/** A flower clump: four thin stalks (3 tris) each topped by a small
- * crossed bloom (6 tris). The grass shader colours root → instance colour
- * (the bloom's) → a pale tip, so the stalks stay green low and the heads
- * take the flower colour. LOD tag 0: never faded by the near/far band. */
+/** Explore tuft (high tier): many short, wide, softly curved blades in a
+ * low clump — each blade is 2 triangles (root pair, one shoulder vertex and a
+ * leaning tip), so a 12-blade tuft costs 24 tris yet reads as a soft mound,
+ * not a fan of spikes. The shader gives it a rounded clump normal. */
+function softTuftGeometry(blades: number, lod: number, spread = 1) {
+  const positions: number[] = [],
+    normals: number[] = [],
+    uvs: number[] = [],
+    wide: number[] = [],
+    index: number[] = [];
+  for (let b = 0; b < blades; b++) {
+    const angle = (b / blades) * Math.PI * 2 + ((b * 53) % 11) * 0.21;
+    // Inner blades stand taller, outer ones splay low: a dome silhouette.
+    const ring = (b % 3) / 2;
+    const reach = (0.015 + ring * 0.07) * spread;
+    const height = 0.2 - ring * 0.07 + ((b * 37) % 5) * 0.012;
+    const lean = (0.05 + ring * 0.11) * spread;
+    const width = (0.042 + (b % 2) * 0.012) * spread;
+    const dx = Math.cos(angle),
+      dz = Math.sin(angle);
+    const ox = dx * reach,
+      oz = dz * reach;
+    const sx = -dz * width,
+      sz = dx * width;
+    const base = positions.length / 3;
+    // Root pair, a shoulder on one side at 55% (the curve) and the tip.
+    const mx = ox + dx * lean * 0.35 - sx * 0.55,
+      mz = oz + dz * lean * 0.35 - sz * 0.55;
+    const tx = ox + dx * lean,
+      tz = oz + dz * lean;
+    positions.push(ox - sx, 0, oz - sz, ox + sx, 0, oz + sz, mx, height * 0.55, mz, tx, height, tz);
+    uvs.push(0, 0, 1, 0, 0, 0.55, 0.5, 1);
+    for (let k = 0; k < 4; k++) normals.push(dx * 0.35, 1, dz * 0.35);
+    wide.push(0, 0, 0, 0, 0, 0, 0, 0);
+    index.push(base, base + 1, base + 2, base + 1, base + 3, base + 2);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
+  geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setAttribute("aWide", new THREE.Float32BufferAttribute(wide, 2));
+  geometry.setAttribute(
+    "aLod",
+    new THREE.Float32BufferAttribute(new Float32Array(positions.length / 3).fill(lod), 1),
+  );
+  geometry.setIndex(index);
+  geometry.normalizeNormals();
+  return geometry;
+}
+
+/** A flower clump (explore, high): three thin one-triangle stalks, each
+ * topped by a small cupped five-petal star (10 tris) whose raised centre
+ * vertex carries the "centre" flag (uv.x = 2) — the shader paints it a
+ * bright cream-yellow that fades out into the petal colour (the instance
+ * colour). LOD tag 0: never faded by the near/far band. */
 function flowerGeometry() {
   const positions: number[] = [],
     normals: number[] = [],
     uvs: number[] = [],
     wide: number[] = [],
     index: number[] = [];
-  const stems = 4;
+  const stems = 3;
+  const PETALS = 5;
   for (let b = 0; b < stems; b++) {
     const angle = (b / stems) * Math.PI * 2 + 0.4;
-    const reach = 0.05 + (b % 2) * 0.07;
-    const height = 0.34 + ((b * 29) % 5) * 0.045;
+    const reach = 0.035 + (b % 2) * 0.05;
+    const height = 0.17 + ((b * 29) % 5) * 0.022;
     const ox = Math.cos(angle) * reach,
       oz = Math.sin(angle) * reach;
-    const lean = 0.06 + (b % 3) * 0.03;
+    const lean = 0.03 + (b % 3) * 0.015;
     const tx = ox + Math.cos(angle) * lean,
       tz = oz + Math.sin(angle) * lean;
-    const w = 0.014;
+    const w = 0.012;
     let base = positions.length / 3;
-    // Stalk: a thin two-row blade (uv 0 → 0.62).
-    positions.push(ox - w, 0, oz, ox + w, 0, oz, tx - w * 0.6, height * 0.6, tz, tx + w * 0.6, height * 0.6, tz, tx, height, tz);
-    uvs.push(0, 0, 1, 0, 0, 0.34, 1, 0.34, 0.5, 0.58);
-    for (let k = 0; k < 5; k++) normals.push(0, 1, 0);
-    wide.push(-w, 0, w, 0, -w * 0.6, 0, w * 0.6, 0, 0, 0);
-    index.push(base, base + 1, base + 2, base + 1, base + 3, base + 2, base + 2, base + 3, base + 4);
-    // Bloom: three crossed quads round the stalk top, at uv 0.58-0.6 (full
-    // instance colour, before the pale tip blend starts).
-    const r = 0.075 + (b % 2) * 0.025;
-    for (let q = 0; q < 3; q++) {
-      const a = angle + q * (Math.PI / 3);
-      const cx = Math.cos(a) * r,
-        cz = Math.sin(a) * r;
-      base = positions.length / 3;
-      positions.push(tx - cx, height - 0.02, tz - cz, tx + cx, height - 0.02, tz + cz, tx - cx * 0.7, height + r, tz - cz * 0.7, tx + cx * 0.7, height + r, tz + cz * 0.7);
-      uvs.push(0, 0.58, 1, 0.58, 0, 0.6, 1, 0.6);
-      for (let k = 0; k < 4; k++) normals.push(0, 1, 0);
-      wide.push(0, 0, 0, 0, 0, 0, 0, 0);
-      index.push(base, base + 1, base + 2, base + 1, base + 3, base + 2);
+    // Stalk: one thin triangle (uv 0 → 0.34, green).
+    positions.push(ox - w, 0, oz, ox + w, 0, oz, tx, height, tz);
+    uvs.push(0, 0, 1, 0, 0.5, 0.16);
+    for (let k = 0; k < 3; k++) normals.push(0, 1, 0);
+    wide.push(0, 0, 0, 0, 0, 0);
+    index.push(base, base + 1, base + 2);
+    // Bloom: a centre and five petals, each a kite (centre, side, tip, side).
+    const r = 0.042 + (b % 2) * 0.012;
+    const tilt = 0.55; // cupped: petal tips rise, so the low camera sees the face
+    const spin = angle * 1.7;
+    base = positions.length / 3;
+    positions.push(tx, height + r * 0.22, tz);
+    uvs.push(2, 0.42);
+    normals.push(0, 1, 0);
+    wide.push(0, 0);
+    for (let k = 0; k < PETALS; k++) {
+      const a = spin + (k / PETALS) * Math.PI * 2;
+      const h = (Math.PI / PETALS) * 0.95;
+      // Side points (shared shape, not shared vertices: crisp petal gaps).
+      positions.push(
+        tx + Math.cos(a - h) * r * 0.42,
+        height + r * tilt * 0.3,
+        tz + Math.sin(a - h) * r * 0.42,
+        tx + Math.cos(a) * r,
+        height + r * tilt,
+        tz + Math.sin(a) * r,
+        tx + Math.cos(a + h) * r * 0.42,
+        height + r * tilt * 0.3,
+        tz + Math.sin(a + h) * r * 0.42,
+      );
+      uvs.push(0.5, 0.42, 0.5, 0.42, 0.5, 0.42);
+      for (let q = 0; q < 3; q++) normals.push(Math.cos(a) * 0.3, 1, Math.sin(a) * 0.3);
+      wide.push(0, 0, 0, 0, 0, 0);
+      const p = base + 1 + k * 3;
+      index.push(base, p, p + 1, base, p + 1, p + 2);
     }
   }
   const geometry = new THREE.BufferGeometry();
@@ -140,6 +208,7 @@ function flowerGeometry() {
   geometry.setAttribute("aWide", new THREE.Float32BufferAttribute(wide, 2));
   geometry.setAttribute("aLod", new THREE.Float32BufferAttribute(new Float32Array(positions.length / 3), 1));
   geometry.setIndex(index);
+  geometry.normalizeNormals();
   return geometry;
 }
 
@@ -173,6 +242,11 @@ export const grassUniforms = {
   /** LOD centre (x, y = z), near radius (z; huge = no LOD) and the explore
    * softness (w, the view blend: wider blades, softer tips). */
   uGrassLod: { value: new THREE.Vector4(0, 0, 1e5, 0) },
+  /** The soft explore look (F4): the view blend on the high tier, 0 on
+   * medium/low and in the diorama — so those keep today's shading exactly.
+   * Short, size-compressed tufts, a rounded clump normal (no dark backface
+   * tips), lawn roots → light tips, and the flowers' bright centres. */
+  uGrassStyle: { value: 0 },
 };
 
 function grassMaterial() {
@@ -192,16 +266,28 @@ function grassMaterial() {
         ${ENV_UNIFORMS_GLSL}
         uniform vec3 uGrassFocus;
         uniform vec4 uGrassLod;
+        uniform float uGrassStyle;
         attribute vec2 aWide;
         attribute float aLod;
         varying float vGrassT;
+        varying float vGrassU;
         varying vec3 vGrassWorld;`,
+      )
+      .replace(
+        "#include <beginnormal_vertex>",
+        `#include <beginnormal_vertex>
+        // Explore: one rounded normal per clump (a soft mound of light).
+        objectNormal = mix(objectNormal, normalize(vec3(position.x * 4.0, 1.0, position.z * 4.0)), uGrassStyle);`,
       )
       .replace(
         "#include <begin_vertex>",
         `vec3 transformed = vec3(position);
         transformed.xz += aWide * 0.4 * uGrassLod.w;
         vGrassT = uv.y;
+        vGrassU = uv.x;
+        // Explore: tall instances shrink toward a common, under-knee height
+        // (size ~ scale^0.45 instead of scale).
+        transformed *= mix(1.0, pow(max(length(instanceMatrix[1].xyz), 0.2), -0.55), uGrassStyle);
         vec4 grassRoot = instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
         float grassFade = 1.0 - smoothstep(uGrassFocus.z * 0.78, uGrassFocus.z, distance(grassRoot.xz, uGrassFocus.xy));
         float grassBand = smoothstep(uGrassLod.z - 1.5, uGrassLod.z + 1.5, distance(grassRoot.xz, uGrassLod.xy));
@@ -231,14 +317,30 @@ function grassMaterial() {
         uniform vec3 uGrassRoot;
         uniform vec3 uGrassTip;
         uniform vec4 uGrassLod;
+        uniform float uGrassStyle;
         varying float vGrassT;
+        varying float vGrassU;
         varying vec3 vGrassWorld;`,
+      )
+      .replace(
+        "#include <normal_fragment_begin>",
+        `#include <normal_fragment_begin>
+        // Explore: the clump normal on both faces (a flipped back face reads
+        // as a dark tip).
+        if (uGrassStyle > 0.5) normal = normalize(vNormal);`,
       )
       .replace(
         "#include <color_fragment>",
         `#include <color_fragment>
-        vec3 grassBody = mix(uGrassRoot, diffuseColor.rgb, smoothstep(0.0, 0.55, vGrassT));
-        diffuseColor.rgb = mix(grassBody, uGrassTip, smoothstep(0.62, 1.0, vGrassT) * mix(0.55, 0.35, uGrassLod.w));
+        vec3 grassInst = diffuseColor.rgb;
+        vec3 grassBody = mix(uGrassRoot, grassInst, smoothstep(0.0, 0.55, vGrassT));
+        grassBody = mix(grassBody, uGrassTip, smoothstep(0.62, 1.0, vGrassT) * mix(0.55, 0.35, uGrassLod.w));
+        // Explore: lawn root → body → a long, light tip; flower centres
+        // (uv.x = 2) cream-yellow.
+        vec3 grassSoft = mix(uGrassRoot, grassInst, smoothstep(0.0, 0.4, vGrassT));
+        grassSoft = mix(grassSoft, uGrassTip, smoothstep(0.3, 1.0, vGrassT) * 0.6);
+        grassSoft = mix(grassSoft, vec3(1.0, 0.86, 0.36), smoothstep(1.5, 1.9, vGrassU));
+        diffuseColor.rgb = mix(grassBody, grassSoft, uGrassStyle);
         // Explore: a lighter, sunnier carpet (the low camera sees blades
         // against the lawn, where the diorama's dark roots read as sockets).
         diffuseColor.rgb *= 1.0 + 0.14 * uGrassLod.w * smoothstep(0.2, 0.9, vGrassT);`,
@@ -250,10 +352,12 @@ function grassMaterial() {
         float grassBack = pow(saturate(dot(-grassView, uEnvSunDir)), 3.0);
         totalEmissiveRadiance += diffuseColor.rgb * uEnvSunColor * (grassBack * 0.45 + 0.05) * vGrassT * (1.0 - uEnvNight);
         // Sky fill on the shaded side of blades (explore only, via the blend).
-        totalEmissiveRadiance += diffuseColor.rgb * uEnvSky * 0.16 * uGrassLod.w * (0.4 + 0.6 * vGrassT);`,
+        totalEmissiveRadiance += diffuseColor.rgb * uEnvSky * 0.16 * uGrassLod.w * (0.4 + 0.6 * vGrassT);
+        // Explore: sunlit tips glow a little warmer.
+        totalEmissiveRadiance += diffuseColor.rgb * uEnvSunColor * 0.07 * uGrassStyle * smoothstep(0.5, 1.0, vGrassT) * (1.0 - uEnvNight);`,
       );
   };
-  material.customProgramCacheKey = () => "env-grass-v2";
+  material.customProgramCacheKey = () => "env-grass-v3";
   return material;
 }
 
@@ -263,6 +367,11 @@ const farGeometry = tuftGeometry(3, 2, 1.7);
 /** Medium's only tuft: the far shape, tagged near (so it never fades out
  * inside the near radius). */
 const mediumGeometry = tuftGeometry(3, 1, 1.7);
+/** Explore, high tier: the soft near tuft (12 blades, 24 tris) and the
+ * soft far tuft (6 blades, 12 tris). Swapped in on the same meshes when the
+ * view turns to explore (geometry only: same material and program). */
+const softNear = softTuftGeometry(12, 1);
+const softFar = softTuftGeometry(6, 2, 1.35);
 /** Explore-only flower clumps (high tier). */
 const flowerTuft = flowerGeometry();
 /** Visible flower clump cap (explore, high). */
@@ -456,6 +565,14 @@ export function Grass({ world }: { world: WorldId }) {
     if (!mesh || !far || !active || !field) return;
     const blend = viewRuntime.blend;
     const explore = blend > 0.5;
+    const soft = tier === "high";
+    grassUniforms.uGrassStyle.value = soft ? blend : 0;
+    // High: the soft tufts while the view is (mostly) explore; the
+    // diorama's own tuft otherwise (its look is unchanged).
+    if (soft) {
+      const nearGeometry = explore ? softNear : geometry;
+      if (mesh.geometry !== nearGeometry) mesh.geometry = nearGeometry;
+    }
     // Softer explore look, eased with the blend (uniforms only).
     rootColor.set(PALETTES[world].root).lerp(lawnRoot.set(LAWN_ROOT[world]), blend);
     grassUniforms.uGrassRoot.value.copy(rootColor);
@@ -556,13 +673,13 @@ export function Grass({ world }: { world: WorldId }) {
         dispose={null}
       />
       <instancedMesh
-        key={`far-${exploreCap}`}
+        key={`far-${exploreCap}:${tier}`}
         ref={(mesh) => {
           farRef.current = mesh;
           attach(exploreCap)(mesh);
         }}
         name="env-grass-far"
-        args={[farGeometry, material, exploreCap]}
+        args={[tier === "high" ? softFar : farGeometry, material, exploreCap]}
         receiveShadow
         frustumCulled={false}
         raycast={noRaycast}

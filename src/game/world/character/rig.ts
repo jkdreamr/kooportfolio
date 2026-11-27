@@ -286,7 +286,7 @@ function buildGeometries(
           [0.84, 0.04],
           [0, 0.1],
         ],
-    seg(7, 5, 4),
+    seg(6, 5, 4),
   );
   const torso = lathe(
     low

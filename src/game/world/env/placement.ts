@@ -366,9 +366,12 @@ function* placeGrass(world: WorldId): Generator<void, GrassTuft[]> {
           ? Math.hypot((x - pond.x) / (pond.radiusX + 1.2), (z - pond.z) / (pond.radiusZ + 1.2)) - 1
           : 9;
         const wet = Math.max(0, 1 - Math.max(0, pondGap) * 2.5);
-        const extraKeep = Math.min(1, 0.62 + 0.4 * field + edgeBoost * 0.7 + wet * 0.4);
-        if (fhash(x, z, 33) > extraKeep) continue;
+        // F4: the open lawn stays mostly lawn (about a third kept); edges,
+        // paths and the water fill in.
+        const extraKeep = Math.min(1, 0.22 + 0.3 * field + edgeBoost * 1.1 + wet * 0.9);
         const rim = Math.max(edgeBoost, wet);
+        const flower = rim > 0.15 && clump(x, z, 2.2, 63) > 0.5 && fhash(x, z, 65) < 0.7;
+        if (!flower && fhash(x, z, 33) > extraKeep) continue;
         // Tall along paths and the pond, short on the island's edge (a lake
         // or the view beyond stays visible over it).
         const pathEdge = Math.max(0, 1 - edge / 1.6);
@@ -381,7 +384,7 @@ function* placeGrass(world: WorldId): Generator<void, GrassTuft[]> {
           shade: fhash(x, z, 47) * 0.75 + clump(x, z, 9, 3) * 0.25,
           reed: false,
           extra: true,
-          flower: rim > 0.15 && clump(x, z, 2.2, 63) > 0.5 && fhash(x, z, 65) < 0.7,
+          flower,
           rank: 1 + fhash(x, z, 53),
         });
         continue;
