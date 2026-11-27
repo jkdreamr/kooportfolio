@@ -515,10 +515,10 @@ export const CAST: Record<string, Entry> = {
     }),
   },
   "tower-fan": {
-    why: "K-pop fan off to a concert: oversized streetwear hoodie, cap, pleated skirt, chunky boots, glowing lightstick.",
+    why: "K-pop fan off to a concert: trendy layered hair, oversized streetwear hoodie, cap, pleated skirt, chunky boots, glowing lightstick.",
     make: (n) => ({
       skin: n.skin,
-      hair: { style: "long", color: "#3a2a3a" },
+      hair: { style: "layered", color: "#3a2a3a" },
       top: { kind: "hoodie", color: n.color },
       bottom: { kind: "skirt", color: "#2a2b33" },
       head: { kind: "cap", color: "#2a2b33", band: n.color },
@@ -627,10 +627,10 @@ export const CAST: Record<string, Entry> = {
     }),
   },
   picnicker: {
-    why: "Found a spot in the shade: sundress, wide straw sun hat, picnic basket.",
+    why: "Found a spot in the shade: sundress, braids under a wide straw sun hat, picnic basket.",
     make: (n) => ({
       skin: n.skin,
-      hair: { style: "long", color: H.chestnut },
+      hair: { style: "braids", color: H.chestnut },
       top: { kind: "tee", color: n.color, sleeves: "short" },
       bottom: { kind: "long-skirt", color: n.color },
       head: { kind: "straw", color: "#e6c98a", band: "#c96a5a" },
