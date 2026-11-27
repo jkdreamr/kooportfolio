@@ -8,7 +8,8 @@ import { isInterior } from "../core/world";
 import { usePresented } from "../engine/presented";
 
 const palettes = DAYLIGHT_KEYS.map((key) => ({
-  top: new THREE.Color(key.top),
+  zenith: new THREE.Color(key.zenith),
+  mid: new THREE.Color(key.mid),
   horizon: new THREE.Color(key.horizon),
   sun: new THREE.Color(key.sun),
   sky: new THREE.Color(key.sky),
@@ -21,7 +22,8 @@ const indoor = {
   ground: new THREE.Color("#64533c"),
   ambient: new THREE.Color("#f1e2c8"),
 };
-
+/** B5: distance haze moves this far from the horizon toward the mid sky. */
+export const HAZE_TOWARD_MID = 0.3;
 const skyVertex = `
   varying vec2 vUv;
   void main() {
@@ -33,6 +35,7 @@ const skyVertex = `
 // One background draw, no textures, postprocessing, additional shadow maps or assets.
 const skyFragment = `
   uniform vec3 topColor;
+  uniform vec3 midColor;
   uniform vec3 horizonColor;
   uniform vec3 sunColor;
   uniform float night;
@@ -45,18 +48,28 @@ const skyFragment = `
     return 1.0 - smoothstep(radius - 0.001, radius + 0.001, d);
   }
   void main() {
-    vec3 sky = mix(horizonColor, topColor, smoothstep(0.0, 0.7, vUv.y));
+    // Three stops (B5): horizon → mid (about 35° up) → zenith.
+    float y = vUv.y;
+    vec3 sky = mix(horizonColor, midColor, smoothstep(0.0, 0.45, y));
+    sky = mix(sky, topColor, smoothstep(0.45, 1.0, y));
     vec2 grid = vUv * vec2(aspect, 1.0) * 85.0;
     vec2 cell = floor(grid);
     float seed = fract(sin(dot(cell, vec2(127.1, 311.7))) * 43758.5453);
     float star = (1.0 - smoothstep(0.025, 0.12, length(fract(grid) - 0.5)))
       * step(0.965, seed) * smoothstep(0.35, 0.9, vUv.y);
     sky += vec3(star * night * stars * 0.7);
-    float sun = disc(sunPosition, 0.027) * (1.0 - night);
+    // Sun: a soft disc with a 3× additive glow (8% at its peak).
+    float sunD = length((vUv - sunPosition) * vec2(aspect, 1.0));
+    float sunOn = 1.0 - night;
+    float glow = 1.0 - smoothstep(0.0, 0.027 * 3.0, sunD);
+    sky += sunColor * glow * glow * 0.08 * sunOn;
+    float sun = (1.0 - smoothstep(0.022, 0.03, sunD)) * sunOn;
     sky = mix(sky, sunColor * 1.15, sun * 0.85);
     float moon = disc(vec2(0.81, 0.8), 0.025)
       * (1.0 - disc(vec2(0.821, 0.81), 0.023));
     sky = mix(sky, vec3(0.78, 0.86, 1.0), moon * night);
+    // Half-a-level dither: no banding in the long gradient.
+    sky += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
     gl_FragColor = vec4(sky, 1.0);
     #include <colorspace_fragment>
   }
@@ -74,8 +87,10 @@ export function TimeOfDayLighting({ dimmed = false }: { dimmed?: boolean }) {
   } | null>(null);
   const colors = useMemo(
     () => ({
-      top: new THREE.Color(),
+      zenith: new THREE.Color(),
+      mid: new THREE.Color(),
       horizon: new THREE.Color(),
+      haze: new THREE.Color(),
       sun: new THREE.Color(),
       sky: new THREE.Color(),
       ground: new THREE.Color(),
@@ -84,8 +99,10 @@ export function TimeOfDayLighting({ dimmed = false }: { dimmed?: boolean }) {
   );
   const uniforms = useMemo(
     () => ({
-      topColor: { value: colors.top },
+      topColor: { value: colors.zenith },
+      midColor: { value: colors.mid },
       horizonColor: { value: colors.horizon },
+
       sunColor: { value: colors.sun },
       night: { value: 0 },
       aspect: { value: 1 },
@@ -120,8 +137,13 @@ export function TimeOfDayLighting({ dimmed = false }: { dimmed?: boolean }) {
     const light = sampleDaylight(daylightClock.hour);
     const from = palettes[light.index],
       to = palettes[light.index + 1];
-    for (const name of ["top", "horizon", "sun", "sky", "ground"] as const)
+    for (const name of ["zenith", "mid", "horizon", "sun", "sky", "ground"] as const)
       colors[name].copy(from[name]).lerp(to[name], light.blend);
+    // Distance haze between the horizon and the mid sky (B5).
+    colors.haze.copy(colors.horizon).lerp(colors.mid, HAZE_TOWARD_MID);
+    // The scene background stays the horizon (the loading shell matches it).
+    if (world.background instanceof THREE.Color)
+      world.background.copy(interior ? indoor.backdrop : colors.horizon);
 
     // Interior objects retain warm, readable light instead of turning blue-black.
     if (interior) {
@@ -129,10 +151,7 @@ export function TimeOfDayLighting({ dimmed = false }: { dimmed?: boolean }) {
       colors.sky.lerp(indoor.sky, 0.65);
       colors.ground.lerp(indoor.ground, 0.65);
     }
-    if (world.background instanceof THREE.Color)
-      world.background.copy(interior ? indoor.backdrop : colors.horizon);
-    if (world.fog)
-      world.fog.color.copy(interior ? indoor.backdrop : colors.horizon);
+    if (world.fog) world.fog.color.copy(interior ? indoor.backdrop : colors.haze);
     if (!lights.current) {
       const sun = world.getObjectByName("world-sun");
       const fill = world.getObjectByName("world-fill");
@@ -169,6 +188,7 @@ export function TimeOfDayLighting({ dimmed = false }: { dimmed?: boolean }) {
       live.sunPosition.value.set(0.2 + (daylightClock.hour / 24) * 0.55, 0.78);
     }
     if (sky.current) sky.current.visible = !interior;
+
   }, -1);
 
   return (

@@ -51,11 +51,19 @@ export function clockText(hour: number) {
   return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 }
 
+/**
+ * Sky keys. The sky is three stops (B5): `zenith` at the top of the frame,
+ * `mid` around 35° up and `horizon` at the bottom; distance haze sits 30% of
+ * the way from the horizon toward `mid`, so far land goes blue-grey. `top` is
+ * the old two-stop zenith, kept for anything that still reads it.
+ */
 export const DAYLIGHT_KEYS = [
   // Moonlight stays bright enough to navigate and play the outdoor games.
   {
     hour: 0,
     top: "#101e40",
+    zenith: "#0b1634",
+    mid: "#1d2c54",
     horizon: "#34456c",
     sun: "#b6ccff",
     sky: "#94b4ef",
@@ -69,6 +77,8 @@ export const DAYLIGHT_KEYS = [
   {
     hour: 4.5,
     top: "#202d52",
+    zenith: "#18234a",
+    mid: "#3b406b",
     horizon: "#696382",
     sun: "#bfcafa",
     sky: "#a0b2e0",
@@ -82,6 +92,8 @@ export const DAYLIGHT_KEYS = [
   {
     hour: 5.5,
     top: "#626995",
+    zenith: "#4a5488",
+    mid: "#9a8aa8",
     horizon: "#d9a29d",
     sun: "#f4b898",
     sky: "#c4c3e4",
@@ -95,6 +107,8 @@ export const DAYLIGHT_KEYS = [
   {
     hour: 6.5,
     top: "#a5bfce",
+    zenith: "#7d9fc4",
+    mid: "#c4c6cf",
     horizon: "#f3c99d",
     sun: "#ffd0a0",
     sky: "#d5d7ec",
@@ -108,6 +122,8 @@ export const DAYLIGHT_KEYS = [
   {
     hour: 9,
     top: "#7fb0dc",
+    zenith: "#4f7fc0",
+    mid: "#86aee0",
     horizon: "#dce5c7",
     sun: "#fff0cc",
     sky: "#dceaff",
@@ -121,6 +137,8 @@ export const DAYLIGHT_KEYS = [
   {
     hour: 12,
     top: "#7fb0dc",
+    zenith: "#4f7fc0",
+    mid: "#86aee0",
     horizon: "#dce5c7",
     sun: "#fff0cc",
     sky: "#dceaff",
@@ -134,6 +152,8 @@ export const DAYLIGHT_KEYS = [
   {
     hour: 16,
     top: "#6f9fd0",
+    zenith: "#4a76b6",
+    mid: "#84a9d8",
     horizon: "#e4dcc8",
     sun: "#ffddaf",
     sky: "#d3dced",
@@ -147,6 +167,8 @@ export const DAYLIGHT_KEYS = [
   {
     hour: 18,
     top: "#6f86b0",
+    zenith: "#40528c",
+    mid: "#c98f8a",
     horizon: "#e9ab85",
     sun: "#ffb477",
     sky: "#c6b5d1",
@@ -160,6 +182,8 @@ export const DAYLIGHT_KEYS = [
   {
     hour: 19.5,
     top: "#303c65",
+    zenith: "#222c52",
+    mid: "#5e5b80",
     horizon: "#9b8098",
     sun: "#bfcafa",
     sky: "#a0b2e0",
@@ -173,6 +197,8 @@ export const DAYLIGHT_KEYS = [
   {
     hour: 21,
     top: "#101e40",
+    zenith: "#0b1634",
+    mid: "#1d2c54",
     horizon: "#34456c",
     sun: "#b6ccff",
     sky: "#94b4ef",
@@ -186,6 +212,8 @@ export const DAYLIGHT_KEYS = [
   {
     hour: 24,
     top: "#101e40",
+    zenith: "#0b1634",
+    mid: "#1d2c54",
     horizon: "#34456c",
     sun: "#b6ccff",
     sky: "#94b4ef",

@@ -6,16 +6,23 @@ import { useWorldActive } from "../../engine/active";
 import { envUniforms } from "./uniforms";
 
 /**
- * Sky depth for the explore view (PLAN2 §1.3): 12 soft cloud billboards on a
- * horizon ring that travels with the camera (so they sit at "infinity"), one
- * instanced draw of a MeshBasicMaterial with a canvas-painted alpha. Shown
- * only while the view blend is above 0, faded in with it; tinted each frame
- * from the horizon (fog) colour and the sun, so they follow the time of day.
- * Unfogged (the haze would erase them), never shadowed.
+ * Sky depth (PLAN2 §1.3, B5): soft cloud billboards on two horizon rings that
+ * travel with the camera (so they sit at "infinity"): 12 near, and 6 larger,
+ * fainter ones at 1.6× the distance. One instanced draw of a
+ * MeshBasicMaterial with a canvas-painted alpha, drifting 0.4° a minute.
+ * Shown in both views: in the walk view on the horizon, in the diorama far
+ * behind and below the island (beyond it, so they never cross it). Tinted
+ * each frame from the haze (fog) colour and the sun, so they follow the time
+ * of day; the far ring leans toward the haze, which reads as half the
+ * opacity. Unfogged (the haze would erase them), never shadowed.
  */
 
-const COUNT = 12;
+const NEAR = 12;
+const FAR = 6;
+const COUNT = NEAR + FAR;
 const RING = 260;
+/** Drift: 0.4° per minute, in radians per second. */
+const DRIFT = ((0.4 * Math.PI) / 180) / 60;
 const noRaycast = () => undefined;
 
 function random(seed: number) {
@@ -85,45 +92,69 @@ function cloudMaterial() {
 }
 const geometry = new THREE.PlaneGeometry(1, 0.5);
 const tint = new THREE.Color(),
-  warm = new THREE.Color();
+  warm = new THREE.Color(),
+  faint = new THREE.Color();
+const WHITE = new THREE.Color(1, 1, 1);
 
 export function Clouds() {
   const active = useWorldActive();
   const group = useRef<THREE.Group>(null);
   const mesh = useRef<THREE.InstancedMesh>(null);
   const cloudMat = useMemo(cloudMaterial, []);
+  const drift = useRef(0);
   useLayoutEffect(() => {
     const m = mesh.current;
     if (!m) return;
     const rand = random(77);
     const object = new THREE.Object3D();
     for (let i = 0; i < COUNT; i++) {
-      const angle = (i / COUNT) * Math.PI * 2 + (rand() - 0.5) * 0.35;
-      const radius = RING * (0.85 + rand() * 0.3);
-      const width = 70 + rand() * 60;
-      object.position.set(Math.cos(angle) * radius, 6 + rand() * 22, Math.sin(angle) * radius);
+      const far = i >= NEAR;
+      const k = far ? i - NEAR : i;
+      const n = far ? FAR : NEAR;
+      const angle = (k / n) * Math.PI * 2 + (rand() - 0.5) * 0.35 + (far ? Math.PI / FAR : 0);
+      const radius = RING * (far ? 1.6 : 1) * (0.85 + rand() * 0.3);
+      // Low on the horizon and modest in size: distant cumulus, not a blob
+      // filling the top of a walk-view frame.
+      const width = (46 + rand() * 40) * (far ? 1.6 : 1);
+      object.position.set(Math.cos(angle) * radius, (far ? 10 : 3) + rand() * 14, Math.sin(angle) * radius);
       object.lookAt(0, object.position.y, 0);
       object.scale.set(width * (rand() < 0.5 ? -1 : 1), width * (0.8 + rand() * 0.3), 1);
       object.updateMatrix();
       m.setMatrixAt(i, object.matrix);
+      m.setColorAt(i, WHITE);
     }
     m.instanceMatrix.needsUpdate = true;
+    if (m.instanceColor) m.instanceColor.needsUpdate = true;
   }, []);
-  useFrame(({ camera, scene }) => {
+  useFrame(({ camera, scene }, delta) => {
     const g = group.current;
-    if (!g) return;
-    const blend = active ? viewRuntime.blend : 0;
-    // Hidden by count, never by `visible`: the program compiles in warmup.
     const m = mesh.current;
-    if (m) m.count = blend > 0 ? COUNT : 0;
-    if (blend <= 0) return;
-    g.position.set(camera.position.x, 0, camera.position.z);
+    if (!g || !m) return;
+    // Hidden by count, never by `visible`: the program compiles in warmup.
+    m.count = active ? COUNT : 0;
+    if (!active) return;
+    const blend = viewRuntime.blend;
+    drift.current = (drift.current + Math.min(delta, 0.1) * DRIFT) % (Math.PI * 2);
+    g.rotation.y = drift.current;
+    // Diorama: a ring well beyond the island (1.45× the viewing distance)
+    // and below it; walk view: the horizon ring at eye level.
+    const reach = typeof camera.userData.viewDistance === "number" ? camera.userData.viewDistance : RING;
+    const scale = THREE.MathUtils.lerp(Math.max(1, (reach * 1.45) / RING), 1, blend);
+    g.scale.setScalar(scale);
+    g.position.set(camera.position.x, THREE.MathUtils.lerp(-70, 0, blend), camera.position.z);
     const fog = scene.fog as THREE.Fog | null;
     tint.set(fog ? fog.color : "#cfe0ee");
-    warm.copy(envUniforms.uEnvSunColor.value).multiplyScalar(0.5);
-    tint.lerp(warm.addScalar(0.45), 0.45 * (1 - envUniforms.uEnvNight.value));
-    cloudMat.color.copy(tint);
-    cloudMat.opacity = 0.82 * Math.min(1, blend * 1.5);
+    const own = tintLit(tint);
+    // The far ring leans toward the haze: half as present as the near one.
+    faint.setRGB(
+      THREE.MathUtils.lerp(1, tint.r / Math.max(1e-3, own.r), 0.45),
+      THREE.MathUtils.lerp(1, tint.g / Math.max(1e-3, own.g), 0.45),
+      THREE.MathUtils.lerp(1, tint.b / Math.max(1e-3, own.b), 0.45),
+    );
+    for (let i = NEAR; i < COUNT; i++) m.setColorAt(i, faint);
+    if (m.instanceColor) m.instanceColor.needsUpdate = true;
+    cloudMat.color.copy(own);
+    cloudMat.opacity = 0.8 * THREE.MathUtils.lerp(0.6, 1, blend);
   });
   return (
     <group ref={group} name="env-clouds">
@@ -137,4 +168,11 @@ export function Clouds() {
       />
     </group>
   );
+}
+
+const lit = new THREE.Color();
+/** The haze colour lit warm by the sun (by day): the clouds' own colour. */
+function tintLit(haze: THREE.Color) {
+  warm.copy(envUniforms.uEnvSunColor.value).multiplyScalar(0.5);
+  return lit.copy(haze).lerp(warm.addScalar(0.45), 0.45 * (1 - envUniforms.uEnvNight.value));
 }
