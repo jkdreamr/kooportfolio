@@ -68,7 +68,8 @@ void main() {
   vec2 axis = speed > 1e-4 ? vv / speed : vec2(0.0, 1.0);
   // Droplets stretch along their screen velocity (streaks), mist stays round.
   float stretch = kind > 2.5 ? 0.0 : min(speed * 0.03, 0.08);
-  mv.xy += axis * position.y * (aB.w + stretch) + vec2(-axis.y, axis.x) * position.x * aB.w;
+  // (axis.y, -axis.x) is +x when the axis is +y: the quad keeps its CCW winding.
+  mv.xy += axis * position.y * (aB.w + stretch) + vec2(axis.y, -axis.x) * position.x * aB.w;
   gl_Position = projectionMatrix * mv;
   vUv = position.xy;
   vAlpha = alpha;

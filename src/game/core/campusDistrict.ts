@@ -53,8 +53,8 @@ export const campusFountainSpec = {
   bowlRadius: 0.8 * fountainScaleXZ * 0.96,
   jets: 8,
   jetAngle: Math.PI / 8,
-  landRadius: 1.6 * fountainScaleXZ * 0.8,
-  jetApex: 0.36,
+  landRadius: 1.6 * fountainScaleXZ * 0.85,
+  jetApex: 0.5,
   plumeHeight: 0.78,
 } as const;
 
