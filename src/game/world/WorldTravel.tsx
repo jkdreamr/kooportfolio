@@ -14,6 +14,7 @@ import {
   type TravelWorld,
 } from "../core/travel";
 import { journeyGate } from "../core/journey";
+import { announceArrival } from "../core/arrival";
 import { Box, Cylinder, Sign } from "./Models";
 import { PassengerJet, PassengerStairs } from "./TravelVehicles";
 import { IslandJourney, type IslandTrip, type JourneyControl } from "./IslandJourney";
@@ -202,6 +203,8 @@ export function WorldTravel({
           onComplete={() => {
             [runtime.x, runtime.z] = journeyGate(trip.mode, trip.destination);
             finish();
+            // The world's name, briefly, where Departures used to open.
+            announceArrival(trip.destination);
           }}
         />
       )}

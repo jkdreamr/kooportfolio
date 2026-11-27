@@ -1,0 +1,76 @@
+/* Arrival title card (after a journey lands). One glass pill, centred in the
+ * upper third, above the world and below dialogs; it never takes input. */
+.arrival-card-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 38;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: max(18vh, calc(env(safe-area-inset-top) + 96px));
+  pointer-events: none;
+}
+.arrival-card {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 10px 22px 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--glass-radius-lg, 22px);
+  color: var(--glass-ink);
+  background: var(--glass-sheen), var(--glass-bg);
+  box-shadow: var(--glass-highlight), var(--glass-shadow-sm);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  backdrop-filter: var(--glass-blur-sm);
+  font-family: var(--font-ui);
+  text-align: center;
+  animation: arrival-card 1.5s var(--motion-ease, cubic-bezier(0.2, 0.8, 0.2, 1)) both;
+}
+.arrival-card-kicker {
+  color: var(--glass-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.arrival-card-name {
+  font-size: var(--text-xl);
+  font-weight: 650;
+  line-height: var(--leading-title);
+}
+/* 0–20% in (a 6 px rise), hold, 80–100% out. */
+@keyframes arrival-card {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  20%,
+  80% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+    transform: none;
+  }
+}
+@keyframes arrival-card-still {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  10%,
+  90% {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .arrival-card {
+    animation-name: arrival-card-still;
+  }
+}
+@media (max-width: 700px) {
+  .arrival-card-name {
+    font-size: var(--text-lg);
+  }
+}

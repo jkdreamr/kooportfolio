@@ -63,6 +63,7 @@ import { useGym } from "./scenes/CognitionGym";
 import { interactWithNpc } from "./core/npcState";
 import { WorldAmbience } from "./world/WorldAmbience";
 import { openPhotoBooth } from "./ui/photoBoothLauncher";
+import { ArrivalCard } from "./ui/ArrivalCard";
 import { loadCatalogue } from "./core/stargazing";
 import { destinationsInWorld } from "./core/world";
 import { SkateParkInterior } from "./scenes/SkatePark";
@@ -839,6 +840,7 @@ export default function Game({ autoEnter = true }: { autoEnter?: boolean } = {})
       {lost && <WorldFallback />}
       {!gameMode && !traveling && <TimeOfDayControls />}
       {!gameMode && <WorldZoomControls />}
+      <ArrivalCard />
       <NpcDialogGate />
       <PhotoBoothGate />
       {panel === "telescope" && !paused && (
