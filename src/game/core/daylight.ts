@@ -216,3 +216,50 @@ export function sampleDaylight(hour: number) {
     night: lerp(from.night, to.night),
   };
 }
+
+export type Rgb = readonly [number, number, number];
+const toLinear = (c: number) =>
+  c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+const toSrgb = (c: number) =>
+  c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055;
+const linearKeys = DAYLIGHT_KEYS.map((key) => {
+  const parse = (hex: string): Rgb => [
+    toLinear(parseInt(hex.slice(1, 3), 16) / 255),
+    toLinear(parseInt(hex.slice(3, 5), 16) / 255),
+    toLinear(parseInt(hex.slice(5, 7), 16) / 255),
+  ];
+  return {
+    top: parse(key.top),
+    horizon: parse(key.horizon),
+    sky: parse(key.sky),
+    sun: parse(key.sun),
+  };
+});
+
+/** The sky colours TimeOfDayLighting draws at `hour` (same keys, same
+ * smoothstep, lerped in linear light like THREE.Color), as sRGB 0..1. */
+export function sampleSkyPalette(hour: number) {
+  const { index, blend } = sampleDaylight(hour);
+  const from = linearKeys[index],
+    to = linearKeys[index + 1];
+  const mix = (a: Rgb, b: Rgb): Rgb => [
+    toSrgb(a[0] + (b[0] - a[0]) * blend),
+    toSrgb(a[1] + (b[1] - a[1]) * blend),
+    toSrgb(a[2] + (b[2] - a[2]) * blend),
+  ];
+  return {
+    top: mix(from.top, to.top),
+    horizon: mix(from.horizon, to.horizon),
+    sky: mix(from.sky, to.sky),
+    sun: mix(from.sun, to.sun),
+  };
+}
+
+/** sRGB 0..1 -> "#rrggbb". */
+export function rgbHex([r, g, b]: Rgb) {
+  const byte = (c: number) =>
+    Math.round(Math.max(0, Math.min(1, c)) * 255)
+      .toString(16)
+      .padStart(2, "0");
+  return `#${byte(r)}${byte(g)}${byte(b)}`;
+}

@@ -187,3 +187,54 @@
     font-size: 11px;
   }
 }
+/* Day / dusk / night: every sky change eases (the clock posts at 4 Hz). */
+.telescope-fade {
+  transition:
+    opacity 0.45s linear,
+    stop-color 0.45s linear;
+}
+.telescope-stage {
+  position: relative;
+}
+.telescope-caption {
+  position: absolute;
+  left: 50%;
+  bottom: 6%;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 12px;
+  width: min(88%, 420px);
+  padding: 10px 14px;
+  border: 1px solid var(--hud-edge, #536971);
+  border-radius: 8px;
+  color: var(--hud-ink, #f5f4e9);
+  background: color-mix(in srgb, var(--hud-low, #21353e) 88%, transparent);
+  font-size: 13px;
+  line-height: 1.35;
+  text-align: center;
+  transform: translateX(-50%);
+  transition:
+    opacity 0.6s ease,
+    visibility 0s linear 0s;
+}
+.telescope-caption p {
+  margin: 0;
+  flex: 1 1 220px;
+}
+.telescope-caption.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.6s ease,
+    visibility 0s linear 0.6s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .telescope-caption,
+  .telescope-caption.is-hidden {
+    transition-duration: 0.2s;
+  }
+}

@@ -1,18 +1,88 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   clampZoom,
+  eyepieceSkyColor,
   INITIAL_AIM,
+  lunarPosition,
   observeSky,
   panSky,
   projectStar,
   SKY_LOCATIONS,
-  solarAltitude,
+  solarPosition,
+  starVisibility,
+  telescopeSkyState,
   telescopeSkyTime,
+  type Horizontal,
+  type SkyAim,
   type SkyWorld,
+  type TelescopeSky,
 } from "../core/stargazing";
+import { rgbHex, TIME_PRESETS, wrapHour } from "../core/daylight";
+import { autoHour, useTimeOfDay } from "../core/timeOfDay";
 import "./telescope.css";
 
-/** Real UTC sky, independent of the village's artistic time-of-day presets. */
+const RAD = Math.PI / 180;
+/** Magnitude bands: each fades as one group (8 CSS opacity transitions, not
+ * thousands), so dusk brings stars in smoothly, brightest first. */
+const BANDS = Array.from({ length: 9 }, (_, i) => i - 1.5); // band centres
+const bandOf = (magnitude: number) =>
+  Math.max(0, Math.min(BANDS.length - 1, Math.floor(magnitude + 2)));
+const MOON_RADIUS = 13;
+
+/** Screen direction (unit, SVG y down) from the view centre towards `target`. */
+function screenDirection(target: Horizontal, aim: SkyAim) {
+  const az = aim.azimuth * RAD,
+    alt = aim.altitude * RAD;
+  const x = target.east * Math.cos(az) - target.north * Math.sin(az);
+  const y = -(
+    -target.east * Math.sin(alt) * Math.sin(az) -
+    target.north * Math.sin(alt) * Math.cos(az) +
+    target.up * Math.cos(alt)
+  );
+  const length = Math.hypot(x, y);
+  return length > 1e-6 ? { x: x / length, y: y / length } : { x: 0, y: -1 };
+}
+function angleBetween(a: Horizontal, aim: SkyAim) {
+  const az = aim.azimuth * RAD,
+    alt = aim.altitude * RAD;
+  const dot =
+    a.east * Math.cos(alt) * Math.sin(az) +
+    a.north * Math.cos(alt) * Math.cos(az) +
+    a.up * Math.sin(alt);
+  return Math.acos(Math.max(-1, Math.min(1, dot))) / RAD;
+}
+/** Lit-limb path of a Moon of radius r, lit side towards +x. */
+function moonPath(r: number, illumination: number) {
+  const rx = Math.max(0.01, r * Math.abs(1 - 2 * illumination));
+  return `M 0 ${-r} A ${r} ${r} 0 0 1 0 ${r} A ${rx} ${r} 0 0 ${illumination > 0.5 ? 1 : 0} 0 ${-r} Z`;
+}
+/** Daytime/twilight caption. Its text is kept while it fades out (`shown`
+ * false), so it never blanks before it has faded. */
+function captionFor(sky: TelescopeSky, skipping: boolean) {
+  const shown = sky.phase !== "night" && sky.stars < 0.6;
+  if (skipping) return { text: "Night is falling…", skip: false, shown };
+  return sky.phase === "day"
+    ? {
+        text: "Stars come out after sunset — come back tonight, or skip to night.",
+        skip: true,
+        shown,
+      }
+    : {
+        text: "Twilight — the brightest stars are appearing.",
+        skip: true,
+        shown,
+      };
+}
+
+/** Real stars, Moon and Sun for the instant the GAME clock shows (today's
+ * date at the village hour), under the village's own sky colours. */
 export function TelescopeView({
   onClose,
   worldId = "home",
@@ -27,29 +97,134 @@ export function TelescopeView({
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const pinch = useRef<{ distance: number; zoom: number } | null>(null);
   const id = useId();
-  const { time, preview } = useMemo(
-    () => telescopeSkyTime(new Date(now), location),
-    [now, location],
+  // The village clock (4 Hz while it glides), not the visitor's real clock.
+  const hour = useTimeOfDay((state) => state.hour);
+  const mode = useTimeOfDay((state) => state.mode);
+  const timeZone = useTimeOfDay((state) => state.timeZone);
+  // Star positions follow the hour the clock is heading to (minute steps),
+  // so a skip to night never spins the chart through the glide.
+  const targetMinute = Math.round(
+    wrapHour(
+      mode === "auto"
+        ? autoHour(timeZone, new Date(now))
+        : TIME_PRESETS[mode].hour,
+    ) * 60,
   );
-  const sky = useMemo(() => {
-    const sunAltitude = solarAltitude(time, location);
-    const magnitudeLimit = Math.min(6, Math.max(0, (-sunAltitude - 6) * 0.75));
-    return observeSky(time, location).filter(
-      (star) => star.magnitude <= magnitudeLimit,
-    );
-  }, [time, location]);
-  const projected = sky.flatMap((star) => {
-    const point = projectStar(star, aim);
-    return point ? [{ ...star, ...point }] : [];
-  });
-  const localTime = new Intl.DateTimeFormat("en-US", {
-    timeZone: location.timeZone,
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZoneName: "short",
-  }).format(time);
+  const time = useMemo(
+    () => telescopeSkyTime(new Date(now), location, targetMinute / 60),
+    [now, location, targetMinute],
+  );
+  const sky = telescopeSkyState(hour);
+  const stars = useMemo(() => observeSky(time, location), [time, location]);
+  // Header, Sun and Moon follow the live village clock (cheap, and a skip
+  // then sets the Sun and fades its glare with the sky, like a time-lapse).
+  const shownTime = useMemo(
+    () => telescopeSkyTime(new Date(now), location, hour),
+    [now, location, hour],
+  );
+  const moon = useMemo(
+    () => lunarPosition(shownTime, location),
+    [shownTime, location],
+  );
+  const sun = useMemo(
+    () => solarPosition(shownTime, location),
+    [shownTime, location],
+  );
+  const bands = useMemo(() => {
+    const groups = BANDS.map(() => [] as ReactNode[]);
+    for (const star of stars) {
+      const point = projectStar(star, aim);
+      if (!point) continue;
+      const radius = Math.max(0.65, 2.8 - star.magnitude * 0.36);
+      groups[bandOf(star.magnitude)].push(
+        <g key={star.id} data-star-id={star.id}>
+          {star.magnitude < 2 && (
+            <circle
+              cx={point.x}
+              cy={point.y}
+              r={radius * 5}
+              fill={`url(#${id}-glow)`}
+            />
+          )}
+          <circle
+            cx={point.x}
+            cy={point.y}
+            r={radius}
+            fill={star.color}
+            opacity={Math.max(0.4, 1 - star.magnitude * 0.08)}
+          />
+          {star.name && star.magnitude < 3 && (
+            <text
+              x={point.x + 8}
+              y={point.y - 9}
+              fill="#c5cbd1"
+              fontSize="10"
+              fontFamily="inherit"
+            >
+              {star.name}
+            </text>
+          )}
+        </g>,
+      );
+    }
+    return groups;
+  }, [stars, aim, id]);
+  const moonPoint = projectStar(moon, aim);
+  const moonAngle = useMemo(() => {
+    // Lit limb faces the Sun: a small step from the Moon along the great
+    // circle towards it, projected.
+    const d = moon.east * sun.east + moon.north * sun.north + moon.up * sun.up;
+    const toward = {
+      east: sun.east - d * moon.east,
+      north: sun.north - d * moon.north,
+      up: sun.up - d * moon.up,
+    };
+    const length = Math.hypot(toward.east, toward.north, toward.up) || 1;
+    const step = { ...moon };
+    step.east += (toward.east / length) * 0.01;
+    step.north += (toward.north / length) * 0.01;
+    step.up += (toward.up / length) * 0.01;
+    const a = projectStar(moon, aim),
+      b = projectStar(step, aim);
+    return a && b ? Math.atan2(b.y - a.y, b.x - a.x) / RAD : 0;
+  }, [moon, sun, aim]);
+  const halfField = 35 / aim.zoom;
+  const skyTop = rgbHex(eyepieceSkyColor(sky, aim.altitude + halfField));
+  const skyMid = rgbHex(eyepieceSkyColor(sky, aim.altitude));
+  const skyBottom = rgbHex(eyepieceSkyColor(sky, aim.altitude - halfField));
+  // Sun glare stays outside the aperture: a soft bloom entering from the rim
+  // on the Sun's side, never the disc itself.
+  const sunUp = Math.max(0, Math.min(1, (sun.altitude + 2) / 4));
+  const glare =
+    sky.daylight *
+    sunUp *
+    Math.max(0, Math.min(1, (80 - angleBetween(sun, aim)) / 60)) ** 2 *
+    0.6;
+  const glareAt = screenDirection(sun, aim);
+  const moonOpacity =
+    moon.altitude > -1 ? 0.62 + 0.38 * (1 - sky.daylight) : 0;
+  const skipping = mode === "night" && sky.phase !== "night";
+  const caption = captionFor(sky, skipping);
+  const visibleCount = bands.reduce(
+    (sum, group, i) =>
+      sum + (starVisibility(BANDS[i], sky.magnitudeLimit) > 0.5 ? group.length : 0),
+    0,
+  );
+  const timeFormat = useMemo(
+    () =>
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: location.timeZone,
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        timeZoneName: "short",
+      }),
+    [location],
+  );
+  const localTime = timeFormat.format(shownTime);
+  const phaseLabel =
+    sky.phase === "day" ? "Daytime" : sky.phase === "twilight" ? "Twilight" : "Night";
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 30000);
@@ -103,7 +278,7 @@ export function TelescopeView({
         if (event.key === "Tab") {
           const controls = [
             ...event.currentTarget.querySelectorAll<HTMLElement>(
-              "button,a[href]",
+              "button:not([disabled]),a[href]",
             ),
           ];
           const first = controls[0];
@@ -137,8 +312,8 @@ export function TelescopeView({
         <div>
           <h2 id={`${id}-title`}>{location.label}</h2>
           <p className="telescope-time">
-            {preview ? "Tonight" : "Live"} ·{" "}
-            <time dateTime={time.toISOString()}>{localTime}</time>
+            {phaseLabel} ·{" "}
+            <time dateTime={shownTime.toISOString()}>{localTime}</time>
           </p>
         </div>
         <button
@@ -157,7 +332,9 @@ export function TelescopeView({
             className="telescope-sky"
             viewBox="-300 -300 600 600"
             role="img"
-            aria-label={`Star chart above ${location.label}, ${localTime}`}
+            aria-label={`${phaseLabel} sky above ${location.label}, ${localTime}: ${
+              visibleCount ? `${visibleCount} stars in view` : "no stars visible yet"
+            }${moonPoint && moonOpacity ? ", the Moon is in view" : ""}`}
             onPointerDown={(event) => {
               if (event.pointerType === "mouse" && event.button !== 0)
                 return;
@@ -221,42 +398,116 @@ export function TelescopeView({
                 <stop stopColor="#e5edff" stopOpacity="0.3" />
                 <stop offset="1" stopColor="#ccdfff" stopOpacity="0" />
               </radialGradient>
+              <linearGradient id={`${id}-sky`} x1="0" y1="0" x2="0" y2="1">
+                <stop className="telescope-fade" style={{ stopColor: skyTop }} />
+                <stop
+                  className="telescope-fade"
+                  offset="0.5"
+                  style={{ stopColor: skyMid }}
+                />
+                <stop
+                  className="telescope-fade"
+                  offset="1"
+                  style={{ stopColor: skyBottom }}
+                />
+              </linearGradient>
+              <radialGradient id={`${id}-sun`}>
+                <stop stopColor={rgbHex(sky.palette.sun)} stopOpacity="0.95" />
+                <stop
+                  offset="0.45"
+                  stopColor={rgbHex(sky.palette.sun)}
+                  stopOpacity="0.35"
+                />
+                <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
+              </radialGradient>
+              <radialGradient id={`${id}-moon`}>
+                <stop offset="0.45" stopColor="#f1f4ff" stopOpacity="0.28" />
+                <stop offset="1" stopColor="#d9e4ff" stopOpacity="0" />
+              </radialGradient>
             </defs>
-            {projected.map((star) => {
-              const radius = Math.max(0.65, 2.8 - star.magnitude * 0.36);
-              return (
-                <g key={star.id} data-star-id={star.id}>
-                  {star.magnitude < 2 && (
-                    <circle
-                      cx={star.x}
-                      cy={star.y}
-                      r={radius * 5}
-                      fill={`url(#${id}-glow)`}
-                    />
-                  )}
-                  <circle
-                    cx={star.x}
-                    cy={star.y}
-                    r={radius}
-                    fill={star.color}
-                    opacity={Math.max(0.4, 1 - star.magnitude * 0.08)}
-                  />
-                  {star.name && star.magnitude < 3 && (
-                    <text
-                      x={star.x + 8}
-                      y={star.y - 9}
-                      fill="#c5cbd1"
-                      fontSize="10"
-                      fontFamily="inherit"
-                    >
-                      {star.name}
-                    </text>
-                  )}
+            <rect
+              x="-300"
+              y="-300"
+              width="600"
+              height="600"
+              fill={`url(#${id}-sky)`}
+            />
+            {bands.map((group, i) => {
+              const opacity = starVisibility(BANDS[i], sky.magnitudeLimit);
+              return opacity > 0.001 && group.length ? (
+                <g
+                  key={i}
+                  className="telescope-fade"
+                  style={{ opacity }}
+                  data-band={BANDS[i]}
+                >
+                  {group}
                 </g>
-              );
+              ) : null;
             })}
+            {moonPoint && moonOpacity > 0 && (
+              <g
+                className="telescope-fade telescope-moon"
+                style={{ opacity: moonOpacity }}
+                transform={`translate(${moonPoint.x} ${moonPoint.y}) rotate(${moonAngle})`}
+                data-moon={moon.illumination.toFixed(2)}
+              >
+                <circle
+                  r={MOON_RADIUS * 2.6}
+                  fill={`url(#${id}-moon)`}
+                  opacity={1 - sky.daylight}
+                />
+                <circle
+                  r={MOON_RADIUS}
+                  fill="#26324a"
+                  opacity={0.55 * (1 - sky.daylight)}
+                />
+                <path
+                  d={moonPath(MOON_RADIUS, moon.illumination)}
+                  fill="#eef1f6"
+                />
+                {(1 - sky.daylight) * moon.illumination > 0.2 && (
+                  <text
+                    x={MOON_RADIUS + 6}
+                    y={-MOON_RADIUS - 4}
+                    fill="#c5cbd1"
+                    fontSize="10"
+                    fontFamily="inherit"
+                    transform={`rotate(${-moonAngle})`}
+                  >
+                    Moon
+                  </text>
+                )}
+              </g>
+            )}
+            <circle
+              className="telescope-fade"
+              cx={glareAt.x * 390}
+              cy={glareAt.y * 390}
+              r={330}
+              fill={`url(#${id}-sun)`}
+              style={{ opacity: glare }}
+              pointerEvents="none"
+            />
           </svg>
           <div className="telescope-reticle" aria-hidden="true" />
+        </div>
+        <div
+          className={`telescope-caption${caption.shown ? "" : " is-hidden"}`}
+          role="status"
+          aria-hidden={!caption.shown}
+        >
+          <p>{caption.text}</p>
+          {caption.skip && (
+            <button
+              className="quiet-button"
+              type="button"
+              disabled={!caption.shown}
+              onClick={() => useTimeOfDay.getState().setMode("night")}
+            >
+              Skip to night
+            </button>
+          )}
         </div>
       </div>
 

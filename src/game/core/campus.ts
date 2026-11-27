@@ -1,4 +1,8 @@
-import { campusDistrictObstacles, campusDistrictStops } from "./campusDistrict";
+import {
+  campusDistrictObstacles,
+  campusDistrictStops,
+  campusFountainCenter,
+} from "./campusDistrict";
 
 export const campus = { x: 20, z: 50 } as const;
 // The whole campus is rotated by PI, including its navigation geometry.
@@ -11,3 +15,8 @@ export const campusStops = Object.fromEntries(
     [campus.x - x, campus.z - z],
   ]),
 ) as Record<keyof typeof campusDistrictStops, [number, number]>;
+/** World x/z of the quad fountain (audio emitter, QA). */
+export const campusFountainWorld = [
+  campus.x - campusFountainCenter[0],
+  campus.z - campusFountainCenter[1],
+] as const;

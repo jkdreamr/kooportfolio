@@ -1,4 +1,5 @@
 import catalogue from "./stargazing-catalogue.json";
+import { sampleDaylight, sampleSkyPalette, wrapHour, type Rgb } from "./daylight";
 
 export type SkyWorld = "stanford" | "home" | "korea";
 export type SkyLocation = {
@@ -130,8 +131,8 @@ export function precessJ2000(raHours: number, declination: number, date: Date) {
     dec: Math.asin(Math.max(-1, Math.min(1, c))) / RAD,
   };
 }
-/** USNO low-precision solar coordinates: real civil twilight, not game presets. */
-export function solarAltitude(date: Date, location: SkyLocation) {
+/** USNO low-precision solar coordinates (equator and ecliptic of date). */
+function solarEquatorial(date: Date) {
   const n = julianDate(date) - 2451545;
   const meanLongitude = wrapDegrees(280.459 + 0.98564736 * n) * RAD;
   const anomaly = wrapDegrees(357.529 + 0.98560028 * n) * RAD;
@@ -144,7 +145,73 @@ export function solarAltitude(date: Date, location: SkyLocation) {
       Math.atan2(Math.cos(obliquity) * Math.sin(lon), Math.cos(lon)) / RAD,
     ) / 15;
   const dec = Math.asin(Math.sin(obliquity) * Math.sin(lon)) / RAD;
-  return equatorialToHorizontal(ra, dec, date, location).altitude;
+  return { ra, dec, longitude: wrapDegrees(lon / RAD) };
+}
+export function solarPosition(date: Date, location: SkyLocation) {
+  const sun = solarEquatorial(date);
+  return equatorialToHorizontal(sun.ra, sun.dec, date, location);
+}
+export function solarAltitude(date: Date, location: SkyLocation) {
+  return solarPosition(date, location).altitude;
+}
+export type MoonPosition = Horizontal & {
+  /** Illuminated fraction of the disc, 0 (new) .. 1 (full). */
+  illumination: number;
+  waxing: boolean;
+};
+/** Astronomical Almanac low-precision Moon (~0.3 deg), with the ~1 deg
+ * topocentric parallax applied to the altitude. Ample for a star chart. */
+export function lunarPosition(date: Date, location: SkyLocation): MoonPosition {
+  const t = (julianDate(date) - 2451545) / 36525;
+  const s = (a: number, b: number) => Math.sin(wrapDegrees(a + b * t) * RAD);
+  const longitude = wrapDegrees(
+    218.32 +
+      481267.881 * t +
+      6.29 * s(134.9, 477198.85) -
+      1.27 * s(259.2, -413335.38) +
+      0.66 * s(235.7, 890534.23) +
+      0.21 * s(269.9, 954397.7) -
+      0.19 * s(357.5, 35999.05) -
+      0.11 * s(186.6, 966404.05),
+  );
+  const latitude =
+    5.13 * s(93.3, 483202.03) +
+    0.28 * s(228.2, 960400.87) -
+    0.28 * s(318.3, 6003.18) -
+    0.17 * s(217.6, -407332.2);
+  const lambda = longitude * RAD,
+    beta = latitude * RAD,
+    obliquity = (23.439 - 0.013 * t) * RAD;
+  const ra =
+    wrapDegrees(
+      Math.atan2(
+        Math.sin(lambda) * Math.cos(obliquity) -
+          Math.tan(beta) * Math.sin(obliquity),
+        Math.cos(lambda),
+      ) / RAD,
+    ) / 15;
+  const dec =
+    Math.asin(
+      Math.sin(beta) * Math.cos(obliquity) +
+        Math.cos(beta) * Math.sin(obliquity) * Math.sin(lambda),
+    ) / RAD;
+  const geocentric = equatorialToHorizontal(ra, dec, date, location);
+  const altitude =
+    geocentric.altitude - 0.95 * Math.cos(geocentric.altitude * RAD);
+  const az = geocentric.azimuth * RAD,
+    alt = altitude * RAD;
+  const sun = solarEquatorial(date);
+  // Elongation from the Sun: cos psi = cos(beta) cos(lambda - lambdaSun).
+  const cosPsi = Math.cos(beta) * Math.cos(lambda - sun.longitude * RAD);
+  return {
+    azimuth: geocentric.azimuth,
+    altitude,
+    east: Math.cos(alt) * Math.sin(az),
+    north: Math.cos(alt) * Math.cos(az),
+    up: Math.sin(alt),
+    illumination: (1 - cosPsi) / 2,
+    waxing: wrapDegrees(longitude - sun.longitude) < 180,
+  };
 }
 export function observeSky(date: Date, location: SkyLocation): ObservedStar[] {
   const years = (julianDate(date) - 2451545) / 365.25;
@@ -205,8 +272,13 @@ export function projectStar(
     scale;
   return x * x + y * y <= 310 ** 2 ? { x, y } : null;
 }
-/** Today's 22:00 in the observer's timezone, including Pacific DST. */
-export function tonightAtLocation(now: Date, location: SkyLocation): Date {
+/** Today's wall-clock `hour` (0..24, fractional) in the observer's
+ * timezone, including Pacific DST. */
+export function wallTimeAtLocation(
+  now: Date,
+  location: SkyLocation,
+  hour: number,
+): Date {
   const parts = (date: Date) =>
     Object.fromEntries(
       new Intl.DateTimeFormat("en-US", {
@@ -223,7 +295,9 @@ export function tonightAtLocation(now: Date, location: SkyLocation): Date {
         .map((part) => [part.type, part.value]),
     );
   const local = parts(now);
-  const wallTime = Date.UTC(+local.year, +local.month - 1, +local.day, 22);
+  const wallTime =
+    Date.UTC(+local.year, +local.month - 1, +local.day) +
+    Math.round(Math.max(0, Math.min(24, hour)) * 60) * 60000;
   const guess = parts(new Date(wallTime));
   const offset =
     Date.UTC(
@@ -236,8 +310,79 @@ export function tonightAtLocation(now: Date, location: SkyLocation): Date {
     ) - wallTime;
   return new Date(wallTime - offset);
 }
+/** Today's 22:00 in the observer's timezone. */
+export function tonightAtLocation(now: Date, location: SkyLocation): Date {
+  return wallTimeAtLocation(now, location, 22);
+}
 
-export function telescopeSkyTime(now: Date, location: SkyLocation) {
-  const preview = solarAltitude(now, location) >= -6;
-  return { time: preview ? tonightAtLocation(now, location) : now, preview };
+/**
+ * The instant the eyepiece shows: today's date in the observer's timezone at
+ * the GAME clock's hour (first visits open on 16:36, presets, Auto), never
+ * the visitor's real clock. Stars, Moon and Sun are then real for that
+ * instant, and the sky state below matches the village sky.
+ */
+export function telescopeSkyTime(
+  now: Date,
+  location: SkyLocation,
+  gameHour: number,
+) {
+  return wallTimeAtLocation(now, location, wrapHour(gameHour));
+}
+
+export type TelescopePhase = "day" | "twilight" | "night";
+export type TelescopeSky = {
+  phase: TelescopePhase;
+  /** The village sky's own night factor (daylight keys), 0..1. */
+  night: number;
+  /** Star-field visibility, 0 (none) .. 1 (full chart). */
+  stars: number;
+  /** Magnitude limit: a star fades in over the 1 mag above it. */
+  magnitudeLimit: number;
+  /** 0..1: how much daylight (sun glare, pale Moon) the sky carries. */
+  daylight: number;
+  palette: ReturnType<typeof sampleSkyPalette>;
+};
+const smooth = (a: number, b: number, x: number) => {
+  const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+};
+export const DAY_MAGNITUDE_LIMIT = -2;
+export const NIGHT_MAGNITUDE_LIMIT = 7;
+
+/**
+ * Game hour -> what the eyepiece shows. Driven by the same daylight keys as
+ * the village sky (TimeOfDayLighting), so the telescope can never disagree
+ * with the world around it. Continuous in `hour` (no pops): stars fade in
+ * through dusk as the magnitude limit sweeps from brighter than Sirius to 6.
+ */
+export function telescopeSkyState(hour: number): TelescopeSky {
+  const { night } = sampleDaylight(hour);
+  const stars = smooth(0.08, 0.92, night);
+  const daylight = 1 - smooth(0, 0.6, night);
+  return {
+    phase: stars >= 0.995 ? "night" : night <= 0.07 ? "day" : "twilight",
+    night,
+    stars,
+    magnitudeLimit:
+      DAY_MAGNITUDE_LIMIT +
+      (NIGHT_MAGNITUDE_LIMIT - DAY_MAGNITUDE_LIMIT) * stars,
+    daylight,
+    palette: sampleSkyPalette(hour),
+  };
+}
+/** Opacity of a star of `magnitude` under `limit` (1-mag soft edge). */
+export function starVisibility(magnitude: number, limit: number) {
+  return Math.max(0, Math.min(1, limit - magnitude + 0.5));
+}
+const EYEPIECE_NIGHT: Rgb = [0.024, 0.05, 0.1];
+/** Sky colour at `altitude` through the eyepiece: the village gradient
+ * (horizon -> top), darkened towards a telescope-black as stars come out. */
+export function eyepieceSkyColor(sky: TelescopeSky, altitude: number): Rgb {
+  const t = smooth(0, 70, altitude);
+  const { top, horizon } = sky.palette;
+  const dark = 0.55 * sky.stars;
+  return [0, 1, 2].map((i) => {
+    const c = horizon[i] + (top[i] - horizon[i]) * t;
+    return c + (EYEPIECE_NIGHT[i] - c) * dark;
+  }) as unknown as Rgb;
 }

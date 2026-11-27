@@ -1,6 +1,7 @@
 import { ambientMix, planePose } from "./wildlife";
 import { undersideSpec } from "./islandUnderside";
 import { POND } from "./pond";
+import { campusFountainWorld } from "./campus";
 import type { WorldId } from "./worlds";
 
 export type AmbientEnvironment = {
@@ -32,7 +33,8 @@ type Layer = keyof typeof FILES;
  * at different offsets and rates so no two emitters phase against each other. */
 export type Emitter = {
   id: string;
-  layer: Layer;
+  /** A recording, or "spray": fountain splash synthesised in code. */
+  layer: Layer | "spray";
   position: readonly [number, number, number];
   /** Linear gain at the reference distance. */
   level: number;
@@ -83,6 +85,17 @@ export function emittersFor(world: WorldId = "home"): Emitter[] {
       tone: { type: "highpass", frequency: 420 },
       when: "always",
       ref: 5,
+    });
+  if (world === "stanford")
+    list.push({
+      id: "quad-fountain",
+      layer: "spray",
+      position: [campusFountainWorld[0], 0.9, campusFountainWorld[1]],
+      level: 0.16,
+      rate: 1,
+      tone: { type: "highpass", frequency: 700 },
+      when: "always",
+      ref: 2.5,
     });
   const outline = spec.outline,
     n = outline.length;
@@ -157,6 +170,7 @@ type Voice = {
 export class AmbientAudio {
   private context?: AudioContext;
   private buffers = new Map<Layer, AudioBuffer>();
+  private sprayBuffer?: AudioBuffer;
   private gains = new Map<Layer, GainNode>();
   private sources: AudioScheduledSourceNode[] = [];
   private nodes: AudioNode[] = [];
@@ -296,7 +310,10 @@ export class AmbientAudio {
     if (!this.spatial) return;
     this.voiceWorld = world;
     for (const emitter of emittersFor(world)) {
-      const buffer = this.buffers.get(emitter.layer);
+      const buffer =
+        emitter.layer === "spray"
+          ? (this.sprayBuffer ??= sprayBuffer(context))
+          : this.buffers.get(emitter.layer);
       if (!buffer) continue;
       const source = context.createBufferSource(),
         gain = context.createGain(),
@@ -493,9 +510,45 @@ export class AmbientAudio {
     this.disposed = true;
     this.stop();
     this.buffers.clear();
+    this.sprayBuffer = undefined;
     void this.context?.close().catch(() => {});
     this.context = undefined;
   }
+}
+
+/**
+ * Fountain splash, synthesised (no download): seeded white noise under a
+ * slow, loop-periodic swell, plus a sprinkle of short droplet ticks. The
+ * envelope is made of whole cycles over the buffer, so the loop is seamless.
+ */
+export function sprayBuffer(context: BaseAudioContext) {
+  const rate = 22050,
+    length = rate * 3,
+    buffer = context.createBuffer(1, length, rate),
+    samples = buffer.getChannelData(0);
+  let seed = 4127;
+  const next = () => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) | 0;
+    return seed / 2147483648;
+  };
+  let drop = 0,
+    dropGain = 0;
+  for (let i = 0; i < length; i++) {
+    const t = i / length;
+    const swell =
+      0.72 +
+      0.14 * Math.sin(2 * Math.PI * 2 * t) +
+      0.09 * Math.sin(2 * Math.PI * 5 * t + 1.3) +
+      0.05 * Math.sin(2 * Math.PI * 11 * t + 0.4);
+    // ~40 droplets a second, each a 4 ms decaying tick (away from the seam).
+    if (i > rate * 0.01 && i < length - rate * 0.01 && next() > 0.9982) {
+      drop = rate * 0.004;
+      dropGain = 0.4 + 0.5 * Math.abs(next());
+    }
+    const tick = drop > 0 ? (drop-- / (rate * 0.004)) * dropGain * next() : 0;
+    samples[i] = 0.55 * swell * next() + tick;
+  }
+  return buffer;
 }
 
 function setPosition(

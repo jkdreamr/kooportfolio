@@ -5,7 +5,10 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import {
   campusDistrictOffsetZ,
   campusDistrictScale,
+  campusFountainCenter,
+  campusFountainSpec,
 } from "../core/campusDistrict";
+import { FountainWater } from "./Fountain";
 import { campusDistrictParts, campusDistrictTrees } from "./CampusDistrictArt";
 import { NaturalTrees } from "./TreeArt";
 import { CampusDistrictParts } from "./CampusDistrictParts";
@@ -219,10 +222,18 @@ function CampusIdentifier() {
   );
 }
 
+const fountainPosition = [
+  campusFountainCenter[0],
+  0,
+  campusFountainCenter[1],
+] as const;
+
 /** Local parcel only: mounting, orientation and world bounds belong to Landscape. */
 export function CampusDistrict() {
   return (
     <StaticBatch id="CampusDistrict">
+      {/* Spray lives outside the parcel's anisotropic scale (round drops). */}
+      <FountainWater spec={campusFountainSpec} position={fountainPosition} />
       <group
         position={[0, 0, campusDistrictOffsetZ]}
         scale={[...campusDistrictScale]}

@@ -144,20 +144,19 @@ describe("real telescope sky", () => {
     ).toBe("2026-11-02T06:00:00.000Z");
   });
 
-  it("opens on the live sky after twilight and previews tonight otherwise", () => {
-    expect(telescopeSkyTime(instant, bay)).toEqual({
-      time: instant,
-      preview: false,
-    });
-    const daytime = new Date("2026-11-24T20:00:00Z");
-    expect(telescopeSkyTime(daytime, bay)).toEqual({
-      time: new Date("2026-11-25T06:00:00Z"),
-      preview: true,
-    });
-    const twilight = new Date("2026-11-25T01:00:00Z");
-    expect(solarAltitude(twilight, bay)).toBeLessThan(0);
-    expect(solarAltitude(twilight, bay)).toBeGreaterThan(-6);
-    expect(telescopeSkyTime(twilight, bay).preview).toBe(true);
+  it("shows the instant of the GAME clock (today's local date), not the real one", () => {
+    // Real clock 04:00 PT on Nov 24, village clock 16:36: the eyepiece shows
+    // 16:36 PT that day, never "tonight" by the visitor's own clock.
+    const realDawn = new Date("2026-11-24T12:00:00Z");
+    expect(telescopeSkyTime(realDawn, bay, 16.6).toISOString()).toBe(
+      "2026-11-25T00:36:00.000Z",
+    );
+    expect(telescopeSkyTime(realDawn, bay, 23).toISOString()).toBe(
+      "2026-11-25T07:00:00.000Z",
+    );
+    expect(
+      telescopeSkyTime(realDawn, SKY_LOCATIONS.korea, 12).toISOString(),
+    ).toBe("2026-11-24T03:00:00.000Z");
   });
 
   it("centers targets geometrically, excludes the far hemisphere, and bounds the controls", () => {

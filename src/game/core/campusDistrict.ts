@@ -38,6 +38,26 @@ export const campusDistrictArcadePillars = [-1, 1].flatMap((side) =>
 export const campusDistrictScale = [0.66, 0.85, 0.65] as const;
 export const campusDistrictOffsetZ = 4;
 
+/** The quad fountain's water (CampusDistrictArt: basin water disc r 1.6 at
+ * y .72±.06, bowl r .8 at y 1.4±.08), in unscaled parcel units: its centre
+ * and the FountainSpec of its spray. */
+const fountainScaleXZ = (campusDistrictScale[0] + campusDistrictScale[2]) / 2;
+export const campusFountainCenter = [
+  campusDistrictFountain[0] * campusDistrictScale[0],
+  campusDistrictFountain[1] * campusDistrictScale[2] + campusDistrictOffsetZ,
+] as const;
+export const campusFountainSpec = {
+  basinY: 0.78 * campusDistrictScale[1],
+  basinRadius: 1.6 * fountainScaleXZ,
+  bowlY: 1.48 * campusDistrictScale[1],
+  bowlRadius: 0.8 * fountainScaleXZ * 0.96,
+  jets: 8,
+  jetAngle: Math.PI / 8,
+  landRadius: 1.6 * fountainScaleXZ * 0.8,
+  jetApex: 0.36,
+  plumeHeight: 0.78,
+} as const;
+
 export const campusDistrictObstacles: readonly CampusRect[] = (
   [
     ...Object.values(campusDistrictBuildings),
