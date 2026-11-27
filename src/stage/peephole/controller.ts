@@ -620,6 +620,7 @@ export class PeepholeController {
 
   private enterPeek() {
     if (!this.armedFlag || this.phase !== "rest") return;
+    this.returning = false;
     this.stageEntryZoom();
     this.phase = "peek";
     this.sheetFrames = 0;
@@ -750,9 +751,11 @@ export class PeepholeController {
     this.sink?.setSeam(null);
     this.paperDone = false;
     this.flightStarted = false;
-    // At rest the page is the DOM again: no WebGL copy of it underneath
-    // (a stale sheet showed as a doubled page while the DOM faded in).
+    // While the page fades back in over the world, no WebGL paper at all: a
+    // sheet or counter patch drawn under a half-transparent DOM showed as a
+    // doubled heading or a white box round the "o". Paper resumes after.
     this.sheetFrames = 0;
+    this.returning = true;
     this.resetSim();
     this.sim.tune.commitT = this.armedFlag ? 1 : Infinity;
     this.sim.tune.flickT = this.armedFlag ? 0.85 : Infinity;
@@ -767,7 +770,10 @@ export class PeepholeController {
     this.aimPeek(0.8);
     const root = this.root;
     usePeephole.setState({ phase: "rest", skippable: false, announce: "" });
-    if (!root) return;
+    if (!root) {
+      this.returning = false;
+      return;
+    }
     root.classList.remove("pp-gone", "pp-paper", "pp-dissolve", "pp-returning");
     // The HUD leaves first (120 ms, style.css: it is hidden whenever the
     // stage is not in the game), then the page fades in over the world
@@ -780,6 +786,7 @@ export class PeepholeController {
       easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
     });
     fade.onfinish = () => {
+      this.returning = false;
       if (this.phase === "rest") this.restStage();
     };
   }
@@ -997,7 +1004,7 @@ export class PeepholeController {
     };
     if (!this.armedFlag || !this.raster) return base;
     if (this.phase === "rest") {
-      base.mode = this.sheetFrames > 0 ? "sheet" : "counter";
+      if (!this.returning) base.mode = this.sheetFrames > 0 ? "sheet" : "counter";
       return base;
     }
     if (this.phase === "game" || this.paperDone) return base;
@@ -1033,6 +1040,8 @@ export class PeepholeController {
   /** In the game the sheet is off and stays off: publish that once, not a
    * fresh frame object every animation frame for the whole session. */
   private publishedOff = false;
+  /** Back to the portfolio: the page's fade-in is under way. */
+  private returning = false;
   private publish() {
     if (!this.sink) return;
     if (this.phase === "game") {
