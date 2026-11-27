@@ -80,3 +80,45 @@ describe("writing draft session", () => {
     }
   });
 });
+
+describe("local writing shelf", () => {
+  const memoryStorage = () => {
+    const data = new Map<string, string>();
+    return () => ({
+      getItem: (k: string) => data.get(k) ?? null,
+      setItem: (k: string, v: string) => void data.set(k, v),
+    });
+  };
+  it("keeps pieces newest first and survives a new session on the same storage", async () => {
+    const { createLocalShelf } = await import("../src/game/core/writingDraft");
+    const storage = memoryStorage();
+    let t = 1000;
+    const shelf = createLocalShelf(storage, () => t++);
+    shelf.add({ author: " Me ", title: "First", body: "One" });
+    shelf.add({ author: "Me", title: "Second", body: "Two" });
+    const again = createLocalShelf(storage);
+    expect(again.list().map((p) => p.title)).toEqual(["Second", "First"]);
+    expect(again.list()[1].author).toBe("Me");
+    again.remove(again.list()[0].id);
+    expect(createLocalShelf(storage).list().map((p) => p.title)).toEqual(["First"]);
+  });
+  it("caps the shelf and ignores junk in storage", async () => {
+    const { createLocalShelf, LOCAL_SHELF_LIMIT } = await import("../src/game/core/writingDraft");
+    let raw = JSON.stringify([{ nope: 1 }, "x"]);
+    const storage = () => ({ getItem: () => raw, setItem: (_k: string, v: string) => void (raw = v) });
+    const shelf = createLocalShelf(storage);
+    expect(shelf.list()).toEqual([]);
+    for (let i = 0; i < LOCAL_SHELF_LIMIT + 5; i++) shelf.add({ author: "a", title: `t${i}`, body: "b" });
+    expect(shelf.list()).toHaveLength(LOCAL_SHELF_LIMIT);
+    expect(shelf.list()[0].title).toBe(`t${LOCAL_SHELF_LIMIT + 4}`);
+  });
+  it("works in memory when storage is blocked, and says so", async () => {
+    const { createLocalShelf } = await import("../src/game/core/writingDraft");
+    const shelf = createLocalShelf(() => {
+      throw new DOMException("Denied", "SecurityError");
+    });
+    shelf.add({ author: "a", title: "kept", body: "b" });
+    expect(shelf.isStored()).toBe(false);
+    expect(shelf.list().map((p) => p.title)).toEqual(["kept"]);
+  });
+});

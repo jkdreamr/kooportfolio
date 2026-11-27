@@ -2,18 +2,26 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { GameControls } from "./InteriorProps";
 import { keys, touch } from "../core/input";
 import { runtime } from "../core/store";
-import { writingDraftSession } from "../core/writingDraft";
+import {
+  localShelf,
+  writingDraftSession,
+  type LocalPiece,
+} from "../core/writingDraft";
 import {
   WRITING_LIMITS,
   validateWriting,
   type WritingDraft,
   type WritingPost,
 } from "../../shared/writing";
-import { apiUrl } from "../../shared/api";
+import { ApiUnavailable, apiUrl, readJson } from "../../shared/api";
+import { useApiAvailable } from "../ui/useApiAvailable";
 import "./writing-room.css";
 
 const tokensKey = "joshua-writing-tokens-v1";
 const blank = { title: "", author: "", body: "" };
+/** Shown on the Read tab whenever there is no shared shelf to read. */
+export const OFFLINE_LINE =
+  "The shared shelf is offline. What you write stays on this device.";
 function readLocal<T>(key: string, fallback: T): T {
   try {
     return JSON.parse(localStorage.getItem(key) ?? "null") ?? fallback;
@@ -35,6 +43,16 @@ function postId() {
   );
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
+/** A failure with copy written for visitors (never a raw error message). */
+class WritingFailure extends Error {}
+function failureCopy(status: number) {
+  if (status === 429) return "That’s a lot of posting. Try again in a little while.";
+  if (status === 400 || status === 413)
+    return "Check the name, title and text, then try again.";
+  if (status === 401 || status === 403 || status === 404)
+    return "That post can’t be changed from here.";
+  return "Couldn’t reach the shelf. Your draft is kept.";
+}
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12000);
@@ -43,51 +61,67 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
       ...init,
       signal: controller.signal,
     });
-    const data = await response.json();
-    if (!response.ok)
-      throw new Error(
-        response.status === 503
-          ? "Public writing unavailable."
-          : (data.error ?? "Couldn’t load the writing room."),
-      );
-    return data as T;
+    // 503: the Worker exists but its database does not; same as offline.
+    if (response.status === 503) throw new ApiUnavailable();
+    const data = await readJson<T>(response);
+    if (!response.ok) throw new WritingFailure(failureCopy(response.status));
+    return data;
   } catch (error) {
-    if (
-      error instanceof Error &&
-      error.name !== "AbortError" &&
-      !(error instanceof TypeError)
-    )
+    if (error instanceof ApiUnavailable || error instanceof WritingFailure)
       throw error;
-    throw new Error("Connection lost. Draft kept.");
+    throw new WritingFailure("Connection lost. Your draft is kept.");
   } finally {
     clearTimeout(timeout);
   }
 }
+const visitorCopy = (error: unknown) =>
+  error instanceof WritingFailure
+    ? error.message
+    : "Couldn’t reach the shelf. Your draft is kept.";
 
 function WritingDialog({
   close,
   draft,
   setDraft,
   draftStored,
+  online,
 }: {
   close: () => void;
   draft: WritingDraft;
   setDraft: (draft: WritingDraft) => void;
   draftStored: boolean;
+  /** null while the backend probe runs. */
+  online: boolean | null;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  // Offline once the probe says so, or as soon as a request proves it.
+  const [lostShelf, setLostShelf] = useState(false);
+  const local = online === false || lostShelf;
   const [posts, setPosts] = useState<WritingPost[]>([]);
-  const [selected, setSelected] = useState<WritingPost | null>(null);
-  const [mode, setMode] = useState<"read" | "write">("read");
+  const [pieces, setPieces] = useState<LocalPiece[]>(localShelf.list);
+  const [selected, setSelected] = useState<WritingPost | LocalPiece | null>(
+    null,
+  );
+  const [mode, setMode] = useState<"read" | "write">(
+    online === false ? "write" : "read",
+  );
   const [next, setNext] = useState<string | null>(null);
   const [busy, setBusy] = useState(false),
-    [loading, setLoading] = useState(true);
+    [loading, setLoading] = useState(online !== false);
   const [error, setError] = useState(""),
     [status, setStatus] = useState("");
   const [stored, setStored] = useState(true);
   const deleteTokens = useRef<Record<string, string>>(readLocal(tokensKey, {}));
   const pending = useRef<{ id: string; deleteToken: string } | null>(null);
   const alive = useRef(true);
+  function goLocal() {
+    setLostShelf(true);
+    setError("");
+    setLoading(false);
+    setPosts([]);
+    setNext(null);
+    setSelected(null);
+  }
   async function load(cursor?: string) {
     setLoading(true);
     setError("");
@@ -96,17 +130,17 @@ function WritingDialog({
         cursor ? `?before=${encodeURIComponent(cursor)}` : "",
       );
       if (!alive.current) return;
-      setPosts((old) => (cursor ? [...old, ...result.posts] : result.posts));
-      setNext(result.next);
+      const list = Array.isArray(result?.posts) ? result.posts : [];
+      setPosts((old) => (cursor ? [...old, ...list] : list));
+      setNext(typeof result?.next === "string" ? result.next : null);
       if (!cursor)
         setSelected(
-          (old) =>
-            result.posts.find((p) => p.id === old?.id) ??
-            result.posts[0] ??
-            null,
+          (old) => list.find((p) => p.id === old?.id) ?? list[0] ?? null,
         );
     } catch (error) {
-      if (alive.current) setError((error as Error).message);
+      if (!alive.current) return;
+      if (error instanceof ApiUnavailable) goLocal();
+      else setError(visitorCopy(error));
     } finally {
       if (alive.current) setLoading(false);
     }
@@ -135,7 +169,6 @@ function WritingDialog({
     window.addEventListener("keydown", escape, true);
     document.addEventListener("keydown", contain);
     document.addEventListener("keyup", contain);
-    void load();
     return () => {
       alive.current = false;
       keys.clear();
@@ -144,6 +177,11 @@ function WritingDialog({
       document.removeEventListener("keyup", contain);
     };
   }, []);
+  // The shared shelf loads only once the probe has said it exists.
+  useEffect(() => {
+    if (online === true) void load();
+    else if (online === false) setLoading(false);
+  }, [online]);
   function change(key: keyof WritingDraft, value: string) {
     pending.current = null;
     setDraft({ ...draft, [key]: value });
@@ -161,9 +199,24 @@ function WritingDialog({
       setStored(false);
     }
   }
+  function keepLocally() {
+    const clean = validateWriting(draft);
+    if (!clean) return;
+    const piece = localShelf.add(clean);
+    setPieces(localShelf.list());
+    setSelected(piece);
+    setMode("read");
+    setDraft({ ...blank, author: draft.author });
+    setStatus(
+      localShelf.isStored()
+        ? "Kept on this device."
+        : "Kept until you close this tab (this browser blocks saving).",
+    );
+  }
   async function publish(e: FormEvent) {
     e.preventDefault();
     if (busy || !validateWriting(draft)) return;
+    if (local) return keepLocally();
     setBusy(true);
     setError("");
     setStatus("");
@@ -183,7 +236,12 @@ function WritingDialog({
       pending.current = null;
       setStatus("Published.");
     } catch (error) {
-      if (alive.current) setError((error as Error).message);
+      if (!alive.current) return;
+      if (error instanceof ApiUnavailable) {
+        // The shelf vanished mid-session: keep the piece here instead.
+        goLocal();
+        keepLocally();
+      } else setError(visitorCopy(error));
     } finally {
       if (alive.current) setBusy(false);
     }
@@ -202,21 +260,33 @@ function WritingDialog({
       setSelected(null);
       setStatus("Post removed.");
     } catch (error) {
-      if (alive.current) setError((error as Error).message);
+      if (!alive.current) return;
+      if (error instanceof ApiUnavailable) goLocal();
+      else setError(visitorCopy(error));
     } finally {
       if (alive.current) setBusy(false);
     }
   }
+  function removePiece(piece: LocalPiece) {
+    localShelf.remove(piece.id);
+    setPieces(localShelf.list());
+    setSelected(null);
+    setStatus("Removed from this device.");
+  }
   const notice = [
     error || status,
-    !stored || !draftStored ? "Draft lasts until reload." : "",
+    !stored || !draftStored ? "Your draft lasts until you reload." : "",
   ]
     .filter(Boolean)
     .join(" ");
+  const shown: (WritingPost | LocalPiece)[] = local ? pieces : posts;
+  const isPiece = (p: WritingPost | LocalPiece | null): p is LocalPiece =>
+    !!p && "savedAt" in p;
   return (
     <dialog
       ref={dialog}
       className="writing-dialog"
+      data-shelf={local ? "local" : online ? "shared" : "checking"}
       aria-labelledby="writing-heading"
       onCancel={(e) => {
         e.preventDefault();
@@ -248,14 +318,16 @@ function WritingDialog({
           >
             Write
           </button>
-          <button
-            type="button"
-            className="writing-refresh"
-            disabled={loading || busy}
-            onClick={() => void load()}
-          >
-            Refresh
-          </button>
+          {online === true && !local && (
+            <button
+              type="button"
+              className="writing-refresh"
+              disabled={loading || busy}
+              onClick={() => void load()}
+            >
+              Refresh
+            </button>
+          )}
         </nav>
         {notice && (
           <p className="writing-notice" role={error ? "alert" : "status"}>
@@ -264,13 +336,18 @@ function WritingDialog({
         )}
         {mode === "read" ? (
           <div className={`writing-reader ${selected ? "has-selection" : ""}`}>
-            <aside className="writing-list" aria-label="Public writing">
-              {loading && !posts.length ? (
-                <p role="status">Loading…</p>
+            <aside
+              className="writing-list"
+              aria-label={local ? "Your writing on this device" : "Public writing"}
+            >
+              {local ? (
+                <p className="writing-offline">{OFFLINE_LINE}</p>
+              ) : loading && !posts.length ? (
+                <p role="status">Opening the shelf…</p>
               ) : !posts.length && !error ? (
                 <p>No posts yet. Write the first one.</p>
               ) : null}
-              {posts.map((post) => (
+              {shown.map((post) => (
                 <button
                   type="button"
                   key={post.id}
@@ -282,7 +359,7 @@ function WritingDialog({
                   <span>{post.author}</span>
                 </button>
               ))}
-              {next && (
+              {!local && next && (
                 <button
                   type="button"
                   disabled={loading}
@@ -300,32 +377,56 @@ function WritingDialog({
                     className="writing-back"
                     onClick={() => setSelected(null)}
                   >
-                    All posts
+                    {local ? "Your pieces" : "All posts"}
                   </button>
                   <h3>{selected.title}</h3>
                   <p className="writing-byline">
                     {selected.author}{" "}
-                    <time dateTime={new Date(selected.createdAt).toISOString()}>
-                      {new Date(selected.createdAt).toLocaleDateString()}
+                    <time
+                      dateTime={new Date(
+                        isPiece(selected) ? selected.savedAt : selected.createdAt,
+                      ).toISOString()}
+                    >
+                      {new Date(
+                        isPiece(selected) ? selected.savedAt : selected.createdAt,
+                      ).toLocaleDateString()}
                     </time>
+                    {isPiece(selected) && <span>On this device</span>}
                   </p>
                   <p className="writing-body">{selected.body}</p>
-                  {deleteTokens.current[selected.id] && (
+                  {isPiece(selected) ? (
                     <details className="writing-remove">
-                      <summary>Remove my post</summary>
-                      <p>This removes it for everyone.</p>
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => void removePost(selected)}
-                      >
-                        Remove permanently
+                      <summary>Remove from this device</summary>
+                      <button type="button" onClick={() => removePiece(selected)}>
+                        Remove
                       </button>
                     </details>
+                  ) : (
+                    deleteTokens.current[selected.id] && (
+                      <details className="writing-remove">
+                        <summary>Remove my post</summary>
+                        <p>This removes it for everyone.</p>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void removePost(selected)}
+                        >
+                          Remove permanently
+                        </button>
+                      </details>
+                    )
                   )}
                 </>
-              ) : posts.length ? (
-                <p>Choose a post.</p>
+              ) : shown.length ? (
+                <p>Choose a piece to read.</p>
+              ) : local ? (
+                <button
+                  type="button"
+                  className="writing-start"
+                  onClick={() => setMode("write")}
+                >
+                  Write something
+                </button>
               ) : null}
             </article>
           </div>
@@ -366,9 +467,19 @@ function WritingDialog({
               />
             </label>
             <footer>
-              <span>{draft.body.length.toLocaleString()} / 6,000</span>
-              <button type="submit" disabled={busy || !validateWriting(draft)}>
-                {busy ? "Publishing…" : "Publish"}
+              <span>
+                {draft.body.length.toLocaleString()} / 6,000
+                {local ? " · saved as you type, on this device" : ""}
+              </span>
+              <button
+                type="submit"
+                disabled={busy || online === null || !validateWriting(draft)}
+              >
+                {local
+                  ? "Keep on this device"
+                  : busy
+                    ? "Publishing…"
+                    : "Publish"}
               </button>
             </footer>
           </form>
@@ -380,6 +491,9 @@ function WritingDialog({
 
 export function WritingRoomControls() {
   const [open, setOpen] = useState(false);
+  // Probe as soon as the room is entered, so the dialog opens in its
+  // final mode (shared shelf or this device) without a flash.
+  const online = useApiAvailable();
   // This owner stays mounted when pause hides GameControls' separate Html root.
   const [draft, setDraft] = useState(writingDraftSession.read);
   const [draftStored, setDraftStored] = useState(writingDraftSession.isStored);
@@ -421,6 +535,7 @@ export function WritingRoomControls() {
           draft={draft}
           setDraft={updateDraft}
           draftStored={draftStored}
+          online={online}
         />
       )}
     </GameControls>

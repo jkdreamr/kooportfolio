@@ -21,7 +21,8 @@ import {
 } from "../core/photoStrip";
 import type { Border, Filter, Mark, Point, Sticker } from "../core/photoStrip";
 import { BOOTH_PATH, STRIP_HEIGHT, STRIP_WIDTH } from "../../shared/booth";
-import { apiUrl } from "../../shared/api";
+import { apiUrl, readJson } from "../../shared/api";
+import { useApiAvailable } from "./useApiAvailable";
 import type { WallStrip } from "../../shared/booth";
 import "./photo-booth.css";
 
@@ -47,7 +48,8 @@ function Camera({
   autoStart: boolean;
   onCameraRequested: () => void;
   onShoot: (shoot: Shoot) => void;
-  onWall: () => void;
+  /** Absent when there is no shared wall to show. */
+  onWall?: () => void;
 }) {
   const video = useRef<HTMLVideoElement>(null);
   const session = useRef(0);
@@ -224,9 +226,11 @@ function Camera({
             Enable camera
           </button>
         )}
-        <button type="button" disabled={Boolean(sequence)} onClick={onWall}>
-          Wall
-        </button>
+        {onWall && (
+          <button type="button" disabled={Boolean(sequence)} onClick={onWall}>
+            Wall
+          </button>
+        )}
       </div>
     </>
   );
@@ -238,9 +242,12 @@ function Decorate({
   onRetake,
   onScrap,
   onPosted,
+  wall,
 }: {
   shoot: Shoot;
   posted: boolean;
+  /** Whether the shared wall exists; without it the strip only saves here. */
+  wall: boolean;
   onRetake: () => void;
   onScrap: () => void;
   onPosted: () => void;
@@ -468,20 +475,24 @@ function Decorate({
             type="button"
             className="photo-booth-primary"
             disabled={busy}
+            aria-describedby="booth-save-note"
             onClick={() => void save(false)}
           >
-            Save PNG
+            Save strip
           </button>
-          <button
-            type="button"
-            disabled={busy || posted}
-            aria-describedby="booth-public"
-            onClick={() => void save(true)}
-          >
-            {posted ? "Posted" : "Post to wall"}
-          </button>
+          {wall && (
+            <button
+              type="button"
+              disabled={busy || posted}
+              aria-describedby="booth-public"
+              onClick={() => void save(true)}
+            >
+              {posted ? "Posted" : "Post to wall"}
+            </button>
+          )}
         </div>
-        <p id="booth-public">Posted strips are visible to everyone.</p>
+        <p id="booth-save-note">Save strip downloads a PNG to this device.</p>
+        {wall && <p id="booth-public">Posted strips are visible to everyone.</p>}
       </div>
     </div>
   );
@@ -495,7 +506,7 @@ function Wall({ onBack, posted }: { onBack: () => void; posted: boolean }) {
     void fetch(apiUrl(BOOTH_PATH), { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error("Wall unavailable.");
-        const result: { strips: WallStrip[] } = await response.json();
+        const result = await readJson<{ strips: WallStrip[] }>(response);
         if (!Array.isArray(result.strips)) throw new Error("Wall unavailable.");
         setStrips(result.strips);
       })
@@ -542,6 +553,8 @@ function Wall({ onBack, posted }: { onBack: () => void; posted: boolean }) {
 
 function BoothSession({ paused }: { paused: boolean }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  // The wall needs the shared backend; until it answers yes, it is hidden.
+  const wallOnline = useApiAvailable() === true;
   const [shoot, setShoot] = useState<Shoot>();
   const [wall, setWall] = useState(false);
   const [posted, setPosted] = useState(false);
@@ -593,7 +606,9 @@ function BoothSession({ paused }: { paused: boolean }) {
     >
       <section className="photo-booth-card">
         <header>
-          <h2 id="photo-booth-title">{wall ? "Photo wall" : "Photo booth"}</h2>
+          <h2 id="photo-booth-title">
+            {wall && wallOnline ? "Photo wall" : "Photo booth"}
+          </h2>
           <button
             type="button"
             aria-label="Close photo booth"
@@ -603,17 +618,18 @@ function BoothSession({ paused }: { paused: boolean }) {
             ×
           </button>
         </header>
-        {wall && (
+        {wall && wallOnline && (
           <Wall
             onBack={() => (shoot ? setWall(false) : reset())}
             posted={posted}
           />
         )}
         {shoot && (
-          <div hidden={wall}>
+          <div hidden={wall && wallOnline}>
             <Decorate
               shoot={shoot}
               posted={posted}
+              wall={wallOnline}
               onRetake={() => {
                 setShoot(undefined);
                 setPosted(false);
@@ -627,12 +643,12 @@ function BoothSession({ paused }: { paused: boolean }) {
             />
           </div>
         )}
-        {!paused && !wall && !shoot && (
+        {!paused && !(wall && wallOnline) && !shoot && (
           <Camera
             autoStart={cameraRequested}
             onCameraRequested={() => setCameraRequested(true)}
             onShoot={setShoot}
-            onWall={() => setWall(true)}
+            onWall={wallOnline ? () => setWall(true) : undefined}
           />
         )}
       </section>
