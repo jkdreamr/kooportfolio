@@ -258,6 +258,8 @@ const linearKeys = DAYLIGHT_KEYS.map((key) => {
   ];
   return {
     top: parse(key.top),
+    zenith: parse(key.zenith),
+    mid: parse(key.mid),
     horizon: parse(key.horizon),
     sky: parse(key.sky),
     sun: parse(key.sun),
@@ -265,7 +267,9 @@ const linearKeys = DAYLIGHT_KEYS.map((key) => {
 });
 
 /** The sky colours TimeOfDayLighting draws at `hour` (same keys, same
- * smoothstep, lerped in linear light like THREE.Color), as sRGB 0..1. */
+ * smoothstep, lerped in linear light like THREE.Color), as sRGB 0..1. The
+ * village sky is three stops: `zenith` (top of frame), `mid` and `horizon`;
+ * `top` is the older two-stop zenith, kept for existing readers. */
 export function sampleSkyPalette(hour: number) {
   const { index, blend } = sampleDaylight(hour);
   const from = linearKeys[index],
@@ -277,6 +281,8 @@ export function sampleSkyPalette(hour: number) {
   ];
   return {
     top: mix(from.top, to.top),
+    zenith: mix(from.zenith, to.zenith),
+    mid: mix(from.mid, to.mid),
     horizon: mix(from.horizon, to.horizon),
     sky: mix(from.sky, to.sky),
     sun: mix(from.sun, to.sun),

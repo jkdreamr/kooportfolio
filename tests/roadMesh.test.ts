@@ -128,3 +128,17 @@ describe("world roads (B2)", () => {
     expect(cx).toBeCloseTo(-23.5, 5);
   });
 });
+
+describe("fountains stay clear of roads (B3 duty)", () => {
+  it("stanford: no road, fillet or apron reaches the quad fountain's basin", async () => {
+    const { campusFountainWorld } = await import("../src/game/core/campus");
+    const { campusFountainSpec } = await import("../src/game/core/campusDistrict");
+    const [fx, fz] = campusFountainWorld;
+    const r = campusFountainSpec.basinRadius + 0.3;
+    for (const [cx, cz, w, d] of roadFootprints("stanford")) {
+      const dx = Math.max(0, Math.abs(fx - cx) - w / 2);
+      const dz = Math.max(0, Math.abs(fz - cz) - d / 2);
+      expect(Math.hypot(dx, dz)).toBeGreaterThan(r);
+    }
+  });
+});

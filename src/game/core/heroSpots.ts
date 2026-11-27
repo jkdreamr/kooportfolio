@@ -15,7 +15,7 @@ export type FlightObstacle = readonly [cx: number, cz: number, halfX: number, ha
 const AWAY = -2.0;
 
 export const HERO_SPOTS: Record<WorldId, HeroSpot> = {
-  home: { position: [0, 5], heading: AWAY, exploreDistance: DEFAULT_EXPLORE_DISTANCE },
+  home: { position: [-2.5, 5], heading: AWAY, exploreDistance: DEFAULT_EXPLORE_DISTANCE },
   korea: { position: [-21.3, 48.4], heading: AWAY, exploreDistance: DEFAULT_EXPLORE_DISTANCE },
   stanford: { position: [-22.5, 46.8], heading: AWAY, exploreDistance: DEFAULT_EXPLORE_DISTANCE },
 };
