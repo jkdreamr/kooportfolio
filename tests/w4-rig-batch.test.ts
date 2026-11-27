@@ -8,15 +8,14 @@ import {
 } from "../src/game/world/character/locomotion";
 import { Baker } from "../src/game/world/StaticBatch";
 import {
-  KINDS,
+  DEFAULT_PALETTE,
+  FAR_KINDS,
   NEAR_RIG,
-  PARTS,
-  PARTS_PER_KIND_LOD,
-  PART_SLOT,
+  lookTriangles,
   nearRig,
-  rigGeometries,
   solveJoints,
 } from "../src/game/world/character/rig";
+import { lookFromPalette } from "../src/game/world/character/wardrobe";
 import { SURFACE_KIND_INDEX, sculptedMaterial } from "../src/game/world/Surface";
 
 describe("locomotion driver", () => {
@@ -91,7 +90,7 @@ describe("locomotion driver", () => {
     const ankle = new THREE.Vector3().setFromMatrixPosition(joints.ankleL);
     expect(ankle.y).toBeGreaterThan(0.02);
     expect(ankle.y).toBeLessThan(0.14);
-    expect(PARTS.length).toBeGreaterThan(20);
+    expect(lookFromPalette(DEFAULT_PALETTE).parts.length).toBeGreaterThan(20);
   });
 });
 
@@ -349,28 +348,21 @@ describe("StaticBatch baker: chunks, casters, kind, AO (PLAN2 §2, §1.2, §1.4)
 });
 
 describe("distant crowd rig (low LOD)", () => {
-  const tris = (lod: "high" | "low") => {
-    const g = rigGeometries(lod);
-    return KINDS.reduce((sum, kind) => {
-      const geo = g[kind];
-      const n = geo.index ? geo.index.count / 3 : geo.attributes.position.count / 3;
-      return sum + n * PARTS_PER_KIND_LOD[lod][kind];
-    }, 0);
-  };
+  const look = lookFromPalette(DEFAULT_PALETTE);
   it("costs well under half the triangles of the full rig", () => {
-    expect(tris("low")).toBeLessThan(tris("high") * 0.4);
+    expect(lookTriangles(look, "low")).toBeLessThan(lookTriangles(look, "high") * 0.4);
   });
-  it("maps every drawn part to a unique slot and skips only face/shoe detail", () => {
+  it("maps every drawn part to a unique slot and skips only near-only detail", () => {
     for (const lod of ["high", "low"] as const) {
       const seen = new Set<string>();
-      PARTS.forEach((part, i) => {
-        const slot = PART_SLOT[lod][i];
+      look.parts.forEach((part, i) => {
+        const slot = look.slot[lod][i];
         if (slot < 0) {
-          expect(lod).toBe("low");
-          expect(part.detail).toBe(true);
+          if (lod === "high") expect(part.lod).toBe("far");
+          else expect(part.lod === "near" || !FAR_KINDS.has(part.kind)).toBe(true);
           return;
         }
-        expect(slot).toBeLessThan(PARTS_PER_KIND_LOD[lod][part.kind]);
+        expect(slot).toBeLessThan(look.count[lod][part.kind]);
         const key = `${part.kind}:${slot}`;
         expect(seen.has(key)).toBe(false);
         seen.add(key);

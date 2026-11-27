@@ -54,6 +54,9 @@ export type Pose = {
   walk: number;
   /** Seated blend 0..1 (written by callers that seat a character). */
   seat: number;
+  /** Mouth open 0..1 while speaking (written by callers, e.g. a villager
+   * in conversation). */
+  talk: number;
 };
 
 export type Gait = {
@@ -102,6 +105,7 @@ const zeroPose = (): Pose => ({
   eyes: 1,
   walk: 0,
   seat: 0,
+  talk: 0,
 });
 
 /** Deterministic hash → [0,1). */

@@ -3,7 +3,8 @@ import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { useWorldActive } from "../engine/active";
 import { RigBatch, RigMeshes } from "./character/CharacterRig";
 import { createGait, seatPose, stepGait } from "./character/locomotion";
-import { DEFAULT_PALETTE, NEAR_RIG, nearRig, type Palette } from "./character/rig";
+import { NEAR_RIG, nearRig } from "./character/rig";
+import { lookFor } from "./character/cast";
 import * as THREE from "three";
 import { movement } from "../core/input";
 import { runtime, useGame } from "../core/store";
@@ -20,30 +21,16 @@ import {
 import type { WorldId } from "../core/worlds";
 import { useWorldView, viewRuntime } from "../core/worldView";
 import { useStage } from "../../stage/contract";
+import { exposeQa } from "../../stage/qa";
 
-const HAIR = ["#3e3632", "#5b4030", "#2d2a2a", "#8a5a3a", "#c49a62", "#6b6460"];
-const PANTS = ["#3a4547", "#4b4a5e", "#6b5844", "#36485a", "#5f6b55"];
-const HATS = ["#e0b86d", "#d9c08a", "#c98f5a", "#e7d2a2"];
-const SHOES = ["#efe2c8", "#7b5a43", "#3f3a36", "#c9b9a0"];
+// QA builds only (tree-shaken otherwise): screenshot tools find villagers.
+exposeQa({ npcCrowd: activeNpcCrowd, useNpcs });
+
 function hashId(id: string) {
   let h = 2166136261;
   for (let i = 0; i < id.length; i++)
     h = Math.imul(h ^ id.charCodeAt(i), 16777619);
   return h >>> 0;
-}
-function npcPalette(npc: NpcEntry["npc"]): Palette {
-  const h = hashId(npc.id);
-  return {
-    ...DEFAULT_PALETTE,
-    shirt: npc.color,
-    skin: npc.skin,
-    hasHat: npc.hat,
-    hair: HAIR[h % HAIR.length],
-    pants: PANTS[(h >>> 3) % PANTS.length],
-    hat: HATS[(h >>> 6) % HATS.length],
-    shoe: SHOES[(h >>> 9) % SHOES.length],
-    band: npc.color,
-  };
 }
 const NPC_SCALE = 0.67;
 const base = new THREE.Matrix4(),
@@ -53,16 +40,13 @@ const base = new THREE.Matrix4(),
 const up = new THREE.Vector3(0, 1, 0);
 
 /** The whole crowd as two instanced rigs (full near the camera, low-poly and
- * shadowless beyond it): ≈14 draws for every villager. */
+ * shadowless beyond it): ≤11 + ≤8 draws for every villager, whatever they
+ * wear. */
 function CrowdRig({ crowd }: { crowd: NpcEntry[] }) {
-  const near = useMemo(
-    () => new RigBatch(Math.max(1, crowd.length), "high"),
-    [crowd],
-  );
-  const far = useMemo(
-    () => new RigBatch(Math.max(1, crowd.length), "low"),
-    [crowd],
-  );
+  // Every villager wears their own outfit (character/cast.ts).
+  const looks = useMemo(() => crowd.map(({ npc }) => lookFor(npc)), [crowd]);
+  const near = useMemo(() => new RigBatch(looks, "high"), [looks]);
+  const far = useMemo(() => new RigBatch(looks, "low"), [looks]);
   const slots = useMemo(
     () => ({
       near: new Int32Array(Math.max(1, crowd.length)),
@@ -73,10 +57,6 @@ function CrowdRig({ crowd }: { crowd: NpcEntry[] }) {
   );
   const gaits = useMemo(
     () => crowd.map((entry) => createGait(hashId(entry.npc.id) % 997)),
-    [crowd],
-  );
-  const palettes = useMemo(
-    () => crowd.map(({ npc }) => npcPalette(npc)),
     [crowd],
   );
   const last = useRef<Float32Array | null>(null);
@@ -92,6 +72,8 @@ function CrowdRig({ crowd }: { crowd: NpcEntry[] }) {
       viewRuntime.blend === 0 && useWorldView.getState().zoom < 3;
     const radius = overview || !camera ? 0 : NEAR_RIG[tier];
     const fov = (camera as THREE.PerspectiveCamera | undefined)?.fov ?? 42;
+    const talking = useNpcs.getState().talking;
+    const clock = performance.now() / 1000;
     let nearCount = 0,
       farCount = 0;
     crowd.forEach(({ actor }, i) => {
@@ -120,6 +102,11 @@ function CrowdRig({ crowd }: { crowd: NpcEntry[] }) {
       });
       seatPose(pose, seated);
       if (seated <= 0) pose.seat = 0;
+      // The villager you are talking to moves their mouth.
+      pose.talk =
+        talking === actor.id && !game.paused
+          ? Math.max(0, Math.sin(clock * 11 + i) * 0.5 + Math.sin(clock * 6.3) * 0.35)
+          : 0;
       at.set(
         x,
         0.2 + ((actor.seat?.height ?? 0.508) + 0.04 - 0.508) * seated,
@@ -138,10 +125,10 @@ function CrowdRig({ crowd }: { crowd: NpcEntry[] }) {
       slots.isNear[i] = close ? 1 : 0;
       if (close) {
         slots.near[nearCount] = i;
-        near.write(nearCount++, pose, base, palettes[i]);
+        near.write(nearCount++, pose, base, looks[i]);
       } else {
         slots.far[farCount] = i;
-        far.write(farCount++, pose, base, palettes[i]);
+        far.write(farCount++, pose, base, looks[i]);
       }
     });
     near.commit(nearCount);
@@ -157,7 +144,8 @@ function CrowdRig({ crowd }: { crowd: NpcEntry[] }) {
     (kind: Parameters<RigBatch["characterAt"]>[0], event: ThreeEvent<PointerEvent>) => {
       event.stopPropagation();
       if (event.instanceId === undefined) return;
-      const entry = crowd[slot[batch.characterAt(kind, event.instanceId)]];
+      const index = batch.characterAt(kind, event.instanceId);
+      const entry = index >= 0 ? crowd[slot[index]] : undefined;
       if (entry) talkToNpc(entry.actor.id);
     };
   return (
