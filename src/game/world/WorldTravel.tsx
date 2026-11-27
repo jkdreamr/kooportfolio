@@ -16,7 +16,7 @@ import {
 import { journeyGate } from "../core/journey";
 import { Box, Cylinder, Sign } from "./Models";
 import { PassengerJet, PassengerStairs } from "./TravelVehicles";
-import { IslandJourney, type IslandTrip } from "./IslandJourney";
+import { IslandJourney, type IslandTrip, type JourneyControl } from "./IslandJourney";
 import "./world-travel.css";
 import { screenOverlayNoOcclude, screenOverlayPosition, screenOverlayStyle } from "./screenOverlay";
 
@@ -94,6 +94,10 @@ export function WorldTravel({
   disabled?: boolean;
 }) {
   const [nearAirport, setNearAirport] = useState(false);
+  // Departures opens only once the player has walked away from the gate
+  // (more than 7 m) and come back (within 5 m): never on landing (B7).
+  const departuresArmed = useRef(false);
+  const journeyControl = useRef<JourneyControl>({ cancel: false });
   const [trip, setTrip] = useState<IslandTrip | null>(null);
   const request = useGame((s) => s.travelRequest);
   const paused = useGame((s) => s.paused);
@@ -110,18 +114,23 @@ export function WorldTravel({
   const traveling = !!trip;
   const finish = useCallback(() => {
     clearTravelInput();
+    departuresArmed.current = false;
+    journeyControl.current.cancel = false;
     setTrip(null);
   }, []);
+  // Cancel is the journey's to perform: it raises the veil, swaps back
+  // behind it if the region already changed, and lowers it over the origin.
   const cancel = useCallback(() => {
+    if (trip) journeyControl.current.cancel = true;
+    else finish();
+  }, [trip, finish]);
+  const cancelled = useCallback(() => {
     if (trip) {
-      // Crossing offshore changes the visible region, not what Cancel means.
-      if (useGame.getState().world !== trip.from)
-        onArrive(trip.from, trip.mode);
       [runtime.x, runtime.z] = trip.origin;
       useGame.getState().persist();
     }
     finish();
-  }, [trip, finish, onArrive]);
+  }, [trip, finish]);
   useEffect(() => {
     onTravelChange?.(traveling);
     return () => onTravelChange?.(false);
@@ -151,7 +160,9 @@ export function WorldTravel({
   useFrame(() => {
     if (traveling) return;
     const airport = journeyGate("plane", world);
-    const next = Math.hypot(runtime.x - airport[0], runtime.z - airport[1]) < 5;
+    const distance = Math.hypot(runtime.x - airport[0], runtime.z - airport[1]);
+    if (distance > 7) departuresArmed.current = true;
+    const next = departuresArmed.current && distance < 5;
     if (next !== nearAirport) setNearAirport(next);
   });
   const depart = useCallback(
@@ -184,7 +195,10 @@ export function WorldTravel({
           trip={trip}
           world={world}
           reduced={reduced}
+          control={journeyControl}
           onArrive={() => onArrive(trip.destination, trip.mode)}
+          onSwapBack={() => onArrive(trip.from, trip.mode)}
+          onCancelled={cancelled}
           onComplete={() => {
             [runtime.x, runtime.z] = journeyGate(trip.mode, trip.destination);
             finish();

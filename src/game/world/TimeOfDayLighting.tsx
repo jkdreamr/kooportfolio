@@ -6,6 +6,7 @@ import { autoHour, daylightClock, useTimeOfDay } from "../core/timeOfDay";
 import { runtime, useGame } from "../core/store";
 import { isInterior } from "../core/world";
 import { usePresented } from "../engine/presented";
+import { journeyAtmosphere } from "./env/atmosphere";
 
 const palettes = DAYLIGHT_KEYS.map((key) => ({
   zenith: new THREE.Color(key.zenith),
@@ -37,11 +38,13 @@ const skyFragment = `
   uniform vec3 topColor;
   uniform vec3 midColor;
   uniform vec3 horizonColor;
+  uniform vec3 veilColor;
   uniform vec3 sunColor;
   uniform float night;
   uniform float aspect;
   uniform float stars;
   uniform vec2 sunPosition;
+  uniform float veil;
   varying vec2 vUv;
   float disc(vec2 center, float radius) {
     float d = length((vUv - center) * vec2(aspect, 1.0));
@@ -68,6 +71,8 @@ const skyFragment = `
     float moon = disc(vec2(0.81, 0.8), 0.025)
       * (1.0 - disc(vec2(0.821, 0.81), 0.023));
     sky = mix(sky, vec3(0.78, 0.86, 1.0), moon * night);
+    // Travel veil: the whole sky becomes the fog colour.
+    sky = mix(sky, veilColor, veil);
     // Half-a-level dither: no banding in the long gradient.
     sky += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
     gl_FragColor = vec4(sky, 1.0);
@@ -102,12 +107,13 @@ export function TimeOfDayLighting({ dimmed = false }: { dimmed?: boolean }) {
       topColor: { value: colors.zenith },
       midColor: { value: colors.mid },
       horizonColor: { value: colors.horizon },
-
+      veilColor: { value: colors.haze },
       sunColor: { value: colors.sun },
       night: { value: 0 },
       aspect: { value: 1 },
       stars: { value: 1 },
       sunPosition: { value: new THREE.Vector2(0.2, 0.8) },
+      veil: { value: 0 },
     }),
     [colors],
   );
@@ -122,12 +128,14 @@ export function TimeOfDayLighting({ dimmed = false }: { dimmed?: boolean }) {
     const state = useGame.getState();
     if (!state.paused && runtime.active) {
       const time = useTimeOfDay.getState();
-      daylightClock.hour = advanceHour(
-        daylightClock.hour,
-        delta,
-        time.mode,
-        time.mode === "auto" ? autoHour(time.timeZone) : undefined,
-      );
+      // World travel drives the hour along its arc (B7); never fight it.
+      if (!daylightClock.heldBy)
+        daylightClock.hour = advanceHour(
+          daylightClock.hour,
+          delta,
+          time.mode,
+          time.mode === "auto" ? autoHour(time.timeZone) : undefined,
+        );
       displayedAt.current += Math.min(delta, 0.1);
       if (displayedAt.current >= 0.25) {
         useTimeOfDay.setState({ hour: daylightClock.hour });
@@ -186,6 +194,7 @@ export function TimeOfDayLighting({ dimmed = false }: { dimmed?: boolean }) {
       live.aspect.value = size.width / size.height;
       live.stars.value = quality === "high" ? 1 : 0.6;
       live.sunPosition.value.set(0.2 + (daylightClock.hour / 24) * 0.55, 0.78);
+      live.veil.value = interior ? 0 : journeyAtmosphere.veil;
     }
     if (sky.current) sky.current.visible = !interior;
 

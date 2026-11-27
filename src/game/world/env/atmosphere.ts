@@ -85,6 +85,26 @@ export const atmosphere = {
 export const exploreHaze = { push: 10, mix: 0.55, cool: [0.84, 0.98, 1.2] as const };
 const cool = new THREE.Color();
 
+/**
+ * World travel's veil (B7): 0 clear, 1 only sky. While it is up the fog
+ * closes in camera space toward `near`/`far` (the vehicle stays readable,
+ * the world behind becomes the horizon colour) and the sky's gradient
+ * flattens to the same colour, so a world swap behind it cannot be seen.
+ * IslandJourney is the only writer.
+ */
+export const journeyAtmosphere = { veil: 0, near: 8, far: 60 };
+
+/**
+ * B8: damp the haze's focus distance toward the camera's new focus, but snap
+ * when the camera jumps (a cut of more than 25% of the focus distance), so a
+ * far overview never renders for a frame inside close-up fog.
+ */
+export function smoothFocus(previous: number, focus: number, delta: number) {
+  if (!(previous > 0) || Math.abs(focus - previous) > 0.25 * previous) return focus;
+  const k = 1 - Math.exp(-12 * Math.min(Math.max(delta, 0), 0.25));
+  return THREE.MathUtils.lerp(previous, focus, k);
+}
+
 const forward = new THREE.Vector3();
 let focusSmoothed = 0;
 /**
@@ -106,9 +126,9 @@ export function driveAtmosphere(
   const focus = forward.y < -0.05 ? height / -forward.y : 150;
   // Frame-rate independent damping (time constant ~1/12 s), so a view
   // switch settles in the same wall time on a 20 or a 144 fps display and
-  // the overview never lingers in the explore view's near fog.
-  const k = 1 - Math.exp(-12 * Math.min(Math.max(delta, 0), 0.25));
-  focusSmoothed = focusSmoothed ? THREE.MathUtils.lerp(focusSmoothed, focus, k) : focus;
+  // the overview never lingers in the explore view's near fog; a camera cut
+  // snaps (B8).
+  focusSmoothed = smoothFocus(focusSmoothed, focus, delta);
   const blend = viewRuntime.blend;
   // Explore: the haze starts a little further out, so the midground keeps
   // its contrast (F4: +10 near, span 260 → 165 rather than 140).
@@ -116,6 +136,12 @@ export function driveAtmosphere(
   // The explore view sees to the horizon: thicker depth haze (260 → 140;
   // → 165 with the F4 grade).
   fog.far = fog.near + atmosphere.span * (1 - blend * (120 / 260) + look * (25 / 260));
+  // Travel veil: close the fog in camera space (B7).
+  const veil = journeyAtmosphere.veil;
+  if (veil > 0) {
+    fog.near = THREE.MathUtils.lerp(fog.near, journeyAtmosphere.near, veil);
+    fog.far = THREE.MathUtils.lerp(fog.far, journeyAtmosphere.far, veil);
+  }
   // Explore: cool the horizon haze from TimeOfDayLighting's warm horizon
   // toward a blue-grey of the same brightness (aerial perspective). The
   // colour is re-copied by TimeOfDayLighting every frame (priority -1,

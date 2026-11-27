@@ -32,6 +32,85 @@ function journeyDistance(p: number): number {
   return (ramp * (t ** 3 - 0.5 * t ** 4)) / (1 - ramp);
 }
 
+/* ------------------------------------------------ one continuous shot (B7) */
+
+/**
+ * The ride as one shot (ride progress p, 0–1):
+ *  0.00–0.30 depart: the camera eases from the boarding framing to a chase
+ *  0.30–0.44 veil in: fog closes to cloud, locked to the sky's horizon colour
+ *  0.44–0.56 hold: only sky, cloud wisps and the vehicle; the world swaps at
+ *            0.50, and only while fully veiled
+ *  0.56–0.70 veil out over the destination
+ *  0.70–1.00 approach and touch down (the depart mirrored)
+ * The sky's hour moves along a cruise curve over 0.15–0.85, so the light
+ * changes slowly and never in a step.
+ */
+export const JOURNEY_SHOT = {
+  chaseIn: [0, 0.3],
+  veilIn: [0.3, 0.44],
+  swap: 0.5,
+  veilOut: [0.56, 0.7],
+  chaseOut: [0.7, 1],
+  hour: [0.15, 0.85],
+  /** Chase framing behind and above the vehicle (world units). */
+  chaseBack: 14,
+  chaseUp: 5,
+  chaseFov: 50,
+  /** Veiled fog (view depth): the vehicle 14 m away stays readable. */
+  veilNear: 8,
+  veilFar: 60,
+  /** Cap on holding the swap until the destination has been drawn. */
+  holdCap: 2.5,
+  /** Reduced motion: whole ride, and the fog cross-fade at the midpoint. */
+  reducedSeconds: 6,
+  reducedVeilSeconds: 0.4,
+} as const;
+
+const ramp01 = (p: number, [a, b]: readonly [number, number]) =>
+  journeyEase((p - a) / (b - a));
+
+/** Signed shortest way round the clock from `from` to `to`, in (−12, 12]. */
+export function shortestArc(from: number, to: number) {
+  const d = ((((to - from) % 24) + 24) % 24);
+  return d > 12 ? d - 24 : d;
+}
+
+/** Ease with zero velocity and acceleration at both ends and a steady
+ * middle (peak speed 1.22× the mean, not 1.875× as a plain smootherstep). */
+export const cruiseEase = (p: number) => journeyDistance(Math.max(0, Math.min(1, p)));
+
+/** Veil (0 clear → 1 only sky) at ride progress `p`. Reduced motion: a short
+ * cross-fade either side of the midpoint of a `seconds`-long ride. */
+export function journeyVeil(p: number, reduced = false, seconds: number = JOURNEY_SHOT.reducedSeconds) {
+  if (reduced) {
+    const half = JOURNEY_SHOT.reducedVeilSeconds / seconds / 2;
+    const d = Math.abs(p - JOURNEY_SHOT.swap);
+    return 1 - journeyEase((d - half * 0.5) / (half * 0.5));
+  }
+  if (p <= JOURNEY_SHOT.veilIn[1]) return ramp01(p, JOURNEY_SHOT.veilIn);
+  if (p < JOURNEY_SHOT.veilOut[0]) return 1;
+  return 1 - ramp01(p, JOURNEY_SHOT.veilOut);
+}
+
+/** The world swaps only behind a complete veil. */
+export const canSwapWorld = (veil: number) => veil >= 0.999;
+
+/** Chase-camera weight (0 boarding/overview framing → 1 chase). */
+export function journeyChase(p: number, reduced = false) {
+  if (reduced) return 0;
+  if (p <= JOURNEY_SHOT.chaseIn[1]) return ramp01(p, JOURNEY_SHOT.chaseIn);
+  if (p < JOURNEY_SHOT.chaseOut[0]) return 1;
+  return 1 - ramp01(p, JOURNEY_SHOT.chaseOut);
+}
+
+const wrap24 = (h: number) => ((h % 24) + 24) % 24;
+/** The sky's hour along the ride: origin hour → destination hour the short
+ * way round, on the cruise curve. */
+export function journeyHour(p: number, from: number, to: number) {
+  const [a, b] = JOURNEY_SHOT.hour;
+  return wrap24(from + shortestArc(from, to) * cruiseEase((p - a) / (b - a)));
+}
+
 const boardingCurves = new Map<string, CatmullRomCurve3>();
 // Around the tail and up the stairs beside the parked jet's nose, rather than
 // through the fuselage. Offsets from the gate match the apron/stairs layout.

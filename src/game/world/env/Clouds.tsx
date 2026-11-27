@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { viewRuntime } from "../../core/worldView";
 import { useWorldActive } from "../../engine/active";
 import { envUniforms } from "./uniforms";
+import { journeyAtmosphere } from "./atmosphere";
 
 /**
  * Sky depth (PLAN2 §1.3, B5): soft cloud billboards on two horizon rings that
@@ -37,8 +38,9 @@ function random(seed: number) {
 }
 
 let texture: THREE.Texture | null = null;
-/** 256×128 cumulus: overlapping soft puffs over a flat base, white with alpha. */
-function cloudTexture() {
+/** 256×128 cumulus: overlapping soft puffs over a flat base, white with alpha.
+ * Shared with the travel wisps (IslandJourney). */
+export function cloudTexture() {
   if (texture) return texture;
   const w = 256,
     h = 128;
@@ -90,7 +92,19 @@ function cloudMaterial() {
   });
   return material;
 }
-const geometry = new THREE.PlaneGeometry(1, 0.5);
+/** A material that links the same program as the clouds (same parameters),
+ * for another instanced cloud draw with its own colour and opacity. */
+export function cloudLikeMaterial() {
+  return new THREE.MeshBasicMaterial({
+    map: cloudTexture(),
+    transparent: true,
+    depthWrite: false,
+    fog: false,
+    opacity: 0,
+  });
+}
+export const cloudGeometry = new THREE.PlaneGeometry(1, 0.5);
+const geometry = cloudGeometry;
 const tint = new THREE.Color(),
   warm = new THREE.Color(),
   faint = new THREE.Color();
@@ -154,7 +168,8 @@ export function Clouds() {
     for (let i = NEAR; i < COUNT; i++) m.setColorAt(i, faint);
     if (m.instanceColor) m.instanceColor.needsUpdate = true;
     cloudMat.color.copy(own);
-    cloudMat.opacity = 0.8 * THREE.MathUtils.lerp(0.6, 1, blend);
+    // Behind the travel veil only the veil's own wisps remain.
+    cloudMat.opacity = 0.8 * THREE.MathUtils.lerp(0.6, 1, blend) * (1 - journeyAtmosphere.veil);
   });
   return (
     <group ref={group} name="env-clouds">

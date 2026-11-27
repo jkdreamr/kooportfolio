@@ -6,8 +6,6 @@ import {
   type WorldTimeZone,
 } from "./worldTime";
 
-const initialTimeZone = WORLD_TIME_ZONES.pacific;
-
 /** The warm late-afternoon light a first visit opens on (the reference's
  * long, low sun). */
 export const FIRST_VISIT_HOUR = 16.6;
@@ -21,6 +19,23 @@ function storage(kind: "localStorage" | "sessionStorage") {
     return null;
   }
 }
+
+/**
+ * B7a: the clock starts in the saved world's timezone, before the first
+ * frame, so a visitor who loads straight into Korea never watches the sky
+ * glide from California's hour to Seoul's.
+ */
+export function savedWorldTimeZone(): WorldTimeZone {
+  try {
+    const raw = storage("localStorage")?.getItem(SAVE_KEY);
+    const world = raw ? (JSON.parse(raw) as { world?: unknown }).world : null;
+    if (world === "korea") return WORLD_TIME_ZONES.korea;
+  } catch {
+    // An unreadable save starts in the default world, as the game does.
+  }
+  return WORLD_TIME_ZONES.pacific;
+}
+const initialTimeZone = savedWorldTimeZone();
 /**
  * Auto follows each world's civil time. A first-time visitor (no save yet)
  * instead gets a session anchor: Auto runs at real speed from late afternoon,
@@ -63,7 +78,15 @@ export function clearAutoAnchor() {
   }
 }
 
-export const daylightClock = { hour: autoHour(initialTimeZone) };
+/**
+ * The hour every light, sky and weather sample reads. `heldBy` names a
+ * system driving it directly (world travel's journey): while it is set,
+ * TimeOfDayLighting does not advance or glide it.
+ */
+export const daylightClock: { hour: number; heldBy: string | null } = {
+  hour: autoHour(initialTimeZone),
+  heldBy: null,
+};
 
 export const useTimeOfDay = create<{
   hour: number;
