@@ -63,14 +63,15 @@ a {
     sans-serif;
   letter-spacing: 1.8px;
   font-weight: 600;
-  color: #808274;
+  /* 5.2:1 on the paper (AA for small text). */
+  color: #6a6c5f;
 }
 /* ------------------------------------------------------------ portfolio */
 :root {
   --paper: #fbfbf9;
   --ink: #1f2321;
   --ink-soft: #5f655c;
-  --ink-faint: #9a9c90;
+  --ink-faint: #6a6c5f;
   --sky: #dce5c7;
 }
 body {
@@ -193,7 +194,7 @@ body {
   cursor: grabbing;
 }
 .loose-letter:focus-visible {
-  outline: 1.5px solid #8a9a86;
+  outline: 2px solid #8a9a86;
   outline-offset: 2px;
   border-radius: 40%;
 }
@@ -202,6 +203,8 @@ body {
   letter-spacing: 0.1px;
   color: var(--ink-soft);
   margin: 0 0 12px;
+  /* On a phone the line breaks in two: even halves, never a lone "crv". */
+  text-wrap: balance;
 }
 .portfolio-nav {
   display: flex;
@@ -255,7 +258,8 @@ body {
 }
 .work-row small {
   display: block;
-  color: #85877a;
+  /* 4.9:1 on the row's glass (AA for small text). */
+  color: #6a6c5f;
   margin-top: 8px;
   font-size: 12px;
 }
@@ -321,7 +325,8 @@ body {
   z-index: 3;
   font-size: 12px;
   letter-spacing: 1px;
-  color: #8f9184;
+  /* 5.2:1 on the paper (AA for small text). */
+  color: #6a6c5f;
 }
 
 /* ------------------------------------------------- stage & peephole states */
@@ -507,11 +512,12 @@ html.play.boot-skip body::after {
   }
 }
 /* Portfolio routes cross-fade into each other where the browser can
-   (cross-document view transitions); elsewhere they navigate as before. */
+   (cross-document view transitions); elsewhere they navigate as before.
+   The opt-in itself (@view-transition) is inline in index.html: Chromium
+   reads it when the new document is first revealed, which can be before
+   this stylesheet has arrived, and then aborts the transition with an
+   unhandled "opt-in disabled" rejection on every navigation. */
 @media (prefers-reduced-motion: no-preference) {
-  @view-transition {
-    navigation: auto;
-  }
   ::view-transition-old(root),
   ::view-transition-new(root) {
     animation-duration: 180ms;
@@ -541,8 +547,14 @@ html.play.boot-skip body::after {
     padding: 140px 22px 80px;
   }
   .editorial h1 {
-    font-size: 76px;
+    /* 76 px from 371 px up; below that the name scales with the screen so
+       the full stop is never cut off (320 px: 66 px). */
+    font-size: clamp(56px, 20.5vw, 76px);
     letter-spacing: -0.06em;
+  }
+  /* "Nothing here." is longer than the name: sized to stay on the sheet. */
+  .not-found .editorial h1 {
+    font-size: clamp(40px, 13.5vw, 76px);
   }
   .bio {
     font-size: 12px;
