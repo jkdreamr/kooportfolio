@@ -17,7 +17,6 @@ const palettes = DAYLIGHT_KEYS.map((key) => ({
   ground: new THREE.Color(key.ground),
 }));
 const indoor = {
-  backdrop: new THREE.Color("#34494e"),
   sun: new THREE.Color("#fff0cc"),
   sky: new THREE.Color("#dceaff"),
   ground: new THREE.Color("#64533c"),
@@ -25,6 +24,22 @@ const indoor = {
 };
 /** B5: distance haze moves this far from the horizon toward the mid sky. */
 export const HAZE_TOWARD_MID = 0.3;
+/** B9: a room's backdrop is the outdoor sky at this hour, darkened 55% and
+ * desaturated 30%, so a room at sunset has a warm dusk behind it. */
+export const INTERIOR_DARKEN = 0.55;
+export const INTERIOR_DESATURATE = 0.3;
+/** Pure (tests): the interior backdrop variant of a sky colour. */
+export function interiorBackdrop(color: THREE.Color, out = new THREE.Color()) {
+  const l = color.r * 0.2126 + color.g * 0.7152 + color.b * 0.0722;
+  return out
+    .setRGB(
+      color.r + (l - color.r) * INTERIOR_DESATURATE,
+      color.g + (l - color.g) * INTERIOR_DESATURATE,
+      color.b + (l - color.b) * INTERIOR_DESATURATE,
+    )
+    .multiplyScalar(1 - INTERIOR_DARKEN);
+}
+
 const skyVertex = `
   varying vec2 vUv;
   void main() {
@@ -43,6 +58,7 @@ const skyFragment = `
   uniform float night;
   uniform float aspect;
   uniform float stars;
+  uniform float sunShown;
   uniform vec2 sunPosition;
   uniform float veil;
   varying vec2 vUv;
@@ -60,17 +76,17 @@ const skyFragment = `
     float seed = fract(sin(dot(cell, vec2(127.1, 311.7))) * 43758.5453);
     float star = (1.0 - smoothstep(0.025, 0.12, length(fract(grid) - 0.5)))
       * step(0.965, seed) * smoothstep(0.35, 0.9, vUv.y);
-    sky += vec3(star * night * stars * 0.7);
+    sky += vec3(star * night * stars * 0.7 * sunShown);
     // Sun: a soft disc with a 3× additive glow (8% at its peak).
     float sunD = length((vUv - sunPosition) * vec2(aspect, 1.0));
-    float sunOn = 1.0 - night;
+    float sunOn = (1.0 - night) * sunShown;
     float glow = 1.0 - smoothstep(0.0, 0.027 * 3.0, sunD);
     sky += sunColor * glow * glow * 0.08 * sunOn;
     float sun = (1.0 - smoothstep(0.022, 0.03, sunD)) * sunOn;
     sky = mix(sky, sunColor * 1.15, sun * 0.85);
     float moon = disc(vec2(0.81, 0.8), 0.025)
       * (1.0 - disc(vec2(0.821, 0.81), 0.023));
-    sky = mix(sky, vec3(0.78, 0.86, 1.0), moon * night);
+    sky = mix(sky, vec3(0.78, 0.86, 1.0), moon * night * sunShown);
     // Travel veil: the whole sky becomes the fog colour.
     sky = mix(sky, veilColor, veil);
     // Half-a-level dither: no banding in the long gradient.
@@ -108,6 +124,7 @@ export function TimeOfDayLighting({ dimmed = false }: { dimmed?: boolean }) {
       midColor: { value: colors.mid },
       horizonColor: { value: colors.horizon },
       veilColor: { value: colors.haze },
+      sunShown: { value: 1 },
       sunColor: { value: colors.sun },
       night: { value: 0 },
       aspect: { value: 1 },
@@ -150,8 +167,7 @@ export function TimeOfDayLighting({ dimmed = false }: { dimmed?: boolean }) {
     // Distance haze between the horizon and the mid sky (B5).
     colors.haze.copy(colors.horizon).lerp(colors.mid, HAZE_TOWARD_MID);
     // The scene background stays the horizon (the loading shell matches it).
-    if (world.background instanceof THREE.Color)
-      world.background.copy(interior ? indoor.backdrop : colors.horizon);
+    if (world.background instanceof THREE.Color) world.background.copy(colors.horizon);
 
     // Interior objects retain warm, readable light instead of turning blue-black.
     if (interior) {
@@ -159,7 +175,13 @@ export function TimeOfDayLighting({ dimmed = false }: { dimmed?: boolean }) {
       colors.sky.lerp(indoor.sky, 0.65);
       colors.ground.lerp(indoor.ground, 0.65);
     }
-    if (world.fog) world.fog.color.copy(interior ? indoor.backdrop : colors.haze);
+    if (interior) {
+      // A room sits in a dusk taken from the outdoor sky at this hour (B9).
+      for (const name of ["zenith", "mid", "horizon"] as const)
+        interiorBackdrop(colors[name], colors[name]);
+      colors.haze.copy(colors.horizon);
+    }
+    if (world.fog) world.fog.color.copy(colors.haze);
     if (!lights.current) {
       const sun = world.getObjectByName("world-sun");
       const fill = world.getObjectByName("world-fill");
@@ -195,8 +217,8 @@ export function TimeOfDayLighting({ dimmed = false }: { dimmed?: boolean }) {
       live.stars.value = quality === "high" ? 1 : 0.6;
       live.sunPosition.value.set(0.2 + (daylightClock.hour / 24) * 0.55, 0.78);
       live.veil.value = interior ? 0 : journeyAtmosphere.veil;
+      live.sunShown.value = interior ? 0 : 1;
     }
-    if (sky.current) sky.current.visible = !interior;
 
   }, -1);
 
