@@ -83,14 +83,14 @@ const STANFORD_NET: RoadNetwork = {
 };
 
 /* ----------------------------------------------------------------- korea */
-/** Modern Seoul: the riverside street and the two Han bank roads. */
-export const KOREA_STREETS: readonly RoadRect[] = [
-  [-0.5, 12, 106, 3.3],
-  [25, 18.7, 79, 3.2],
-  [27.5, 47, 85, 3.2],
-];
+/** Modern Seoul: the north-bank road along the Han (asphalt). The walk in
+ * front of the plaza and the south bank stay pedestrian, so the district
+ * reads as one street and its promenades, not a grid of tarmac. */
+export const KOREA_STREETS: readonly RoadRect[] = [[25, 18.7, 79, 3.2]];
 /** Granite promenades that joined the garden walks. */
 const KOREA_PROMENADES: readonly RoadRect[] = [
+  [-0.5, 12, 106, 3.3],
+  [27.5, 47, 85, 3.2],
   [-15, 33, 3, 30],
   [65, 30, 3, 25],
   [69, 47.5, 2, 27],
@@ -106,7 +106,7 @@ const KOREA_SETTS_NET: RoadNetwork = {
   ground: 0.14,
   crown: 0.016,
   // No wear band to draw: a coarser grid keeps the district under budget.
-  grid: { step: 1.6, across: 4 },
+  grid: { step: 2, across: 4 },
   aprons: doorAprons("korea"),
   centreRects: koreaSetts
     .map((r, i) => [r, i] as const)
