@@ -33,6 +33,11 @@ import { villageGardenSolids } from "./villageGardens";
 import { HOME_GARDEN_OBSTACLES } from "./homeGardens";
 import { HOME_DESTINATION_CENTERS } from "./homeLayout";
 import {
+  TOWN_HALL_DOOR,
+  TOWN_HALL_FOOTPRINT,
+  TOWN_HALL_TOP,
+} from "./townHall";
+import {
   HOME_AIRPORT_GATE,
   HOME_SHORE_CLEARANCE,
   isHomeLand,
@@ -170,6 +175,19 @@ const villageDoors = [
     z: -22,
     anchor: [11, 7, -25] as const,
     footprint: [11, -25, 3.1, 2.1] as const,
+  },
+  // Home only, already in Home's coordinates (see core/townHall.ts).
+  {
+    id: "townhall",
+    name: "Town Hall",
+    x: TOWN_HALL_DOOR[0],
+    z: TOWN_HALL_DOOR[1],
+    anchor: [
+      TOWN_HALL_FOOTPRINT[0],
+      TOWN_HALL_TOP + 0.6,
+      TOWN_HALL_FOOTPRINT[1],
+    ] as const,
+    footprint: TOWN_HALL_FOOTPRINT,
   },
 ] as const;
 // Rendered massing, collision and the front step share the same transform.
@@ -397,7 +415,12 @@ const obstaclesFor = (world?: WorldId): ReadonlyArray<readonly number[]> => [
     .filter(({ x, z }) => world !== "stanford" || isStanfordTreeSite(x, z))
     .map((tree) => [tree.x, tree.z, 0.4, 0.4]),
   ...(world ? villageGardenSolids(world) : []),
-  ...(world ? doorsInWorld(world) : doors).map((door) => door.footprint),
+  // The legacy all-worlds map keeps its original buildings: the Town Hall
+  // stands only in Home's own coordinates.
+  ...(world
+    ? doorsInWorld(world)
+    : doors.filter((door) => door.id !== "townhall")
+  ).map((door) => door.footprint),
   ...(world === undefined || world === "stanford" ? campusObstacles : []),
   ...(world === undefined || world === "korea" ? PHOTO_BOOTH_OBSTACLES : []),
   ...(world === "korea"

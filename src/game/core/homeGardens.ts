@@ -30,8 +30,9 @@ const existing = villageGardenPlots("home");
 const treeSites: readonly (readonly [number, number])[] = [
   [-34, -37],
   [-29, -40],
-  [-9, -44],
-  [-1, -43],
+  // The Town Hall keeps these two clear of its eaves.
+  [-11.5, -45.5],
+  [2.3, -45.3],
   [21, -34],
   [-37, -4],
   [-30, 4],

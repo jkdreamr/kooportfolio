@@ -13,6 +13,14 @@ export type RoomStoryEntry = { text: string; link?: string; label?: string };
 const ABOUT = { link: "https://joshuakoo.xyz", label: "About Josh" } as const;
 const LINKEDIN = { link: "https://linkedin.com/in/joshuaykoo", label: "LinkedIn" } as const;
 
+/**
+ * The Town Hall's plaque (and its room story). Top 6 and having stopped
+ * playing: J Notes.tsx:95. Maxed at Town Hall 18: [owner].
+ */
+export const TOWN_HALL_STORY: RoomStoryEntry = {
+  text: "Josh played Clash of Clans at a very high level: maxed out at Town Hall 18, and at one point top 6 in the US. He hasn't played in a while.",
+};
+
 export const roomStories: Partial<Record<PlaceId, RoomStoryEntry>> = {
   // Not on his site; [owner] confirmed 2026-11-27: skateboarding.
   skate: {
@@ -102,12 +110,6 @@ export const roomStories: Partial<Record<PlaceId, RoomStoryEntry>> = {
     text: "Josh made USACO Platinum in his freshman year of high school, earned an M3 Challenge honorable mention, and helped organize the Stanford Math Tournament. He's done a lot of math beyond that too, from olympiads to research with Euler Circle.",
     ...LINKEDIN,
   },
-};
-
-/**
- * For the town hall (Phase 2, WS-E): the plaque text. Top 6 and having
- * stopped playing: J Notes.tsx:95. Maxed at Town Hall 18: [owner].
- */
-export const TOWN_HALL_STORY: RoomStoryEntry = {
-  text: "Josh played Clash of Clans at a very high level: maxed out at Town Hall 18, and at one point top 6 in the US. He hasn't played in a while.",
+  // The plaque, word for word.
+  townhall: TOWN_HALL_STORY,
 };

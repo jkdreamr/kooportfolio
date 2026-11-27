@@ -1,3 +1,5 @@
+import { TOWN_HALL_FOOTPRINT } from "./townHall";
+
 // Two full-size rows share a short high street. There is no lawn or ornamental
 // district between one playable destination and the next.
 export const HOME_DESTINATION_CENTERS: Readonly<
@@ -10,6 +12,8 @@ export const HOME_DESTINATION_CENTERS: Readonly<
   go: [-24, -11],
   kitchen: [-11, -11],
   stadium: [4, -11],
+  // At the head of the village, behind the Writing house, on the rear lane.
+  townhall: [TOWN_HALL_FOOTPRINT[0], TOWN_HALL_FOOTPRINT[1]],
 };
 
 // Residents use the same streets as visitors; the garden Neighbor keeps her

@@ -35,6 +35,7 @@ const ROOM_FLOORS: Partial<Record<string, Surface>> = {
   stadium: "stone",
   kitchen: "stone",
   secret: "stone",
+  townhall: "stone",
   theater: "soft",
   cognition: "soft",
   gym: "soft",

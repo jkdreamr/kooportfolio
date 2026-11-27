@@ -25,6 +25,7 @@ const places: Record<WorldId, readonly string[]> = {
     "stadium",
     "theater",
     "kitchen",
+    "townhall",
     "station",
   ],
   korea: [

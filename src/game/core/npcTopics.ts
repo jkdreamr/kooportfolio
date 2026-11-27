@@ -916,15 +916,14 @@ const topics: Record<string, readonly NpcTopic[]> = {
 };
 
 /**
- * For the town hall (Phase 2): the go regular's line, ready to append to
- * "go-regular" once the building exists. Source: Josh's own notes ("clash of
- * clans (prev. top 6 in the US), I stopped playing now"). Not listed yet, so
- * nobody is pointed at a building that is not there.
+ * The go regular's line about the Town Hall. Source: Josh's own notes
+ * ("clash of clans (prev. top 6 in the US), I stopped playing now").
  */
 export const TOWN_HALL_TOPIC: NpcTopic = ask(
   "town-hall",
   "What's with the town hall?",
   "Josh was top 6 in the US at a certain village-building game. Hasn't touched it in a while.",
 );
+topics["go-regular"] = [...topics["go-regular"], TOWN_HALL_TOPIC];
 export const topicsFor = (npcId: string): readonly NpcTopic[] =>
   topics[npcId] ?? [];

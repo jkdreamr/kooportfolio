@@ -30,6 +30,7 @@ import { StadiumInterior } from "./Stadium";
 import { MovieTheaterInterior, useTheater } from "./MovieTheater";
 import { SecretRoomInterior } from "./SecretRoom";
 import { HOOVER_STASH } from "../core/hoover";
+import { TownHallInterior } from "./TownHallInterior";
 
 export function Interior() {
   const world = useGame((s) => s.world);
@@ -148,7 +149,10 @@ export function Interior() {
               {scene !== "secret" && <Bench p={[side * 9, 0, back + 3.5]} />}
             </group>
           ))}
-        {scene !== "badminton" && scene !== "go" && !theater && (
+        {scene !== "badminton" &&
+          scene !== "go" &&
+          scene !== "townhall" &&
+          !theater && (
           <>
             <Box
               p={[0, 0.1, -2]}
@@ -204,6 +208,7 @@ export function Interior() {
           <BadmintonCourt onPlayingChange={setBadmintonActive} />
         )}
         {scene === "go" && <GoInterior />}
+        {scene === "townhall" && <TownHallInterior />}
         {scene === "writing" && <WritingInterior />}
         {theater && (
           <MovieTheaterInterior

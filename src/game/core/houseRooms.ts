@@ -14,11 +14,21 @@ export type RoomDoor = {
 };
 
 export const COGNITION_OFFICE_WALL = { x: -2.1, z: 9.6, width: 7.8, depth: 0.36 };
+/** The Town Hall's long table with its benches (the village model sits on
+ * it; Banner Rush is played from its foot). */
+export const TOWN_HALL_TABLE = { x: 0, z: -5, width: 5.6, depth: 9.6 };
+/** Its hearth against the west wall. */
+export const TOWN_HALL_HEARTH = { x: -16.3, z: -4, width: 1.8, depth: 4.6 };
+/** Its four round stone columns. */
+export const TOWN_HALL_COLUMNS = [-8.5, 8.5].flatMap((x) =>
+  [-9, 3].map((z) => ({ x, z, width: 1.6, depth: 1.6 })),
+);
 
 // Furnishings and collision share these exact footprints. Door openings are
 // deliberately wide enough for both touch steering and the avatar's radius.
 export const HOUSE_PARTITIONS: Record<string, readonly Partition[]> = {
   cognition: [COGNITION_OFFICE_WALL],
+  townhall: [TOWN_HALL_TABLE, ...TOWN_HALL_COLUMNS, TOWN_HALL_HEARTH],
   stadium: STADIUM_SOLIDS,
   secret: [{ x: 0, z: -3, width: 4.8, depth: 3.1 }],
   kappa: [

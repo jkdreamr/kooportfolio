@@ -2,6 +2,7 @@ import { BuildingDressing } from "./BuildingDressing";
 import { StaticBatch } from "./StaticBatch";
 import { GableRoof, Glazing, type Pane } from "./ArchitectureDetail";
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
+import { TownHall } from "./TownHall";
 
 /** Kept for the Home environment's mount point. Window glass is now driven
  * by the shared gloss rig (see GlossKit), on every island. */
@@ -138,6 +139,9 @@ function Dormer({ p, color }: { p: [number, number, number]; color: string }) {
 
 /** Mounted inside the landmark's existing placement/scale group, Home only. */
 export function HomeBuildingArt({ id }: { id: string }) {
+  // The Town Hall is drawn whole here: Home's only building with no shared
+  // village shell.
+  if (id === "townhall") return <TownHall />;
   return (
     <StaticBatch id="HomeBuildingArt">
       <group name={`home-${id}-crafted-detail`}>
