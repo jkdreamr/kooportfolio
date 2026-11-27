@@ -7,7 +7,7 @@ import { mix, shade } from "../src/game/world/character/outfit";
 import { buildFigure, outfitPalette } from "../src/game/world/character/sculpt/figure";
 import { evalOps, pieceBounds } from "../src/game/world/character/sculpt/sdf";
 import { eyes, headSkin, mouth, type AttrMesh } from "../src/game/world/character/sculpt/head";
-import { cutByLabel, decimate, decimateLabeled, surfaceNets } from "../src/game/world/character/sculpt/mesher";
+import { cutByLabel, decimate, surfaceNets } from "../src/game/world/character/sculpt/mesher";
 import { Cast, PIECES } from "../src/game/world/character/sculpt/runtime";
 import { hairMesh } from "../src/game/world/character/sculpt/hair";
 
@@ -94,11 +94,12 @@ describe("sculpted characters (F3/F5/F6)", () => {
     const raw = surfaceNets(sphere, [-0.25, -0.25, -0.25], [0.25, 0.25, 0.25], 0.01);
     // Two materials split by the plane y = 0.03.
     const labelAt = (_x: number, y: number) => (y > 0.03 ? 1 : 0);
-    const vlab = new Int32Array(raw.pos.length / 3);
-    for (let i = 0; i < vlab.length; i++) vlab[i] = labelAt(raw.pos[i * 3], raw.pos[i * 3 + 1]);
-    const cut = cutByLabel(raw, vlab, labelAt);
-    const low = decimateLabeled(cut, 400, () => 1);
-    expect(low.tri.length / 3).toBeLessThanOrEqual(420);
+    // As the bake does: decimate, then cut exactly along the border.
+    const [dec] = decimate(raw, [400], () => 1);
+    const vlab = new Int32Array(dec.pos.length / 3);
+    for (let i = 0; i < vlab.length; i++) vlab[i] = labelAt(dec.pos[i * 3], dec.pos[i * 3 + 1]);
+    const low = cutByLabel(dec, vlab, labelAt);
+    expect(low.tri.length / 3).toBeLessThanOrEqual(520);
     expect(low.lab.length).toBe(low.tri.length / 3);
     // Every border vertex (shared by both labels) lies on the border plane.
     const seen = new Map<number, Set<number>>();

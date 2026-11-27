@@ -441,14 +441,22 @@ export function cutByLabel(mesh: RawMesh, vlab: Int32Array, labelAt: (x: number,
     const hit = edgePt.get(key);
     if (hit !== undefined) return hit;
     const la = vlab[lo];
-    let ax = P[lo * 3], ay = P[lo * 3 + 1], az = P[lo * 3 + 2];
-    let bx = P[hi * 3], by = P[hi * 3 + 1], bz = P[hi * 3 + 2];
+    let ta = 0, tb = 1;
+    const x0 = P[lo * 3], y0 = P[lo * 3 + 1], z0 = P[lo * 3 + 2];
+    const dx = P[hi * 3] - x0, dy = P[hi * 3 + 1] - y0, dz = P[hi * 3 + 2] - z0;
     for (let i = 0; i < 7; i++) {
-      const mx = (ax + bx) / 2, my = (ay + by) / 2, mz = (az + bz) / 2;
-      if (labelAt(mx, my, mz) === la) { ax = mx; ay = my; az = mz; } else { bx = mx; by = my; bz = mz; }
+      const tm = (ta + tb) / 2;
+      if (labelAt(x0 + dx * tm, y0 + dy * tm, z0 + dz * tm) === la) ta = tm; else tb = tm;
+    }
+    const t = (ta + tb) / 2;
+    // Near an end: use that vertex (no sliver triangles).
+    if (t < 0.05 || t > 0.95) {
+      const id = t < 0.05 ? lo : hi;
+      edgePt.set(key, id);
+      return id;
     }
     const id = P.length / 3;
-    P.push((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2);
+    P.push(x0 + dx * t, y0 + dy * t, z0 + dz * t);
     edgePt.set(key, id);
     return id;
   };
@@ -475,7 +483,14 @@ export function cutByLabel(mesh: RawMesh, vlab: Int32Array, labelAt: (x: number,
       tri.push(C, ca, g, C, g, bc); lab.push(lc, lc);
     }
   }
-  return { pos: Float64Array.from(P), tri: Uint32Array.from(tri), lab: Int32Array.from(lab) };
+  // Drop the triangles that snapping made degenerate.
+  const T2: number[] = [], L2: number[] = [];
+  for (let t = 0; t < lab.length; t++) {
+    const a = tri[t * 3], b = tri[t * 3 + 1], c = tri[t * 3 + 2];
+    if (a === b || b === c || a === c) continue;
+    T2.push(a, b, c); L2.push(lab[t]);
+  }
+  return { pos: Float64Array.from(P), tri: Uint32Array.from(T2), lab: Int32Array.from(L2) };
 }
 
 /** Relabel colour islands smaller than `minArea` to their dominant
@@ -527,306 +542,4 @@ export function dropIslands(m: LabMesh, minArea: number) {
     const l = to.get(r);
     if (l !== undefined) m.lab[t] = l;
   }
-}
-
-/**
- * Quadric edge-collapse decimation of a labelled mesh. Colour borders are
- * feature lines: border vertices only slide along their border (with
- * constraint planes that keep the line where it was), corners stay put,
- * and no collapse may join two borders or pinch a colour region. If the
- * borders alone block the budget, a last pass lets them move (faces keep
- * their labels, so colours stay flat; the line just gets coarser).
- */
-export function decimateLabeled(mesh: LabMesh, target: number, weight: (x: number, y: number, z: number, v: number) => number, seamW = 40): LabMesh {
-  const nV = mesh.pos.length / 3;
-  const P = Float64Array.from(mesh.pos);
-  const T = Int32Array.from(mesh.tri);
-  const L = Int32Array.from(mesh.lab);
-  const nT = T.length / 3;
-  const alive = new Uint8Array(nT).fill(1);
-  const vAlive = new Uint8Array(nV).fill(1);
-  const stamp = new Int32Array(nV);
-  const vf: number[][] = Array.from({ length: nV }, () => []);
-  for (let t = 0; t < nT; t++) for (let c = 0; c < 3; c++) vf[T[t * 3 + c]].push(t);
-  const Q = new Float64Array(nV * 10);
-  const addPlane = (v: number, a: number, b: number, c: number, d: number, w: number) => {
-    const q = [a * a, a * b, a * c, a * d, b * b, b * c, b * d, c * c, c * d, d * d];
-    for (let i = 0; i < 10; i++) Q[v * 10 + i] += q[i] * w;
-  };
-  const fn = new Float64Array(nT * 3);
-  const faceN = (t: number, out: number[]) => {
-    const a = T[t * 3] * 3, b = T[t * 3 + 1] * 3, c = T[t * 3 + 2] * 3;
-    const ux = P[b] - P[a], uy = P[b + 1] - P[a + 1], uz = P[b + 2] - P[a + 2];
-    const vx = P[c] - P[a], vy = P[c + 1] - P[a + 1], vz = P[c + 2] - P[a + 2];
-    out[0] = uy * vz - uz * vy; out[1] = uz * vx - ux * vz; out[2] = ux * vy - uy * vx;
-    return Math.hypot(out[0], out[1], out[2]);
-  };
-  const n3 = [0, 0, 0];
-  for (let t = 0; t < nT; t++) {
-    const l = faceN(t, n3);
-    if (l < 1e-14) continue;
-    const a = n3[0] / l, b = n3[1] / l, c = n3[2] / l;
-    fn[t * 3] = a; fn[t * 3 + 1] = b; fn[t * 3 + 2] = c;
-    const v0 = T[t * 3];
-    const d = -(a * P[v0 * 3] + b * P[v0 * 3 + 1] + c * P[v0 * 3 + 2]);
-    for (let k = 0; k < 3; k++) {
-      const v = T[t * 3 + k];
-      addPlane(v, a, b, c, d, l * 0.5 * weight(P[v * 3], P[v * 3 + 1], P[v * 3 + 2], v));
-    }
-  }
-  // Border constraint planes (through the edge, across the surface).
-  {
-    const em = new Map<number, number>();
-    for (let t = 0; t < nT; t++)
-      for (let c = 0; c < 3; c++) {
-        const a = T[t * 3 + c], b = T[t * 3 + ((c + 1) % 3)];
-        const key = Math.min(a, b) * nV + Math.max(a, b);
-        const o = em.get(key);
-        if (o === undefined) { em.set(key, t); continue; }
-        if (L[o] === L[t]) continue;
-        const ex = P[b * 3] - P[a * 3], ey = P[b * 3 + 1] - P[a * 3 + 1], ez = P[b * 3 + 2] - P[a * 3 + 2];
-        const nx = fn[o * 3] + fn[t * 3], ny = fn[o * 3 + 1] + fn[t * 3 + 1], nz = fn[o * 3 + 2] + fn[t * 3 + 2];
-        let cx = ey * nz - ez * ny, cy = ez * nx - ex * nz, cz = ex * ny - ey * nx;
-        const cl = Math.hypot(cx, cy, cz);
-        if (cl < 1e-12) continue;
-        cx /= cl; cy /= cl; cz /= cl;
-        const d = -(cx * P[a * 3] + cy * P[a * 3 + 1] + cz * P[a * 3 + 2]);
-        const w = seamW * (ex * ex + ey * ey + ez * ez);
-        addPlane(a, cx, cy, cz, d, w);
-        addPlane(b, cx, cy, cz, d, w);
-      }
-    // (Corners need no flag: the two borders' constraint planes meet there,
-    // so moving a corner costs more than anything along a straight run.)
-  }
-  let relaxed = false;
-  const labs = (v: number, out: number[]) => {
-    out.length = 0;
-    for (const t of vf[v]) if (alive[t] && !out.includes(L[t])) out.push(L[t]);
-    return out;
-  };
-  const edgeFaces = (a: number, b: number, out: number[]) => {
-    out.length = 0;
-    for (const t of vf[a]) if (alive[t] && (T[t * 3] === b || T[t * 3 + 1] === b || T[t * 3 + 2] === b)) out.push(t);
-    return out;
-  };
-  /** Number of border edges at a border vertex. */
-  const seamDeg = (v: number) => {
-    const seen = new Set<number>();
-    let n = 0;
-    const ef: number[] = [];
-    for (const t of vf[v]) {
-      if (!alive[t]) continue;
-      for (let c = 0; c < 3; c++) {
-        const u = T[t * 3 + c];
-        if (u === v || seen.has(u)) continue;
-        seen.add(u);
-        edgeFaces(v, u, ef);
-        if (ef.length !== 2 || L[ef[0]] !== L[ef[1]]) n++;
-      }
-    }
-    return n;
-  };
-  const la: number[] = [], lb: number[] = [], ef: number[] = [];
-  /** 0 free, 1 keep a's position, 2 keep b's, 3 slide along the border, −1 forbidden. */
-  const strictMode = (a: number, b: number): number => {
-    labs(a, la); labs(b, lb);
-    const sa = la.length > 1, sb = lb.length > 1;
-    if (!sa && !sb) return 0;
-    if (sa && !sb) return 1;
-    if (!sa && sb) return 2;
-    edgeFaces(a, b, ef);
-    if (ef.length !== 2 || L[ef[0]] === L[ef[1]]) return -1;
-    const ca = la.length > 2 || seamDeg(a) !== 2, cb = lb.length > 2 || seamDeg(b) !== 2;
-    if (ca && cb) return -1;
-    if (ca) return lb.every((l) => la.includes(l)) ? 1 : -1;
-    if (cb) return la.every((l) => lb.includes(l)) ? 2 : -1;
-    return la.length === lb.length && la.every((l) => lb.includes(l)) ? 3 : -1;
-  };
-  const opt = [0, 0, 0];
-  const q = new Array(10);
-  const edgeCost = (a: number, b: number): number => {
-    const strict = strictMode(a, b);
-    const md = relaxed && strict < 0 ? 0 : strict;
-    if (md < 0) return Infinity;
-    for (let i = 0; i < 10; i++) q[i] = Q[a * 10 + i] + Q[b * 10 + i];
-    const err = (x: number, y: number, z: number) =>
-      q[0] * x * x + 2 * q[1] * x * y + 2 * q[2] * x * z + 2 * q[3] * x + q[4] * y * y + 2 * q[5] * y * z + 2 * q[6] * y + q[7] * z * z + 2 * q[8] * z + q[9];
-    const len2 = dist2(P, a, b);
-    if (md === 1 || md === 2) {
-      const v = md === 1 ? a : b;
-      opt[0] = P[v * 3]; opt[1] = P[v * 3 + 1]; opt[2] = P[v * 3 + 2];
-      return Math.max(0, err(opt[0], opt[1], opt[2])) + len2 * 1e-6;
-    }
-    const A = [q[0], q[1], q[2], q[1], q[4], q[5], q[2], q[5], q[7]];
-    const det = A[0] * (A[4] * A[8] - A[5] * A[7]) - A[1] * (A[3] * A[8] - A[5] * A[6]) + A[2] * (A[3] * A[7] - A[4] * A[6]);
-    const mx = (P[a * 3] + P[b * 3]) / 2, my = (P[a * 3 + 1] + P[b * 3 + 1]) / 2, mz = (P[a * 3 + 2] + P[b * 3 + 2]) / 2;
-    let best = Infinity;
-    // (A relaxed border collapse only picks an end or the midpoint.)
-    if (Math.abs(det) > 1e-12 && strict >= 0) {
-      const bx = -q[3], by = -q[6], bz = -q[8];
-      const x = (bx * (A[4] * A[8] - A[5] * A[7]) - A[1] * (by * A[8] - A[5] * bz) + A[2] * (by * A[7] - A[4] * bz)) / det;
-      const y = (A[0] * (by * A[8] - A[5] * bz) - bx * (A[3] * A[8] - A[5] * A[6]) + A[2] * (A[3] * bz - by * A[6])) / det;
-      const z = (A[0] * (A[4] * bz - by * A[7]) - A[1] * (A[3] * bz - by * A[6]) + bx * (A[3] * A[7] - A[4] * A[6])) / det;
-      if (Math.hypot(x - mx, y - my, z - mz) < Math.sqrt(len2) * (md === 3 ? 0.8 : 1.2)) {
-        best = err(x, y, z);
-        opt[0] = x; opt[1] = y; opt[2] = z;
-      }
-    }
-    for (const [x, y, z] of [[mx, my, mz], [P[a * 3], P[a * 3 + 1], P[a * 3 + 2]], [P[b * 3], P[b * 3 + 1], P[b * 3 + 2]]]) {
-      const e = err(x, y, z);
-      if (e < best) { best = e; opt[0] = x; opt[1] = y; opt[2] = z; }
-    }
-    return Math.max(0, best) + len2 * 1e-6;
-  };
-  const heap = new Heap();
-  const neighbours = (v: number) => {
-    const s = new Set<number>();
-    for (const t of vf[v]) if (alive[t]) for (let c = 0; c < 3; c++) s.add(T[t * 3 + c]);
-    s.delete(v);
-    return s;
-  };
-  const pushEdges = (v: number) => {
-    for (const u of neighbours(v)) {
-      const cost = edgeCost(v, u);
-      if (cost !== Infinity) heap.push(cost, v, u, stamp[v], stamp[u]);
-    }
-  };
-  let faces = nT;
-  let flipMin = 0.25;
-  const nOld = [0, 0, 0], nNew = [0, 0, 0];
-  const tries = new Map<number, number>();
-  const retry = (a: number, b: number, cost: number) => {
-    const key = a * nV + b;
-    const n = (tries.get(key) ?? 0) + 1;
-    tries.set(key, n);
-    if (n <= 4) heap.push(cost * 2 + 1e-9, a, b, stamp[a], stamp[b]);
-  };
-  const tryCollapse = (a: number, b: number, cost: number, keepA = false): boolean => {
-    const na = neighbours(a), nb = neighbours(b);
-    let common = 0;
-    for (const u of na) if (nb.has(u)) common++;
-    if (common !== 2) { if (!keepA) retry(a, b, cost); return false; }
-    if (keepA) { opt[0] = P[a * 3]; opt[1] = P[a * 3 + 1]; opt[2] = P[a * 3 + 2]; }
-    else if (edgeCost(a, b) === Infinity) return false;
-    const nx = opt[0], ny = opt[1], nz = opt[2];
-    for (const v of [a, b]) {
-      for (const t of vf[v]) {
-        if (!alive[t]) continue;
-        const i0 = T[t * 3], i1 = T[t * 3 + 1], i2 = T[t * 3 + 2];
-        if ((i0 === a || i1 === a || i2 === a) && (i0 === b || i1 === b || i2 === b)) continue;
-        faceN(t, nOld);
-        const sx = P[v * 3], sy = P[v * 3 + 1], sz = P[v * 3 + 2];
-        P[v * 3] = nx; P[v * 3 + 1] = ny; P[v * 3 + 2] = nz;
-        const l = faceN(t, nNew);
-        P[v * 3] = sx; P[v * 3 + 1] = sy; P[v * 3 + 2] = sz;
-        const lo = Math.hypot(nOld[0], nOld[1], nOld[2]);
-        if (l < 1e-14 || (nOld[0] * nNew[0] + nOld[1] * nNew[1] + nOld[2] * nNew[2]) / (lo * l) < flipMin) { if (!keepA) retry(a, b, cost); return false; }
-      }
-    }
-    P[a * 3] = nx; P[a * 3 + 1] = ny; P[a * 3 + 2] = nz;
-    for (let i = 0; i < 10; i++) Q[a * 10 + i] += Q[b * 10 + i];
-    vAlive[b] = 0;
-    for (const t of vf[b]) {
-      if (!alive[t]) continue;
-      let hasA = false;
-      for (let c = 0; c < 3; c++) if (T[t * 3 + c] === a) hasA = true;
-      if (hasA) { alive[t] = 0; faces--; continue; }
-      for (let c = 0; c < 3; c++) if (T[t * 3 + c] === b) T[t * 3 + c] = a;
-      vf[a].push(t);
-    }
-    vf[a] = vf[a].filter((t) => alive[t]);
-    stamp[a]++;
-    pushEdges(a);
-    for (const u of neighbours(a)) { stamp[u]++; pushEdges(u); }
-    return true;
-  };
-  // Phase A: thin out the borders first. The dense cut borders would
-  // otherwise hold most of the budget (cheap interior collapses go first and
-  // starve the surface). Vertices on nearly straight stretches are removed
-  // until border segments reach about the target edge length; corners and
-  // curves keep their vertices.
-  {
-    let area = 0;
-    for (let t = 0; t < nT; t++) area += faceN(t, n3) * 0.5;
-    const lt = 1.52 * Math.sqrt(area / Math.max(1, target));
-    const min2 = (0.65 * lt) ** 2;
-    const bnb: number[] = [];
-    for (let pass = 0; pass < 12; pass++) {
-      let changed = 0;
-      for (let b = 0; b < nV; b++) {
-        if (!vAlive[b]) continue;
-        labs(b, lb);
-        if (lb.length !== 2) continue;
-        bnb.length = 0;
-        for (const u of neighbours(b)) {
-          edgeFaces(b, u, ef);
-          if (ef.length === 2 && L[ef[0]] !== L[ef[1]]) bnb.push(u);
-        }
-        if (bnb.length !== 2) continue;
-        const [p0, p1] = bnb;
-        const ax = P[b * 3] - P[p0 * 3], ay = P[b * 3 + 1] - P[p0 * 3 + 1], az = P[b * 3 + 2] - P[p0 * 3 + 2];
-        const bx = P[p1 * 3] - P[b * 3], by = P[p1 * 3 + 1] - P[b * 3 + 1], bz = P[p1 * 3 + 2] - P[b * 3 + 2];
-        const cosT = (ax * bx + ay * by + az * bz) / (Math.hypot(ax, ay, az) * Math.hypot(bx, by, bz) || 1);
-        if (cosT < 0.9) continue;
-        const a = dist2(P, p0, b) < dist2(P, p1, b) ? p0 : p1;
-        if (dist2(P, a, b) > min2) continue;
-        const md = strictMode(a, b);
-        if (md !== 1 && md !== 3) continue;
-        if (tryCollapse(a, b, 0, true)) changed++;
-      }
-      if (!changed) break;
-    }
-  }
-  heap.size = 0;
-  for (let v = 0; v < nV; v++) {
-    if (!vAlive[v]) continue;
-    for (const u of neighbours(v)) {
-      if (u <= v) continue;
-      const c = edgeCost(v, u);
-      if (c !== Infinity) heap.push(c, v, u, stamp[v], stamp[u]);
-    }
-  }
-  const dbgY = (globalThis as { __dbgY?: number }).__dbgY;
-  const run = () => {
-    while (faces > target) {
-      const e = heap.pop();
-      if (!e) break;
-      const [cost, a, b, sa, sb] = e;
-      if (!vAlive[a] || !vAlive[b] || stamp[a] !== sa || stamp[b] !== sb) continue;
-      const ya = P[a * 3 + 1], yb = P[b * 3 + 1];
-      if (tryCollapse(a, b, cost) && dbgY !== undefined && (ya > dbgY || yb > dbgY) && P[a * 3 + 1] < dbgY - 0.03) console.log("DROP", faces, cost, ya, yb, P[a * 3 + 1], vf[a].length);
-    }
-  };
-  const restart = () => {
-    tries.clear();
-    for (let v = 0; v < nV; v++) if (vAlive[v]) { stamp[v]++; pushEdges(v); }
-  };
-  run();
-  // Stalled on dense detail: accept stronger normal turns (never folds).
-  if (faces > target * 1.02) {
-    flipMin = 0.05;
-    restart();
-    run();
-  }
-  // Still blocked by borders: let them move at their quadric cost, but
-  // only while that costs no more than a small fraction of the surface.
-  if (faces > target * 1.06) {
-    relaxed = true;
-    flipMin = 0.25;
-    restart();
-    run();
-  }
-  const map = new Map<number, number>();
-  const pos: number[] = [], tri: number[] = [], lab: number[] = [];
-  for (let t = 0; t < nT; t++) {
-    if (!alive[t]) continue;
-    for (let c = 0; c < 3; c++) {
-      const v = T[t * 3 + c];
-      let n = map.get(v);
-      if (n === undefined) { n = pos.length / 3; map.set(v, n); pos.push(P[v * 3], P[v * 3 + 1], P[v * 3 + 2]); }
-      tri.push(n);
-    }
-    lab.push(L[t]);
-  }
-  return { pos: Float64Array.from(pos), tri: Uint32Array.from(tri), lab: Int32Array.from(lab) };
 }

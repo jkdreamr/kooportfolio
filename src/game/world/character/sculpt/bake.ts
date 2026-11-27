@@ -12,7 +12,7 @@ import { outfitFromPalette, type Outfit } from "../outfit";
 import { restPose, solveJoints, makeJoints, SK, JOINTS } from "../skeleton";
 import { buildFigure, PIECE_JOINT, type Figure, type PieceId } from "./figure";
 import { evalOps, pieceBounds, pad, SLOT, type Hit, type Mat, type V3 } from "./sdf";
-import { cutByLabel, decimate, decimateLabeled, dropIslands, project, surfaceNets, type LabMesh, type RawMesh } from "./mesher";
+import { cutByLabel, decimate, dropIslands, project, surfaceNets, type LabMesh, type RawMesh } from "./mesher";
 import { appendMesh, brows, ears, emptyMesh, eyes, glasses, headSkin, mouth, vertexNormals, type AttrMesh, type MouthKind } from "./head";
 import { hairMesh, type HairSeg } from "./hair";
 
@@ -244,15 +244,7 @@ function meshPiece(pid: PieceId, ops: Parameters<typeof evalOps>[0], fig: Figure
       // onto them): plain geometric decimation, then one flat material per
       // face, sampled at its centre (borders follow triangle edges).
       if (lod) return midLabeled(raw, target, (x, y, z) => weight(x, y, z), labelAt);
-      const vlab = new Int32Array(raw.pos.length / 3);
-      for (let i = 0; i < vlab.length; i++) vlab[i] = labelAt(raw.pos[i * 3], raw.pos[i * 3 + 1], raw.pos[i * 3 + 2]);
-      const cut = cutByLabel(raw, vlab, labelAt);
-      // Specks smaller than a few triangles cannot be drawn cleanly.
-      dropIslands(cut, 2.5e-5);
-      const cloth = new Uint8Array(cut.pos.length / 3);
-      for (let t = 0; t < cut.lab.length; t++) if (isCloth(mats[cut.lab[t]].slot)) for (let c = 0; c < 3; c++) cloth[cut.tri[t * 3 + c]] = 1;
-      const w2 = (x: number, y: number, z: number, i: number) => weight(x, y, z) * (cloth[i] ? 0.6 : 1);
-      const out = cut.tri.length / 3 > target ? decimateLabeled(cut, target, w2) : cut;
+      const out = heroLabeled(raw, target, weight, labelAt, (l) => isCloth(mats[l].slot));
       if (env.BAKE_DEBUG) console.log(`  ${pid}: raw ${raw.tri.length / 3} → ${out.tri.length / 3}`);
       return out;
     });
@@ -405,6 +397,44 @@ function taubin(pos: Float64Array, tri: Uint32Array, iters: number) {
     }
     pos.set(tmp);
   }
+}
+
+/**
+ * Hero LOD: quadric decimation (vertices next to a colour border cost more
+ * to move, broad cloth less), then the mesh is cut exactly along its colour
+ * borders (bisection on every edge that changes material) and the vertices
+ * are split per material later, so every face is one flat colour and every
+ * border is a clean straight-edged line. Several decimation levels come out
+ * of one pass; the finest whose cut fits the target is used.
+ */
+function heroLabeled(raw: RawMesh, target: number, weight: (x: number, y: number, z: number) => number, labelAt: (x: number, y: number, z: number) => number, cloth: (l: number) => boolean): LabMesh {
+  const nV = raw.pos.length / 3;
+  const vlab = new Int32Array(nV);
+  for (let i = 0; i < nV; i++) vlab[i] = labelAt(raw.pos[i * 3], raw.pos[i * 3 + 1], raw.pos[i * 3 + 2]);
+  const vw = new Float32Array(nV);
+  for (let i = 0; i < nV; i++) vw[i] = cloth(vlab[i]) ? 0.6 : 1;
+  for (let t = 0; t < raw.tri.length; t += 3)
+    for (let c = 0; c < 3; c++) {
+      const u = raw.tri[t + c], v = raw.tri[t + ((c + 1) % 3)];
+      if (vlab[u] !== vlab[v]) { vw[u] = 6; vw[v] = 6; }
+    }
+  const cutOf = (m: RawMesh) => {
+    const vl = new Int32Array(m.pos.length / 3);
+    for (let i = 0; i < vl.length; i++) vl[i] = labelAt(m.pos[i * 3], m.pos[i * 3 + 1], m.pos[i * 3 + 2]);
+    const c = cutByLabel(m, vl, labelAt);
+    dropIslands(c, 1.2e-5);
+    return c;
+  };
+  if (raw.tri.length / 3 <= target) return cutOf(raw);
+  const ks = [0.97, 0.9, 0.84, 0.78, 0.72, 0.66, 0.6, 0.54, 0.48];
+  const levels = decimate(raw, ks.map((k) => Math.round(target * k)), (x, y, z, i) => weight(x, y, z) * (i === undefined ? 1 : vw[i]));
+  let last: LabMesh | null = null;
+  for (const m of levels) {
+    const c = cutOf(m);
+    last = c;
+    if (c.tri.length / 3 <= target) return c;
+  }
+  return last!;
 }
 
 /** Mid LOD: geometric decimation, then a flat material per face. */
