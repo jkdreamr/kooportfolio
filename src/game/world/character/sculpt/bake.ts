@@ -11,8 +11,8 @@ import { outfitFor } from "../cast";
 import { outfitFromPalette, type Outfit } from "../outfit";
 import { restPose, solveJoints, makeJoints, SK, JOINTS } from "../skeleton";
 import { buildFigure, PIECE_JOINT, type Figure, type PieceId } from "./figure";
-import { evalOps, pieceBounds, pad, SLOT, type Hit, type V3 } from "./sdf";
-import { decimate, project, surfaceNets, type RawMesh } from "./mesher";
+import { evalOps, pieceBounds, pad, SLOT, type Hit, type Mat, type V3 } from "./sdf";
+import { cutByLabel, decimateLabeled, dropIslands, project, surfaceNets, type LabMesh } from "./mesher";
 import { appendMesh, brows, emptyMesh, eyes, glasses, headSkin, mouth, vertexNormals, type AttrMesh, type MouthKind } from "./head";
 import { hairMesh, type HairSeg } from "./hair";
 
@@ -218,34 +218,38 @@ function meshPiece(pid: PieceId, ops: Parameters<typeof evalOps>[0], fig: Figure
       if (kind === "head") return z > 0.05 && y < fig.HC[1] + 0.25 ? 3 : 1.6;
       return 1;
     };
-    // Each LOD is meshed on its own grid (the mid one coarser), so thin
-    // features cannot stall the mid decimation.
-    const meshes = ([[h, Math.round(ht * scale[0])], [h * midCell, Math.round(mt * scale[1])]] as const).map(([cell, target]) => {
+    // Materials by value: every surface node maps to a label.
+    const mats: Mat[] = [];
+    const matIds = new Map<string, number>();
+    const hit: Hit = { d: 0, m: null };
+    const labelAt = (x: number, y: number, z: number) => {
+      evalOps(ops, [x, y, z], hit);
+      const m = hit.m!;
+      const k = `${m.slot}|${m.rough}|${m.metal ?? 0}|${m.paint ?? ""}`;
+      let id = matIds.get(k);
+      if (id === undefined) { id = mats.length; mats.push(m); matIds.set(k, id); }
+      return id;
+    };
+    // Each LOD is meshed on its own grid (the mid one coarser). The dense
+    // mesh is cut along its colour borders, then decimated with the borders
+    // as feature lines, so every face keeps one flat colour and the borders
+    // stay clean lines at any budget.
+    const meshes = ([[h, Math.round(ht * scale[0])], [h * midCell, Math.round(mt * scale[1])]] as const).map(([cell, target], lod) => {
       const raw = surfaceNets(f, bb.min, bb.max, cell);
       project(f, raw.pos, cell * 0.5, 1);
-      const hit: Hit = { d: 0, m: null };
-      const slots = new Int32Array(raw.pos.length / 3);
-      const vw = new Float32Array(slots.length);
-      for (let i = 0; i < slots.length; i++) {
-        evalOps(ops, [raw.pos[i * 3], raw.pos[i * 3 + 1], raw.pos[i * 3 + 2]], hit);
-        slots[i] = hit.m!.slot;
-        vw[i] = isCloth(slots[i]) ? 0.6 : 1;
-      }
-      // Colour borders are kept by weight (hard border constraints tangle
-      // on dense meshes): vertices next to another colour cost more to move.
-      for (let t = 0; t < raw.tri.length; t += 3)
-        for (let c = 0; c < 3; c++) {
-          const u = raw.tri[t + c], v2 = raw.tri[t + ((c + 1) % 3)];
-          if (slots[u] !== slots[v2]) { vw[u] = 6; vw[v2] = 6; }
-        }
-      const w2 = (x: number, y: number, z: number, i?: number) => weight(x, y, z) * (i === undefined ? 1 : vw[i]);
-      // Mid: geometry-only decimation (colour constraints stall on small
-      // details at this density; colours are re-evaluated per vertex anyway).
-      const out = raw.tri.length / 3 > target ? decimate(raw, [target], w2, cell === h ? slots : undefined)[0] : raw;
+      const vlab = new Int32Array(raw.pos.length / 3);
+      for (let i = 0; i < vlab.length; i++) vlab[i] = labelAt(raw.pos[i * 3], raw.pos[i * 3 + 1], raw.pos[i * 3 + 2]);
+      const cut = cutByLabel(raw, vlab, labelAt);
+      // Specks smaller than a few triangles cannot be drawn cleanly.
+      dropIslands(cut, lod ? 2.2e-4 : 2.5e-5);
+      const cloth = new Uint8Array(cut.pos.length / 3);
+      for (let t = 0; t < cut.lab.length; t++) if (isCloth(mats[cut.lab[t]].slot)) for (let c = 0; c < 3; c++) cloth[cut.tri[t * 3 + c]] = 1;
+      const w2 = (x: number, y: number, z: number, i: number) => weight(x, y, z) * (cloth[i] ? 0.6 : 1);
+      const out = cut.tri.length / 3 > target ? decimateLabeled(cut, target, w2) : cut;
       if (env.BAKE_DEBUG) console.log(`  ${pid}: raw ${raw.tri.length / 3} → ${out.tri.length / 3}`);
       return out;
     });
-    meshes.forEach((m, lod) => appendMesh(lods[lod], sdfAttributes(ctx, m, ops, lod ? h * midCell : h, lod)));
+    meshes.forEach((m, lod) => appendMesh(lods[lod], sdfAttributes(ctx, m, mats, ops, lod ? h * midCell : h, lod)));
   }
   const HC = fig.HC;
   for (const lod of [0, 1]) {
@@ -415,48 +419,75 @@ function hairAt(segs: HairSeg[], p: V3): { t: number; dir: V3 } {
   return { t, dir };
 }
 
-function sdfAttributes(ctx: Ctx, m: RawMesh, ops: Parameters<typeof evalOps>[0], h: number, lod: number): AttrMesh {
+function sdfAttributes(ctx: Ctx, m: LabMesh, mats: Mat[], ops: Parameters<typeof evalOps>[0], h: number, lod: number): AttrMesh {
   const f = (x: number, y: number, z: number) => evalOps(ops, [x, y, z], null);
   project(f, m.pos, h * 0.4, 2);
   // Taubin smoothing removes decimation facets on bodies; the hollow hair
   // shell is too thin for it (it would sink into the skin), so not there.
   if (ctx.pid !== "head") taubin(m.pos, m.tri, lod ? 1 : 2);
-  const out: AttrMesh = { pos: Array.from(m.pos), nrm: new Array(m.pos.length).fill(0), a: [], b: [], tri: Array.from(m.tri) };
-  vertexNormals(out);
+  const geo: AttrMesh = { pos: Array.from(m.pos), nrm: new Array(m.pos.length).fill(0), a: [], b: [], tri: Array.from(m.tri) };
+  vertexNormals(geo);
   const n = m.pos.length / 3;
-  const hit: Hit = { d: 0, m: null };
   const e = h * 0.5;
   const ce = lod ? 0.02 : 0.012;
+  // Per welded vertex: normal (field + mesh), shade (AO, cavity) and, for
+  // hair, the root→tip parameter and strand direction.
+  const nrm = new Float64Array(n * 3), shadeV = new Float64Array(n);
+  const hairT = new Float64Array(n), hairE = new Uint8Array(n * 2).fill(128);
+  const hairV = new Uint8Array(n);
+  for (let t = 0; t < m.lab.length; t++) if (mats[m.lab[t]].paint === "hair") for (let c = 0; c < 3; c++) hairV[m.tri[t * 3 + c]] = 1;
   for (let i = 0; i < n; i++) {
     const x = m.pos[i * 3], y = m.pos[i * 3 + 1], z = m.pos[i * 3 + 2];
     let gx = f(x + e, y, z) - f(x - e, y, z), gy = f(x, y + e, z) - f(x, y - e, z), gz = f(x, y, z + e) - f(x, y, z - e);
     const gl = Math.hypot(gx, gy, gz) || 1;
     // Blend the field normal with the smoothed mesh normal (no facets,
     // no shading that disagrees with the silhouette).
-    gx = (gx / gl) * 2.5 + out.nrm[i * 3]; gy = (gy / gl) * 2.5 + out.nrm[i * 3 + 1]; gz = (gz / gl) * 2.5 + out.nrm[i * 3 + 2];
+    gx = (gx / gl) * 2.5 + geo.nrm[i * 3]; gy = (gy / gl) * 2.5 + geo.nrm[i * 3 + 1]; gz = (gz / gl) * 2.5 + geo.nrm[i * 3 + 2];
     const nl = Math.hypot(gx, gy, gz) || 1;
     gx /= nl; gy /= nl; gz /= nl;
-    out.nrm[i * 3] = gx; out.nrm[i * 3 + 1] = gy; out.nrm[i * 3 + 2] = gz;
-    evalOps(ops, [x, y, z], hit);
-    const mat = hit.m!;
-    let slotB = mat.slot, mixW = 0;
+    nrm[i * 3] = gx; nrm[i * 3 + 1] = gy; nrm[i * 3 + 2] = gz;
     let shade = shadeAt(ctx, [x, y, z], [gx, gy, gz], lod);
     // Cavity (darker creases, seams) and a hint of lighter convex edges.
     const lap = (f(x + ce, y, z) + f(x - ce, y, z) + f(x, y + ce, z) + f(x, y - ce, z) + f(x, y, z + ce) + f(x, y, z - ce)) / (6 * ce);
-    shade *= 1 + Math.max(-0.3, Math.min(0.06, lap * 1.6));
-    let eu = 128, ev = 128;
-    if (mat.paint === "hair") {
-      // Root → tip: darker roots, lighter tips; strand direction for the
-      // shader's anisotropic highlight (head frame, octahedral bytes).
+    shade *= 1 + Math.max(-0.22, Math.min(0.07, lap * 1.4));
+    if (hairV[i]) {
       const hs = hairAt(ctx.fig.hair, [x, y, z]);
-      slotB = SLOT.hairLight;
-      mixW = 0.08 + 0.55 * Math.pow(hs.t, 1.3);
-      shade *= 0.8 + 0.2 * smooth(0, 0.5, hs.t);
+      hairT[i] = hs.t;
       const o = octEncode(hs.dir[0], hs.dir[1], hs.dir[2]);
-      eu = o[0] + 128; ev = o[1] + 128;
+      hairE[i * 2] = o[0] + 128; hairE[i * 2 + 1] = o[1] + 128;
+      shade *= 0.8 + 0.2 * smooth(0, 0.5, hs.t);
     }
-    out.a.push(mat.slot, slotB, Math.round(mixW * 255), Math.round(Math.min(1, shade) * 255));
-    out.b.push(Math.round(mat.rough * 255), Math.round((mat.metal ?? 0) * 255), eu, ev);
+    shadeV[i] = shade;
+  }
+  // Split the vertices per material: every face is one flat colour.
+  const out: AttrMesh = { pos: [], nrm: [], a: [], b: [], tri: [] };
+  const ids = new Map<number, number>();
+  const K = mats.length + 1;
+  for (let t = 0; t < m.lab.length; t++) {
+    const l = m.lab[t];
+    const mat = mats[l];
+    for (let c = 0; c < 3; c++) {
+      const v = m.tri[t * 3 + c];
+      const key = v * K + l;
+      let id = ids.get(key);
+      if (id === undefined) {
+        id = out.pos.length / 3;
+        ids.set(key, id);
+        out.pos.push(m.pos[v * 3], m.pos[v * 3 + 1], m.pos[v * 3 + 2]);
+        out.nrm.push(nrm[v * 3], nrm[v * 3 + 1], nrm[v * 3 + 2]);
+        let slotB = mat.slot, mixW = 0, eu = 128, ev = 128;
+        if (mat.paint === "hair") {
+          // Root → tip: darker roots, lighter tips; strand direction for the
+          // shader's anisotropic highlight (head frame, octahedral bytes).
+          slotB = SLOT.hairLight;
+          mixW = 0.08 + 0.55 * Math.pow(hairT[v], 1.3);
+          eu = hairE[v * 2]; ev = hairE[v * 2 + 1];
+        }
+        out.a.push(mat.slot, slotB, Math.round(mixW * 255), Math.round(Math.min(1, shadeV[v]) * 255));
+        out.b.push(Math.round(mat.rough * 255), Math.round((mat.metal ?? 0) * 255), eu, ev);
+      }
+      out.tri.push(id);
+    }
   }
   return out;
 }

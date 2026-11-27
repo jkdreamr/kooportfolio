@@ -275,10 +275,9 @@ const FRAG_COLOR = /* glsl */ `
       rigCol *= 0.96 + 0.08 * d.g;
       rigRoughMod = 0.16 * (d.g - 0.5);
     } else {
-      // Hair: strands streak along the lock direction.
-      vec3 vt = vRigTan;
-      float strand = rigTri(rp * vec3(1.0, 0.18, 1.0), rn, 5.0).b;
-      rigCol *= 0.95 + 0.09 * strand;
+      // Hair: a whisper of strand texture (low contrast, low frequency).
+      float strand = rigTri(rp * vec3(1.0, 0.25, 1.0), rn, 3.0).b;
+      rigCol *= 0.975 + 0.05 * strand;
     }
   }
   diffuseColor.rgb *= rigCol;
@@ -294,14 +293,15 @@ const RIM = /* glsl */ `
       vec3 rigL = directionalLights[0].direction;
       vec3 rigH = normalize(rigL + rigV);
       vec3 rigT = normalize(vRigTan - normal * dot(vRigTan, normal) + 1e-4);
-      float jit = rigTri(vRigLocal * vec3(1.0, 0.18, 1.0), normalize(vRigNLocal), 9.0).b - 0.5;
-      vec3 t1 = normalize(rigT + normal * (0.18 + jit * 0.5));
-      vec3 t2 = normalize(rigT - normal * (0.12 - jit * 0.3));
+      // A gentle jitter keeps the band organic without breaking it up.
+      float jit = rigTri(vRigLocal * vec3(1.0, 0.25, 1.0), normalize(vRigNLocal), 3.0).b - 0.5;
+      vec3 t1 = normalize(rigT + normal * (0.16 + jit * 0.1));
+      vec3 t2 = normalize(rigT - normal * (0.1 - jit * 0.06));
       float th1 = dot(t1, rigH), th2 = dot(t2, rigH);
-      float s1 = pow(sqrt(max(0.0, 1.0 - th1 * th1)), 160.0);
-      float s2 = pow(sqrt(max(0.0, 1.0 - th2 * th2)), 36.0);
+      float s1 = pow(sqrt(max(0.0, 1.0 - th1 * th1)), 110.0);
+      float s2 = pow(sqrt(max(0.0, 1.0 - th2 * th2)), 28.0);
       float lit = saturate(dot(normal, rigL) * 0.6 + 0.4);
-      outgoingLight += directionalLights[0].color * lit * (s1 * 0.2 * mix(vec3(1.0), vRigHi, 0.6) + s2 * 0.1 * vRigHi);
+      outgoingLight += directionalLights[0].color * lit * (s1 * 0.16 * mix(vec3(1.0), vRigHi, 0.5) + s2 * 0.08 * vRigHi);
     }
 #endif
     outgoingLight = mix(outgoingLight, vec3(1.7), saturate(rigGlow));

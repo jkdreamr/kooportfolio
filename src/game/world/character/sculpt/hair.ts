@@ -20,13 +20,28 @@ export const HC: V3 = [0, 0.33, 0.01];
 const SR: V3 = [0.383, 0.366, 0.356];
 export type HairSeg = { a: V3; b: V3; t0: number; t1: number; ra: number; rb: number };
 type Curtain = { yEnd: number; back: number; front: number; flare: number };
+/** Lock flow over the scalp cap: grooves radiate from a whorl (or converge
+ * on a tie) at unit direction `w` from the head centre. */
+export type Flow = { w: V3; locks: number; amp: number; swirl: number };
+/** A closed hanging hair mass (bob, long, layered): grooved locks from the
+ * crown down to scalloped, pointed tips, with an inner surface. */
+export type Hood = {
+  /** Front edge azimuth (radians from the face); the hood wraps the back. */
+  span: number; yEnd: number; locks: number; flare: number; curl: number;
+  rad: number; zb: number; tip: number; vary: number[]; thick: number;
+};
+/** Curl bulbs (curly): direction from the head centre and radius. */
+export type Coil = { d: V3; r: number };
 export type HairBuild = {
-  /** SDF hair blobs for the head piece (buns, curls, braids, ties). */
+  /** SDF hair blobs for the head piece (buns, braids, ties). */
   ops: Op[];
   segs: HairSeg[];
   clumps: Lock[];
   cap: { thick: number; knots: number[]; shift: number };
   curtain: Curtain | null;
+  flow?: Flow;
+  hood?: Hood;
+  coils?: Coil[];
   rough: number;
 };
 
@@ -35,6 +50,7 @@ const norm3 = (v: V3): V3 => { const l = len(v) || 1e-9; return [v[0] / l, v[1] 
 const r3 = (v: V3): V3 => [+v[0].toFixed(4), +v[1].toFixed(4), +v[2].toFixed(4)];
 const addv = (a: V3, b: V3): V3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+const smoothf = (a: number, b: number, x: number) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const sdir = (th: number, ph: number): V3 => [Math.sin(ph) * Math.sin(th), Math.cos(ph), Math.sin(ph) * Math.cos(th)];
 const ellR = (d: V3) => 1 / Math.sqrt((d[0] / SR[0]) ** 2 + (d[1] / SR[1]) ** 2 + (d[2] / SR[2]) ** 2);
 /** Point over the scalp at azimuth th (from +z toward +x), polar ph (from +y). */
@@ -91,6 +107,9 @@ export function buildHair(style: HairStyle, mat: Mat, hatClip: Node[], hatted: b
   let knots = [0, 1.06, 0.42, 0.98, 0.85, 1.16, 1.2, 1.46, 1.42, 1.4, 1.75, 1.4, 2.2, 1.9, Math.PI, 2.08];
   let shift = 0;
   const PI = Math.PI;
+  let flow: Flow | undefined;
+  let hood: Hood | undefined;
+  let coils: Coil[] | undefined;
   // Inner curtain under hanging clumps (no gaps between them).
   let curtain: Curtain | null = null;
   const massTo = (yEnd: number, back = 0.05, flare = 0.03, front = 0.85) => { curtain = { yEnd, back, front, flare }; };
@@ -117,15 +136,13 @@ export function buildHair(style: HairStyle, mat: Mat, hatClip: Node[], hatted: b
     case "buzz":
       thick = 0.016;
       knots = [0, 1.02, 0.42, 0.95, 0.85, 1.12, 1.2, 1.42, 1.42, 1.36, 1.75, 1.36, 2.2, 1.85, PI, 2.02];
+      flow = { w: sdir(PI, 0.45), locks: 22, amp: 0.3, swirl: 0.3 };
       break;
     case "topknot": {
       thick = 0.024;
       const T = addv(HC, [0, 0.39, -0.02]);
-      for (let i = 0; i < 10; i++) {
-        const th = -PI + (i + 0.5) * (2 * PI / 10);
-        const ph = 1.2 + 0.55 * Math.min(1, Math.abs(th) / 2) ** 2;
-        L([S(th, ph - 0.12, 0.0), S(th, ph * 0.55, 0.02), T], 0.15, 0.07, { th0: 0.03, th1: 0.03 });
-      }
+      // Combed up to the knot: the cap's grooves converge on it.
+      flow = { w: norm3([0, 1, -0.05]), locks: 16, amp: 0.55, swirl: 0 };
       if (!hatted) extra.push({ op: "add", k: 0.03, n: { t: "ell", c: addv(T, [0, 0.03, 0]), r: [0.085, 0.075, 0.085], m: mat, disp: { kind: "locks", amp: 0.006, freq: 14, c: addv(T, [0, 0.03, 0]) } } });
       break;
     }
@@ -137,10 +154,7 @@ export function buildHair(style: HairStyle, mat: Mat, hatClip: Node[], hatted: b
         const t = i / 5, a = lerp(-0.85, 0.85, t);
         L([S(a * 0.35 + PI, 0.35, 0), S(a * 0.3, 0.12, 0.035), S(a * 0.8 + 0.08, 0.7, 0.05), S(a + 0.18, 1.06, 0.045)], 0.15, 0.04, { th0: 0.05, th1: 0.03 });
       }
-      for (let i = 0; i < 5; i++) {
-        const a = PI + lerp(-1.0, 1.0, i / 4);
-        L([S(PI + (a - PI) * 0.3, 0.3, 0), S(a, 1.0, 0.035), S(a * 1.0, 1.8, 0.008)], 0.22, 0.1, { th0: 0.045, th1: 0.024 });
-      }
+      flow = { w: sdir(PI, 0.42), locks: 18, amp: 0.55, swirl: 0.25 };
       for (const sd of [1, -1]) for (let i = 0; i < 3; i++) {
         const a = sd * (1.0 + i * 0.45);
         L([S(a * 0.6, 0.45, 0), S(a, 0.95, 0.035), S(a + sd * 0.15, 1.42, 0.022)], 0.15, 0.05, { th0: 0.042, th1: 0.022 });
@@ -160,10 +174,7 @@ export function buildHair(style: HairStyle, mat: Mat, hatClip: Node[], hatted: b
         L([S(part, ph, 0), S(part * 0.3 - 0.2, ph + 0.05, 0.06), S(-0.75 - i * 0.12, ph + 0.42 + i * 0.05, 0.055), S(-1.15 - i * 0.1, ph + 0.75 + i * 0.05, 0.035)], 0.16, 0.045, { th0: 0.055, th1: 0.026 });
       }
       for (let i = 0; i < 4; i++) L([S(part + 0.05, 0.3 + i * 0.18, 0), S(part + 0.5, 0.62 + i * 0.16, 0.045), S(1.3 + i * 0.08, 1.12 + i * 0.1, 0.028)], 0.14, 0.04, { th0: 0.045, th1: 0.022 });
-      for (let i = 0; i < 5; i++) {
-        const a = PI + lerp(-1.05, 1.05, i / 4);
-        L([S(PI + (a - PI) * 0.3, 0.32, 0), S(a, 1.0, 0.035), S(a, 1.82, 0.008)], 0.22, 0.1, { th0: 0.045, th1: 0.024 });
-      }
+      flow = { w: sdir(part + 0.4, 0.42), locks: 18, amp: 0.55, swirl: -0.2 };
       if (!hatted) for (let i = 0; i < 3; i++) L([S(part - 0.05, 0.75 + i * 0.06, 0.01), S(0.15 - i * 0.15, 0.98, 0.065), S(-0.32 - i * 0.18, 1.1 + i * 0.03, 0.05)], 0.14 - i * 0.02, 0.035, { th0: 0.05, th1: 0.028 });
       break;
     }
@@ -174,19 +185,11 @@ export function buildHair(style: HairStyle, mat: Mat, hatClip: Node[], hatted: b
       knots = [0, 1.1, 0.5, 1.02, 0.9, 1.3, 1.25, 1.7, 1.6, 1.85, PI, 2.15];
       shift = lay ? 0 : 0.12;
       const part = lay ? 0 : 0.12;
-      const yEnd = lay ? -0.4 : -0.33;
-      massTo(yEnd + 0.04, 0.04, 0.0);
-      const n = lay ? 13 : 12;
-      for (let i = 0; i < n; i++) {
-        const th = -2.9 + (i / (n - 1)) * 5.8;
-        if (Math.abs(th - part) < 0.62) continue;
-        const sd = th > part ? 1 : -1;
-        const ph0 = 0.18 + 0.5 * Math.min(1, Math.abs(th - part) / 2.8) ** 1.5;
-        const root = S(part + sd * 0.03, ph0, 0);
-        const ln = lay ? [-0.12, 0.05, -0.04, 0.02][i % 4] : Math.abs(th) > 2.3 ? 0.02 : 0;
-        hang(th, root, yEnd + ln, lay ? 0.22 : 0.25, { flare: lay ? 0.05 : 0.03, curl: lay ? 0.05 : -0.04, rad: 0.355 });
-      }
-      for (let i = 0; i < 3; i++) hang(PI - 0.42 + i * 0.42, S(PI, 0.3, 0), yEnd - (lay ? 0.08 : 0) + 0.02, 0.25, { flare: 0.03, curl: lay ? 0.05 : -0.04, rad: 0.36 });
+      const yEnd = lay ? -0.38 : -0.33;
+      flow = { w: sdir(part, 0.3), locks: 16, amp: 0.5, swirl: 0 };
+      hood = lay
+        ? { span: 0.85, yEnd, locks: 12, flare: 0.05, curl: 0.045, rad: 0.352, zb: 0, tip: 0.07, vary: [0.07, 0.0, 0.1, 0.02, 0.05], thick: 0.046 }
+        : { span: 0.95, yEnd, locks: 11, flare: 0.03, curl: -0.035, rad: 0.352, zb: 0, tip: 0.035, vary: [0.0, 0.015, 0.005, 0.02], thick: 0.05 };
       if (!hatted) {
         if (lay) {
           // Curtain bangs split at the centre, framing the face.
@@ -204,16 +207,8 @@ export function buildHair(style: HairStyle, mat: Mat, hatClip: Node[], hatted: b
       knots = [0, 1.08, 0.5, 1.0, 0.9, 1.28, 1.25, 1.7, 1.6, 1.85, PI, 2.15];
       shift = 0.35;
       const part = 0.35;
-      massTo(-0.74, 0.08, 0.0);
-      for (let i = 0; i < 12; i++) {
-        const th = -2.9 + (i / 11) * 5.8;
-        if (Math.abs(th - 0.1) < 0.7) continue;
-        const front = Math.abs(th) < 1.45;
-        const sd = th > part ? 1 : -1;
-        const ph0 = 0.18 + 0.5 * Math.min(1, Math.abs(th - part) / 2.8) ** 1.5;
-        hang(th, S(part + sd * 0.03, ph0, 0), front ? -0.62 + 0.05 * (i % 2) : -0.8 + 0.05 * (i % 3), front ? 0.24 : 0.27, { flare: front ? 0.0 : 0.035, curl: 0.035, zb: front ? -0.04 : -0.07, rad: front ? 0.33 : 0.36 });
-      }
-      for (let i = 0; i < 3; i++) hang(PI - 0.4 + i * 0.4, S(PI, 0.3, 0), -0.84 + 0.04 * (i % 2), 0.27, { flare: 0.035, curl: 0.035, zb: -0.09 });
+      flow = { w: sdir(part, 0.3), locks: 16, amp: 0.5, swirl: 0 };
+      hood = { span: 0.82, yEnd: -0.8, locks: 12, flare: 0.035, curl: 0.03, rad: 0.352, zb: -0.05, tip: 0.06, vary: [0.04, 0.0, 0.07, 0.02], thick: 0.05 };
       if (!hatted) {
         for (let i = 0; i < 3; i++) L([S(part - 0.05, 0.7 + i * 0.07, 0.01), S(0.05 - i * 0.15, 1.0, 0.065), S(-0.4 - i * 0.15, 1.22 + i * 0.05, 0.05), S(-0.68 - i * 0.1, 1.55 + i * 0.05, 0.05)], 0.15, 0.04, { th0: 0.05, th1: 0.026 });
         L([S(part + 0.1, 0.75, 0.01), S(0.62, 1.05, 0.06), S(0.82, 1.42, 0.05)], 0.13, 0.04, { th0: 0.045, th1: 0.026 });
@@ -227,18 +222,18 @@ export function buildHair(style: HairStyle, mat: Mat, hatClip: Node[], hatted: b
       knots = [0, 1.06, 0.42, 0.98, 0.85, 1.16, 1.2, 1.46, 1.42, 1.4, 1.75, 1.42, 2.2, 1.98, PI, 2.14];
       const braids = style === "braids";
       const tie = style === "bun" ? S(PI, 0.62, 0.02) : braids ? S(PI, 1.2, 0.0) : S(PI, 0.85, 0.02);
-      // Combed back from the hairline to the tie (a centre parting for braids).
-      const n = 12;
-      for (let i = 0; i < n; i++) {
-        const th = -PI + (i + 0.5) * (2 * PI / n);
-        const ph = 1.02 + 0.5 * Math.min(1, Math.abs(th) / 1.7) ** 2;
-        const back = Math.abs(th) > 2.3;
-        if (braids) {
+      // Combed back from the hairline to the tie: the cap's grooves
+      // converge on it (a centre parting with locks for braids).
+      flow = { w: norm3([tie[0] - HC[0], tie[1] - HC[1], tie[2] - HC[2]]), locks: 18, amp: 0.6, swirl: 0 };
+      if (braids) {
+        flow = { w: sdir(PI, 1.45), locks: 18, amp: 0.55, swirl: 0 };
+        for (let i = 0; i < 10; i++) {
+          const th = -PI + (i + 0.5) * (2 * PI / 10);
+          if (Math.abs(th) > 2.4) continue;
+          const ph = 1.02 + 0.5 * Math.min(1, Math.abs(th) / 1.7) ** 2;
           const sd = th >= 0 ? 1 : -1;
-          L([S(sd * 0.05, 0.4 + 0.25 * Math.abs(Math.sin(i)), 0), S(th, Math.min(ph - 0.1, 1.35), 0.03), S(sd * 2.0, 1.72, 0.03)], 0.17, 0.09, { th0: 0.03, th1: 0.03 });
-          continue;
+          L([S(sd * 0.05, 0.4 + 0.25 * Math.abs(Math.sin(i)), 0), S(th, Math.min(ph - 0.1, 1.35), 0.03), S(sd * 2.0, 1.72, 0.03)], 0.2, 0.1, { th0: 0.03, th1: 0.03 });
         }
-        L([S(th, back ? 1.85 : ph - 0.08, 0.0), S(th * (back ? 1 : 1.1), back ? 1.3 : ph * 0.6, 0.026), tie], 0.17, 0.07, { th0: 0.032, th1: 0.03 });
       }
       if (style === "ponytail") {
         const T = addv(tie, [0, 0, -0.03]);
@@ -253,13 +248,6 @@ export function buildHair(style: HairStyle, mat: Mat, hatClip: Node[], hatted: b
         const B = addv(tie, [0, 0.03, -0.08]);
         extra.push({ op: "add", k: 0.03, n: { t: "ell", c: B, r: [0.135, 0.12, 0.1], m: mat, disp: { kind: "locks", amp: 0.008, freq: 12, c: B } } });
         extra.push({ op: "add", k: 0.012, n: { t: "tor", c: addv(B, [0, 0, 0.02]), R: 0.1, r: 0.032, rot: [Math.PI / 2 - 0.25, 0, 0], m: mat, disp: { kind: "rib", amp: 0.006, freq: 9, c: B } } });
-      }
-      if (braids) {
-        // The back splits at the nape into the two plaits.
-        for (let i = 0; i < 6; i++) {
-          const sd = i < 3 ? 1 : -1, k = i % 3;
-          L([S(PI + sd * 0.04, 0.35 + k * 0.25, 0), S(PI + sd * (0.35 + k * 0.2), 1.25 + k * 0.08, 0.03), S(sd * 2.05, 1.74, 0.03)], 0.2, 0.1, { th0: 0.034, th1: 0.03 });
-        }
       }
       if (braids)
         for (const sd of [1, -1]) {
@@ -290,27 +278,29 @@ export function buildHair(style: HairStyle, mat: Mat, hatClip: Node[], hatted: b
     case "curly": {
       thick = 0.045;
       knots = [0, 1.06, 0.45, 1.0, 0.9, 1.22, 1.25, 1.5, 1.45, 1.45, 1.75, 1.45, 2.2, 1.9, PI, 2.08];
-      // Coils spread over the scalp (golden-angle spiral), smaller at the hairline.
-      const N = 52;
+      // Soft rounded curl clumps: smooth bulbs evenly spread over the
+      // scalp (golden-angle spiral) at one height, so the silhouette stays
+      // an even rounded shape; smaller and lower at the hairline.
+      flow = { w: sdir(PI, 0.45), locks: 20, amp: 0.4, swirl: 0.3 };
+      coils = [];
+      const N = 78;
       for (let i = 0; i < N; i++) {
-        const y = 1 - (i + 0.5) / N * 1.2;
+        const y = 1 - ((i + 0.5) / N) * 2;
         const ph = Math.acos(Math.max(-1, Math.min(1, y)));
-        const th = i * 2.39996;
-        const wth = Math.atan2(Math.sin(th), Math.cos(th));
-        const lim = 1.0 + 0.5 * Math.min(1, Math.abs(wth) / 1.6) ** 2;
-        if (ph > lim + 0.08) continue;
-        const edge = ph > lim - 0.22;
-        const c = r3(S(wth, ph, edge ? 0.035 : 0.06));
-        const r = (edge ? 0.048 : 0.068) * (0.9 + 0.2 * Math.abs(Math.sin(i * 3.7)));
-        extra.push({ op: "add", k: 0.026, n: { t: "sph", c, r: +r.toFixed(4), m: mat, disp: { kind: "bumps", amp: 0.007, freq: 42 } } });
-        segs.push({ a: c, b: addv(c, [0, -0.02, 0]), t0: edge ? 0.7 : 0.45, t1: 0.6, ra: r, rb: r });
+        const th = Math.atan2(Math.sin(i * 2.39996), Math.cos(i * 2.39996));
+        const lim = hlPhi(knots, th);
+        if (ph > lim + 0.02) continue;
+        const edge = smoothf(lim - 0.32, lim + 0.02, ph);
+        const r = (0.074 - 0.02 * edge) * (0.94 + 0.12 * Math.abs(Math.sin(i * 3.7)));
+        coils.push({ d: sdir(th, ph), r: +r.toFixed(4) });
+        segs.push({ a: S(th, ph, thick), b: S(th, ph, thick + r), t0: 0.35 + 0.3 * edge, t1: 0.7, ra: r, rb: r });
       }
       break;
     }
   }
   const body: Node = { t: "grp", ops: extra.length ? extra : [{ op: "add", k: 0, n: { t: "sph", c: [0, -9, 0], r: 0.001 } }], m: mat };
   const ops: Op[] = extra.length ? [{ op: "add", k: 0.01, n: hatClip.length ? { t: "shell", of: body, d: 0, m: mat, clip: hatClip } : body }] : [];
-  return { ops, segs, clumps: locks, cap: { thick, knots, shift }, curtain, rough: mat.rough };
+  return { ops, segs, clumps: locks, cap: { thick, knots, shift }, curtain, flow, hood, coils, rough: mat.rough };
 }
 
 // --- explicit hair geometry ---------------------------------------------------------
