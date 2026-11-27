@@ -302,11 +302,17 @@ export function sculptedMaterial(
       .replace(
         "#include <color_fragment>",
         `#include <color_fragment>
+        float sculptDetailScale = 0.42;
         ${ROAD_PATTERN_FRAGMENT}
+        #ifdef SCULPT_KIND_VARYING
+          // B11: baked masonry walls and columns (stone, facing sideways)
+          // take a finer stone layer: ashlar-sized blocks, not metre slabs.
+          sculptDetailScale *= 1.0 + 1.6 * step(abs(sculptKindValue - 2.0), 0.5) * (1.0 - smoothstep(0.35, 0.6, abs(normalize(vSculptNormal).y)));
+        #endif
         vec3 sculptN = normalize(vSculptNormal);
         float sculptLight = smoothstep(-0.65, 0.85, sculptN.y);
         diffuseColor.rgb *= mix(vec3(0.78, 0.83, 0.88), vec3(1.04, 1.02, 0.98), sculptLight);
-        vec4 sculptFine = sculptLayer(vSculptWorld * 0.42, sculptN, sculptKind);
+        vec4 sculptFine = sculptLayer(vSculptWorld * sculptDetailScale, sculptN, sculptKind);
         float sculptBroad = texture2D(uSurfaceNoise, vSculptWorld.xz * 0.021 + 0.37).b;
         // Large flat, up-facing surfaces (paving, flagstones, decks, flat
         // roofs) take a calmer layer; lawns ("ground", 5) keep it.
