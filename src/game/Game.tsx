@@ -30,6 +30,7 @@ import {
   type Tier,
 } from "../stage/contract";
 import { EngineRuntime, pinPrograms, rig } from "./engine/Engine";
+import { linkShadowDepth, materialsOf } from "./engine/prewarm";
 import { WorldActiveContext } from "./engine/active";
 import { usePresented } from "./engine/presented";
 import { installGradeToneMapping } from "./engine/grade";
@@ -403,7 +404,7 @@ function SceneCamera() {
 /** Scenes other than the hub mount hidden, compile (parallel where the
  * driver allows), then take over: the previous frame stays on screen with
  * the camera held, so there is no stall-frame or blank between them. */
-function useIncomingScene(scene: Scene) {
+function useIncomingScene(scene: Scene, tier: Tier) {
   const gl = useThree((s) => s.gl);
   const incoming = useRef<THREE.Group>(null);
   const presented = usePresented((s) => s.scene);
@@ -429,7 +430,8 @@ function useIncomingScene(scene: Scene) {
         let pending: Promise<unknown> = Promise.resolve();
         group.visible = true;
         try {
-          pending = gl.compileAsync(group, root.camera, root.scene);
+          // The group's own lights counted once (materialsOf).
+          pending = gl.compileAsync(materialsOf(group), root.camera, root.scene);
         } catch {
           // Compile errors surface on render; never block the swap on them.
         } finally {
@@ -440,6 +442,18 @@ function useIncomingScene(scene: Scene) {
           pending.catch(() => {}),
           new Promise((r) => setTimeout(r, 2500)),
         ]);
+        // Shadow-depth programs link only in a shadow pass: run one now,
+        // behind the hold, with the room shown and the hub hidden as the
+        // first real frame will have them.
+        if (!cancelled) {
+          const hub = root.scene.getObjectByName("hub-root");
+          group.visible = true;
+          try {
+            linkShadowDepth(gl, root.scene, root.camera, tier, hub ? [hub] : []);
+          } finally {
+            group.visible = false;
+          }
+        }
         // Keep these programs for the session: leaving this scene later
         // must not release (and re-entering relink) them.
         pinPrograms(gl);
@@ -453,7 +467,7 @@ function useIncomingScene(scene: Scene) {
       // Superseded before it presented (e.g. straight back outside).
       rig.release(0.3);
     };
-  }, [gl, presented, scene]);
+  }, [gl, presented, scene, tier]);
   return { incoming, presented };
 }
 const useThreeRoot: { current: RootState | null } = { current: null };
@@ -474,7 +488,7 @@ function World({ tier }: { tier: Tier }) {
   const paperToss = useGameMode(
     (s) => scene === "office" && s.active?.id === "paper-toss",
   );
-  const { incoming, presented } = useIncomingScene(scene);
+  const { incoming, presented } = useIncomingScene(scene, tier);
   const hubShown = presented === "hub";
   const backdrop = presented === "rowing" ? "#d5e0ce" : "#dce5c7";
   return (

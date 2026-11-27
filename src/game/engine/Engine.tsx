@@ -49,6 +49,37 @@ export function pinPrograms(gl: THREE.WebGLRenderer) {
   }
 }
 
+/**
+ * Custom shader materials (drei's Line, ripples, water) key their programs by
+ * shader-stage ids that three hands out per source string and forgets when
+ * the last material with that source is disposed: the next mount gets new
+ * ids, a new cache key and a fresh link of a program that is still pinned
+ * (the basketball court relinked its lines on every visit and every game).
+ * The first compiled material of each source is kept instead of disposed, so
+ * its stage stays registered and the ids never change. Bounded: one small
+ * material object per distinct shader source.
+ */
+const keptStages = new Set<string>();
+let stageRenderer: THREE.WebGLRenderer | null = null;
+const disposeMaterial = THREE.Material.prototype.dispose;
+export function keepShaderStages(gl: THREE.WebGLRenderer) {
+  stageRenderer = gl;
+  if (Object.prototype.hasOwnProperty.call(THREE.ShaderMaterial.prototype, "dispose")) return;
+  THREE.ShaderMaterial.prototype.dispose = function (this: THREE.ShaderMaterial) {
+    const source = `${this.vertexShader}\u0000${this.fragmentShader}`;
+    const renderer = stageRenderer;
+    const compiled =
+      !!renderer &&
+      renderer.properties.has(this) &&
+      !!(renderer.properties.get(this) as { currentProgram?: unknown }).currentProgram;
+    if (compiled && !keptStages.has(source)) {
+      keptStages.add(source);
+      return;
+    }
+    disposeMaterial.call(this);
+  };
+}
+
 /** performance.measure without the buffer growing over a session. */
 function measure(name: string, start: number) {
   try {
@@ -361,6 +392,7 @@ export function EngineRuntime({
   // --- warmup ---------------------------------------------------------------
   useEffect(() => {
     instrument(gl);
+    keepShaderStages(gl);
     stats.tier = tier;
     const controller = new AbortController();
     const unregister = [

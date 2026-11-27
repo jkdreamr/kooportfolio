@@ -26,6 +26,10 @@ const fragmentShader = `
 `;
 
 /** Walking stays player-scale; a broadcast cut follows the full kick arc. */
+/** The backdrop's shaders, for the idle prewarm (engine/prewarm.ts) to
+ * compile its program before the first visit. */
+export const STADIUM_BACKDROP_SHADERS = { vertexShader, fragmentShader } as const;
+
 export function StadiumView({
   playing,
   ballRef,

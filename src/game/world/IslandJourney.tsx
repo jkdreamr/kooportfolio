@@ -36,6 +36,7 @@ import { useWorldView } from "../core/worldView";
 import { footstep, sound } from "../core/sound";
 import { journeyAtmosphere } from "./env/atmosphere";
 import { cloudGeometry, cloudLikeMaterial } from "./env/Clouds";
+import { compileBehindVeil } from "./veilCompile";
 
 export type IslandTrip = TravelOption & {
   from: TravelWorld;
@@ -113,7 +114,10 @@ export function IslandJourney({
   onComplete: () => void;
 }) {
   const actor = useRef<THREE.Group>(null),
-    vehicle = useRef<THREE.Group>(null);
+    vehicle = useRef<THREE.Group>(null),
+    root = useRef<THREE.Group>(null);
+  // The destination compiles behind the full veil before it is drawn.
+  const veilCompile = useRef<ReturnType<typeof compileBehindVeil> | null>(null);
   const trainCars = useRef<THREE.Group>(null);
   const wisps = useRef<THREE.InstancedMesh>(null);
   const wispMaterial = useMemo(cloudLikeMaterial, []);
@@ -141,6 +145,7 @@ export function IslandJourney({
     frozen: false,
     hold: 0,
     presented: 0,
+    settle: 0,
     hourFrom: 0,
     hourTo: 0,
     departed: false,
@@ -162,7 +167,7 @@ export function IslandJourney({
   const position = useRef(
     new THREE.Vector3(trip.origin[0], 0.18, trip.origin[1]),
   );
-  const { camera, size } = useThree();
+  const { camera, size, gl, scene } = useThree();
   // Start from the live camera, not the passenger, so booking never cuts views.
   const focus = useRef(
     camera.position.clone().sub(new THREE.Vector3(...ISLAND_CAMERA_OFFSET)),
@@ -180,6 +185,7 @@ export function IslandJourney({
   useEffect(
     () => () => {
       if (daylightClock.heldBy === "journey") daylightClock.heldBy = null;
+      veilCompile.current?.reveal();
       journeyAtmosphere.veil = 0;
       journeyRuntime.phase = "idle";
       journeyRuntime.veil = 0;
@@ -215,6 +221,7 @@ export function IslandJourney({
         return;
       }
       phase.current = "cancel";
+      veilCompile.current?.reveal();
       cancelling.current = { stage: 0, chase0: r.chase, hour0: daylightClock.hour, frozenFrames: 0, hold: 0 };
       daylightClock.heldBy = "journey";
     }
@@ -290,10 +297,25 @@ export function IslandJourney({
     } else if (phase.current === "ride") {
       const rideSeconds = reduced ? JOURNEY_SHOT.reducedSeconds : JOURNEY_SHOT.rideSeconds[trip.mode];
       if (r.frozen) {
-        // Hold at the swap until the destination has been drawn twice.
+        // Hold at the swap: compile the destination behind the veil (the
+        // rest of the hub not drawn meanwhile), then until it has been drawn
+        // twice. The hold cap still bounds the whole wait.
         r.hold += dt;
-        if (world === trip.destination) r.presented++;
-        if (r.presented >= 3 || r.hold >= JOURNEY_SHOT.holdCap) r.frozen = false;
+        if (world === trip.destination) {
+          // Two frames for the new world's effects (merged batches, textures
+          // assigned on mount) to settle, so the compile sees what draws.
+          r.settle++;
+          if (!veilCompile.current && root.current && r.settle >= 3)
+            veilCompile.current = compileBehindVeil(gl, scene, camera, root.current);
+          const compiling = veilCompile.current;
+          if (compiling && (compiling.ready() || r.hold >= JOURNEY_SHOT.holdCap * 0.8))
+            compiling.reveal();
+          if (compiling?.ready()) r.presented++;
+        }
+        if (r.presented >= 3 || r.hold >= JOURNEY_SHOT.holdCap) {
+          r.frozen = false;
+          veilCompile.current?.reveal();
+        }
       } else r.seconds += dt;
       const p = Math.min(1, r.seconds / rideSeconds);
       r.p = p;
@@ -329,6 +351,7 @@ export function IslandJourney({
         r.frozen = true;
         r.hold = 0;
         r.presented = 0;
+        r.settle = 0;
       }
       if (p === 1) {
         phase.current = "leave";
@@ -547,7 +570,7 @@ export function IslandJourney({
   const parked = journeyPose(trip.mode, 0, trip.from);
   const landed = journeyPose(trip.mode, 0, trip.destination);
   return (
-    <group name="in-world-journey">
+    <group name="in-world-journey" ref={root}>
       <FogColorProbe />
       <group
         ref={actor}

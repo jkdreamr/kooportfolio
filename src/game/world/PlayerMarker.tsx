@@ -65,6 +65,9 @@ const glintMaterial = new THREE.LineBasicMaterial({
   toneMapped: false,
   fog: false,
 });
+/** For the idle prewarm (engine/prewarm.ts): the marker is drawn in every
+ * room, under each room's own light set. */
+export const PLAYER_MARKER_MATERIALS = [glassMaterial, rimMaterial] as const;
 const noRaycast = () => {};
 
 export function PlayerMarker() {

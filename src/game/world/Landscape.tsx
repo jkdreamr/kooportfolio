@@ -18,7 +18,8 @@ import { setLookWorld } from "./env/look";
 import { attachReflection } from "./env/reflection";
 
 const pondDisc = new THREE.CircleGeometry(1, 48);
-const pondWater = waterMaterial({
+/** Exported for the idle prewarm (engine/prewarm.ts, travel arrivals). */
+export const pondWater = waterMaterial({
   color: "#2f8ca6",
   deep: "#154f6e",
   shallow: "#7cc0b6",

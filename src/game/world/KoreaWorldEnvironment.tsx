@@ -147,7 +147,8 @@ for (let i = 0; i < 8; i++) {
 // The Han: broad slow ripples, foam along both embankments and, after dark,
 // the bridge's rainbow lights smeared across the near bank.
 const riverGeometry = new THREE.PlaneGeometry(74, 22);
-const riverMaterial = waterMaterial({
+/** Exported for the idle prewarm (engine/prewarm.ts, travel arrivals). */
+export const riverMaterial = waterMaterial({
   color: "#3b7f99",
   deep: "#1b4a66",
   shallow: "#7db3ac",
