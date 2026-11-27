@@ -6,8 +6,7 @@ import type { PlaceId } from "../game/core/world";
  * or from his own message of 2026-11-27 ([owner]). Fictional rooms do not
  * imply membership or employment.
  *
- * PENDING_OWNER marks text his site does not show and he has not yet
- * confirmed; tests pin where each such phrase may appear.
+ * Nothing here is pending: every line is on his site or confirmed by him.
  */
 export type RoomStoryEntry = { text: string; link?: string; label?: string };
 
@@ -91,7 +90,7 @@ export const roomStories: Partial<Record<PlaceId, RoomStoryEntry>> = {
   // YouTube: data.ts:36. kelix on SoundCloud: data.ts:34. "all i need" on
   // Spotify: data.ts:35. @atkelix on Instagram: data.ts:33.
   // dreamr, his old music name: [owner] (no link exists, so none is given).
-  // PENDING_OWNER: the tracks "back room" and "please be" (not on his site).
+  // "back room" and "please be": [owner] confirmed 2026-11-27 they are his.
   music: {
     text: "Josh debuted with the digital single “Fairytale” under Korean hip hop label Dejavu Group (the video is on YouTube). On his own he posts as kelix on SoundCloud (try ‘back room’ or ‘please be’), “all i need” is on Spotify, and he's @atkelix on Instagram. He previously released music as dreamr.",
     link: "https://soundcloud.com/atkelix",

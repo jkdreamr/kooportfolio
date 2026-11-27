@@ -50,6 +50,7 @@ import {
 } from "./soundPrefs";
 import { showToast, useToasts, TOAST_MAX } from "./toasts";
 import { attachUiSounds } from "./uiSounds";
+import { closeListen, ListenTabs, openListen, useListen } from "./ListenPanel";
 
 /** Knob travel in px from the centre of the 100px pad. */
 const STICK_TRAVEL = 30;
@@ -372,11 +373,13 @@ function Modal({
   eyebrow,
   children,
   close,
+  className,
 }: {
   title: string;
   eyebrow?: string;
   children: React.ReactNode;
   close: () => void;
+  className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const phase = useContext(PresencePhase);
@@ -408,7 +411,7 @@ function Modal({
   return (
     <div className="modal-scrim" data-phase={phase} inert={phase === "exit"}>
       <div
-        className="game-modal"
+        className={className ? `game-modal ${className}` : "game-modal"}
         role="dialog"
         aria-modal="true"
         aria-label={title}
@@ -795,6 +798,21 @@ function JoshLinks() {
           aria-labelledby={`josh-group-${group.id}`}
         >
           <h3 id={`josh-group-${group.id}`}>{group.title}</h3>
+          {group.id === "music" && (
+            <button
+              type="button"
+              className="josh-listen"
+              onClick={() => {
+                useGame.setState({ panel: "none" });
+                openListen();
+              }}
+            >
+              <span>Listen here</span>
+              <span className="josh-link-note">
+                every SoundCloud track, Spotify and the Fairytale video
+              </span>
+            </button>
+          )}
           <ul>
             {group.links.map((link) => (
               <li key={link.id}>
@@ -887,7 +905,7 @@ export function Hud({ interact }: { interact: () => void }) {
     if (!shell) return;
     const sync = () => {
       const overlayLocked = !!shell.querySelector(
-        '[data-interior-game-open="true"], .go-card-open, .writing-modal, .theater-dialog',
+        '[data-interior-game-open="true"], .go-card-open, .writing-modal, .theater-dialog, .listen-modal',
       );
       if (overlayLocked === useGame.getState().overlayLocked) return;
       keys.clear();
@@ -952,6 +970,9 @@ export function Hud({ interact }: { interact: () => void }) {
   const nearDoor =
     hub && !!g.near && doors.some((door) => door.id === g.near);
   useNoticeToasts(g.notice);
+  const listenOpen = useListen((s) => s.open);
+  // The panel belongs to the village; leaving the scene closes it.
+  useEffect(() => closeListen, [g.scene]);
   const soundTouchHint = useSoundShortcut(hudMotion === "shown");
   return (
     <div
@@ -1226,6 +1247,11 @@ export function Hud({ interact }: { interact: () => void }) {
         </button>
       </div>
       <ToastStack />
+      <Presence show={listenOpen}>
+        <Modal title="Listen" close={closeListen} className="listen-modal">
+          <ListenTabs onClose={closeListen} />
+        </Modal>
+      </Presence>
       <Presence show={g.panel === "avatar"}>
         <Modal eyebrow="" title="Your character" close={closePanel}>
           <div className="color-swatches">

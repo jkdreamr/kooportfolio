@@ -44,3 +44,21 @@ describe("owner links", () => {
     expect(OWNER_LINKS.some((l) => /dreamr/i.test(l.label) && l.group === "music")).toBe(false);
   });
 });
+
+describe("owner embeds", () => {
+  it("are the players from the owner's own site, with no autoplay", async () => {
+    const { OWNER_EMBEDS } = await import("../src/content/links");
+    expect(OWNER_EMBEDS.map((e) => e.id)).toEqual(["soundcloud", "spotify", "youtube"]);
+    for (const e of OWNER_EMBEDS) {
+      expect(e.src).toMatch(/^https:\/\/(w\.soundcloud\.com|open\.spotify\.com|www\.youtube-nocookie\.com)\//);
+      expect(e.src).not.toMatch(/auto_?play=(true|1)/i);
+      expect(e.href).toMatch(/^https:\/\//);
+    }
+    if (!existsSync(OWNER_DATA)) return;
+    const site = readFileSync(OWNER_DATA, "utf8");
+    for (const e of OWNER_EMBEDS) {
+      expect(site.includes(`'${e.src}'`) || site.includes(`\n    '${e.src}'`), e.id).toBe(true);
+      expect(site.includes(`'${e.href}'`), e.id).toBe(true);
+    }
+  });
+});

@@ -139,7 +139,7 @@ const topics: Record<string, readonly NpcTopic[]> = {
       id: "listen",
       label: "Anything to listen to?",
       reply:
-        "Look up kelix on SoundCloud. Try ‘back room’ first, then ‘please be’ if you want something quieter.",
+        "Try ‘back room’ first, then ‘please be’ if you want something quieter, or open the Listen panel for everything.",
     },
     {
       id: "make",

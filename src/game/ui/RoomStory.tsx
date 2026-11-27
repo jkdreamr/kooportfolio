@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { roomStories } from "../../content/room-stories";
 import type { PlaceId } from "../core/world";
 import { Icon } from "./Icon";
+import { openListen } from "./ListenPanel";
 
 export function RoomStory({
   scene,
@@ -58,6 +59,15 @@ export function RoomStory({
         <>
           <h2>Josh</h2>
           <p>{story.text}</p>
+          {scene === "music" && (
+            <button
+              type="button"
+              className="story-listen"
+              onClick={() => openListen()}
+            >
+              Listen here
+            </button>
+          )}
           {story.link && (
             <a href={story.link} target="_blank" rel="noreferrer">
               {story.label ?? "More"} ↗

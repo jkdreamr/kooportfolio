@@ -1,0 +1,154 @@
+/* Listen panel: Josh's music players (SoundCloud, Spotify, YouTube). */
+.game-shell.game-shell .game-modal.listen-modal {
+  max-width: 620px;
+}
+.game-shell .listen-panel {
+  display: grid;
+  gap: 14px;
+}
+.game-shell.game-shell .listen-intro {
+  margin: -10px 0 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-text);
+  color: var(--glass-muted);
+}
+.game-shell .listen-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--glass-well);
+  border: 1px solid var(--glass-hairline);
+  border-radius: 14px;
+}
+.game-shell.game-shell .listen-tabs [role="tab"] {
+  flex: 1;
+  min-height: var(--hit-min);
+  padding: 6px 10px;
+  font: 600 var(--text-sm) / 1.2 var(--font-ui);
+  color: var(--glass-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  box-shadow: none;
+}
+.game-shell.game-shell .listen-tabs [role="tab"][aria-selected="true"] {
+  color: var(--glass-ink);
+  background: var(--glass-active);
+  border-color: var(--glass-hairline);
+}
+.game-shell.game-shell .listen-tabs [role="tab"]:focus-visible {
+  outline: 3px solid var(--glass-focus);
+  outline-offset: 1px;
+}
+.game-shell .listen-player {
+  display: grid;
+  gap: 10px;
+}
+.game-shell .listen-frame {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  background: rgb(4 16 24 / 0.45);
+  border: 1px solid var(--glass-hairline);
+}
+.game-shell .listen-player[data-video] .listen-frame {
+  aspect-ratio: 16 / 9;
+}
+.game-shell .listen-frame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  opacity: 0;
+  transition: opacity 240ms var(--glass-ease);
+}
+.game-shell .listen-player[data-state="ready"] iframe {
+  opacity: 1;
+}
+.game-shell .listen-placeholder {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-content: center;
+  padding: 24px;
+  text-align: center;
+  font-size: var(--text-sm);
+  line-height: var(--leading-text);
+  color: var(--glass-muted);
+  background:
+    radial-gradient(circle at 30% 20%, rgb(255 255 255 / 0.08), transparent 60%),
+    rgb(14 28 38 / 0.6);
+}
+.game-shell .listen-placeholder a {
+  color: var(--glass-gold);
+}
+@keyframes listen-breathe {
+  50% {
+    opacity: 0.55;
+  }
+}
+.game-shell .listen-spinner {
+  animation: listen-breathe 1.4s ease-in-out infinite;
+}
+.game-shell.game-shell .listen-out {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--hit-min);
+  font-size: var(--text-sm);
+  color: var(--glass-gold);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.game-shell.game-shell :is(.josh-listen, .story-listen) {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: var(--hit-min);
+  margin: 0 0 8px;
+  padding: 10px 14px;
+  text-align: left;
+  font: 600 var(--text-md) / var(--leading-text) var(--font-ui);
+  color: var(--glass-accent-ink);
+  background: var(--glass-accent);
+  border: 1px solid var(--glass-accent-border);
+  border-radius: 14px;
+  cursor: pointer;
+}
+.game-shell.game-shell .josh-listen .josh-link-note {
+  color: inherit;
+  opacity: 0.85;
+  font-weight: 400;
+}
+.game-shell.game-shell .story-listen {
+  display: inline-flex;
+  width: auto;
+  margin: 12px 12px 0 0;
+  font-size: var(--text-sm);
+}
+/* Phones: the panel takes the whole screen and scrolls. */
+@media (max-width: 700px) {
+  .game-shell.game-shell .game-ui .modal-scrim:has(.listen-modal) {
+    padding: 0;
+  }
+  .game-shell.game-shell .modal-scrim .game-modal.listen-modal {
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+    padding: max(20px, env(safe-area-inset-top)) 16px
+      max(20px, env(safe-area-inset-bottom));
+    overflow-y: auto;
+  }
+  .game-shell.game-shell .modal-scrim .game-modal.listen-modal::before {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .game-shell .listen-spinner {
+    animation: none;
+  }
+}

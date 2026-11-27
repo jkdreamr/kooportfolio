@@ -9,11 +9,9 @@ const REPLY_MAX = 140;
 const stories = Object.entries(roomStories);
 
 /** Text Josh's site does not show and he has not confirmed yet: where each
- * phrase may appear (the test fails if one spreads anywhere else). */
-const PENDING_OWNER: Record<string, string[]> = {
-  "back room": ["story:music", "topic:musician/listen"],
-  "please be": ["story:music", "topic:musician/listen"],
-};
+ * phrase may appear (the test fails if one spreads anywhere else). Empty:
+ * on 2026-11-27 he confirmed every such line (roles, Alphag3n, both tracks). */
+const PENDING_OWNER: Record<string, string[]> = {};
 
 /** Villager topics added for the owner's facts (PLAN_FINAL C5). */
 const ADDED: [string, string][] = [
@@ -63,6 +61,7 @@ describe("room stories", () => {
     expect(roomStories.office?.text).toMatch(/^Before Stanford, Josh founded Alphag3n/);
     expect(roomStories.music?.text).toMatch(/previously released music as dreamr/);
     expect(roomStories.writing?.text).toMatch(/poetry, songwriting and essays/);
+    expect(roomStories.music?.text).toMatch(/back room/);
   });
 });
 

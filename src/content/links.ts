@@ -60,3 +60,38 @@ export function ownerLinkGroups(links: readonly OwnerLink[] = OWNER_LINKS) {
     links: links.filter((link) => link.group === group.id),
   })).filter((group) => group.links.length > 0);
 }
+
+export type OwnerEmbed = { id: "soundcloud" | "spotify" | "youtube"; label: string; title: string; src: string; href: string; height: number };
+
+/**
+ * The players Josh's own site embeds (J data.ts:39–44, `embeds`), for the
+ * Listen panel: his whole SoundCloud catalogue (newest first, always current),
+ * "all i need" on Spotify and the "Fairytale" video (no-cookie YouTube).
+ * `href` is the plain link-out shown under each player.
+ */
+export const OWNER_EMBEDS: readonly OwnerEmbed[] = [
+  {
+    id: "soundcloud",
+    label: "SoundCloud",
+    title: "kelix on SoundCloud: all tracks",
+    src: "https://w.soundcloud.com/player/?url=https%3A%2F%2Fapi.soundcloud.com%2Fusers%2F818107360&color=%23ff5500&auto_play=false&hide_related=false&show_comments=false&show_user=true&show_reposts=false&visual=true",
+    href: "https://soundcloud.com/atkelix",
+    height: 420,
+  },
+  {
+    id: "spotify",
+    label: "Spotify",
+    title: "all i need on Spotify",
+    src: "https://open.spotify.com/embed/album/2ckdlSbzkVukYqvSwZIiUp?utm_source=generator&theme=0",
+    href: "https://open.spotify.com/album/2ckdlSbzkVukYqvSwZIiUp",
+    height: 352,
+  },
+  {
+    id: "youtube",
+    label: "YouTube",
+    title: "Fairytale, music video",
+    src: "https://www.youtube-nocookie.com/embed/nw2rOUypDHE",
+    href: "https://www.youtube.com/watch?v=nw2rOUypDHE",
+    height: 0, // 16:9 from the width
+  },
+];
