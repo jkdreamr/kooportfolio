@@ -51,6 +51,8 @@ export type Figure = {
   hairPlan?: HairBuild;
   hatDist: (p: V3) => number;
   hairAO: Op[];
+  /** Analytic ears shown (not under long hair, scarves or headphones). */
+  ears: boolean;
 };
 
 // --- node helpers ----------------------------------------------------------------
@@ -102,7 +104,9 @@ function extraColorSlot(o: Outfit, kind: string, second = false) {
 }
 const has = (o: Outfit, kind: string) => (o.extras ?? []).some((e) => e.kind === kind);
 const folds = (amp: number, c: V3 = [0, 0, 0], freq = 7): Node["disp"] => ({ kind: "folds", amp, freq, c });
-const band = (amp: number, y0: number, y1: number, freq = 70, c: V3 = [0, 0, 0]): Node["disp"] => ({ kind: "band", amp, freq, y0, y1, c });
+/** Fine compression wrinkles are not drawn: at these budgets they alias
+ * into blotches (soft fold geometry is modelled where it reads instead). */
+const band = (..._: unknown[]): Node["disp"] => undefined;
 
 export function buildFigure(o: Outfit): Figure {
   const w = o.build?.width ?? 1;
@@ -203,16 +207,18 @@ export function buildFigure(o: Outfit): Figure {
     case "polo":
     case "chef": {
       const covered = torsoOuter;
+      // A bib (apron / overalls) covers the middle of the front.
+      const bib = outer?.kind === "apron" || outer?.kind === "overalls";
       collarBand(SLOT.top);
       if (!covered || outer?.kind === "vest") collarPoints(top.kind === "chef" ? SLOT.white : SLOT.top);
       if (top.kind === "chef") {
         // Double-breasted with two button rows.
-        for (const y of [0.3, 0.2, 0.1, 0.0]) for (const s of [1, -1]) chest.push(add(sph(front(s * 0.058, y, topD + 0.005), 0.011, M.gloss(SLOT.white, 0.25)), 0.001));
+        for (const y of bib ? [0.3] : [0.3, 0.2, 0.1, 0.0]) for (const s of [1, -1]) chest.push(add(sph(front(s * 0.058, y, topD + 0.005), 0.011, M.gloss(SLOT.white, 0.25)), 0.001));
         chest.push(add(cap(front(0.07, 0.37, topD + 0.002), front(0.075, hemY + 0.03, topD + 0.002), 0.007, M.fab(SLOT.top)), 0.003));
         hemRing(SLOT.top, hemY + 0.004, 0.01);
       } else if (!covered) {
-        placket(SLOT.top, 0.38, top.kind === "polo" ? 0.27 : hemY + 0.02, top.kind === "polo" ? [0.355, 0.3] : [0.33, 0.235, 0.14, 0.045, -0.045].filter((y) => y > hemY + 0.03));
-        if (top.kind === "shirt") pocket(0.075 * w, 0.235, SLOT.top, topD);
+        placket(SLOT.top, 0.38, top.kind === "polo" || bib ? 0.29 : hemY + 0.02, top.kind === "polo" ? [0.355, 0.3] : [0.33, 0.235, 0.14, 0.045, -0.045].filter((y) => y > (bib ? 0.3 : hemY + 0.03)));
+        if (top.kind === "shirt" && !bib) pocket(0.075 * w, 0.235, SLOT.top, topD);
         hemRing(SLOT.top, hemY + 0.004, 0.009);
       }
       break;
@@ -278,7 +284,8 @@ export function buildFigure(o: Outfit): Figure {
         chest.push(paint(wedge), ...armholes.map(paint));
         for (const s of [1, -1]) {
           chest.push(add(cap(front(s * 0.03, oHem + 0.04, 0.03), front(s * 0.08, 0.37, 0.03), 0.008, M.fab(SLOT.outerTrim)), 0.003));
-          chest.push(add(box(front(s * 0.085 * w, 0.06, 0.03), [0.04, 0.04, 0.008], 0.008, O), 0.004));
+          // Welt pocket: a neat trim strip, not a box that decimates to a blob.
+          chest.push(add(cap(front(s * 0.06 * w, 0.03, 0.027), front(s * 0.11 * w, 0.04, 0.027), 0.0068, M.fab(SLOT.outerTrim)), 0.002));
         }
         hemRing(SLOT.outerTrim, oHem + 0.03, 0.011, 0.012);
         break;
@@ -488,6 +495,9 @@ export function buildFigure(o: Outfit): Figure {
       upper.push(add(shell(upperBody, 0.015, sm, [above(-0.2)]), 0.003));
       upper.push(add({ ...tor([0, -0.19, 0.004], 0.048 * aw + 0.017, 0.019, sm, undefined, 1, 1.04), disp: folds(0.003, [0, -0.19, 0], 6) }, 0.005));
     }
+    // A clean flat end just past the elbow, tucked over the (thinner)
+    // forearm: the joint shows one neat edge, never two surfaces fighting.
+    upper.push({ op: "int", k: 0.01, n: above(-UA - 0.028) });
     pieces[`upper${side}`] = { ops: upper };
 
     const foreBody = grp([
@@ -591,11 +601,11 @@ export function buildFigure(o: Outfit): Figure {
     // ---------------------------------------------------------------- legs
     const TH = SK.thigh, SH = SK.shin;
     const thighBody = grp([
-      add(cone([0, 0.02, 0], [0, -TH - 0.035, 0.004], 0.082 * aw, 0.063 * aw, M.skin)),
+      add(cone([0, 0.02, 0], [0, -TH - 0.02, 0.004], 0.082 * aw, 0.057 * aw, M.skin)),
       add(ell([s * 0.006, -0.12, 0.01], [0.078 * aw, 0.13, 0.078 * aw], M.skin), 0.05),
     ], M.skin);
     const shinBody = grp([
-      add(sph([0, -0.01, 0.002], 0.048 * aw, M.skin)),
+      add(sph([0, -0.012, 0.003], 0.052 * aw, M.skin)),
       add(cone([0, -0.01, 0], [0, -SH + 0.015, 0], 0.049 * aw, 0.038 * aw, M.skin), 0.03),
       add(ell([0, -0.1, -0.014], [0.058 * aw, 0.1, 0.06 * aw], M.skin), 0.045),
     ], M.skin);
@@ -607,6 +617,8 @@ export function buildFigure(o: Outfit): Figure {
       if (trousers || bottom.kind === "shorts")
         thigh.push(add(shell(thighBody, baji ? 0.03 : 0.013, M.fab(legSlot), bottom.kind === "shorts" ? [above(-0.19)] : [], trousers ? band(0.0026, -TH - 0.01, -TH + 0.07, 75) : folds(0.002)), 0.003));
       if (bottom.kind === "shorts") thigh.push(add(tor([0, -0.185, 0.002], 0.068 * aw + 0.017, 0.011, M.fab(bottom.trim ? SLOT.bottomTrim : SLOT.bottom)), 0.003));
+      // Flat end just past the knee over the thinner shin (see the elbow).
+      thigh.push({ op: "int", k: 0.012, n: above(-TH - 0.026) });
       pieces[`thigh${side}`] = { ops: thigh };
     }
     if (bottom.kind !== "chima") {
@@ -665,11 +677,7 @@ export function buildFigure(o: Outfit): Figure {
   const hat = o.head?.kind;
   const style = hat === "gat" ? "topknot" : hat && ["beanie", "helmet", "chef", "hardhat"].includes(hat) && o.hair.style === "curly" ? "crop" : o.hair.style;
   const earsHidden = ["bob", "long", "layered"].includes(style) || hat === "headscarf";
-  for (const s of [1, -1]) {
-    if (earsHidden) break;
-    head.push(add(ell(at(s * 0.352, -0.05, -0.012), [0.045, 0.078, 0.06], M.skin, [0, 0, -s * 0.15]), 0.03));
-    head.push(sub(ell(at(s * 0.385, -0.05, 0.004), [0.018, 0.045, 0.03], { slot: SLOT.skinShade, rough: 0.6 }), 0.012));
-  }
+  // Ears are analytic (head.ts), shown where the hair and headwear allow.
   const cheeks: V3[] = [at(0.195, -0.15, 0.27), at(-0.195, -0.15, 0.27)];
   const browLift = expr === "excited" ? 0.018 : expr === "proud" ? 0.008 : 0;
 
@@ -799,7 +807,7 @@ export function buildFigure(o: Outfit): Figure {
   pieces.eyes = { ops: [] };
   for (const m of MOUTHS) pieces[m] = { ops: [] };
   return {
-    pieces, skirtTop, cheeks, headSkin, HC, hair: hairSegs, hairPlan, hatDist, hairAO: hairPlan ? hairAO(hairPlan) : [],
+    pieces, skirtTop, cheeks, headSkin, HC, ears: !earsHidden && !has(o, "headphones"), hair: hairSegs, hairPlan, hatDist, hairAO: hairPlan ? hairAO(hairPlan) : [],
     mouth: at(0, -0.226, 0.31),
     glasses: (o.extras ?? []).some((e) => e.kind === "glasses" || e.kind === "sunglasses")
       ? { slot: extraColorSlot(o, (o.extras ?? []).some((e) => e.kind === "glasses") ? "glasses" : "sunglasses"), sun: (o.extras ?? []).some((e) => e.kind === "sunglasses") }

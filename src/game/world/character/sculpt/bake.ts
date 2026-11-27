@@ -13,7 +13,7 @@ import { restPose, solveJoints, makeJoints, SK, JOINTS } from "../skeleton";
 import { buildFigure, PIECE_JOINT, type Figure, type PieceId } from "./figure";
 import { evalOps, pieceBounds, pad, SLOT, type Hit, type Mat, type V3 } from "./sdf";
 import { cutByLabel, decimateLabeled, dropIslands, project, surfaceNets, type LabMesh } from "./mesher";
-import { appendMesh, brows, emptyMesh, eyes, glasses, headSkin, mouth, vertexNormals, type AttrMesh, type MouthKind } from "./head";
+import { appendMesh, brows, ears, emptyMesh, eyes, glasses, headSkin, mouth, vertexNormals, type AttrMesh, type MouthKind } from "./head";
 import { hairMesh, type HairSeg } from "./hair";
 
 const DEFAULT = { shirt: "#6f8670", pants: "#3a4547", skin: "#efc5a0", hair: "#3e3632", shoe: "#efe2c8", hat: "#e0b86d", band: "#b0573a" };
@@ -142,6 +142,7 @@ function budgetPlan(fig: Figure, entries: [PieceId, { ops: unknown[] }][]): { sc
     fixed += tris(headSkin(fig.HC, hi ? 22 : 10, hi ? 30 : 14, () => ({ slotB: 0, mix: 0 })));
     fixed += tris(brows(fig.HC, 0, 0, hi)) + tris(eyes(fig.HC, fig.face.eye, fig.face.flick, hi, fig.face.lashes, fig.face.lid)) + tris(mouth(fig.HC, fig.face.expr, hi));
     if (fig.glasses) fixed += tris(glasses(fig.HC, fig.face.eye, fig.glasses.slot, fig.glasses.sun, hi));
+    if (fig.ears) fixed += tris(ears(fig.HC, hi));
     for (const [pid, piece] of entries) {
       if (!piece.ops.length || pid.startsWith("mouth") || pid === "eyes") continue;
       const t = TARGET[base(pid)][lod];
@@ -164,7 +165,7 @@ function budgetPlan(fig: Figure, entries: [PieceId, { ops: unknown[] }][]): { sc
 function pieceKey(pid: PieceId, ops: unknown, fig: Figure) {
   if (pid.startsWith("mouth")) return pid + mouthKind(pid, fig);
   if (pid === "eyes") return pid + JSON.stringify([fig.face.eye, fig.face.flick, fig.face.lashes, fig.face.lid]);
-  return pid + JSON.stringify(ops) + (pid === "head" ? JSON.stringify(fig.face) + JSON.stringify(fig.glasses ?? null) + JSON.stringify(fig.hairPlan ? [fig.hairPlan.clumps, fig.hairPlan.cap, fig.hairPlan.curtain] : null) : "");
+  return pid + JSON.stringify(ops) + (pid === "head" ? JSON.stringify(fig.face) + JSON.stringify(fig.glasses ?? null) + JSON.stringify(fig.hairPlan ? [fig.hairPlan.clumps, fig.hairPlan.cap, fig.hairPlan.flow, fig.hairPlan.hood, fig.hairPlan.coils] : null) + (fig.ears ? "E" : "") : "");
 }
 const mouthKind = (pid: PieceId, fig: Figure): MouthKind => (pid === "mouth0" ? fig.face.expr : (["talk1", "talk2", "talk3"] as const)[+pid.slice(5) - 1]);
 
@@ -274,6 +275,7 @@ function meshPiece(pid: PieceId, ops: Parameters<typeof evalOps>[0], fig: Figure
       parts.push(brows(HC, fig.face.browLift, fig.face.browRight, hi));
       if (fig.hairPlan) parts.push(hairMesh(fig.hairPlan, hi, fig.hatDist, hairLv[lod]).mesh);
       if (fig.glasses) parts.push(glasses(HC, fig.face.eye, fig.glasses.slot, fig.glasses.sun, hi));
+      if (fig.ears) parts.push(ears(HC, hi));
     } else if (pid === "eyes") {
       parts.push(eyes(HC, fig.face.eye, fig.face.flick, hi, fig.face.lashes, fig.face.lid));
       ao = false;
@@ -428,7 +430,9 @@ function sdfAttributes(ctx: Ctx, m: LabMesh, mats: Mat[], ops: Parameters<typeof
   const geo: AttrMesh = { pos: Array.from(m.pos), nrm: new Array(m.pos.length).fill(0), a: [], b: [], tri: Array.from(m.tri) };
   vertexNormals(geo);
   const n = m.pos.length / 3;
-  const e = h * 0.5;
+  // Normals and cavity are sampled wide enough that fine relief cannot
+  // alias into blotches between sparse vertices.
+  const e = Math.max(h * 0.5, lod ? 0.01 : 0.006);
   const ce = lod ? 0.02 : 0.012;
   // Per welded vertex: normal (field + mesh), shade (AO, cavity) and, for
   // hair, the root→tip parameter and strand direction.

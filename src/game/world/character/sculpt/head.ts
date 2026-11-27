@@ -34,12 +34,16 @@ const R = [0.375, 0.362, 0.352];
 export function headRadius(d: V3) {
   const [x, y, z] = d;
   // Slightly wider cranium, softly tapered jaw.
-  const ax = R[0] * (1 + 0.03 * smooth(-0.1, 0.7, y)) * (1 - 0.15 * smooth(-0.35, -0.95, y));
+  // Slightly wider cranium; the lower face narrows to a defined (still
+  // soft) jaw and chin.
+  const ax = R[0] * (1 + 0.03 * smooth(-0.1, 0.7, y)) * (1 - 0.19 * smooth(-0.3, -0.95, y));
   const az = R[2] * (1 - 0.06 * smooth(-0.5, -0.95, y) * smooth(0, -0.6, z));
   let r = 1 / Math.sqrt((x / ax) ** 2 + (y / R[1]) ** 2 + (z / az) ** 2);
   // Full cheeks and a soft round chin.
   r += 0.022 * Math.exp(-(((y + 0.36) / 0.22) ** 2)) * smooth(0.1, 0.7, z) * smooth(0.15, 0.55, Math.abs(x));
-  r += 0.012 * Math.exp(-(((y + 0.78) / 0.16) ** 2)) * smooth(0.3, 0.9, z);
+  r += 0.019 * Math.exp(-(((y + 0.8) / 0.13) ** 2)) * smooth(0.35, 0.9, z) * Math.exp(-((x / 0.3) ** 2));
+  // A hint of jaw angle below the ears.
+  r += 0.008 * Math.exp(-(((y + 0.52) / 0.13) ** 2)) * Math.exp(-(((Math.abs(x) - 0.66) / 0.16) ** 2)) * smooth(-0.35, 0.25, z);
   // Very slight flattening of the face plane.
   r *= 1 - 0.03 * smooth(0.72, 1.0, z);
   // Small soft button nose on a soft bridge.
@@ -377,6 +381,67 @@ function tube(path: V3[], radius: number, closed: boolean, sides: number, slot: 
     }
   orient(m);
   return m;
+}
+
+/**
+ * Small analytic ears (smooth, mirrored): a rolled rim around a shallow,
+ * slightly shaded bowl, tucked into the side of the head and leaning back.
+ */
+export function ears(hc: V3, hi: boolean): AttrMesh {
+  const out = emptyMesh();
+  const segs = hi ? 16 : 7;
+  // Rings from the root (inside the skin) over the rim into the bowl:
+  // [outline scale, height off the head, bowl shade].
+  const rings: [number, number, number][] = hi
+    ? [[0.8, -0.006, 0], [1.0, 0.016, 0], [0.96, 0.03, 0], [0.8, 0.031, 0.1], [0.55, 0.017, 0.65], [0.0, 0.012, 0.8]]
+    : [[0.8, -0.006, 0], [1.0, 0.024, 0], [0.7, 0.026, 0.3], [0.0, 0.014, 0.75]];
+  for (const s of [1, -1]) {
+    const d0 = norm([s * 0.97, -0.14, -0.05]);
+    const r0 = headRadius(d0);
+    const base: V3 = [hc[0] + d0[0] * r0, hc[1] + d0[1] * r0, hc[2] + d0[2] * r0];
+    // Outward axis leans back a little; the outline tilts with it.
+    const n = norm([s * 0.93, 0.0, -0.36]);
+    let f: V3 = [0, 0, 1];
+    const dp = f[0] * n[0] + f[1] * n[1] + f[2] * n[2];
+    f = norm([f[0] - n[0] * dp, f[1] - n[1] * dp, f[2] - n[2] * dp]);
+    const up = norm([n[1] * f[2] - n[2] * f[1], n[2] * f[0] - n[0] * f[2], n[0] * f[1] - n[1] * f[0]]);
+    const upS: V3 = up[1] < 0 ? [-up[0], -up[1], -up[2]] : up;
+    const tilt = -0.22;
+    const ids: number[][] = [];
+    const m = emptyMesh();
+    for (const [k, hgt, bowl] of rings) {
+      const row: number[] = [];
+      for (let j = 0; j < (k === 0 ? 1 : segs); j++) {
+        const a = (j / segs) * Math.PI * 2;
+        // Egg outline: fuller at the top, a soft lobe below.
+        const hy = Math.sin(a) * (Math.sin(a) > 0 ? 0.074 : 0.062), hx = Math.cos(a) * 0.044 * (1 + 0.12 * Math.sin(a));
+        const lx = hx * Math.cos(tilt) - hy * Math.sin(tilt), ly = hx * Math.sin(tilt) + hy * Math.cos(tilt);
+        const p: V3 = [
+          base[0] + (f[0] * lx + upS[0] * ly) * k + n[0] * hgt,
+          base[1] + (f[1] * lx + upS[1] * ly) * k + n[1] * hgt,
+          base[2] + (f[2] * lx + upS[2] * ly) * k + n[2] * hgt,
+        ];
+        row.push(m.pos.length / 3);
+        m.pos.push(...p);
+        m.nrm.push(...n);
+        m.a.push(SLOT.skin, SLOT.skinShade, Math.round(bowl * 0.75 * 255), Math.round(255 * (0.96 - 0.12 * bowl)));
+        m.b.push(...B(0.5));
+      }
+      ids.push(row);
+    }
+    for (let r = 0; r < ids.length - 1; r++) {
+      const A = ids[r], C = ids[r + 1];
+      for (let j = 0; j < segs; j++) {
+        if (C.length === 1) m.tri.push(A[j], A[(j + 1) % segs], C[0]);
+        else m.tri.push(A[j], A[(j + 1) % segs], C[(j + 1) % segs], A[j], C[(j + 1) % segs], C[j]);
+      }
+    }
+    // Outward (rim) and toward the viewer of the bowl: orient by the axis.
+    orient(m);
+    vertexNormals(m);
+    appendMesh(out, m);
+  }
+  return out;
 }
 
 /** Round glasses floating just off the face (+ dark lenses for sunglasses). */

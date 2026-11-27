@@ -575,6 +575,8 @@ export function decimateLabeled(mesh: LabMesh, target: number, weight: (x: numbe
     }
   }
   // Border constraint planes (through the edge, across the surface).
+  const sharp = new Uint8Array(nV);
+  const bn: number[][] = [];
   {
     const em = new Map<number, number>();
     for (let t = 0; t < nT; t++)
@@ -594,7 +596,19 @@ export function decimateLabeled(mesh: LabMesh, target: number, weight: (x: numbe
         const w = seamW * (ex * ex + ey * ey + ez * ez);
         addPlane(a, cx, cy, cz, d, w);
         addPlane(b, cx, cy, cz, d, w);
+        (bn[a] ??= []).push(b);
+        (bn[b] ??= []).push(a);
       }
+    // Sharp turns of a border (pocket and patch corners) stay put.
+    for (let v = 0; v < nV; v++) {
+      const nb = bn[v];
+      if (!nb || nb.length !== 2) continue;
+      const [p0, p1] = nb;
+      const ax = P[v * 3] - P[p0 * 3], ay = P[v * 3 + 1] - P[p0 * 3 + 1], az = P[v * 3 + 2] - P[p0 * 3 + 2];
+      const bx = P[p1 * 3] - P[v * 3], by = P[p1 * 3 + 1] - P[v * 3 + 1], bz = P[p1 * 3 + 2] - P[v * 3 + 2];
+      const c = (ax * bx + ay * by + az * bz) / (Math.hypot(ax, ay, az) * Math.hypot(bx, by, bz) || 1);
+      if (c < 0.72) sharp[v] = 1;
+    }
   }
   let relaxed = false;
   const labs = (v: number, out: number[]) => {
@@ -635,7 +649,7 @@ export function decimateLabeled(mesh: LabMesh, target: number, weight: (x: numbe
     if (!sa && sb) return 2;
     edgeFaces(a, b, ef);
     if (ef.length !== 2 || L[ef[0]] === L[ef[1]]) return -1;
-    const ca = la.length > 2 || seamDeg(a) !== 2, cb = lb.length > 2 || seamDeg(b) !== 2;
+    const ca = la.length > 2 || sharp[a] === 1 || seamDeg(a) !== 2, cb = lb.length > 2 || sharp[b] === 1 || seamDeg(b) !== 2;
     if (ca && cb) return -1;
     if (ca) return lb.every((l) => la.includes(l)) ? 1 : -1;
     if (cb) return la.every((l) => lb.includes(l)) ? 2 : -1;
@@ -727,6 +741,7 @@ export function decimateLabeled(mesh: LabMesh, target: number, weight: (x: numbe
     }
     P[a * 3] = nx; P[a * 3 + 1] = ny; P[a * 3 + 2] = nz;
     for (let i = 0; i < 10; i++) Q[a * 10 + i] += Q[b * 10 + i];
+    if (sharp[b]) sharp[a] = 1;
     vAlive[b] = 0;
     for (const t of vf[b]) {
       if (!alive[t]) continue;
