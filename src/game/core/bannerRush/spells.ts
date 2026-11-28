@@ -24,7 +24,8 @@ export function castSpell(s: MatchState, side: number, kind: number, x: number, 
     s.eSide[e] = side;
     s.eX[e] = x;
     s.eY[e] = y;
-    s.eT[e] = kind === FX_GOSTONE ? SPELLS.gostone.delay : kind === FX_COMET ? SPELLS.comet.delay : 0;
+    // +1: the spell step of the cast tick counts down once, so it lands exactly `delay` ticks later.
+    s.eT[e] = kind === FX_GOSTONE ? SPELLS.gostone.delay + 1 : kind === FX_COMET ? SPELLS.comet.delay + 1 : 0;
     s.eDir[e] = side === 0 ? -1 : 1;
     s.eProg[e] = 0;
     for (let j = 0; j < MAX_ENTS; j++) s.eHit[e * MAX_ENTS + j] = 0;

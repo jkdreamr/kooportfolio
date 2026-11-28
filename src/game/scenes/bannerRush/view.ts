@@ -27,7 +27,11 @@ import {
 } from "../../core/bannerRush/cards";
 import { inTroopZone, tileBlocked } from "../../core/bannerRush/field";
 import { mirX, mirY } from "../../core/bannerRush/state";
-import { createGait, stepGait, type Gait, type Pose } from "../../world/character/locomotion";
+import type { Gait, Pose } from "../../world/character/locomotion";
+import { engine } from "./engineApi";
+
+const createGait = (seed: number) => engine().locomotion.createGait(seed);
+const stepGait: typeof import("../../world/character/locomotion").stepGait = (...a) => engine().locomotion.stepGait(...a);
 import type { Look } from "../../world/character/rig";
 import { FxLayer, setBillboard } from "./Fx";
 import { BOX, CAPSULE, col, CONE, PropBatch, SPHERE } from "./Props";
@@ -440,7 +444,7 @@ export class RushView {
         if (side === 0) fx.disc.add(X, 0.02, Z, r, r, 0, c[0], c[1], c[2]);
         else fx.ring.add(X, 0.025, Z, r, r, 0, c[3], c[4], c[5]);
         if (!high || u.air) {
-          const sr = u.air ? u.radius * 0.8 : u.radius * 0.9;
+          const sr = u.air ? u.radius * 0.6 : u.radius * 0.75;
           fx.shadow.add(X, 0.03, Z, sr, sr, 0, 0.11, 0.16, 0.09);
         }
       }
@@ -829,14 +833,14 @@ export class RushView {
       const X = s.eX[e] - 8,
         Z = s.eY[e] - 14;
       if (kind === 0) {
-        const t = 1 - (s.eT[e] - rt.alpha) / SPELLS.gostone.delay;
+        const t = 1 - (s.eT[e] - 1 - rt.alpha) / SPELLS.gostone.delay;
         fx.addRing.add(X, 0.06, Z, SPELLS.gostone.radius, SPELLS.gostone.radius, 0, 0.4, 0.38, 0.3);
         const c = s.eSide[e] === 0 ? col("#22201e") : col("#f4f1e8");
         const h = rm ? 0.25 : 0.25 + 6 * (1 - t * t);
         P.part(SPHERE, c, 1, X, h, Z, 1.6, 0.35, 1.6, 0, 0, 0);
         fx.shadow.add(X, 0.03, Z, 1.6 * clamp01(t + 0.3), 1.6 * clamp01(t + 0.3), 0, 0.08, 0.1, 0.06);
       } else if (kind === 2) {
-        const t = 1 - (s.eT[e] - rt.alpha) / SPELLS.comet.delay;
+        const t = 1 - (s.eT[e] - 1 - rt.alpha) / SPELLS.comet.delay;
         const r = 0.4 + (SPELLS.comet.radius - 0.4) * t;
         fx.shadow.add(X, 0.03, Z, r, r, 0, 0.12, 0.08, 0.06);
         fx.addRing.add(X, 0.06, Z, SPELLS.comet.radius, SPELLS.comet.radius, 0, 0.45, 0.2, 0.12);

@@ -5,7 +5,8 @@
  * matrix-stack API: no arrays or objects per part.
  */
 import * as THREE from "three";
-import { partMaterial, shapeGeometries, type Shape } from "../../world/character/parts";
+import type { Shape } from "../../world/character/parts";
+import { engine } from "./engineApi";
 
 export const SPHERE = 0;
 export const CONE = 1;
@@ -36,9 +37,9 @@ export class PropBatch {
   private depth = 0;
   constructor(cap: [number, number, number, number], lod: "high" | "low", shadows: boolean) {
     this.capacity = Int32Array.from(cap);
-    const g = shapeGeometries(lod);
+    const g = engine().parts.shapeGeometries(lod);
     for (let k = 0; k < 4; k++) {
-      const mesh = new THREE.InstancedMesh(g[SHAPE_NAMES[k]], partMaterial(), cap[k]);
+      const mesh = new THREE.InstancedMesh(g[SHAPE_NAMES[k]], engine().parts.partMaterial(), cap[k]);
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       mesh.setColorAt(0, tc.setRGB(1, 1, 1));
       mesh.instanceColor!.setUsage(THREE.DynamicDrawUsage);

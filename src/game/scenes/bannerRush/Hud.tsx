@@ -94,6 +94,7 @@ function GlowRope({ director }: { director: Director }) {
             className="br-lantern-fill"
             ref={(el) => {
               director.fillEls[i] = el;
+              director.refill();
             }}
           />
         </span>
@@ -408,6 +409,25 @@ export function Hud(p: HudProps) {
   });
   /** Tap on the field (tap-then-tap). */
   const fieldDown = useRef<{ x: number; y: number; t: number } | null>(null);
+  useEffect(() => {
+    // Field taps are read on the window (capture), so nothing layered over the
+    // canvas can swallow them; HUD controls are excluded.
+    const onControl = (t: EventTarget | null) => t instanceof Element && !!t.closest(".br-tray, .br-top, .br-emote-wrap, .br-pause-dialog, button, select, input");
+    const down = (e: PointerEvent) => {
+      if (!e.isPrimary || onControl(e.target) || drag.current) return;
+      onFieldDown(e as unknown as RPointerEvent<HTMLDivElement>);
+    };
+    const up = (e: PointerEvent) => {
+      if (!e.isPrimary || onControl(e.target) || drag.current) return;
+      onFieldUp(e as unknown as RPointerEvent<HTMLDivElement>);
+    };
+    window.addEventListener("pointerdown", down, true);
+    window.addEventListener("pointerup", up, true);
+    return () => {
+      window.removeEventListener("pointerdown", down, true);
+      window.removeEventListener("pointerup", up, true);
+    };
+  });
   const onFieldDown = (e: RPointerEvent<HTMLDivElement>) => {
     if (!e.isPrimary) return;
     fieldDown.current = { x: e.clientX, y: e.clientY, t: performance.now() };
@@ -535,7 +555,7 @@ export function Hud(p: HudProps) {
 
   return (
     <div className={`br-hud ${p.tutorial ? "tutorial" : ""}`} onPointerMove={(e) => e.pointerType !== "mouse" || hidePointerCursor()}>
-      <div className="br-field" role="application" aria-roledescription="battle field" aria-label="Battle field. Keys: 1 to 4 pick a card, arrows move the cursor, Q and E jump to your bridges, Enter places, T then 1 to 6 sends an emote, I reads the board, Escape pauses." onPointerDown={onFieldDown} onPointerUp={onFieldUp} onContextMenu={(e) => e.preventDefault()} />
+      <div className="br-field" role="application" aria-roledescription="battle field" aria-label="Battle field. Keys: 1 to 4 pick a card, arrows move the cursor, Q and E jump to your bridges, Enter places, T then 1 to 6 sends an emote, I reads the board, Escape pauses." onContextMenu={(e) => e.preventDefault()} />
       <TopBar opponent={p.opponent} onPause={p.onPause} tutorial={p.tutorial} onSkip={p.onSkip} />
       <Callout />
       <PhaseBanner />
@@ -582,6 +602,7 @@ export function Hud(p: HudProps) {
               dealt={slot < dealt}
               needRef={(el) => {
                 director.needEls[slot] = el;
+                director.refill();
               }}
             />
           ))}

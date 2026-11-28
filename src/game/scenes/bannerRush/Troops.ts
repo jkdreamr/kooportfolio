@@ -5,7 +5,10 @@
  * when a figure's look or brightness changes, and a fixed capacity.
  */
 import * as THREE from "three";
-import { KINDS, NO_CAST, rigGeometries, rigKindMaterial, writeLook, type Kind, type Look, type RigLod } from "../../world/character/rig";
+import type { Kind, Look, RigLod } from "../../world/character/rig";
+import { engine } from "./engineApi";
+
+const KINDS: Kind[] = ["sphere", "limb", "torso", "hair", "lock", "brim", "crown", "band", "skirt", "box", "bead"];
 import type { Pose } from "../../world/character/locomotion";
 
 export const MAX_DRAWN = 58;
@@ -67,6 +70,7 @@ export class TroopBatch {
       for (const look of looks) most = Math.max(most, look.count[lod][KINDS[k]]);
       this.capacity[k] = most * MAX_DRAWN;
     }
+    const { rigGeometries, rigKindMaterial, NO_CAST } = engine().rig;
     const geos = rigGeometries(lod, coarse);
     for (let k = 0; k < KINDS.length; k++) {
       const kind = KINDS[k];
@@ -123,7 +127,7 @@ export class TroopBatch {
     E.bright = bright;
     E.red = red;
     for (let k = 0; k < KINDS.length; k++) E.start[k] = this.cursor[k];
-    writeLook(pose, base, look, this.lod, emit);
+    engine().rig.writeLook(pose, base, look, this.lod, emit);
     for (let k = 0; k < KINDS.length; k++) {
       const n = counts[KINDS[k]];
       if (recolor && n) this.colorDirty[k] = 1;

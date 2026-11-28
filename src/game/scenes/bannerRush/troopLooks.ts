@@ -4,8 +4,11 @@
  * or outer layer and hat band. Extra props are plain rig parts, drawn at both
  * LODs so they read on medium too. Character files are used, never edited.
  */
-import { DEFAULT_PALETTE, makeLook, type Look, type Part } from "../../world/character/rig";
-import { compileOutfit, lookFromPalette, lookFor, shade, type Outfit } from "../../world/character/wardrobe";
+import type { Look, Part } from "../../world/character/rig";
+import type { Outfit } from "../../world/character/wardrobe";
+import { engine } from "./engineApi";
+
+const shade = (hex: string, k: number) => engine().wardrobe.shade(hex, k);
 import type { Villager } from "../../core/npcs";
 
 export type LookKind =
@@ -144,8 +147,8 @@ export function troopLook(kind: LookKind, team: string, palace = false): Look {
   let look = cache.get(key);
   if (!look) {
     const { o, parts, scale } = outfit(kind, team, palace);
-    const compiled = compileOutfit(o, key);
-    look = makeLook(key, [...compiled.parts, ...parts], { holdL: compiled.holdL, holdR: compiled.holdR, scale: scale * (o.build?.height ?? 1) });
+    const compiled = engine().wardrobe.compileOutfit(o, key);
+    look = engine().rig.makeLook(key, [...compiled.parts, ...parts], { holdL: compiled.holdL, holdR: compiled.holdR, scale: scale * (o.build?.height ?? 1) });
     cache.set(key, look);
   }
   return look;
@@ -153,9 +156,9 @@ export function troopLook(kind: LookKind, team: string, palace = false): Look {
 
 /** Your commander: your saved colour and hat. */
 export function commanderLook(color: string, hat: boolean): Look {
-  return lookFromPalette({ ...DEFAULT_PALETTE, shirt: color, hasHat: hat });
+  return engine().wardrobe.lookFromPalette({ ...engine().rig.DEFAULT_PALETTE, shirt: color, hasHat: hat });
 }
-export const rivalCommanderLook = (npc: Villager) => lookFor(npc);
+export const rivalCommanderLook = (npc: Villager) => engine().wardrobe.lookFor(npc);
 
 /** Unit kind (rules) → look kind (null: drawn as props only). */
 export const LOOK_OF: Record<string, LookKind | null> = {

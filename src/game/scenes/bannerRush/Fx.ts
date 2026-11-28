@@ -133,15 +133,16 @@ export class FxBatch {
 
 /** The seven FX batches (draw order: decals, shadows, rings, bars, then additive). */
 export class FxLayer {
-  readonly tint = new FxBatch(plane(), fxMaterial(false, 0.26), 96, 1);
-  readonly shadow = new FxBatch(softDisc(), fxMaterial(false, 0.2), 96, 2);
-  readonly disc = new FxBatch(disc(), fxMaterial(false, 0.55), 96, 3);
+  readonly tint = new FxBatch(plane(), fxMaterial(false, 0.26), 128, 1);
+  /** Blob shadows share the tint batch's opacity class via a soft disc in the disc batch. */
+  readonly disc = new FxBatch(disc(), fxMaterial(false, 0.55), 192, 3);
+  readonly shadow = this.disc;
   readonly ring = new FxBatch(ring(0.72), fxMaterial(false, 0.8), 64, 3);
   readonly solid = new FxBatch(plane(), fxMaterial(false, 1), 192, 6);
   readonly addPlane = new FxBatch(plane(), fxMaterial(true), 128, 7);
   readonly addRing = new FxBatch(ring(0.82, 32), fxMaterial(true), 64, 7);
   readonly addSoft = new FxBatch(softDisc(), fxMaterial(true), 160, 8);
-  readonly all = [this.tint, this.shadow, this.disc, this.ring, this.solid, this.addPlane, this.addRing, this.addSoft];
+  readonly all = [this.tint, this.disc, this.ring, this.solid, this.addPlane, this.addRing, this.addSoft];
   // @hot
   begin() {
     for (let i = 0; i < this.all.length; i++) this.all[i].begin();

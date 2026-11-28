@@ -5,8 +5,13 @@
  * tiles (the parent group scales by 0.5); arena-local X = x − 8, Z = y − 14.
  */
 import { memo, type ReactNode } from "react";
-import { Ball, Box, Cone, Cylinder } from "../../world/Models";
-import { StaticBatch } from "../../world/StaticBatch";
+import { engine } from "./engineApi";
+const M = () => engine().models;
+const Ball: typeof import("../../world/Models").Ball = (p) => M().Ball(p);
+const Box: typeof import("../../world/Models").Box = (p) => M().Box(p);
+const Cone: typeof import("../../world/Models").Cone = (p) => M().Cone(p);
+const Cylinder: typeof import("../../world/Models").Cylinder = (p) => M().Cylinder(p);
+const StaticBatch: typeof import("../../world/StaticBatch").StaticBatch = (p) => engine().staticBatch.StaticBatch(p);
 
 export type Ground = "home" | "palace" | "quad";
 export const GROUND_NAMES: Record<Ground, string> = { home: "Home Lawn", palace: "Palace Court", quad: "Stanford Quad" };

@@ -3,8 +3,6 @@
  * match, result), the stage and the DOM overlay.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Html } from "@react-three/drei";
-import { useThree } from "@react-three/fiber";
 import { CARDS, STARTER_DECKS, validDeck, type CardId } from "../../core/bannerRush/cards";
 import { PH_OVER } from "../../core/bannerRush/constants";
 import { CARD_IDS } from "../../core/bannerRush/cards";
@@ -33,7 +31,7 @@ import {
 import { awardStamp } from "../../core/bannerRush/stamps";
 import type { AiTier, MatchConfig, Modifier } from "../../core/bannerRush/types";
 import { rivalColour } from "../../core/bannerRush/viewModel";
-import { villagers } from "../../core/npcs";
+import { engine } from "./engineApi";
 import { A11y } from "./a11y";
 import { GROUND_NAMES, type Ground } from "./ArenaSet";
 import { CardArt, EMOTES } from "./cardArt";
@@ -89,6 +87,8 @@ const TUTORIAL_BEATS = [
   "That is the whole game. Glow fills over time: spend it well.",
 ];
 
+const useThree: import("./engineApi").EngineApi["useThree"] = ((sel: never) => engine().useThree(sel)) as import("./engineApi").EngineApi["useThree"];
+
 export default function RushApp({ kit, onExit, hidden }: { kit: RushKit; onExit: () => void; hidden: boolean }) {
   const gl = useThree((s) => s.gl);
   const portal = useMemo(() => ({ current: gl.domElement.parentElement! }), [gl]);
@@ -141,7 +141,7 @@ export default function RushApp({ kit, onExit, hidden }: { kit: RushKit; onExit:
       const config: MatchConfig = { seed, decks: [deck, opponent.deck], ai: [null, opts.tutorial ? null : t], modifiers };
       const rt = new RushRuntime(config);
       rt.relaxed = p.settings.relaxed;
-      const npc = villagers.find((v) => v.id === opponent.id) ?? villagers[0];
+      const npc = engine().villagers.find((v) => v.id === opponent.id) ?? engine().villagers[0];
       const view = new RushView(rt, {
         tier,
         team,
@@ -212,7 +212,7 @@ export default function RushApp({ kit, onExit, hidden }: { kit: RushKit; onExit:
     later(begin + 600, () => {
       rt.held = false;
       kit.setEscapeHandler(() => {
-        togglePause(true);
+        togglePauseRef.current(!useRushHud.getState().paused);
         return true;
       });
       if (match.rt.config.ai[1] && profile.settings.emotes === "on") emote(1, 0);
@@ -247,6 +247,7 @@ export default function RushApp({ kit, onExit, hidden }: { kit: RushKit; onExit:
     if (match && (screen === "match" || screen === "tutorial")) match.rt.held = hidden || useRushHud.getState().paused;
   }, [hidden, match, screen]);
 
+  const togglePauseRef = useRef<(on: boolean) => void>(() => {});
   const togglePause = (on: boolean) => {
     if (!match) return;
     const rt = match.rt;
@@ -272,6 +273,7 @@ export default function RushApp({ kit, onExit, hidden }: { kit: RushKit; onExit:
     }, 600);
   };
 
+  togglePauseRef.current = togglePause;
   const emoteAt = useRef(0);
   const emote = (side: 0 | 1, i: number) => {
     if (side === 0) {
@@ -336,7 +338,10 @@ export default function RushApp({ kit, onExit, hidden }: { kit: RushKit; onExit:
     };
   }, [match]);
 
+  const matchRef = useRef<Match | null>(null);
+  matchRef.current = match;
   const finishTutorial = () => {
+    if (!matchRef.current?.tutorial || useRushHud.getState().screen !== "tutorial") return;
     update((p) => ({ ...p, tutorialDone: true }));
     useRushHud.setState({ prompt: "", screen: "result", result: tutorialResult() });
     kit.setEscapeHandler(null);
@@ -512,7 +517,7 @@ export default function RushApp({ kit, onExit, hidden }: { kit: RushKit; onExit:
   // An idle stage behind the lobby.
   const idle = useMemo(() => {
     const rt = new RushRuntime({ seed: 1, decks: [STARTER_DECKS.lawnRush.cards, STARTER_DECKS.lawnRush.cards], ai: [null, null] });
-    const view = new RushView(rt, { tier, team, commander: [commanderLook(avatar.color, avatar.hat), rivalCommanderLook(villagers[0])], palace: false, reducedMotion: reduced });
+    const view = new RushView(rt, { tier, team, commander: [commanderLook(avatar.color, avatar.hat), rivalCommanderLook(engine().villagers[0])], palace: false, reducedMotion: reduced });
     return { rt, view };
   }, [tier, team]);
   const live = inMatch && match ? match : idle;
@@ -525,10 +530,11 @@ export default function RushApp({ kit, onExit, hidden }: { kit: RushKit; onExit:
   );
 
   const s = profile.settings;
+  const Html = engine().Html;
   return (
     <>
       <Stage key={inMatch && match ? `m${match.key}` : `idle-${ground}`} rt={live.rt} view={live.view} ground={ground} onFrame={directorFrame} safeExtra={() => ({ top: 0, bottom: 0 })} />
-      <Html fullscreen portal={portal} zIndexRange={[80, 0]} style={{ pointerEvents: "none" }} onOcclude={() => false} calculatePosition={(_, __, size) => [size.width / 2, size.height / 2]}>
+      <Html fullscreen portal={portal} position={[0, 1002, 0]} zIndexRange={[80, 0]} style={{ pointerEvents: "none" }} onOcclude={() => undefined} calculatePosition={(_, __, size) => [size.width / 2, size.height / 2]}>
         <div className={`br-root ${hidden ? "hidden" : ""} text-${s.textSize} ${s.highContrast ? "hc" : ""}`} style={{ "--team": team[0], "--rival": team[1] } as React.CSSProperties}>
           {(screen === "match" || screen === "tutorial") && match && (
             <Hud

@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
-import { Html } from "@react-three/drei";
+import { Html, PerspectiveCamera } from "@react-three/drei";
 import * as THREE from "three";
-import { useThree } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { screenOverlayNoOcclude } from "../world/screenOverlay";
 import { useGame, type Scene } from "../core/store";
 import { useLauncher, useLauncherHosted } from "../core/launchers";
@@ -15,7 +15,20 @@ import { ResultCard } from "../ui/ResultCard";
 import { PREWARM_ACTIVITIES } from "../engine/prewarm";
 import type { RushKit } from "./bannerRush/kit";
 import { exposeQa, qaEnabled } from "../../stage/qa";
+import * as rig from "../world/character/rig";
+import * as wardrobe from "../world/character/wardrobe";
+import * as locomotion from "../world/character/locomotion";
+import * as parts from "../world/character/parts";
+import * as models from "../world/Models";
+import * as staticBatch from "../world/StaticBatch";
+import { villagers } from "../core/npcs";
+import { GAME_STAGE_Y } from "./InteriorGameStage";
+import type { EngineApi } from "./bannerRush/engineApi";
 import "./banner-rush-launch.css";
+
+// The engine modules the lazy game borrows (see bannerRush/engineApi.ts).
+(globalThis as unknown as { __bannerRushEngine: EngineApi }).__bannerRushEngine = { rig, wardrobe, locomotion, parts, models, staticBatch, villagers, GAME_STAGE_Y, useThree, useFrame, Html, PerspectiveCamera };
+if (GAME_STAGE_Y !== 1000) throw new Error("Banner Rush assumes GAME_STAGE_Y = 1000");
 
 // The one new program (unlit instanced FX), warmed with the game-stage light
 // set. engine/prewarm.ts takes this entry at merge; until then it is added here.

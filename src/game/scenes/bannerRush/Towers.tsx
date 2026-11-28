@@ -5,8 +5,12 @@
  * and turned for side 1.
  */
 import { memo, type ReactNode } from "react";
-import { Box, Cone, Cylinder } from "../../world/Models";
-import { StaticBatch } from "../../world/StaticBatch";
+import { engine } from "./engineApi";
+const M = () => engine().models;
+const Box: typeof import("../../world/Models").Box = (p) => M().Box(p);
+const Cone: typeof import("../../world/Models").Cone = (p) => M().Cone(p);
+const Cylinder: typeof import("../../world/Models").Cylinder = (p) => M().Cylinder(p);
+const StaticBatch: typeof import("../../world/StaticBatch").StaticBatch = (p) => engine().staticBatch.StaticBatch(p);
 import { useRushHud } from "./store";
 
 const GRANITE = ["#a9a9a2", "#8c8a82", "#9c9b93", "#b3b2aa"];
@@ -108,9 +112,12 @@ const AT: [number, number][] = [
   [8, 25],
 ];
 
+/** All six towers in one bake (one or two draws), keyed by which are standing;
+ * a fall rebakes once, under the fall's speed dip. */
 export const Towers = memo(function Towers() {
   const towers = useRushHud((s) => s.towers);
   const out: ReactNode[] = [];
+  let mask = 0;
   for (let t = 0; t < 6; t++) {
     const side = t < 3 ? 0 : 1;
     const which = t % 3;
@@ -119,14 +126,16 @@ export const Towers = memo(function Towers() {
       y = side === 0 ? oy : 28 - oy;
     const keep = which === 2;
     const alive = towers[t] > 0;
-    const id = `br-tower-${keep ? "keep" : "lookout"}-${alive ? "intact" : "ruin"}`;
+    if (alive) mask |= 1 << t;
     out.push(
       <group key={`${t}-${alive}`} position={[x - 8, 0, y - 14]} rotation={[0, side === 0 ? 0 : Math.PI, 0]}>
-        <StaticBatch id={id} chunk={false} ao={false}>
-          {keep ? alive ? <KeepIntact /> : <KeepRuin /> : alive ? <LookoutIntact /> : <LookoutRuin />}
-        </StaticBatch>
+        {keep ? alive ? <KeepIntact /> : <KeepRuin /> : alive ? <LookoutIntact /> : <LookoutRuin />}
       </group>,
     );
   }
-  return <>{out}</>;
+  return (
+    <StaticBatch key={mask} id={`br-towers-${mask}`} chunk={false} ao={false}>
+      {out}
+    </StaticBatch>
+  );
 });

@@ -4,10 +4,9 @@
  * else is the batches of view.ts and the baked set.
  */
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
-import { PerspectiveCamera } from "@react-three/drei";
-import { useFrame, useThree } from "@react-three/fiber";
+import { engine } from "./engineApi";
 import * as THREE from "three";
-import { GAME_STAGE_Y } from "../InteriorGameStage";
+const GAME_STAGE_Y = 1000; // InteriorGameStage.GAME_STAGE_Y (checked in BannerRush.tsx)
 import { ARENA_SCALE, fitCamera, safeInsets, setPose, type CameraFit } from "./camera";
 import { ArenaSet, GROUND_LIGHT, type Ground } from "./ArenaSet";
 import { Towers } from "./Towers";
@@ -16,6 +15,11 @@ import type { RushView } from "./view";
 
 /** Camera move on top of the fitted pose: push (fraction of distance toward a point), flatten (deg). */
 export const camMove = { push: 0, toX: 0, toZ: 0, flatten: 0 };
+
+const useFrame: EngineFns["useFrame"] = (...a) => engine().useFrame(...a);
+const useThree: EngineFns["useThree"] = ((sel: never) => engine().useThree(sel)) as EngineFns["useThree"];
+const PerspectiveCamera: EngineFns["PerspectiveCamera"] = ((p: object) => { const C = engine().PerspectiveCamera as unknown as (q: object) => React.ReactElement; return <C {...p} />; }) as unknown as EngineFns["PerspectiveCamera"];
+type EngineFns = import("./engineApi").EngineApi;
 
 export function Stage({
   rt,

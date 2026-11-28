@@ -378,7 +378,6 @@
   width: 82%;
   margin-bottom: auto;
   margin-top: 8px;
-  --team: var(--team);
 }
 .br-name {
   font-size: 10.5px;
@@ -1002,4 +1001,39 @@
 @media (prefers-reduced-motion: reduce) {
   .br-root *,
   .br-root *::before { animation-duration: 1ms !important; animation-delay: 0ms !important; transition-duration: 1ms !important; }
+}
+.br-result .result-card {
+  background: none !important;
+  box-shadow: none !important;
+  color: var(--ink) !important;
+  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.br-result .result-card .primary-button {
+  min-height: 52px;
+  border-radius: 12px;
+  border: 2px solid #8a5a1c;
+  background: linear-gradient(#ffe39a, var(--glow));
+  color: #4a2e08;
+  font-weight: 800;
+}
+.br-result .result-card .quiet-button {
+  min-height: var(--hit-min);
+  border-radius: 12px;
+  border: 2px solid var(--timber);
+  background: #efe2bf;
+  color: var(--ink);
+  font-weight: 700;
+}
+.br-result .result-score { color: var(--ink); font-size: 30px; margin: 0; }
+.br-result .result-detail { color: #4a3c2c; margin: 0; font-size: 14px; }
+.br-result .result-best { background: var(--brass); color: #4a2e08; }
+.br-result .result-score,
+.br-result .result-score * { color: var(--ink) !important; opacity: 1 !important; }
+.br-result .result-card button.primary-button {
+  background: linear-gradient(#ffe39a, var(--glow)) !important;
+  color: #4a2e08 !important;
+  border: 2px solid #8a5a1c !important;
 }

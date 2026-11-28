@@ -402,6 +402,13 @@ export class Director {
     });
   }
 
+  /** New HUD elements: rewrite every transform on the next frame. */
+  refill() {
+    this.lanternIndex = -1;
+    this.fillQ = -1;
+    this.needQ.fill(-1);
+  }
+
   /** Per frame: Glow fill (precomputed transforms, only when changed) and the HUD store (only on change). */
   // @hot
   frame() {
