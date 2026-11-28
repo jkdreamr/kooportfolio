@@ -154,6 +154,8 @@ export class RushView {
   /* deploy preview */
   preview = { on: false, slot: -1, card: -1, x: 0.5, y: 0.5, ok: false, stepAt: 0, fromX: 0.5, fromY: 0.5, need: 0 };
   selectedCard = -1;
+  /** Troop size multiplier: 1.22 on a portrait phone, where the fitted arena makes figures tiny. */
+  private boost = 1;
   private zoneCard = -2;
   private zoneVersion = -1;
   private zoneRows = new Int8Array(28 * 16);
@@ -316,6 +318,8 @@ export class RushView {
     const a = rt.alpha;
     const rm = this.reduced();
     setBillboard(camera.quaternion);
+    this.boost = (camera as THREE.PerspectiveCamera).aspect < 0.85 ? 1.22 : 1;
+    const B = this.boost;
     this.troops.begin();
     this.props.begin();
     this.fx.begin();
@@ -419,17 +423,17 @@ export class RushView {
           }
           let H = h;
           if (kind === K_SKATER) H += 0.12;
-          this.troops.draw(look, X, H, Z, yaw, sx * fadeIn, sy * fadeIn, sx * fadeIn, pose, bright, 0);
+          this.troops.draw(look, X, H, Z, yaw, sx * fadeIn * B, sy * fadeIn * B, sx * fadeIn * B, pose, bright, 0);
           if (kind === K_SKATER) {
             // The board under the feet.
-            P.push(X, H, Z, 0, yaw, 0, 1);
+            P.push(X, H, Z, 0, yaw, 0, B);
             P.part(BOX, col("#8a603a"), 1, 0, 0.05, 0, 0.3, 0.05, 0.75, s.moving[i] ? 0.06 : 0, 0, 0);
             for (let w = 0; w < 4; w++) P.part(SPHERE, col("#3a3530"), 1, w & 1 ? 0.11 : -0.11, 0.0, w & 2 ? 0.26 : -0.26, 0.05, 0.05, 0.05, 0, 0, 0);
             P.pop();
           }
           if (kind === K_HAYCART) this.drawCart(side, X, Z, yaw, h, now, i, s.moving[i] === 1, sw >= 0 && sw < swingMs ? sw / swingMs : -1);
           if (stunned) {
-            const top = 1.75 * look.scale + 0.25;
+            const top = (1.75 * look.scale + 0.25) * B;
             for (let k = 0; k < 3; k++) {
               const ang = now * 0.006 + (k * Math.PI * 2) / 3;
               P.part(SPHERE, col("#ffd27a"), 1.2, X + Math.cos(ang) * 0.32, top, Z + Math.sin(ang) * 0.32, 0.07, 0.07, 0.07, 0, 0, 0);
@@ -438,7 +442,7 @@ export class RushView {
         }
       }
       // Ground markers: team disc (yours solid) or ring (theirs), blob shadow.
-      const r = u.radius * 1.25 * (age < 400 && !rm ? clamp01((age - 280) / 120) : 1);
+      const r = u.radius * 1.25 * B * (age < 400 && !rm ? clamp01((age - 280) / 120) : 1);
       const c = this.teamRGB;
       if (!u.building && r > 0) {
         if (side === 0) fx.disc.add(X, 0.02, Z, r, r, 0, c[0], c[1], c[2]);
@@ -458,7 +462,7 @@ export class RushView {
       // HP bar once damaged.
       if (s.hp[i] < s.maxHp[i]) {
         const look = this.looks[side][kind];
-        const top = u.building ? 2.4 : u.air ? (kind === K_BALLOON ? 4.2 : 3.0) : 1.75 * (look ? look.scale : 1) + 0.35;
+        const top = u.building ? 2.4 : u.air ? (kind === K_BALLOON ? 4.2 : 3.0) : (1.75 * (look ? look.scale : 1) + 0.35) * B;
         const w = u.hp >= 900 ? 1.3 : 0.9,
           hh = u.hp >= 900 ? 0.15 : 0.12;
         const f = clamp01(this.hpShown[i] / s.maxHp[i]);
@@ -590,7 +594,7 @@ export class RushView {
     if (kind === K_KITE) {
       const bob = Math.sin(now * 0.004 + i) * 0.15;
       const H = 2.4 + bob + drop * 0.3;
-      P.push(X, H, Z, 0.2 + Math.sin(now * 0.003 + i) * 0.12, yaw + Math.sin(now * 0.002 + i) * 0.3, 0, 1);
+      P.push(X, H, Z, 0.2 + Math.sin(now * 0.003 + i) * 0.12, yaw + Math.sin(now * 0.002 + i) * 0.3, 0, this.boost);
       P.part(BOX, team, bright, 0, 0, 0, 0.5, 0.5, 0.04, 0, 0, Math.PI / 4);
       P.part(BOX, col("#f4ecd6"), bright, 0, 0, 0.025, 0.04, 0.68, 0.02, 0, 0, 0);
       P.part(BOX, col("#f4ecd6"), bright, 0, 0, 0.025, 0.5, 0.04, 0.02, 0, 0, 0);
@@ -601,7 +605,7 @@ export class RushView {
     } else {
       const bob = Math.sin(now * 0.0025 + i) * 0.15;
       const H = 3.0 + bob + drop * 0.3;
-      P.push(X, H, Z, 0, yaw + Math.sin(now * 0.0015) * 0.08, Math.sin(now * 0.002 + i) * 0.05, 1);
+      P.push(X, H, Z, 0, yaw + Math.sin(now * 0.0015) * 0.08, Math.sin(now * 0.002 + i) * 0.05, this.boost);
       P.part(SPHERE, col("#c89a5e"), bright, 0, 0.55, 0, 0.75, 0.85, 0.75, 0, 0, 0);
       P.part(SPHERE, team, bright, 0, 1.15, 0, 0.82, 0.45, 0.82, 0, 0, 0);
       P.part(CONE, col("#6b4a2c"), bright, 0, -0.38, 0, 0.18, 0.3, 0.18, Math.PI, 0, 0);
@@ -616,7 +620,7 @@ export class RushView {
   private drawCart(side: number, X: number, Z: number, yaw: number, drop: number, now: number, i: number, moving: boolean, ram: number) {
     const P = this.props;
     const lunge = ram >= 0 ? Math.sin(ram * Math.PI) * 0.25 : 0;
-    P.push(X, drop, Z, 0, yaw, 0, 1);
+    P.push(X, drop, Z, 0, yaw, 0, this.boost);
     P.push(0, 0, 0.75 + lunge, 0, 0, 0, 1);
     P.part(BOX, col("#8a603a"), 1, 0, 0.45, 0, 0.95, 0.12, 1.1, 0, 0, 0);
     P.part(BOX, col("#6b4a2c"), 1, 0.45, 0.6, 0, 0.06, 0.3, 1.1, 0, 0, 0);
@@ -993,12 +997,21 @@ export class RushView {
             }
           }
         }
-        // Hatched edge along the boundary (not red alone).
-        for (let x = 0; x < 16; x++) {
-          const y0 = this.zoneRows[14 * 16 + x] || this.zoneRows[12 * 16 + x] ? 8 : 15;
-          void y0;
-          fx.solid.add(x + 0.5 - 8, 0.04, 15 - 14, 0.5, 0.06, 0.6, 0.95, 0.9, 0.78);
+        // Your side glows softly gold (pulsing unless reduced motion), so where you CAN deploy reads at a glance.
+        const pulse = this.reduced() ? 0.8 : 0.65 + 0.35 * Math.sin(now * 0.006);
+        for (let y = 0; y < 28; y++) {
+          let run = -1;
+          for (let x = 0; x <= 16; x++) {
+            const ok = x < 16 && this.zoneRows[y * 16 + x] === 1;
+            if (ok && run < 0) run = x;
+            if (!ok && run >= 0) {
+              fx.addPlane.add(run + (x - run) / 2 - 8, 0.045, y + 0.5 - 14, x - run, 1, 0, 0.05 * pulse * hc, 0.04 * pulse * hc, 0.012 * pulse * hc);
+              run = -1;
+            }
+          }
         }
+        // A dashed cream edge along the boundary (not colour alone).
+        for (let x = 0; x < 16; x++) fx.solid.add(x + 0.5 - 8, 0.05, 15 - 14, 0.6, 0.12, 0, 1, 0.94, 0.78);
       }
     } else this.zoneCard = -2;
     void K_LOOKOUT;

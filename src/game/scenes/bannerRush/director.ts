@@ -500,10 +500,8 @@ export class Director {
     }
     if (changed) useRushHud.setState({ ...patch });
     // First three matches: Glow full for 2 s.
-    if (this.capSince > 0 && s.glow[0] >= 1680 && rt.now - this.capSince > 2000 && !this.hints.cap) {
-      this.hints.cap = true;
-      callout("Glow is full: play a card", "info", 1800);
-    }
+    // A refusal or score line on screen wins; the hint waits for the next frame.
+    if (this.capSince > 0 && s.glow[0] >= 1680 && rt.now - this.capSince > 2000 && !this.hints.cap && callout("Glow is full: play a card", "info", 1800)) this.hints.cap = true;
     if (s.glow[0] < 1680) this.capSince = -1;
     void clockText;
   }

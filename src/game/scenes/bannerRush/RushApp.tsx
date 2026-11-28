@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CARDS, STARTER_DECKS, validDeck, type CardId } from "../../core/bannerRush/cards";
 import { PH_OVER } from "../../core/bannerRush/constants";
-import { CARD_IDS } from "../../core/bannerRush/cards";
+import { CARD_IDS, UNLOCKS } from "../../core/bannerRush/cards";
 import {
   applyRibbons,
   dailyConfig,
@@ -34,6 +34,7 @@ import { engine } from "./engineApi";
 import { A11y } from "./a11y";
 import { GROUND_NAMES, type Ground } from "./ArenaSet";
 import { CardArt, EMOTES } from "./cardArt";
+import { CardFactsView, CardInfoSheet, softName } from "./cardInfo";
 import { Director, type MatchEnd } from "./director";
 import { Hud } from "./Hud";
 import type { RushKit } from "./kit";
@@ -551,6 +552,7 @@ export default function RushApp({ kit, onExit, hidden }: { kit: RushKit; onExit:
               readBoard={readBoard}
             />
           )}
+          {(screen === "match" || screen === "tutorial") && match && <CardInfoSheet key={match.key} />}
           {screen === "versus" && match && <Versus match={match} avatarColor={team[0]} />}
           {screen === "lobby" && <Lobby profile={profile} ground={lobbyGround} setGround={setLobbyGround} update={update} onBattle={(o) => start(o)} onTutorial={() => start({ tutorial: true })} onExit={onExit} />}
           {screen === "result" && <Result kit={kit} onReplay={() => start(match?.tutorial ? {} : { opponent: match?.opponent, tier: match?.tier, ground: match?.ground, daily: match?.daily !== null })} onNew={() => start({})} onLobby={() => useRushHud.setState({ screen: "lobby" })} onExit={onExit} />}
@@ -656,7 +658,7 @@ function Lobby({
   useEffect(() => {
     const id = requestAnimationFrame(() => battle.current?.focus());
     const esc = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
+      if (e.key !== "Escape" || document.querySelector(".br-inspect")) return;
       e.preventDefault();
       e.stopImmediatePropagation();
       onExit();
@@ -783,9 +785,14 @@ function Lobby({
   );
 }
 
+type Swap = { from: "coll" | "deck"; id: CardId } | null;
+
 function DeckTab({ profile, owned, update }: { profile: Profile; owned: CardId[]; update: (fn: (p: Profile) => Profile) => void }) {
   const deck = profile.decks[profile.activeDeck];
-  const [pick, setPick] = useState<CardId | null>(null);
+  const [swap, setSwap] = useState<Swap>(null);
+  const [inspect, setInspect] = useState<CardId | null>(null);
+  const deckRef = useRef<HTMLHeadingElement>(null);
+  const collRef = useRef<HTMLHeadingElement>(null);
   const setDeck = (d: CardId[]) =>
     update((p) => {
       const decks = p.decks.map((x, i) => (i === p.activeDeck ? d : x));
@@ -793,57 +800,215 @@ function DeckTab({ profile, owned, update }: { profile: Profile; owned: CardId[]
     });
   const avg = deck.reduce((a, c) => a + CARDS[c].cost, 0) / 8;
   const ready = Object.values(STARTER_DECKS).filter((d) => d.cards.every((c) => owned.includes(c)));
+  const winsFor = (c: CardId) => UNLOCKS.find((u) => u.card === c)?.wins ?? 0;
+  const doSwap = (out: CardId, inn: CardId) => {
+    setDeck(deck.map((x) => (x === out ? inn : x)));
+    setSwap(null);
+  };
+  const startSwap = (id: CardId) => {
+    const from = deck.includes(id) ? "deck" : "coll";
+    setSwap({ from, id });
+    setInspect(null);
+    (from === "coll" ? deckRef : collRef).current?.scrollIntoView({ block: "start", behavior: reducedMotion() ? "auto" : "smooth" });
+  };
+  const hint = !swap ? (
+    "Tap a card to see what it does."
+  ) : swap.from === "coll" ? (
+    <>
+      Tap a deck card to swap in <b>{CARDS[swap.id].name}</b>.
+    </>
+  ) : (
+    <>
+      Tap a collection card to replace <b>{CARDS[swap.id].name}</b>.
+    </>
+  );
   return (
     <div className="br-deckb">
-      <div className="br-row">
+      <div className="br-row br-deck-slots" role="group" aria-label="Saved decks">
         {[0, 1, 2].map((i) => (
-          <button key={i} aria-pressed={profile.activeDeck === i} onClick={() => update((p) => ({ ...p, activeDeck: i }))}>
+          <button
+            key={i}
+            aria-pressed={profile.activeDeck === i}
+            onClick={() => {
+              setSwap(null);
+              update((p) => ({ ...p, activeDeck: i }));
+            }}
+          >
             {profile.deckNames[i]}
           </button>
         ))}
       </div>
-      <p className="br-lead">
-        Average cost {avg.toFixed(1)}. {pick ? `Tap a deck card to swap in ${CARDS[pick].name}.` : "Tap a card below, then a deck card to swap."}
-      </p>
-      <div className="br-deck-grid">
+      <div className={`br-deck-stat ${swap ? "on" : ""}`}>
+        <span className="br-elixir" aria-label={`Average cost ${avg.toFixed(1)}`}>
+          <i aria-hidden="true" />
+          <span aria-hidden="true">Avg {avg.toFixed(1)}</span>
+        </span>
+        <span className="br-hint" aria-live="polite">
+          {hint}
+        </span>
+        {swap && (
+          <button className="br-cancel" onClick={() => setSwap(null)}>
+            Cancel
+          </button>
+        )}
+      </div>
+      <h3 className="br-sec" ref={deckRef}>
+        Your deck <small>8 cards</small>
+      </h3>
+      <div className={`br-deck-grid ${swap?.from === "coll" ? "swapping" : ""}`}>
         {deck.map((c) => (
           <button
             key={c}
-            className="br-mini big"
-            aria-label={`${CARDS[c].name}, cost ${CARDS[c].cost}${pick ? `: swap for ${CARDS[pick].name}` : ""}`}
+            className="br-dcard"
+            aria-pressed={swap?.from === "deck" ? swap.id === c : undefined}
+            aria-label={`${CARDS[c].name}, cost ${CARDS[c].cost}${swap?.from === "coll" ? `: swap for ${CARDS[swap.id].name}` : ""}`}
             onClick={() => {
-              if (!pick) return;
-              setDeck(deck.map((x) => (x === c ? pick : x)));
-              setPick(null);
+              if (swap?.from === "coll") doSwap(c, swap.id);
+              else if (swap?.id === c) setSwap(null);
+              else setInspect(c);
             }}
           >
-            <CardArt id={c} />
-            <i>{CARDS[c].cost}</i>
-            <span>{CARDS[c].name}</span>
+            <DeckCardFace id={c} />
           </button>
         ))}
       </div>
-      <div className="br-deck-grid coll">
+      <h3 className="br-sec" ref={collRef}>
+        Collection{" "}
+        <small>
+          {owned.length} of {CARD_IDS.length} unlocked
+        </small>
+      </h3>
+      <div className={`br-deck-grid ${swap?.from === "deck" ? "swapping-free" : ""}`}>
         {CARD_IDS.map((c) => {
           const has = owned.includes(c);
           const inDeck = deck.includes(c);
+          const wins = winsFor(c);
+          const state = !has ? "locked" : inDeck ? "in-deck" : "free";
           return (
-            <button key={c} className={`br-mini ${pick === c ? "picked" : ""}`} disabled={!has || inDeck} aria-label={`${CARDS[c].name}, cost ${CARDS[c].cost}${!has ? ", locked" : inDeck ? ", in deck" : ""}`} onClick={() => setPick(c)} title={CARDS[c].special}>
-              <CardArt id={c} />
-              <i>{CARDS[c].cost}</i>
-              <span>{has ? CARDS[c].name : "Locked"}</span>
+            <button
+              key={c}
+              className={`br-dcard ${state}`}
+              aria-pressed={swap?.from === "coll" && swap.id === c ? true : undefined}
+              aria-label={!has ? `${CARDS[c].name}, locked: unlocks at ${wins} wins` : `${CARDS[c].name}, cost ${CARDS[c].cost}${inDeck ? ", in deck" : ""}`}
+              onClick={() => {
+                if (swap?.from === "deck" && state === "free") doSwap(swap.id, c);
+                else if (swap?.from === "coll" && swap.id === c) setSwap(null);
+                else setInspect(c);
+              }}
+            >
+              <DeckCardFace id={c} hint={has ? undefined : `${wins} win${wins === 1 ? "" : "s"}`} />
+              {inDeck && <b className="br-badge">&#10003; In deck</b>}
+              {!has && <LockIcon />}
             </button>
           );
         })}
       </div>
-      <div className="br-row">
-        {ready.map((d) => (
-          <button key={d.name} onClick={() => setDeck([...d.cards])}>
-            Use {d.name}
-          </button>
-        ))}
+      {ready.length > 0 && (
+        <footer className="br-deck-foot">
+          <h3 className="br-sec">Ready-made decks</h3>
+          <div className="br-row">
+            {ready.map((d) => (
+              <button key={d.name} title={d.plan} onClick={() => setDeck([...d.cards])}>
+                {d.name}
+              </button>
+            ))}
+          </div>
+        </footer>
+      )}
+      {inspect && (
+        <CardInspect
+          key={inspect}
+          id={inspect}
+          state={!owned.includes(inspect) ? "locked" : deck.includes(inspect) ? "in-deck" : "free"}
+          unlock={owned.includes(inspect) ? undefined : unlockText(winsFor(inspect), profile.wins)}
+          onSwap={() => startSwap(inspect)}
+          onClose={() => setInspect(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+const unlockText = (wins: number, have: number) => {
+  const left = Math.max(1, wins - have);
+  return `Locked. Win ${left} more match${left === 1 ? "" : "es"} to unlock it (${have} of ${wins} wins).`;
+};
+
+const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/** The deck builder's card inspector: the card flips over to show what it does. */
+function CardInspect({ id, state, unlock, onSwap, onClose }: { id: CardId; state: "locked" | "in-deck" | "free"; unlock?: string; onSwap: () => void; onClose: () => void }) {
+  const [flipped, setFlipped] = useState(false);
+  const closing = useRef(false);
+  const back = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => {
+    if (closing.current) return;
+    closing.current = true;
+    setFlipped(false);
+    window.setTimeout(onClose, 300);
+  }, [onClose]);
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => requestAnimationFrame(() => setFlipped(true)));
+    const t = window.setTimeout(() => back.current?.querySelector<HTMLElement>("button")?.focus(), 320);
+    const esc = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      close();
+    };
+    window.addEventListener("keydown", esc);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(t);
+      window.removeEventListener("keydown", esc);
+    };
+  }, [close]);
+  const c = CARDS[id];
+  return (
+    <div className="br-inspect" role="dialog" aria-modal="true" aria-label={`${c.name} card info`} onClick={(e) => e.target === e.currentTarget && close()}>
+      <div className={`br-flip ${flipped ? "flipped" : ""} ${state}`} onClick={(e) => !(e.target as Element).closest("button") && close()}>
+        <div className="br-flip-face br-flip-front" aria-hidden="true">
+          <DeckCardFace id={id} />
+        </div>
+        <div className="br-flip-face br-flip-back" ref={back} aria-hidden={!flipped}>
+          <header>
+            <span className="br-cost" aria-hidden="true">
+              {c.cost}
+            </span>
+            <h4>{c.name}</h4>
+          </header>
+          <CardFactsView id={id} unlock={unlock} />
+          <div className="br-flip-actions">
+            {state !== "locked" && <button onClick={onSwap}>{state === "free" ? "Use in deck" : "Swap out"}</button>}
+            <button className="quiet" onClick={close}>
+              Done
+            </button>
+          </div>
+        </div>
       </div>
     </div>
+  );
+}
+
+
+function DeckCardFace({ id, hint }: { id: CardId; hint?: string }) {
+  return (
+    <>
+      <span className="br-cost" aria-hidden="true">
+        {CARDS[id].cost}
+      </span>
+      <CardArt id={id} />
+      <span className="br-dname">{softName(CARDS[id].name)}</span>
+      {hint && <span className="br-dhint">{hint}</span>}
+    </>
+  );
+}
+
+function LockIcon() {
+  return (
+    <svg className="br-lock" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="currentColor" strokeWidth="2" />
+      <rect x="3" y="7" width="10" height="8" rx="2" fill="currentColor" />
+    </svg>
   );
 }
 

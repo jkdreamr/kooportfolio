@@ -80,8 +80,14 @@ export const useRushHud = create<HudState>(() => ({
 }));
 
 let calloutTimer = 0;
-export function callout(text: string, tone: HudState["calloutTone"] = "info", ms = 1400) {
+let urgentUntil = 0;
+/** Show a callout. A plain "info" hint never replaces a refusal or score line still on screen. */
+export function callout(text: string, tone: HudState["calloutTone"] = "info", ms = 1400): boolean {
+  const now = performance.now();
+  if (tone === "info" && now < urgentUntil) return false;
+  urgentUntil = tone === "info" ? 0 : now + ms;
   window.clearTimeout(calloutTimer);
   useRushHud.setState((s) => ({ callout: text, calloutTone: tone, calloutKey: s.calloutKey + 1 }));
   calloutTimer = window.setTimeout(() => useRushHud.setState({ callout: "" }), ms);
+  return true;
 }
