@@ -34,10 +34,12 @@ export function stadiumCameraFrame(
     };
   }
   const lift = Math.max(0, ball[1] - FIELD_GOAL.tee);
-  const back = portrait ? 9 : 6.5;
-  const up = portrait ? 4.6 : 3.4;
+  // Kicker and tee in the lower third, the posts above them.
+  const back = portrait ? 12 : 10;
+  const up = portrait ? 6.5 : 5;
+  const ahead = Math.min(0, ball[2] - spot.z);
   return {
-    position: [spot.x * 0.6, up + lift * 0.55, spot.z + back + lift * 0.45],
-    target: [ball[0] * 0.35, 1.6 + ball[1] * 0.45, (spot.z + FIELD_GOAL.goalZ) / 2 - 2],
+    position: [spot.x * 0.6, up + lift * 0.5, spot.z + back + lift * 0.4],
+    target: [ball[0] * 0.35, (portrait ? 3 : 2.2) + ball[1] * 0.45, spot.z - 6 + ahead * 0.35],
   };
 }

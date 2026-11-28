@@ -652,15 +652,17 @@ export function BeatLabInterior() {
         state: () => {
           const g = game.current,
             f = flow.current;
-          return { phase: g.phase, beat: g.beat, scheme: g.scheme, topic: g.topic, time: g.time, bar: rhymeBarIndex(g), hype: f.hype, taps: f.taps, landed: f.landed.filter(Boolean).length, offset: f.offset, end: rhymeRoundEnd(g), grid: flowGrid(g) };
+          return { phase: g.phase, beat: g.beat, scheme: g.scheme, topic: g.topic, time: g.time, bar: rhymeBarIndex(g), hype: f.hype, reached: f.barHype.length ? Math.max(...f.barHype) : f.hype, taps: f.taps, landed: f.landed.filter(Boolean).length, offset: f.offset, end: rhymeRoundEnd(g), grid: flowGrid(g) };
         },
         act: (name, value) => {
           if (name === "start") startRef.current("playing");
           else if (name === "tap") inputs.current.tap(typeof value === "number" ? value : undefined);
           else if (name === "seek" && typeof value === "number") {
-            // QA: jump the take clock (the beat track is rescheduled).
+            // QA: jump the take clock (the beat track is rescheduled) and
+            // close the bars it passed, so a script can play a take in one go.
             stopBeatTrack();
             game.current = advanceRhyme(game.current, Math.max(0, value - game.current.time));
+            flowCloseBars(flow.current, game.current.time, flowGrid(game.current));
             lastTick.current = performance.now();
             syncBeatTrack();
           }

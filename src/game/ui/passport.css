@@ -53,7 +53,8 @@
   gap: 6px 10px;
 }
 
-.game-shell .passport {
+.game-shell .game-modal.passport {
+  max-width: none;
   width: min(640px, calc(100vw - 32px));
   max-height: min(86vh, 760px);
   overflow-y: auto;

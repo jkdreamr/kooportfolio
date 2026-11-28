@@ -393,3 +393,12 @@
 .stadium-game-controls .stadium-game-action {
   min-height: 56px;
 }
+/* Narrow screens: the attempt line wraps instead of running under Close. */
+@media (max-width: 520px) {
+  .stadium-game-score {
+    max-width: calc(100% - 128px);
+    flex-wrap: wrap;
+    row-gap: 2px;
+    box-sizing: border-box;
+  }
+}

@@ -85,6 +85,12 @@ export function StadiumView({
     );
     camera.position.set(...frame.position);
     nextTarget.set(...frame.target);
+    // The game frame is laid out for a 56° lens; the shared camera may carry
+    // a narrower one, so keep the framing by pulling back along the view line.
+    if (playing && camera instanceof THREE.PerspectiveCamera && camera.fov < 55) {
+      const k = Math.tan((28 * Math.PI) / 180) / Math.tan(((camera.fov / 2) * Math.PI) / 180);
+      camera.position.sub(nextTarget).multiplyScalar(k).add(nextTarget);
+    }
     if (!playing || !wasPlaying.current) target.copy(nextTarget);
     else target.lerp(nextTarget, 1 - Math.exp(-10 * delta));
     wasPlaying.current = playing;

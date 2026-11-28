@@ -88,22 +88,22 @@ const stat = (r: RunReport, key: string) => r.result.stats?.[key];
 /** The landmark of the day (Korea), from the four sights. */
 export const DAILY_LANDMARKS = ["gwanghwamun", "bukchon", "sejong", "namsan"] as const;
 
-/** Every task is a target one run of an existing mode can be judged on. */
+/**
+ * Every task is a target one run of an existing mode can be judged on. Paper
+ * Toss levels, Go's First Capture, a clean kitchen shift and the daily Lights
+ * board come back when those modes report runs (PLAN_GAMES L4/L5).
+ */
 export const DAILY_POOL: Readonly<Record<DailyWorld, readonly DailyTask[]>> = {
   home: [
     { id: "home.kick-daily", world: "home", label: "Field Goals Daily: score 150", done: (r) => r.game === "stadium" && !!r.result.daily && r.result.score >= 150 },
-    { id: "home.beat-day", world: "home", label: "Beat Lab: a take on the day's beat", done: (r, d) => r.game === "music" && stat(r, "beat") === d % 8 },
-    { id: "home.toss-four", world: "home", label: "Paper Toss: 4 of 6 on the day's level", done: (r, d) => r.game === "paper-toss" && stat(r, "level") === 1 + (d % 5) && r.result.score >= 4 },
-    { id: "home.capture", world: "home", label: "Go: win First Capture", done: (r) => r.game === "go" && r.result.mode === "capture" && !!r.result.won },
-    { id: "home.kitchen-clean", world: "home", label: "Kitchen: serve 4, nothing burnt", done: (r) => r.game === "kitchen" && r.result.score >= 4 && stat(r, "burnt") === 0 },
     { id: "home.banner-daily", world: "home", label: "Banner Rush: today's challenge", done: (r) => (r.game as string) === "banner-rush" && !!r.result.daily },
+    { id: "home.beat-day", world: "home", label: "Beat Lab: a take on the day's beat", done: (r, d) => r.game === "music" && stat(r, "beat") === d % 8 },
   ],
   stanford: [
     { id: "stanford.hot-daily", world: "stanford", label: "Hot Shot Daily: 45 points", done: (r) => r.game === "basketball" && !!r.result.daily && r.result.score >= 45 },
     { id: "stanford.river-daily", world: "stanford", label: "Daily river: top 2", done: (r) => r.game === "rowing" && !!r.result.daily && (r.result.place ?? 9) <= 2 },
     { id: "stanford.shuttle-day", world: "stanford", label: "Badminton: beat the day's opponent", done: (r, d) => r.game === "badminton" && !!r.result.won && stat(r, "opponent") === (d % 2 ? "captain" : "freshman") },
     { id: "stanford.skate-goals", world: "stanford", label: "Skate Daily: 2 of 3 goals", done: (r) => r.game === "skate" && !!r.result.daily && Number(stat(r, "goals") ?? 0) >= 2 },
-    { id: "stanford.lights-daily", world: "stanford", label: "Lights: the daily board within par + 4", done: (r) => r.game === "math" && !!r.result.daily && Number(stat(r, "overPar") ?? 99) <= 4 },
   ],
   korea: [
     { id: "korea.fish-two", world: "korea", label: "Catch 2 fish", done: (r) => r.game === "fishing" && r.result.score >= 2 },
