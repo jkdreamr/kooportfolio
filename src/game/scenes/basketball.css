@@ -213,9 +213,20 @@
   min-width: 52px;
 }
 .bt-clock b {
-  font-size: 1.5rem;
+  font-size: 1.7rem;
+  line-height: 1.05;
   font-variant-numeric: tabular-nums;
   color: #ffd97a;
+}
+.bt-clock[data-low="true"] {
+  background: rgba(120, 28, 18, 0.85);
+}
+.bt-clock[data-low="true"] b {
+  color: #fff1e8;
+  animation: bt-tick 1s steps(2, jump-none) infinite;
+}
+@keyframes bt-tick {
+  50% { transform: scale(1.12); }
 }
 .bt-actions {
   display: flex;
@@ -251,16 +262,72 @@
 }
 .bt-coach {
   position: absolute;
-  bottom: 168px;
+  top: 128px;
   left: 50%;
   transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
   margin: 0;
   padding: 10px 16px;
+  max-width: min(560px, calc(100vw - 32px));
   border-radius: 14px;
   background: rgba(255, 248, 230, 0.94);
   color: #2b2a25;
   font-weight: 700;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  animation: bt-coach 260ms ease-out;
+}
+.bt-coach small {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #2b2a25;
+  color: #fff8e6;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+@keyframes bt-coach {
+  from { opacity: 0; transform: translate(-50%, -6px); }
+}
+.bt-odds,
+.bt-intent {
+  position: absolute;
+  left: -999px;
+  top: 0;
+  margin: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 800;
   white-space: nowrap;
+  background: rgba(24, 32, 30, 0.8);
+  color: #fff8e6;
+  opacity: 0;
+  transition: opacity 120ms;
+}
+.bt-odds {
+  transform: translate(-50%, 6px);
+  border: 2px solid var(--tier, #ffd25a);
+}
+.bt-odds[data-tier="good"] { --tier: #7fdc6a; }
+.bt-odds[data-tier="ok"] { --tier: #ffd25a; }
+.bt-odds[data-tier="bad"] { --tier: #ff7a52; }
+.bt-intent {
+  transform: translate(-50%, -100%);
+  font-size: 0.74rem;
+  font-weight: 700;
+  border-bottom: 2px solid var(--shirt, #fff8e6);
+}
+.bt-intent[data-urgent="true"] {
+  background: #ffb067;
+  color: #2a1406;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+.bt-odds[data-on="true"],
+.bt-intent[data-on="true"] {
+  opacity: 1;
 }
 .bt-chip {
   position: absolute;
@@ -273,24 +340,26 @@
   font-weight: 800;
 }
 .bt-chip--back {
-  top: 126px;
+  top: 182px;
   background: #ffd97a;
   color: #3a2a10;
 }
 .bt-chip--fire {
-  top: 126px;
+  top: 182px;
   background: #ff8a2a;
   color: #2a1406;
 }
 .bt-meter {
   position: absolute;
   left: 50%;
-  bottom: 128px;
-  width: min(320px, 70vw);
-  height: 14px;
+  bottom: 120px;
+  width: min(380px, 78vw);
+  height: 24px;
   transform: translateX(-50%);
-  border-radius: 8px;
-  background: rgba(24, 32, 30, 0.75);
+  border-radius: 12px;
+  border: 2px solid rgba(255, 248, 230, 0.7);
+  background: rgba(24, 32, 30, 0.82);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
   overflow: hidden;
   opacity: 0;
   transition: opacity 80ms;
@@ -298,22 +367,38 @@
 .bt-meter[data-on="true"] {
   opacity: 1;
 }
+/* After the release the bar holds where you let go, flashing the verdict. */
+.bt-meter[data-on="false"][data-hit] {
+  animation: bt-hit 700ms ease-out forwards;
+}
+.bt-meter[data-hit="green"] {
+  border-color: #8dff7a;
+  box-shadow: 0 0 18px rgba(127, 220, 106, 0.8);
+}
+.bt-meter[data-hit="off"] {
+  border-color: #ff7a52;
+}
+@keyframes bt-hit {
+  0%, 60% { opacity: 1; }
+  100% { opacity: 0; }
+}
 .bt-meter b,
 .bt-meter i {
   position: absolute;
   inset: 0;
   transform-origin: 0 50%;
 }
-.bt-meter b {
-  background: #8fd48a;
-  width: 100%;
-  transform: scaleX(0.1);
-}
 .bt-meter i {
-  background: rgba(255, 248, 230, 0.85);
+  background: linear-gradient(90deg, rgba(255, 248, 230, 0.35), rgba(255, 248, 230, 0.9));
   width: 100%;
   transform: scaleX(0);
-  mix-blend-mode: screen;
+}
+.bt-meter b {
+  z-index: 1;
+  background: rgba(111, 227, 95, 0.6);
+  box-shadow: inset 0 0 0 2px #8dff7a;
+  width: 100%;
+  transform: scaleX(0.1);
 }
 .bt-pad {
   position: absolute;
@@ -443,14 +528,15 @@
     bottom: 176px;
   }
   .bt-coach {
-    bottom: 214px;
-    white-space: normal;
-    width: calc(100vw - 48px);
-    text-align: center;
+    top: 116px;
+    width: calc(100vw - 32px);
+    font-size: 0.9rem;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .bt-call {
+  .bt-call,
+  .bt-coach,
+  .bt-clock[data-low="true"] b {
     animation: none;
   }
 }

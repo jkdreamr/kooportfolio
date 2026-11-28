@@ -9,6 +9,7 @@ import {
   freshInput,
   greenHalfWidth,
   jump,
+  makeChance,
   newHoops,
   release,
   shotType,
@@ -33,15 +34,48 @@ describe("Blacktop rules", () => {
     expect(shotType(ZONE.three, 0, 0)).toBe("three");
   });
   it("green half-widths and every modifier", () => {
-    expect(greenHalfWidth("layup", 3)).toBeCloseTo(0.11);
-    expect(greenHalfWidth("jumper", 4)).toBeCloseTo(0.07);
-    expect(greenHalfWidth("jumper", 5)).toBeCloseTo(0.05);
-    expect(greenHalfWidth("three", 7)).toBeCloseTo(0.038);
+    expect(greenHalfWidth("layup", 1)).toBeCloseTo(0.2);
+    expect(greenHalfWidth("layup", 3)).toBeCloseTo(0.126, 3);
+    expect(greenHalfWidth("jumper", 4)).toBeCloseTo(0.071, 3);
+    expect(greenHalfWidth("jumper", 5)).toBeCloseTo(0.059, 3);
+    expect(greenHalfWidth("three", 7)).toBeCloseTo(0.0374, 3);
     expect(greenHalfWidth("three", 10)).toBeCloseTo(0.03);
-    expect(greenHalfWidth("jumper", 5, { fade: true })).toBeCloseTo(0.04);
-    expect(greenHalfWidth("jumper", 5, { moving: true })).toBeCloseTo(0.0425);
-    expect(greenHalfWidth("jumper", 5, { contest: 1 })).toBeCloseTo(0.025);
-    expect(greenHalfWidth("jumper", 5, { fire: true })).toBeCloseTo(0.0625);
+    const j = greenHalfWidth("jumper", 5);
+    expect(greenHalfWidth("jumper", 5, { fade: true })).toBeCloseTo(j * 0.8);
+    expect(greenHalfWidth("jumper", 5, { moving: true })).toBeCloseTo(j * 0.85);
+    expect(greenHalfWidth("jumper", 5, { contest: 1 })).toBeCloseTo(j * 0.5);
+    expect(greenHalfWidth("jumper", 5, { fire: true })).toBeCloseTo(j * 1.25);
+  });
+  it("close shots are easy when open, still hard when contested", () => {
+    // Open layup at the rim: a wide window and a near-sure make.
+    expect(greenHalfWidth("layup", 1.2)).toBeGreaterThan(0.18);
+    expect(makeChance("layup", 0.05, greenHalfWidth("layup", 1.2), 0, 1.2)).toBeGreaterThan(0.95);
+    // Just off the green, a close shot still falls most of the time.
+    expect(makeChance("layup", 0.25, greenHalfWidth("layup", 1.2), 0, 1.2)).toBeGreaterThan(0.6);
+    // A hand in the face takes most of that away.
+    const c = 1, w = greenHalfWidth("layup", 1.2, { contest: c });
+    expect(makeChance("layup", 0.05, w, c, 1.2)).toBeLessThan(0.3);
+  });
+  it("make chance falls off smoothly with distance (no cliffs)", () => {
+    let prev = makeChance("layup", 0, 1, 0, 0.5);
+    for (let d = 0.5; d <= 10; d += 0.05) {
+      const type = d >= ZONE.three ? "three" : d > 3.4 ? "jumper" : "layup";
+      const top = makeChance(type, 0, 1, 0, d);
+      expect(top).toBeLessThanOrEqual(prev + 1e-9);
+      expect(prev - top).toBeLessThan(0.01);
+      prev = top;
+    }
+  });
+  it("a drive into the paint dunks by itself", () => {
+    const g = newHoops("shoot", "classmate", 3);
+    g.p.x = 0;
+    g.p.z = 2.0; // from the top of the key: drive, then keep attacking
+    const i = { ...freshInput(), mz: -1, move: true };
+    stepHoops(g, i);
+    i.move = false;
+    for (let k = 0; k < 90 && g.ball.phase === "held"; k++) stepHoops(g, i);
+    expect(g.ball.phase).toBe("flight");
+    expect(g.ball.kind).toBe("dunk");
   });
   it("contest law: gap, air and fadeaway", () => {
     expect(contest(0.9, true, false)).toBe(1);

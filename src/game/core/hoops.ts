@@ -22,6 +22,8 @@ export const ACCEL = 30;
 export const GATHER_SPEED = 2.2;
 export const JUKE = { dist: 1.7, time: 0.22, cooldown: 0.9, bite: 1.8, root: 0.7 } as const;
 export const DRIVE = { speed: 6.5, time: 0.5 } as const;
+/** A drive this close to the rim dunks on its own. */
+export const DUNK_REACH = 2.4;
 export const STEAL = { window: 0.25, range: 1.2, miss: 0.45 } as const;
 export const SHOT_CLOCK = 12;
 export const GAME_TO = 15;
@@ -59,10 +61,20 @@ export function shotType(d: number, speedToward: number, speed: number): ShotTyp
 }
 
 export type GreenMods = { moving?: boolean; contest?: number; fire?: boolean; fade?: boolean };
-/** Half-width of the green release window (charge units). */
+/** Smoothstep 0..1 of `x` between `a` and `b`. */
+const smooth = (a: number, b: number, x: number) => {
+  const u = Math.max(0, Math.min(1, (x - a) / (b - a)));
+  return u * u * (3 - 2 * u);
+};
+/** Half-width of the green release window (charge units). Close shots get a
+ *  much wider window, and every window narrows smoothly with distance. */
 export function greenHalfWidth(type: ShotType, d: number, m: GreenMods = {}): number {
   let w =
-    type === "layup" ? 0.11 : type === "three" ? (d >= ZONE.logo ? 0.03 : 0.038) : d < 4.5 ? 0.07 : 0.05;
+    type === "layup"
+      ? 0.2 - 0.08 * smooth(1, 3.4, d)
+      : type === "three"
+        ? 0.038 - 0.008 * smooth(ZONE.three, ZONE.logo, d)
+        : 0.075 - 0.028 * smooth(ZONE.paint, ZONE.three, d);
   if (m.fade && type !== "layup") w *= 0.8;
   if (m.moving) w *= 0.85;
   if (m.contest) w *= 1 - 0.5 * Math.max(0, Math.min(1, m.contest));
@@ -78,11 +90,62 @@ export function contest(gap: number, inAir: boolean, fade: boolean): number {
   return c;
 }
 
-/** The player's make chance for a jumper, three or layup. */
-export function makeChance(type: ShotType, err: number, w: number, c: number): number {
-  const top = type === "three" ? 0.86 : type === "jumper" ? 0.92 : 0.95;
-  if (err <= w) return Math.max(0, top - 0.55 * c);
-  return Math.max(0, 0.5 - 6 * (err - w)) * (1 - 0.6 * c);
+/** The player's make chance for a jumper, three or layup released `err` off
+ *  the centre of a green half-width `w`, contest `c`, from distance `d`. Both
+ *  the green ceiling and the off-green base fall smoothly from the rim out
+ *  (no cliff at the paint or the arc); a hand in the face costs most at
+ *  the rim. */
+export function makeChance(type: ShotType, err: number, w: number, c: number, d = type === "layup" ? 2 : type === "three" ? 7 : 5): number {
+  const k = smooth(0.8, ZONE.three, d),
+    far = smooth(ZONE.three, ZONE.logo + 1, d);
+  const top = 0.98 - 0.1 * k - 0.06 * far;
+  // At the rim a hand in the face matters more (the easy look is the open one).
+  const hand = 0.55 + 0.25 * (1 - k);
+  if (err <= w) return Math.max(0, top - hand * c);
+  const base = 0.8 - 0.32 * k - 0.08 * far,
+    slope = 2.5 + 3.5 * k;
+  return Math.max(0, base - slope * (err - w)) * (1 - (0.6 + 0.2 * (1 - k)) * c);
+}
+
+/** What one press of Shoot would be right now, for the HUD (no allocation). */
+export type ShotPreview = { type: ShotType; chance: number; contest: number; value: number; on: boolean };
+export const freshPreview = (): ShotPreview => ({ type: "jumper", chance: 0, contest: 0, value: 2, on: false });
+/** Typical human release error in seconds (the odds the HUD shows assume it). */
+export const HUMAN_ERR = 0.05;
+export function previewShot(g: Hoops, out: ShotPreview): ShotPreview {
+  const a = g.p,
+    b = g.ball;
+  out.on = b.phase === "held" && b.holder === 0 && !(g.takeBack && dist(a.x, a.z) < ZONE.three);
+  if (!out.on) return out;
+  const d = dist(a.x, a.z),
+    hx = (HOOP_X - a.x) / (d || 1),
+    hz = (HOOP_Z - a.z) / (d || 1);
+  const speed = Math.hypot(a.vx, a.vz),
+    toward = a.vx * hx + a.vz * hz;
+  const type: ShotType =
+    a.gatherAt >= 0 ? a.gatherType : g.t < a.driveUntil && d <= ZONE.paint ? "dunk" : shotType(d, toward, speed);
+  const def = g.r;
+  const gap = solo(g) ? 99 : Math.hypot(def.x - a.x, def.z - a.z) - (RIVALS[g.rival].reach - 1.2);
+  // He times his jump to the green, so assume a hand up.
+  const c = solo(g) ? 0 : contest(gap, true, false);
+  let chance = 1;
+  if (type !== "dunk") {
+    const w = greenHalfWidth(type, d, { moving: speed > 1, contest: c, fire: g.fire });
+    const E = HUMAN_ERR / METER[type].fill;
+    chance = 0;
+    for (let i = 0; i < 8; i++) {
+      const err = ((i + 0.5) / 8) * E;
+      chance += err <= PURE * (1 - 0.5 * c) && type !== "layup" ? 1 : makeChance(type, err, w, c, d);
+    }
+    chance /= 8;
+  }
+  // A block risk the HUD should not hide.
+  if (!solo(g) && contest(gap, true, false) >= 0.85) chance *= 1 - RIVALS[g.rival].block * (type === "dunk" ? 0.5 : 1);
+  out.type = type;
+  out.chance = chance;
+  out.contest = c;
+  out.value = (d >= ZONE.three ? 3 : 2) + (g.fire ? 1 : 0) + (d >= ZONE.logo ? 1 : 0);
+  return out;
 }
 
 export type Actor = {
@@ -110,6 +173,8 @@ export type Actor = {
   dashAt: number;
   /** A bully drive until then: the defender gives ground instead. */
   bully: number;
+  /** A drive at the rim until then (the player's drive into the paint dunks). */
+  driveUntil: number;
 };
 
 export type BallPhase = "held" | "flight" | "loose" | "dead";
@@ -146,6 +211,10 @@ export type Ball = {
   buzzer: boolean;
   /** Game time the ball became dead / loose. */
   since: number;
+  /** The release: contest, inside the green, a contested make's bonus point. */
+  contest: number;
+  green: boolean;
+  andOne: boolean;
 };
 
 export type HoopsEvent = {
@@ -251,6 +320,7 @@ const actor = (x: number, z: number): Actor => ({
   exposedUntil: -9,
   dashAt: -9,
   bully: -9,
+  driveUntil: -9,
 });
 
 /** Seeded 0..1 (xorshift32 on the state). */
@@ -299,6 +369,9 @@ export function newHoops(mode: HoopsMode = "1v1", rival: RivalId = "classmate", 
       rimmed: false,
       buzzer: false,
       since: 0,
+      contest: 0,
+      green: false,
+      andOne: false,
     },
     offense: 0,
     score: [0, 0],
@@ -366,6 +439,7 @@ export function check(g: Hoops, who: 0 | 1, announce = true) {
     a.vx = a.vz = 0;
     a.gatherAt = -1;
     a.dashUntil = -9;
+    a.driveUntil = -9;
     a.fx = 0;
     a.fz = -1;
   }
@@ -484,6 +558,7 @@ export function dash(g: Hoops, who: 0 | 1, mx: number, mz: number) {
     a.dashVx = (mx / len) * DRIVE.speed;
     a.dashVz = (mz / len) * DRIVE.speed;
     a.dashUntil = g.t + DRIVE.time;
+    a.driveUntil = a.dashUntil + 0.15;
     emit(g, "drive", who);
     return;
   }
@@ -587,7 +662,7 @@ export function release(g: Hoops, who: 0 | 1, power: number, force?: ShotType) {
   // Tuning (the bots judge): a hand in the face shrinks the pure core too.
   const pure = who === 0 && (type === "jumper" || type === "three") && err <= PURE * (1 - 0.5 * c);
   let chance: number;
-  if (who === 0) chance = type === "dunk" ? 1 : pure ? 1 : makeChance(type, err, w, c);
+  if (who === 0) chance = type === "dunk" ? 1 : pure ? 1 : makeChance(type, err, w, c, d);
   else {
     const R = RIVALS[g.rival];
     const open = type === "three" ? R.three : type === "jumper" ? R.mid : type === "dunk" ? Math.min(0.95, R.layup * 1.15) : R.layup;
@@ -605,6 +680,11 @@ export function release(g: Hoops, who: 0 | 1, power: number, force?: ShotType) {
   b.made = rand(g) < chance;
   b.buzzer = false;
   b.rimmed = false;
+  b.contest = c;
+  b.green = type === "dunk" || err <= w;
+  // A contested make at close range draws the (arcade) foul: one more point.
+  b.andOne = who === 0 && b.made && c >= 0.6 && (type === "layup" || type === "dunk");
+  a.driveUntil = -9;
   b.x0 = a.x + hx * 0.3;
   b.z0 = a.z + hz * 0.3;
   b.y0 = type === "dunk" ? 2.9 : 2.25 + jumpHeight(g, a);
@@ -697,6 +777,7 @@ function scored(g: Hoops) {
   const who = b.shooter;
   let value = b.value;
   if (b.buzzer && who === 0) value += 2;
+  if (b.andOne) value += 1;
   if (g.mode === "hot" && g.timeLeft <= 10) value *= 2;
   if (who === 0) {
     g.makes++;
@@ -711,7 +792,7 @@ function scored(g: Hoops) {
   }
   if (g.mode === "1v1") g.score[who] += value;
   else g.points += value;
-  emit(g, "make", who, value, b.buzzer && who === 0 ? "At the buzzer" : b.label);
+  emit(g, "make", who, value, b.buzzer && who === 0 ? "At the buzzer" : b.andOne ? "And one" : b.label);
   b.phase = "dead";
   b.since = g.t;
   b.x = HOOP_X;
@@ -851,6 +932,13 @@ export function stepHoops(g: Hoops, input: HoopsInput, dt = 1 / 60) {
     if (input.move) steal(g, 0);
   }
   moveActor(g, p, input.mx, input.mz, RUN, dt);
+  // A drive carries on while you keep attacking the rim, and one that reaches
+  // the paint with the ball finishes with a dunk by itself.
+  if (b.phase === "held" && b.holder === 0 && p.gatherAt < 0 && g.t < p.driveUntil) {
+    const pd = dist(p.x, p.z) || 1;
+    if ((p.vx * (HOOP_X - p.x) + p.vz * (HOOP_Z - p.z)) / pd >= 3.5) p.driveUntil = Math.max(p.driveUntil, g.t + 0.15);
+    if (!g.takeBack && pd <= DUNK_REACH && g.t >= p.rootedUntil) release(g, 0, 0, "dunk");
+  }
   if (!solo(g)) {
     g.histX[g.histI] = b.phase === "held" ? actorOf(g, b.holder).x : b.x;
     g.histZ[g.histI] = b.phase === "held" ? actorOf(g, b.holder).z : b.z;

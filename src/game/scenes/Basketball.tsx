@@ -27,7 +27,9 @@ import {
   charge,
   dist,
   freshInput,
+  freshPreview,
   greenHalfWidth,
+  previewShot,
   inAir,
   jumpHeight,
   newHoops,
@@ -69,6 +71,8 @@ export type CourtResult = {
   medal: string;
 };
 export const useBasketHud = create<{
+  /** Tutorial step shown (1..3), 0 when none. */
+  coachStep: number;
   score: [number, number];
   points: number;
   timeLeft: number;
@@ -96,6 +100,7 @@ export const useBasketHud = create<{
   heat: 0,
   streak: 0,
   coach: "",
+  coachStep: 0,
   feedback: "",
   announce: "",
   result: null,
@@ -121,7 +126,51 @@ const control = {
 const sitting = { beaten: new Set<RivalId>(), lost: false };
 
 /** Meter DOM, written each frame by the court loop (no React state). */
-const meter = { root: null as HTMLElement | null, fill: null as HTMLElement | null, green: null as HTMLElement | null, clock: null as HTMLElement | null };
+const meter = {
+  root: null as HTMLElement | null,
+  fill: null as HTMLElement | null,
+  green: null as HTMLElement | null,
+  clock: null as HTMLElement | null,
+  odds: null as HTMLElement | null,
+  intent: null as HTMLElement | null,
+};
+/** The shot-odds tag under you and the rival's intent tag over him. */
+export function bindTags(odds: HTMLElement | null, intent: HTMLElement | null) {
+  meter.odds = odds;
+  meter.intent = intent;
+}
+/** First-time coaching: move, shoot, then juke / steal. */
+const TUT_KEYS = ["WASD to move. Run at the hoop.", "Hold Space, let go in the green.", "Shift sideways jukes, toward the rim drives. On D, Shift steals when he crosses over."];
+const TUT_TOUCH = ["Drag the pad to move. Run at the hoop.", "Hold Shoot, let go in the green.", "Juke shakes him; Juke toward the rim drives in for a dunk. On D, Steal when he crosses over."];
+const tut = { step: -1, at: 0, touch: false };
+function coachStep(step: number) {
+  tut.step = step;
+  tut.at = court.t;
+  const text = step < 0 || step > 2 ? "" : (tut.touch ? TUT_TOUCH : TUT_KEYS)[step];
+  useBasketHud.setState({ coach: text, coachStep: step < 0 || step > 2 ? 0 : step + 1 });
+  if (step > 2) useGame.getState().remember("coach:basketball");
+}
+const INTENT = ["", "Sizing you up", "Driving", "Pulling up", "Taking it back", "Stepping back", "Backing you down", "Crossover: steal!", "Shooting: jump!", "Sagging off: shoot", "Pressing", "Ankles gone: go!"] as const;
+const SHOT_NAME = { dunk: "Dunk", layup: "Layup", jumper: "Jumper", three: "Three" } as const;
+const preview = freshPreview();
+const proj = new THREE.Vector3();
+const tags = { oddsKey: -1, intent: -1, low: false, ox: 0, oy: 0, ix: 0, iy: 0 };
+/** Pins a tag to a world point; writes the style only when it moves a pixel. */
+function pin(el: HTMLElement, camera: THREE.Camera, w: number, h: number, x: number, y: number, z: number, which: 0 | 1) {
+  proj.set(x, y, z).project(camera);
+  const px = Math.round((proj.x * 0.5 + 0.5) * w),
+    py = Math.round((-proj.y * 0.5 + 0.5) * h);
+  if (which === 0 ? px === tags.ox && py === tags.oy : px === tags.ix && py === tags.iy) return;
+  if (which === 0) {
+    tags.ox = px;
+    tags.oy = py;
+  } else {
+    tags.ix = px;
+    tags.iy = py;
+  }
+  el.style.left = px + "px";
+  el.style.top = py + "px";
+}
 export function bindMeter(root: HTMLElement | null, fill: HTMLElement | null, green: HTMLElement | null) {
   meter.root = root;
   meter.fill = fill;
@@ -159,9 +208,11 @@ export function beginRound(mode = useBasketOptions.getState().mode, rival = useB
     streak: 0,
     feedback: "",
     announce: mode === "1v1" ? `First to 15 against ${RIVALS[rival].name}. Your ball.` : `${MODES[mode].label}. Go.`,
-    coach: coached ? "" : "Run at the hoop and press Shoot.",
     result: null,
   });
+  tut.touch = typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches;
+  coachStep(coached ? -1 : 0);
+  tags.oddsKey = tags.intent = -1;
   useBasketOptions.setState((s) => ({ mode, rival, round: s.round + 1 }));
   return true;
 }
@@ -376,7 +427,8 @@ function finish(g: Hoops) {
     reportRun("basketball", { mode: g.mode, score: value });
   }
   useGame.getState().remember("coach:basketball");
-  useBasketHud.setState({ result, coach: "", announce: `${result.title}. ${result.score} ${result.unit}.` });
+  tut.step = -1;
+  useBasketHud.setState({ result, coach: "", coachStep: 0, announce: `${result.title}. ${result.score} ${result.unit}.` });
   sound(won ? "win" : "lose", { delay: 0.3 });
   if (won) {
     juice.confetti(28);
@@ -392,7 +444,9 @@ function BasketballCourt({ playing }: { playing: boolean }) {
     net = useRef<THREE.Group>(null),
     board = useRef<THREE.Group>(null),
     arcGlow = useRef<THREE.Group>(null),
-    ring = useRef<THREE.Group>(null);
+    ring = useRef<THREE.Group>(null),
+    oddsRing = useRef<THREE.Mesh>(null),
+    oddsMat = useRef<THREE.MeshBasicMaterial>(null);
   const poses = useMemo(() => [courtPose(), courtPose()], []);
   const save = useGame((s) => s.save);
   const rival = useBasketOptions((s) => s.rival);
@@ -425,19 +479,24 @@ function BasketballCourt({ playing }: { playing: boolean }) {
   const onEvent = useCallback(
     (e: HoopsEvent, g: Hoops) => {
       const mine = e.who === 0;
-      const hud = useBasketHud.getState();
       const setFeedback = (text: string) => useBasketHud.setState({ feedback: text });
       switch (e.k) {
         case "release":
         case "dunk": {
           st.current.releaseAt[e.who] = g.t;
-          if (mine && hud.coach) useBasketHud.setState({ coach: "" });
+          if (mine && tut.step === 1) coachStep(2);
+          if (meter.root && mine && e.k === "release") meter.root.dataset.hit = g.ball.green ? "green" : "off";
           if (g.ball.pure) {
             sound("perfect", { gain: 0.8 });
             juice.hitStop(60);
             setFeedback("Pure");
           } else if (mine && e.label === "Late") setFeedback("Late");
           else sound("swish", { gain: 0.45 });
+          if (mine && g.mode === "1v1" && !g.ball.pure) {
+            const [x, y] = fx.at([g.p.x, 2.5, g.p.z]);
+            if (g.ball.contest >= 0.5) fx.pop("Contested!", x, y, "miss");
+            else if (g.ball.contest <= 0.1) fx.pop("Open!", x, y, "good");
+          }
           // The shot that wins it flies in slow motion.
           const s = g.score[e.who] + g.ball.value;
           if (g.mode === "1v1" && g.ball.made && s >= 15) juice.slowMo(0.4, Math.min(2000, g.ball.T * 1000 * 2.5));
@@ -457,12 +516,21 @@ function BasketballCourt({ playing }: { playing: boolean }) {
           } else sound("score");
           fx.score([HOOP_X, RIM_Y + 0.4, HOOP_Z], `+${e.v}`, mine ? (e.label === "Pure" || kind === "dunk" ? "great" : "good") : "miss");
           if (mine && e.label && ["Slam", "Pure", "From the logo", "At the buzzer", "Fadeaway"].includes(e.label)) juice.banner(e.label, "great");
-          setFeedback(mine ? e.label ?? "Bucket" : `${RIVALS[g.rival].name.replace("The ", "")} scores`);
+          setFeedback(
+            mine
+              ? e.label === "And one"
+                ? `And one! +${e.v}`
+                : g.ball.green && (kind === "jumper" || kind === "three") && e.label !== "Pure"
+                  ? `Swish${e.label === "Bucket" ? "" : ` · ${e.label}`}`
+                  : (e.label ?? "Bucket")
+              : `${RIVALS[g.rival].name.replace("The ", "")} scores`,
+          );
+          if (mine && e.label === "And one") juice.banner("And one", "great");
           if (!mine) sound("groan", { gain: 0.3 });
           break;
         }
         case "miss":
-          if (mine) setFeedback(e.label === "Late" ? "Late" : "Off the rim");
+          if (mine) setFeedback(e.label === "Late" ? "Late" : g.ball.green ? "Rimmed out" : "Brick");
           break;
         case "rim":
           sound("rim", { gain: 0.6 });
@@ -487,8 +555,16 @@ function BasketballCourt({ playing }: { playing: boolean }) {
         case "juke":
         case "drive":
           sound("whoosh", { gain: 0.35 });
+          if (mine && tut.step === 2) coachStep(3);
+          break;
+        case "stealMiss":
+          if (mine) {
+            setFeedback("Reach: wait for his crossover");
+            if (tut.step === 2) coachStep(3);
+          }
           break;
         case "steal":
+          if (mine && tut.step === 2) coachStep(3);
           sound("whoosh");
           setFeedback(mine ? EV_TEXT.steal! : "Stripped");
           break;
@@ -568,6 +644,7 @@ function BasketballCourt({ playing }: { playing: boolean }) {
       if (ballShadow.current) ballShadow.current.visible = false;
       if (arcGlow.current) arcGlow.current.visible = false;
       if (ring.current) ring.current.position.set(runtime.x, 0.155, runtime.z);
+      if (oddsRing.current) oddsRing.current.visible = false;
       target.set(7, 12.5, 18);
       camera.position.lerp(target, 1 - Math.exp(-dt * 5));
       camera.lookAt(0, 1.2, -0.8);
@@ -696,11 +773,61 @@ function BasketballCourt({ playing }: { playing: boolean }) {
     }
     if (arcGlow.current) arcGlow.current.visible = g.takeBack && b.phase === "held" && b.holder === 0;
     if (ring.current) ring.current.position.set(g.p.x, 0.155, g.p.z);
+    // Shot odds: a coloured ring under you and "Layup · 82%" by your feet.
+    previewShot(g, preview);
+    if (tut.step === 0 && Math.hypot(g.p.x - 0, g.p.z - 2) > 1.4) coachStep(1);
+    if (tut.step === 2 && g.t - tut.at > 14) coachStep(3);
+    if (oddsRing.current && oddsMat.current) {
+      oddsRing.current.visible = preview.on && !g.over;
+      oddsRing.current.position.set(g.p.x, 0.16, g.p.z);
+      const c = preview.chance;
+      oddsMat.current.color.setHex(c >= 0.65 ? 0x7fdc6a : c >= 0.42 ? 0xffd25a : 0xff7a52);
+    }
+    if (meter.odds) {
+      const key = preview.on && !g.over ? (["dunk", "layup", "jumper", "three"].indexOf(preview.type) + 1) * 1000 + Math.round(preview.chance * 100) : 0;
+      if (key !== tags.oddsKey) {
+        tags.oddsKey = key;
+        meter.odds.dataset.on = key ? "true" : "false";
+        if (key) {
+          meter.odds.textContent = `${SHOT_NAME[preview.type]} · ${Math.round(preview.chance * 100)}%`;
+          meter.odds.dataset.tier = preview.chance >= 0.65 ? "good" : preview.chance >= 0.42 ? "ok" : "bad";
+        }
+      }
+      if (key) pin(meter.odds, camera, size.width, size.height, g.p.x, -0.15, g.p.z, 0);
+    }
+    if (meter.intent) {
+      const r = g.r,
+        m = g.brain;
+      let k = 0;
+      if (g.mode === "1v1" && !g.over && g.t >= g.checkUntil && b.phase === "held") {
+        if (b.holder === 1) {
+          if (r.gatherAt >= 0) k = 8;
+          else if (g.t < r.exposedUntil + 0.15) k = 7;
+          else if (g.t < r.bully) k = 6;
+          else if (m.plan === 0 || g.t < g.checkUntil + 0.8) k = 1;
+          else k = m.action === 3 ? 4 : m.action === 4 ? 5 : m.action === 2 ? 3 : 2;
+        } else {
+          const gap = Math.hypot(r.x - g.p.x, r.z - g.p.z);
+          k = g.t < r.rootedUntil ? 11 : gap > 2.3 ? 9 : gap < 1.3 ? 10 : 0;
+        }
+      }
+      if (k !== tags.intent) {
+        tags.intent = k;
+        meter.intent.dataset.on = k ? "true" : "false";
+        meter.intent.dataset.urgent = k === 7 || k === 8 || k === 11 ? "true" : "false";
+        if (k) meter.intent.textContent = INTENT[k];
+      }
+      if (k) pin(meter.intent, camera, size.width, size.height, r.x, 2.35 + jumpHeight(g, r), r.z, 1);
+    }
     // Meter (DOM, written here).
     if (meter.root) {
       const p = g.p;
       const c = p.gatherAt >= 0 ? charge(g, p) : -1;
-      meter.root.dataset.on = c >= 0 ? "true" : "false";
+      const on = c >= 0 ? "true" : "false";
+      if (meter.root.dataset.on !== on) {
+        meter.root.dataset.on = on;
+        if (c >= 0) delete meter.root.dataset.hit;
+      }
       if (c >= 0 && meter.fill && meter.green) {
         const type = p.gatherType,
           d = dist(p.x, p.z);
@@ -711,7 +838,16 @@ function BasketballCourt({ playing }: { playing: boolean }) {
         meter.root.dataset.type = type;
       }
     }
-    if (meter.clock) meter.clock.textContent = g.mode === "1v1" ? Math.ceil(g.shotClock).toString() : g.mode === "hot" ? Math.ceil(g.timeLeft).toString() : "∞";
+    if (meter.clock) {
+      const left = g.mode === "1v1" ? g.shotClock : g.mode === "hot" ? g.timeLeft : 99;
+      const text = g.mode === "shoot" ? "∞" : Math.ceil(left).toString();
+      if (meter.clock.textContent !== text) meter.clock.textContent = text;
+      const low = left <= (g.mode === "1v1" ? 4 : 10) && g.mode !== "shoot";
+      if (low !== tags.low) {
+        tags.low = low;
+        meter.clock.parentElement?.setAttribute("data-low", low ? "true" : "false");
+      }
+    }
     // HUD at 10 Hz.
     if (now - s.hud > 100 || g.over) {
       s.hud = now;
@@ -855,6 +991,10 @@ function BasketballCourt({ playing }: { playing: boolean }) {
       <group ref={ring}>
         <Ring radius={0.55} tube={0.025} c="#fae6ae" />
       </group>
+      <mesh ref={oddsRing} rotation={[-Math.PI / 2, 0, 0]} visible={false} renderOrder={1}>
+        <ringGeometry args={[0.6, 0.78, 40]} />
+        <meshBasicMaterial ref={oddsMat} color="#7fdc6a" transparent opacity={0.75} depthWrite={false} />
+      </mesh>
       <group ref={ballMesh}>
         <CourtBall />
         <Ring radius={0.231} tube={0.012} c="#65422c" r={[0, 0, 0]} />

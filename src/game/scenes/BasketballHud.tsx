@@ -19,6 +19,7 @@ import {
   beginRound,
   bindMeter,
   bindShotClock,
+  bindTags,
   closeCourt,
   pressMove,
   useBasketHud,
@@ -67,11 +68,17 @@ export function PlayHud() {
   const { mode, rival } = useBasketOptions();
   const meterRoot = useRef<HTMLDivElement>(null),
     fill = useRef<HTMLElement>(null),
-    green = useRef<HTMLElement>(null);
+    green = useRef<HTMLElement>(null),
+    odds = useRef<HTMLParagraphElement>(null),
+    intent = useRef<HTMLParagraphElement>(null);
   const clock = useCallback((el: HTMLElement | null) => bindShotClock(el), []);
   useEffect(() => {
     bindMeter(meterRoot.current, fill.current, green.current);
-    return () => bindMeter(null, null, null);
+    bindTags(odds.current, intent.current);
+    return () => {
+      bindMeter(null, null, null);
+      bindTags(null, null);
+    };
   }, []);
   useEffect(
     () => () => {
@@ -133,8 +140,15 @@ export function PlayHud() {
           <p className="bt-call" role="status" aria-live="polite" key={hud.feedback + hud.score.join()}>
             {hud.feedback}
           </p>
-          {hud.coach && <p className="bt-coach">{hud.coach}</p>}
-          {hud.takeBack && <p className="bt-chip bt-chip--back">Take it back past the arc</p>}
+          {hud.coach && (
+            <p className="bt-coach" key={hud.coachStep}>
+              {hud.coachStep > 0 && <small>{hud.coachStep}/3</small>}
+              {hud.coach}
+            </p>
+          )}
+          {hud.takeBack && hud.holding && <p className="bt-chip bt-chip--back">Take it back past the arc</p>}
+          <p className="bt-odds" ref={odds} data-on="false" aria-hidden="true" />
+          <p className="bt-intent" ref={intent} data-on="false" aria-hidden="true" />
           {hud.fire && <p className="bt-chip bt-chip--fire">On fire</p>}
           <div className="bt-meter" ref={meterRoot} data-on="false" aria-hidden="true">
             <b ref={green} />
@@ -175,7 +189,7 @@ export function PlayHud() {
             </button>
           </div>
           <p className="bt-keys keyboard-hint">
-            WASD move · hold Space, let go in the green · Shift juke / drive (toward the rim) · on D: Space blocks, Shift steals
+            WASD move · hold Space, let go in the green · Shift: juke, or toward the rim to drive and dunk · on D: Space blocks, Shift steals
           </p>
         </>
       )}
@@ -218,7 +232,7 @@ export function BasketballHud({ hidden }: { hidden: boolean }) {
     <>
       <div className="challenge-heading">
         <h1>Blacktop</h1>
-        <p className="touch-hint">1v1 to 15 · drag to move · Shoot and Juke buttons</p>
+        <p className="touch-hint">1v1 to 15 · drag to move · Shoot and Juke buttons · drive at the rim to dunk</p>
       </div>
       <CourtControls hidePlay={hosted} />
       <RoomStory scene="basketball" hidden={hidden} />
