@@ -186,6 +186,66 @@ function bell(ctx: BaseAudioContext, out: AudioNode, t: number, o: BellOpts) {
 const thump = (ctx: BaseAudioContext, out: AudioNode, t: number, f: number, to: number, dur: number, level: number) =>
   tone(ctx, out, t, { f, to, dur, level, attack: 0.003, sweep: 0.7 });
 
+
+const pluckBuffers = new WeakMap<BaseAudioContext, Map<number, AudioBuffer>>();
+/**
+ * A plucked steel string (Karplus–Strong, rendered once per context and
+ * pitch): a noise-filled delay line averaged on each pass, so the bright
+ * attack mellows into a ringing tone the way a real string does.
+ */
+function pluckBuffer(ctx: BaseAudioContext, f: number, seconds: number): AudioBuffer {
+  let byF = pluckBuffers.get(ctx);
+  if (!byF) pluckBuffers.set(ctx, (byF = new Map()));
+  const key = Math.round(f * 10);
+  let buffer = byF.get(key);
+  if (!buffer) {
+    const rate = ctx.sampleRate;
+    buffer = ctx.createBuffer(1, Math.ceil(rate * seconds), rate);
+    const data = buffer.getChannelData(0);
+    const period = Math.max(2, Math.round(rate / f));
+    const line = new Float32Array(period);
+    const rnd = seededNoise(key);
+    // A softened pick: low-passed noise, so the attack isn't a hiss.
+    let prev = 0;
+    for (let i = 0; i < period; i++) line[i] = prev = prev * 0.45 + rnd() * 0.55;
+    let mean = 0;
+    for (let i = 0; i < period; i++) mean += line[i];
+    mean /= period;
+    for (let i = 0; i < period; i++) line[i] -= mean;
+    // Loss per pass tuned so low strings ring about 2 s, high ones less.
+    const decay = Math.pow(0.001, 1 / (f * 1.05));
+    let idx = 0;
+    for (let i = 0; i < data.length; i++) {
+      const next = (idx + 1) % period;
+      const out = line[idx];
+      line[idx] = decay * 0.5 * (out + line[next]);
+      data[i] = out;
+      idx = next;
+    }
+    byF.set(key, buffer);
+  }
+  return buffer;
+}
+
+function pluck(ctx: BaseAudioContext, out: AudioNode, t: number, o: { f: number; dur: number; level: number; pan?: number }) {
+  const src = ctx.createBufferSource(),
+    body = ctx.createBiquadFilter(),
+    gain = ctx.createGain();
+  src.buffer = pluckBuffer(ctx, o.f, o.dur);
+  // The guitar body: a broad resonance around 220 Hz warms the string.
+  body.type = "peaking";
+  body.frequency.value = 220;
+  body.Q.value = 0.9;
+  body.gain.value = 5;
+  gain.gain.setValueAtTime(o.level, t);
+  gain.gain.setValueAtTime(o.level, t + o.dur - 0.05);
+  gain.gain.linearRampToValueAtTime(0, t + o.dur);
+  src.connect(body).connect(gain).connect(out);
+  src.start(t);
+  src.stop(t + o.dur + 0.01);
+  return src;
+}
+
 const built = (end: number, ...groups: (AudioScheduledSourceNode | AudioScheduledSourceNode[])[]): Built => ({
   end,
   sources: groups.flat(),
@@ -716,6 +776,13 @@ export const SPECS = {
       bell(ctx, out, t, { f: 1320 * v.pitch, ratio: 3.01, index: 0.9, indexDecay: 0.2, dur: 0.6, level: 0.7 }),
       bell(ctx, out, t + 0.12, { f: 990 * v.pitch, ratio: 2, index: 0.8, indexDecay: 0.2, dur: 0.45, level: 0.4 })),
   },
+  strum: {
+    // An open G chord strummed down, low string to high, about 16 ms apart.
+    bus: "sfx", level: 0.07, send: 0.2, dur: 0.7, vary: MUSICAL,
+    build: (ctx, out, t, v) => built(t + 0.75,
+      [98, 123.47, 146.83, 196, 246.94, 392].map((f, i) =>
+        pluck(ctx, out, t + i * (0.014 + v.rnd() * 0.006), { f: f * v.pitch, dur: 0.75 - i * 0.02, level: 0.32 - i * 0.025 }))),
+  },
   whoosh: {
     bus: "sfx", level: 0.06, send: 0.1, dur: 0.24, vary: UI_VARY,
     build: (ctx, out, t, v) => built(t + 0.24,
@@ -784,6 +851,7 @@ export const TRIM: Partial<Record<PaletteName, number>> = {
   step: 1.197,
   tap: 1.153,
   chime: 1.561,
+  strum: 2.133,
   whoosh: 2.636,
 };
 

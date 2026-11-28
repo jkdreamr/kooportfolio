@@ -41,7 +41,7 @@ export type Motion =
   /** One shot: a hop with one full turn about x (a board trick). */
   | { kind: "flip"; height: number };
 
-export type PropSound = "tap" | "chime" | "bounce" | "paper" | "door" | "ui-toggle" | "card" | "stone" | "whoosh" | "swish" | "score" | "oar" | "kick" | "shuttle" | "rim";
+export type PropSound = "tap" | "chime" | "bounce" | "paper" | "door" | "ui-toggle" | "card" | "stone" | "whoosh" | "swish" | "score" | "oar" | "kick" | "shuttle" | "rim" | "strum";
 
 export type PropAction =
   /** Just the motion and sound. */

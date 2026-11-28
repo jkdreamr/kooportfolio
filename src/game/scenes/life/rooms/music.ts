@@ -54,7 +54,7 @@ export function music(k: Kit) {
     k.at(0, 0.5, 0, () => f.chair(k, "#3c4a5e"));
     k.at(-2.3, -1.2, 0.5, () => {
       f.guitar(k);
-      k.prop({ id: "guitar", label: "Guitar", verb: "Strum", sound: "chime", pop: "♪", anchor: 1.9 });
+      k.prop({ id: "guitar", label: "Guitar", verb: "Strum", sound: "strum", pop: "♪", anchor: 1.9 });
     });
     k.at(2.4, -1.4, -0.3, () => f.plant(k, 1, 1.2));
     k.at(2.2, 1.6, -0.6, () => f.speaker(k, 0.8));
