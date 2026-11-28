@@ -610,8 +610,10 @@ function BasketballCourt({ playing }: { playing: boolean }) {
         input.move = control.move || (shift && !control.shift);
         control.shift = shift;
         control.move = false;
-        input.charge = control.charge;
-        control.charge = undefined;
+        // A QA release waits for the ball to be in hand, then fires once.
+        const inHand = g.ball.phase === "held" && g.ball.holder === 0 && g.t >= g.checkUntil;
+        input.charge = inHand ? control.charge : undefined;
+        if (inHand) control.charge = undefined;
       }
       stepHoops(g, input);
       for (let i = 0; i < g.events.length; i++) onEvent(g.events[i], g);
