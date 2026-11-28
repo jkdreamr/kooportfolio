@@ -170,9 +170,9 @@ export function Understory({ world }: { world: WorldId }) {
   useLayoutEffect(() => {
     if (!leafUniforms.uLeafAtlas.value) leafUniforms.uLeafAtlas.value = leafAtlas();
   }, []);
-  const last = useRef("");
+  const last = useRef(Number.NaN);
   useLayoutEffect(() => {
-    last.current = "";
+    last.current = Number.NaN;
     const mesh = ref.current;
     if (mesh) mesh.count = 0;
   }, [world, chunks, geometry]);
@@ -185,13 +185,14 @@ export function Understory({ world }: { world: WorldId }) {
     if (!on) {
       if (mesh.count) {
         mesh.count = 0;
-        last.current = "";
+        last.current = Number.NaN;
       }
       return;
     }
     const fx = runtime.x,
       fz = runtime.z;
-    const key = `${Math.floor(fx / 4)},${Math.floor(fz / 4)}`;
+    // The 4 m cell the player stands in, as one number (no string a frame).
+    const key = Math.floor(fx / 4) * 4096 + Math.floor(fz / 4);
     if (key === last.current) return;
     last.current = key;
     const near = chunks

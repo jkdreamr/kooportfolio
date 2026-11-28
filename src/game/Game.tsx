@@ -370,16 +370,18 @@ const ACTIVITY_START: Record<string, [number, number, number]> = {
  */
 function SceneCamera() {
   const camera = useThree((s) => s.camera);
-  const key = useRef("");
+  // Last scene and paper-toss state seen (compared, not keyed: nothing is
+  // allocated on the frames where neither changes).
+  const key = useRef<{ scene: string; paperToss: boolean } | null>(null);
   useFrame(() => {
     const { scene } = useGame.getState();
     const paperToss =
       scene === "office" && useGameMode.getState().active?.id === "paper-toss";
+    const last = key.current;
+    if (last && last.scene === scene && last.paperToss === paperToss) return;
     const activity = paperToss || !(scene === "hub" || isInterior(scene));
-    const next = `${scene}:${paperToss}`;
-    if (next === key.current) return;
-    const first = key.current === "";
-    key.current = next;
+    const first = last === null;
+    key.current = { scene, paperToss };
     const perspective = camera as THREE.PerspectiveCamera;
     if (activity) {
       const start = ACTIVITY_START[paperToss ? "paper-toss" : scene] ??

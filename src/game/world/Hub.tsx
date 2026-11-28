@@ -129,6 +129,17 @@ function solidsFor(world: WorldId) {
   }
   return solids;
 }
+/** doorsInWorld allocates a fresh list per call: the walker asks every
+ * frame, so keep one per world. */
+const worldDoors = new Map<WorldId, ReturnType<typeof doorsInWorld>>();
+function doorsFor(world: WorldId) {
+  let list = worldDoors.get(world);
+  if (!list) {
+    list = doorsInWorld(world);
+    worldDoors.set(world, list);
+  }
+  return list;
+}
 let boomWorld: WorldId = "home";
 /** The boom's look point: the crown the player stands under is ignored. */
 const boomOrigin = { x: 0, z: 0 };
@@ -179,7 +190,9 @@ export function Walker({
     desired = useRef(new THREE.Vector3()),
     offset = useRef(new THREE.Vector3()),
     look = useRef(new THREE.Vector3()),
-    cameraScene = useRef("");
+    // Scene and world the follow camera last framed (compared field by
+    // field: no per-frame key string).
+    cameraScene = useRef({ scene: "", world: "" });
   // Second view (explore): poses, raw toggle progress, damped boom.
   const views = useRef({
     diorama: makeViewPose(),
@@ -234,7 +247,8 @@ export function Walker({
           .copy(camera.position)
           .addScaledVector(offset.current, reach);
         follow.current.y -= 0.7;
-        cameraScene.current = `${state.scene}:${state.world}`;
+        cameraScene.current.scene = state.scene;
+        cameraScene.current.world = state.world;
         if (avatar.current) {
           avatar.current.position.set(runtime.x, 0.18, runtime.z);
           avatar.current.rotation.y = runtime.heading;
@@ -333,7 +347,7 @@ export function Walker({
         near = "stash";
     } else {
       near =
-        doorsInWorld(state.world).find(
+        doorsFor(state.world).find(
           (d) => Math.hypot(d.x - runtime.x, d.z - runtime.z) < 1.9,
         )?.id ?? "";
       if (!near) near = landmarkActionAt(runtime.x, runtime.z, state.world);
@@ -390,12 +404,13 @@ export function Walker({
       desired.current.y += shiftY * overview;
       desired.current.z += shiftZ * overview;
     }
-    const cameraKey = `${state.scene}:${state.world}`;
-    const changedScene = cameraScene.current !== cameraKey;
+    const changedScene =
+      cameraScene.current.scene !== state.scene || cameraScene.current.world !== state.world;
     const wholeIsland = !interior && worldZoom === 1;
     if (changedScene || wholeIsland) {
       follow.current.copy(desired.current);
-      cameraScene.current = cameraKey;
+      cameraScene.current.scene = state.scene;
+      cameraScene.current.world = state.world;
     }
     follow.current.lerp(desired.current, 1 - Math.exp(-dt * 3));
     if (interior) offset.current.set(15, 21, 25);

@@ -10,8 +10,10 @@ import { linkShadowDepth, materialsOf } from "../engine/prewarm";
  * the wisps keep streaming instead of freezing on in-render links.
  *
  * `keep` (the journey's own group) stays drawn; every other branch of the
- * hub is hidden until `reveal()`, which also links the new casters'
- * shadow-depth programs in one pass while the veil still hides everything.
+ * hub is hidden until `reveal()`, which then draws the whole scene once into
+ * a 1×1 target (culling off) while the veil still hides everything: the new
+ * casters' shadow-depth programs and any variant the compile missed link
+ * there.
  */
 export function compileBehindVeil(
   gl: THREE.WebGLRenderer,
@@ -52,7 +54,10 @@ export function compileBehindVeil(
       for (const object of hidden) object.visible = true;
       hidden.length = 0;
       const tier = useStage.getState().tier;
-      if (tier) linkShadowDepth(gl, scene, camera, tier);
+      // One pass of everything (in view or not) still behind the veil:
+      // what the compile could not foresee (two-pass see-through faces,
+      // materials finished on mount) links here, not in a visible frame.
+      if (tier) linkShadowDepth(gl, scene, camera, tier, [], true);
     },
   };
 }

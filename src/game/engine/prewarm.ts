@@ -99,6 +99,8 @@ export const PREWARM_ACTIVITIES: Activity[] = [
       { make: () => new THREE.MeshBasicMaterial(), instanced: true },
       { make: () => new THREE.MeshBasicMaterial({ toneMapped: false }), instanced: true },
       { make: () => new THREE.MeshBasicMaterial({ toneMapped: false }) },
+      // Self-lit screens and boards (Cognition's wall displays).
+      { make: () => new THREE.MeshBasicMaterial({ map: texture(), toneMapped: false }) },
       // Shadow-depth variants of instanced room furniture (office: 1 link).
       { depth: THREE.FrontSide, instanced: true },
       { depth: THREE.FrontSide, instanced: true, instanceColor: true },
@@ -346,13 +348,25 @@ export function linkShadowDepth(
   camera: THREE.Camera,
   tier: Tier,
   hide: THREE.Object3D[] = [],
+  /** Draw every object, in view or not (frustum culling off for this one
+   * pass), so their colour variants link too: a world just swapped in
+   * behind the travel veil, whose camera faces the clouds. */
+  everything = false,
 ) {
-  if (!gl.shadowMap.enabled) return;
+  if (!gl.shadowMap.enabled && !everything) return;
   const target = keyTarget(gl, tier);
   const previous = gl.getRenderTarget();
   const shadowMap = gl.shadowMap;
   const { autoUpdate } = shadowMap;
   const shown = hide.map((object) => object.visible);
+  const culled: THREE.Object3D[] = [];
+  if (everything)
+    scene.traverseVisible((object) => {
+      if (object.frustumCulled) {
+        object.frustumCulled = false;
+        culled.push(object);
+      }
+    });
   try {
     hide.forEach((object) => (object.visible = false));
     gl.setRenderTarget(target);
@@ -363,6 +377,7 @@ export function linkShadowDepth(
     /* best-effort */
   } finally {
     hide.forEach((object, i) => (object.visible = shown[i]));
+    for (const object of culled) object.frustumCulled = true;
     shadowMap.autoUpdate = autoUpdate;
     // The next real frame redraws its own shadows.
     shadowMap.needsUpdate = true;
