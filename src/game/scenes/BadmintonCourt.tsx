@@ -510,9 +510,13 @@ export function BadmintonCourt({
     for (let i = 0; i < BADMINTON_MARK_COUNT; i++)
       mesh.setColorAt(i, markColor.idle);
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    mesh.count = 0;
     return mesh;
   }, []);
   useEffect(() => () => marks.geometry.dispose(), [marks]);
+  useEffect(() => {
+    marks.count = playing ? BADMINTON_MARK_COUNT : 0;
+  }, [marks, playing]);
   const trail = useMemo(() => new Float32Array(TRAIL_COUNT * 3).fill(NaN), []);
   const clock = useRef(0);
   const direction = useMemo(() => new THREE.Vector3(), []);
@@ -737,9 +741,11 @@ export function BadmintonCourt({
           <group ref={shuttle}>
             <Shuttlecock />
           </group>
-          <primitive object={marks} dispose={null} />
         </>
       )}
+      {/* Mounted with the court (zero instances until a match) so its one
+          program links with the scene, not on the first serve. */}
+      <primitive object={marks} dispose={null} />
       {!blocked && (
         <Html onOcclude={screenOverlayNoOcclude}
           portal={portal}
