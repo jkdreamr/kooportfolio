@@ -21,20 +21,132 @@ import {
   type RegionalAction,
 } from "../core/regionalActivities";
 import { WorldSceneryParts, type SceneryPart } from "./WorldSceneryParts";
+import {
+  applyUse,
+  bestUse,
+  carriedIn,
+  destinations,
+  drop,
+  dropExpired,
+  handsFull,
+  ITEM_NAMES,
+  KIND_WORLD,
+  PARCEL_SHAKES,
+  PICKUP_REACH,
+  pickUp,
+  questFor,
+  questStamps,
+  type Carried,
+  type Dropped,
+} from "../core/carry";
+import { setBeacons, beaconsOn } from "../core/life";
+import { cue } from "../core/audio/cues";
+import { showToast } from "../ui/toasts";
+import { roomStories } from "../../content/room-stories";
+import { exposeQa } from "../../stage/qa";
 
-const useActivities = create<{
+/** Session play state for the side activities and the carry layer ("Hands"). */
+export const useActivities = create<{
   play: ActivityState;
+  dropped: Dropped | null;
   act: (id: RegionalAction) => void;
+  /** Use / Give: the best action for what is in your hands, here. */
+  use: (world: WorldId) => void;
+  /** Sets what is in your hands on the ground where you stand. */
+  dropHeld: (world: WorldId) => void;
+  pickUpDropped: (world: WorldId) => void;
 }>((set, get) => ({
   play: freshActivities(),
+  dropped: null,
   act: (id) => {
     const now = performance.now() / 1000,
       play = get().play,
       next = stepRegionalActivity(play, id, now);
+    if (next === play) return;
+    const world = activitySpots.find((s) => s.id === id)!.world,
+      before = carriedIn(world, play);
+    set({ play: next });
+    const after = carriedIn(world, next);
+    if (after && (!before || after.count > before.count)) cue("ui-select");
+    else if (before && !after) {
+      // Delivered: say so, with the quest's progress.
+      cue("ui-confirm");
+      const q = questFor(world, before.kind);
+      const tally = q ? ` · ${q.name} ${Math.min(q.progress(next), q.goal)}/${q.goal}` : "";
+      showToast(`${ITEM_NAMES[before.kind]}${before.count > 1 ? ` ×${before.count}` : ""} delivered${tally}`);
+    }
+    for (const stamp of questStamps(next)) useGame.getState().earnStamp(stamp);
+  },
+  use: (world) => {
+    const { play } = get(),
+      held = carriedIn(world, play);
+    if (!held) return;
+    const now = nowSeconds(),
+      best = bestUse(world, held, play, runtime.x, runtime.z, now);
+    if (best.disabled) {
+      cue("ui-error");
+      if (best.reason) showToast(best.reason);
+      return;
+    }
+    if (best.target) return get().act(best.target);
+    const next = applyUse(play, best.action);
     if (next !== play) set({ play: next });
+    if (best.action === "feed-ducks") {
+      cue("quack");
+      showToast("The ducks paddle over for the greens.");
+    } else if (best.action === "eat") {
+      cue("splash", { gain: 0.5 });
+      showToast("Delicious. The bowl is empty.");
+    } else if (best.action === "read") {
+      const stories = Object.values(roomStories).filter((x) => !!x);
+      const story = stories[(play.booksReturned + play.books) % Math.max(1, stories.length)];
+      cue("rustle");
+      if (story) showToast(story.text);
+    } else if (best.action === "shake") {
+      cue("rustle");
+      showToast(PARCEL_SHAKES[held.parcel ?? 0]);
+    }
+  },
+  dropHeld: (world) => {
+    const { play, dropped } = get();
+    const out = drop(world, play, runtime.x + Math.sin(runtime.heading) * 0.8, runtime.z + Math.cos(runtime.heading) * 0.8, nowSeconds());
+    if (!out.dropped) return;
+    // One thing on the ground at a time: an older one goes back home.
+    if (dropped) cue("ui-back");
+    set({ play: out.play, dropped: out.dropped });
+    cue("ui-back");
+  },
+  pickUpDropped: (world) => {
+    const { play, dropped } = get();
+    if (!dropped || KIND_WORLD[dropped.kind] !== world) return;
+    const next = pickUp(world, play, dropped);
+    if (next === play) {
+      cue("ui-error");
+      showToast("Your hands are full");
+      return;
+    }
+    set({ play: next, dropped: null });
+    cue("ui-select");
   },
 }));
+/** Camera yaw (written each frame by the view) for the chip's arrow. */
+export const carryView = { camYaw: 0 };
+exposeQa({
+  carry: {
+    beacons: () => beaconsOn(),
+    held: () => {
+      const g = useGame.getState();
+      return carriedIn(g.world, useActivities.getState().play);
+    },
+    dropped: () => useActivities.getState().dropped,
+  },
+});
+const nearDropped = (world: WorldId) => {
+  const d = useActivities.getState().dropped;
+  return !!d && KIND_WORLD[d.kind] === world && Math.hypot(d.x - runtime.x, d.z - runtime.z) < PICKUP_REACH;
+};
 const nowSeconds = () => performance.now() / 1000;
+const look = new THREE.Vector3();
 const ripeBeds: SceneryPart[][] = Array.from({ length: 4 }, (_, i) =>
   Array.from({ length: 8 }, (_, j) => ({
     p: [-2.6 + (j % 4) * 1.7, 1.1, -0.9 + Math.floor(j / 4) * 1.8],
@@ -238,14 +350,35 @@ function ParcelMarker({ p }: { p: readonly [number, number] }) {
     </group>
   );
 }
+/** A carried or dropped item's model. */
+function HeldItem({ item }: { item: Carried }) {
+  if (item.kind === "basket") return <Basket count={item.count} />;
+  if (item.kind === "parcel") return <WorldSceneryParts parts={parcel} />;
+  if (item.kind === "ramen") return <Bowl />;
+  return (
+    <>
+      {Array.from({ length: Math.min(3, item.count) }, (_, i) => (
+        <group key={i} position={[0, i * 0.13, 0]} rotation={[0, i * 0.4, 0]}>
+          <Book c={bookColors[i % 3]} />
+        </group>
+      ))}
+    </>
+  );
+}
+
 /** Self-contained world interactions; mounting the environment is sufficient. */
 export function RegionalActivities({ world }: { world: WorldId }) {
   const play = useActivities((s) => s.play);
   const [near, setNear] = useState<RegionalAction | null>(null),
     [now, setNow] = useState(nowSeconds);
   const carried = useRef<THREE.Group>(null),
-    timer = useRef(0);
-  useFrame((_, delta) => {
+    timer = useRef(0),
+    beaconKey = useRef("");
+  const dropped = useActivities((s) => s.dropped);
+  const [nearDrop, setNearDrop] = useState(false);
+  useFrame(({ camera, clock }, delta) => {
+    camera.getWorldDirection(look);
+    carryView.camYaw = Math.atan2(look.x, look.z);
     timer.current += delta;
     if (timer.current > 0.15) {
       timer.current = 0;
@@ -259,14 +392,53 @@ export function RegionalActivities({ world }: { world: WorldId }) {
         : null;
       setNear((old) => (old === next ? old : next));
       setNow(nowSeconds());
+      const store = useActivities.getState();
+      if (store.dropped && dropExpired(store.dropped, nowSeconds())) useActivities.setState({ dropped: null });
+      const close = available(world) && nearDropped(world);
+      setNearDrop((old) => (old === close ? old : close));
+      // Hands: the runtime flag and the beacons at the item's destination.
+      const held: Carried | null = available(world) ? carriedIn(world, store.play) : null;
+      runtime.carrying = held?.kind ?? null;
+      const points = held ? destinations(held) : [];
+      const key = points.map((p) => p.join(",")).join(";");
+      if (key !== beaconKey.current) {
+        beaconKey.current = key;
+        setBeacons(points);
+      }
     }
     if (carried.current) {
       carried.current.visible = available(world);
-      carried.current.position.set(runtime.x + 0.65, 0.95, runtime.z + 0.25);
+      // In the hands: in front of the chest, turning with the player, with a
+      // small bob while walking.
+      const h = runtime.heading;
+      carried.current.position.set(
+        runtime.x + Math.sin(h) * 0.42,
+        0.98 + (runtime.moving ? Math.abs(Math.sin(clock.elapsedTime * 9)) * 0.04 : 0),
+        runtime.z + Math.cos(h) * 0.42,
+      );
+      carried.current.rotation.y = h;
     }
   });
+  useEffect(
+    () => () => {
+      runtime.carrying = null;
+      setBeacons([]);
+    },
+    [],
+  );
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
+      if (
+        e.key.toLowerCase() === "q" &&
+        !e.repeat &&
+        available(world) &&
+        !(e.target instanceof HTMLElement && (e.target.matches("input,textarea,select") || e.target.isContentEditable)) &&
+        carriedIn(world, useActivities.getState().play)
+      ) {
+        useActivities.getState().dropHeld(world);
+        e.preventDefault();
+        return;
+      }
       if (
         e.key.toLowerCase() !== "e" ||
         e.repeat ||
@@ -278,13 +450,28 @@ export function RegionalActivities({ world }: { world: WorldId }) {
       )
         return;
       const play = useActivities.getState().play;
+      if (nearDropped(world)) {
+        useActivities.getState().pickUpDropped(world);
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return;
+      }
       const spot = nearbyRegionalActivity(world, runtime.x, runtime.z, play);
       // Leave E to doors and villagers when this spot has nothing to do.
       if (
         !spot ||
+        handsFull(world, play, spot.id) ||
         stepRegionalActivity(play, spot.id, performance.now() / 1000) === play
-      )
+      ) {
+        // Nothing to do here: E uses what is in your hands, unless a door
+        // or villager has the key.
+        if (carriedIn(world, play) && !useGame.getState().near) {
+          useActivities.getState().use(world);
+          e.preventDefault();
+          e.stopImmediatePropagation();
+        }
         return;
+      }
       selectActivity(spot.id, world);
       // Delivering at a door's own prompt still lets the same E enter it.
       const door = spot.id.startsWith("parcel-")
@@ -298,8 +485,10 @@ export function RegionalActivities({ world }: { world: WorldId }) {
     return () => window.removeEventListener("keydown", key, true);
   }, [world]);
   const spot = activitySpots.find((s) => s.id === near);
-  const label = near ? regionalActionLabel(play, near, now) : "";
-  const disabled = near ? stepRegionalActivity(play, near, now) === play : true;
+  const held = carriedIn(world, play);
+  const full = near ? handsFull(world, play, near) : false;
+  const label = near ? (full ? "Hands full" : regionalActionLabel(play, near, now)) : "";
+  const disabled = near ? full || stepRegionalActivity(play, near, now) === play : true;
   return (
     <group name={`${world}-physical-activities`}>
       {world === "home" && (
@@ -428,24 +617,30 @@ export function RegionalActivities({ world }: { world: WorldId }) {
           ))}
         </>
       )}
+      {dropped && KIND_WORLD[dropped.kind] === world && (
+        <group position={[dropped.x, 0.12, dropped.z]}>
+          <HeldItem item={dropped} />
+          {nearDrop && (
+            <Html position={[0, 1.6, 0]} center zIndexRange={[19, 0]}>
+              <button
+                type="button"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={() => useActivities.getState().pickUpDropped(world)}
+                className="side-quest-action"
+              >
+                Pick up {ITEM_NAMES[dropped.kind].toLowerCase()}
+                <kbd>E</kbd>
+              </button>
+            </Html>
+          )}
+        </group>
+      )}
       <group ref={carried}>
-        {world === "home" && play.basket > 0 ? (
-          <Basket count={play.basket} />
-        ) : world === "home" && play.parcel !== null ? (
-          <WorldSceneryParts parts={parcel} />
-        ) : world === "korea" && play.bowl ? (
-          <Bowl />
-        ) : world === "stanford" && play.books > 0 ? (
-          Array.from({ length: play.books }, (_, i) => (
-            <group
-              key={i}
-              position={[0, i * 0.13, 0]}
-              rotation={[0, i * 0.4, 0]}
-            >
-              <Book c={bookColors[i % 3]} />
-            </group>
-          ))
-        ) : null}
+        {held && (
+          <group scale={held.kind === "basket" ? 0.6 : 0.8} position={[0, held.kind === "basket" ? -0.25 : 0, 0]}>
+            <HeldItem item={held} />
+          </group>
+        )}
       </group>
       {spot && (
         <Html

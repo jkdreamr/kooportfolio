@@ -85,6 +85,31 @@ export function Icon({ name, size = 20 }: { name: string; size?: number }) {
         <path d="m5.6 5.6 12.8 12.8M5.6 18.4 18.4 5.6M3 12c5 1 8 4 9 9m0-18c1 5 4 8 9 9" />
       </>
     ),
+    // Carried items (the carry chip).
+    book: (
+      <>
+        <path d="M4 5a2 2 0 0 1 2-2h13v15H6a2 2 0 0 0-2 2Z" />
+        <path d="M4 20a2 2 0 0 0 2 1h13v-3M9 7h6" />
+      </>
+    ),
+    basket: (
+      <>
+        <path d="M3 10h18l-2 10H5Z" />
+        <path d="m8 10 3-6m5 6-3-6M9 14v3m6-3v3" />
+      </>
+    ),
+    parcel: (
+      <>
+        <path d="m12 3 9 4.5v9L12 21l-9-4.5v-9Z" />
+        <path d="m3 7.5 9 4.5 9-4.5M12 12v9M7.5 5.2l9 4.6" />
+      </>
+    ),
+    ramen: (
+      <>
+        <path d="M3 11h18a9 9 0 0 1-18 0Z" />
+        <path d="M8 8c1-2 0-3 1-5m3 5c1-2 0-3 1-5m3 5 4-5" />
+      </>
+    ),
   };
   return (
     <svg

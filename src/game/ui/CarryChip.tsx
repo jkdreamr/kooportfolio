@@ -15,6 +15,7 @@
  */
 import { useEffect, useRef } from "react";
 import { Icon } from "./Icon";
+import "./carry-chip.css";
 
 export type CarryUse = {
   /** The best contextual action here and now ("Read", "Feed the ducks"). */
@@ -71,13 +72,13 @@ export function CarryChip({ icon, name, count, purpose, distance, bearing, use, 
   }, [distance, bearing]);
   return (
     <div className="carry-chip" role="status" data-item={icon}>
-      <button type="button" className="carry-chip-show" onClick={onShow} aria-label={`${name}: ${purpose}. Show me where`}>
+      <button type="button" className="carry-chip-show" onClick={onShow} aria-label={`In your hands: ${name}. ${purpose}. Show me where`}>
         <span className="carry-chip-icon" aria-hidden="true">
           <Icon name={icon} size={22} />
         </span>
         <span className="carry-chip-text">
           <b>
-            {name}
+            <span className="carry-chip-hands">Hands:</span> {name}
             {count > 1 && <small> ×{count}</small>}
           </b>
           <span>

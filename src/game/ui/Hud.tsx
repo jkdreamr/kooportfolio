@@ -50,6 +50,7 @@ import { restoreFocus, trapTab } from "./focusTrap";
 import { ResultCard } from "./ResultCard";
 import { PassportPanel, openPassport, usePassportAnnouncer, usePassportKey } from "./Passport";
 import { DailyChip } from "./DailyChip";
+import { CarryHud } from "./CarryHud";
 import { InteractPrompt, RoomFinds } from "./InteractPrompt";
 import { exposeQa, qaEnabled } from "../../stage/qa";
 
@@ -739,6 +740,7 @@ export function Hud({ interact }: { interact: () => void }) {
       {hub && <WorldLabels />}
       {hub && <span className="world-name">{WORLDS[g.world].name}</span>}
       {hub && !gameMode && <DailyChip />}
+      {hub && !gameMode && <CarryHud />}
       {interior && (
         <div className="interior-intro">
           <div className="interior-heading interior-bar">
