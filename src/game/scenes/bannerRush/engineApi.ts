@@ -23,6 +23,8 @@ export type EngineApi = {
   staticBatch: typeof Static;
   villagers: readonly Villager[];
   GAME_STAGE_Y: number;
+  /** The village's UTC day number (core/daily.ts) [R2-3]. */
+  dayNumber: (d: Date) => number;
   useThree: typeof Fiber.useThree;
   useFrame: typeof Fiber.useFrame;
   Html: typeof Drei.Html;

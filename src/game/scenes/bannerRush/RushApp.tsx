@@ -10,7 +10,6 @@ import {
   applyRibbons,
   dailyConfig,
   dailyScore,
-  dayNumber,
   freshProfile,
   groundFor,
   MODIFIER_TEXT,
@@ -121,7 +120,7 @@ export default function RushApp({ kit, onExit, hidden }: { kit: RushKit; onExit:
   const start = useCallback(
     (opts: { opponent?: Opponent; tier?: AiTier; ground?: Ground; tutorial?: boolean; daily?: boolean; seed?: number; deck?: CardId[] }) => {
       const p = profile;
-      const daily = opts.daily ? dailyConfig(dayNumber(new Date())) : null;
+      const daily = opts.daily ? dailyConfig(engine().dayNumber(new Date())) : null;
       const t = opts.tutorial ? "sprout" : daily ? "captain" : (opts.tier ?? tierFor(p.ribbons, p.lossStreak));
       const opponent = opts.tutorial
         ? { id: "neighbor", name: "Training post", tier: "sprout" as AiTier, deck: [...STARTER_DECKS.lawnRush.cards] }
@@ -672,7 +671,7 @@ function Lobby({
   const tierName = TIER_NAMES[tierFor(profile.ribbons, profile.lossStreak)];
   const next = nextUnlock(profile.wins);
   const deck = profile.decks[profile.activeDeck];
-  const today = dailyConfig(dayNumber(new Date()));
+  const today = dailyConfig(engine().dayNumber(new Date()));
   const todayEntry = profile.daily.find((d) => d.day === today.day);
   const earned: Ground[] = ["home", ...(profile.bestRibbons >= 300 ? ["palace" as const] : []), ...(profile.bestRibbons >= 700 ? ["quad" as const] : [])];
   return (

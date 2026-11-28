@@ -5,7 +5,8 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { screenOverlayNoOcclude } from "../world/screenOverlay";
 import { useGame, type Scene } from "../core/store";
 import { useLauncher, useLauncherHosted } from "../core/launchers";
-import { endGameMode, setEscapeHandler, startGameMode, useGameMode } from "../core/gameMode";
+import { claimEscape, endGameMode, startGameMode, useGameMode } from "../core/gameMode";
+import { registerGameQa } from "../core/gameQa";
 import { keys, touch } from "../core/input";
 import { cue } from "../core/audio/cues";
 import { sound } from "../core/sound";
@@ -22,12 +23,13 @@ import * as parts from "../world/character/parts";
 import * as models from "../world/Models";
 import * as staticBatch from "../world/StaticBatch";
 import { villagers } from "../core/npcs";
+import { dayNumber, reportRun } from "../core/daily";
 import { GAME_STAGE_Y } from "./InteriorGameStage";
 import type { EngineApi } from "./bannerRush/engineApi";
 import "./banner-rush-launch.css";
 
 // The engine modules the lazy game borrows (see bannerRush/engineApi.ts).
-(globalThis as unknown as { __bannerRushEngine: EngineApi }).__bannerRushEngine = { rig, wardrobe, locomotion, parts, models, staticBatch, villagers, GAME_STAGE_Y, useThree, useFrame, Html, PerspectiveCamera };
+(globalThis as unknown as { __bannerRushEngine: EngineApi }).__bannerRushEngine = { rig, wardrobe, locomotion, parts, models, staticBatch, villagers, GAME_STAGE_Y, dayNumber, useThree, useFrame, Html, PerspectiveCamera };
 if (GAME_STAGE_Y !== 1000) throw new Error("Banner Rush assumes GAME_STAGE_Y = 1000");
 
 // The one new program (unlit instanced FX), warmed with the game-stage light
@@ -36,10 +38,12 @@ if (!PREWARM_ACTIVITIES.some((a) => a.id === "banner-rush"))
   PREWARM_ACTIVITIES.push({
     id: "banner-rush",
     scenes: "Banner Rush stage: unlit instanced FX",
-    stageLight: true,
+    lights: ["key-shadow"],
     entries: [{ make: () => new THREE.MeshBasicMaterial({ transparent: true, toneMapped: false, depthWrite: false }), instanced: true, instanceColor: true }],
   });
 
+let releaseEscape: (() => void) | null = null;
+let releaseQa: (() => void) | null = null;
 const kit: RushKit = {
   sound,
   cue,
@@ -50,7 +54,16 @@ const kit: RushKit = {
   countBest: (key) => useGame.getState().countBest(key),
   recordBest: (key, value, rule) => useGame.getState().recordBest(key, value, rule),
   expose: exposeQa,
-  setEscapeHandler,
+  setEscapeHandler: (fn) => {
+    releaseEscape?.();
+    releaseEscape = fn ? claimEscape("banner-rush", fn) : null;
+  },
+  stamp: (id) => useGame.getState().earnStamp(id),
+  reportRun: (game, run) => reportRun(game as "banner-rush", { mode: "daily", ...run }),
+  registerGameQa: (id, api) => {
+    releaseQa?.();
+    releaseQa = registerGameQa(id as "banner-rush", api);
+  },
   avatar: () => {
     const s = useGame.getState().save;
     return { color: s.color, hat: s.hat };
@@ -82,7 +95,7 @@ export function BannerRush({ room }: { room: Scene }) {
   }, []);
   const close = useCallback(() => {
     if (useGameMode.getState().active?.id === "banner-rush") cue("ui-close");
-    setEscapeHandler(null);
+    kit.setEscapeHandler(null);
     endGameMode();
   }, []);
   useEffect(() => {

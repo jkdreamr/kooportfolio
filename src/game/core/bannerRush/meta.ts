@@ -179,8 +179,6 @@ export function pickOpponent(tier: AiTier, seed: number, avoid = ""): Opponent {
 
 /* ------------------------------------------------------------------- Daily */
 
-/** [R2-3] The village's UTC day number (copy of WS-J's core/daily.ts dayNumber until J0 lands). */
-export const dayNumber = (d: Date) => Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 86_400_000);
 export const dailySeed = (day: number) => fnv1aString(`banner-rush-daily-${day}`);
 export type DailyModifier = "doubleStart" | "shortMatch" | "hideNext" | "heavyLookouts" | "swiftRiver" | "none";
 export const DAILY_MODIFIERS: readonly DailyModifier[] = ["doubleStart", "shortMatch", "hideNext", "heavyLookouts", "swiftRiver", "none"];

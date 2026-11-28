@@ -208,6 +208,14 @@ export const PREWARM_ACTIVITIES: Activity[] = [
       { depth: THREE.FrontSide, instanced: true, instanceColor: true },
     ],
   },
+  {
+    id: "banner-rush",
+    scenes: "Banner Rush stage: unlit instanced FX (fxMaterial in scenes/bannerRush/Fx.ts)",
+    stageLight: true,
+    entries: [
+      { make: () => new THREE.MeshBasicMaterial({ transparent: true, toneMapped: false, depthWrite: false }), instanced: true, instanceColor: true },
+    ],
+  },
 ];
 
 export type PrewarmReport = {

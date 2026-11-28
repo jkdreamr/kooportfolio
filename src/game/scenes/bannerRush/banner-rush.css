@@ -980,7 +980,8 @@
   }
   .br-selected b { font-size: 16px; color: var(--glow); }
   .br-selected small { opacity: 0.75; margin-top: 4px; }
-  .br-lantern { height: 20px; }
+  .br-lantern { height: 20px; max-width: none; }
+  .br-emotes { left: auto; right: 0; }
   .br-glow-count { width: 28px; height: 28px; font-size: 14px; }
 }
 @media (min-aspect-ratio: 85/100) and (max-height: 480px) {

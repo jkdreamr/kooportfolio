@@ -133,7 +133,7 @@ export class FxBatch {
 
 /** The seven FX batches (draw order: decals, shadows, rings, bars, then additive). */
 export class FxLayer {
-  readonly tint = new FxBatch(plane(), fxMaterial(false, 0.26), 128, 1);
+  readonly tint = new FxBatch(plane(), fxMaterial(false, 0.4), 128, 1);
   /** Blob shadows share the tint batch's opacity class via a soft disc in the disc batch. */
   readonly disc = new FxBatch(disc(), fxMaterial(false, 0.55), 192, 3);
   readonly shadow = this.disc;

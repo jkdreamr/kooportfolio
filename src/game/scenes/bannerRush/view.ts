@@ -988,7 +988,7 @@ export class RushView {
             const out = x < 16 && this.zoneRows[y * 16 + x] === 0 && !(y >= 13 && y < 15);
             if (out && run < 0) run = x;
             if (!out && run >= 0) {
-              fx.tint.add(run + (x - run) / 2 - 8, 0.035, y + 0.5 - 14, x - run, 1, 0, 0.7 * hc, 0.25, 0.18);
+              fx.tint.add(run + (x - run) / 2 - 8, 0.035, y + 0.5 - 14, x - run, 1, 0, Math.min(1, 0.85 * hc), 0.16, 0.1);
               run = -1;
             }
           }
