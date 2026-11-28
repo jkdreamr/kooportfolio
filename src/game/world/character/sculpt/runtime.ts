@@ -31,15 +31,26 @@ export type CastManifest = {
   chars: Record<string, { p: Partial<Record<PieceId, [number, number]>>; skirtTop: number; paint?: number[] }>;
 };
 
+/** "CHR1", little-endian: the first four bytes of every cast file. */
+export const CAST_MAGIC = 0x31524843;
+/** The manifest version this runtime reads (bake.ts writes it). A cast of
+ * another version (a cached old file after a rebake) is refused, and the
+ * primitive rig stands in, rather than drawn with mismatched attributes. */
+export const CAST_VERSION = 3;
+/** Is this buffer a cast file (and not, say, an HTML fallback page)? */
+export const isCastFile = (buf: ArrayBuffer) =>
+  buf.byteLength >= 8 && new DataView(buf).getUint32(0, true) === CAST_MAGIC;
+
 export class Cast {
   manifest: CastManifest;
   private pools: { pos: Uint8Array; idx: Uint8Array; nrm: Int8Array; a: Uint8Array; b: Uint8Array };
   private geos = new Map<number, THREE.BufferGeometry>();
   constructor(buf: ArrayBuffer) {
+    if (!isCastFile(buf)) throw new Error("bad cast file");
     const view = new DataView(buf);
-    if (view.getUint32(0, true) !== 0x31524843) throw new Error("bad cast file");
     const jl = view.getUint32(4, true);
     this.manifest = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 8, jl)));
+    if (this.manifest.v !== CAST_VERSION) throw new Error(`cast v${this.manifest.v}, expected v${CAST_VERSION}`);
     const { nv, ni } = this.manifest;
     const align = (x: number) => (x + 3) & ~3;
     let o = align(8 + jl);
@@ -115,6 +126,9 @@ export class Cast {
 
 let castPromise: Promise<Cast | null> | null = null;
 let castLoaded: Cast | null = null;
+let castFailures = 0;
+/** After a failed load, wait this long before the next try (then give up). */
+export const CAST_RETRY_MS = [8000, 30000, 90000] as const;
 const CAST_URL = `${import.meta.env?.BASE_URL ?? "/"}characters/cast-v1.bin`;
 async function fetchBuffer(url: string) {
   const r = await fetch(url);
@@ -126,26 +140,42 @@ async function fetchBuffer(url: string) {
  * small whatever the host's compression does. If the host already decoded it
  * (Content-Encoding), the bytes arrive inflated and are used as they are.
  * Browsers without DecompressionStream fetch the raw file instead. */
-async function fetchCast(url: string) {
+export async function fetchCast(url: string): Promise<Cast> {
   if (typeof DecompressionStream === "function") {
     try {
       const packed = await fetchBuffer(`${url}.gz`);
       const head = new Uint8Array(packed, 0, Math.min(2, packed.byteLength));
-      if (head[0] !== 0x1f || head[1] !== 0x8b) return packed;
-      const stream = new Blob([packed]).stream().pipeThrough(new DecompressionStream("gzip"));
-      return await new Response(stream).arrayBuffer();
+      const gzip = head[0] === 0x1f && head[1] === 0x8b;
+      // Not gzip: either the host decoded it (a cast file), or this is a dev
+      // server's or SPA host's index.html fallback for a missing .gz. Only
+      // the first is accepted; anything else falls through to the raw file.
+      if (gzip || isCastFile(packed)) {
+        const bytes = gzip
+          ? await new Response(new Blob([packed]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer()
+          : packed;
+        return new Cast(bytes);
+      }
     } catch {
       /* fall through to the raw file */
     }
   }
-  return fetchBuffer(url);
+  return new Cast(await fetchBuffer(url));
 }
-/** Starts (once) and returns the cast download. Null when unavailable. */
+/** Starts (once) and returns the cast download. Null when unavailable; a
+ * failure is forgotten, so a later call tries again (see castRetryDelay). */
 export function loadCast(url = CAST_URL) {
   return (castPromise ??= fetchCast(url)
-    .then((buf) => (castLoaded = new Cast(buf)))
-    .catch(() => null));
+    .then((cast) => (castLoaded = cast))
+    .catch(() => {
+      castFailures++;
+      castPromise = null;
+      return null;
+    }));
 }
+/** Milliseconds before retrying after a failed load, or null: none failed,
+ * or the retries are used up. */
+export const castRetryDelay = (): number | null =>
+  castFailures > 0 && castFailures <= CAST_RETRY_MS.length ? CAST_RETRY_MS[castFailures - 1] : null;
 export const castNow = () => castLoaded;
 
 // --- Material -------------------------------------------------------------------
@@ -510,6 +540,9 @@ export class SculptBatch {
   private shown: Uint8Array;
   private mouth: Int8Array;
   private pointing: Int8Array;
+  /** After dispose(): writes are ignored (a frame queued before the owner
+   * re-rendered must not touch freed textures). */
+  disposed = false;
   constructor(public cast: Cast, public chars: SculptChar[], public lod: SculptLod) {
     const L = lod === "hero" ? 0 : 1;
     const shapes = new Map<number, number>();
@@ -557,11 +590,12 @@ export class SculptBatch {
     this.mesh.visible = false;
   }
   setPalette(ci: number, hexes: string[], glow?: number[]) {
+    if (this.disposed) return;
     for (const id of this.instances[ci]) if (id >= 0) writePalette(this.palette, id, hexes, glow, ci);
   }
   private visibleCount = 0;
   hide(ci: number) {
-    if (!this.shown[ci]) return;
+    if (this.disposed || !this.shown[ci]) return;
     this.shown[ci] = 0;
     // An empty batch issues no draw at all.
     if (--this.visibleCount === 0) this.mesh.visible = false;
@@ -569,6 +603,7 @@ export class SculptBatch {
   }
   /** Pose character `ci` under `base` (root transform) and show it. */
   write(ci: number, pose: Pose, base: THREE.Matrix4) {
+    if (this.disposed) return;
     const c = this.chars[ci];
     const posed = applyHold(pose, c.holds);
     if (c.scale !== 1) sizedBase.makeScale(c.scale, c.scale, c.scale).premultiply(base);
@@ -654,6 +689,12 @@ export class SculptBatch {
     return this.owner[instanceId] ?? -1;
   }
   dispose() {
+    if (this.disposed) return;
+    this.disposed = true;
+    // Out of the scene first: a render before the owner re-renders must not
+    // draw a BatchedMesh whose textures are gone.
+    this.mesh.visible = false;
+    this.mesh.removeFromParent();
     this.mesh.dispose();
     this.palette.dispose();
     this.bones.dispose();

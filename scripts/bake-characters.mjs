@@ -4,7 +4,7 @@
 //   node scripts/bake-characters.mjs [--out file] [--only id,id] [--workers n]
 import { build } from "esbuild";
 import { mkdtempSync, writeFileSync, mkdirSync } from "node:fs";
-import { gzipSync } from "node:zlib";
+import { gzipSync, constants } from "node:zlib";
 import { tmpdir, availableParallelism } from "node:os";
 import { join, dirname, resolve } from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
@@ -44,5 +44,9 @@ const parts = n === 1 ? [bakePart(ids)] : await Promise.all(groups.map((group) =
 const r = packParts(parts);
 mkdirSync(dirname(out), { recursive: true });
 writeFileSync(out, r.bytes);
-console.log(`wrote ${out}: ${(r.bytes.length / 1024).toFixed(0)} KB raw, ${(gzipSync(r.bytes).length / 1024).toFixed(0)} KB gzip; ${r.shapes} shapes, ${r.vertices} vertices, ${r.triangles} triangles; ${((Date.now() - t0) / 1000).toFixed(0)} s with ${n} workers`);
+// The game fetches the .gz first: rewrite it too, or `npm run dev` keeps
+// serving the previous bake (the build regenerates it via gzip-cast.mjs).
+const gz = gzipSync(r.bytes, { level: constants.Z_BEST_COMPRESSION });
+writeFileSync(`${out}.gz`, gz);
+console.log(`wrote ${out}: ${(r.bytes.length / 1024).toFixed(0)} KB raw, ${(gz.length / 1024).toFixed(0)} KB gzip; ${r.shapes} shapes, ${r.vertices} vertices, ${r.triangles} triangles; ${((Date.now() - t0) / 1000).toFixed(0)} s with ${n} workers`);
 process.exit(0);

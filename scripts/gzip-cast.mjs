@@ -3,14 +3,18 @@
 // `vite build`, which copies public/ into the output. No network, no deps.
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { gzipSync, constants } from "node:zlib";
 
-const dir = new URL("../public/characters/", import.meta.url).pathname;
+// fileURLToPath, not .pathname: a checkout path with a space (%20) or on
+// Windows (/C:/...) must still resolve.
+const dir = fileURLToPath(new URL("../public/characters/", import.meta.url));
 let files = [];
 try {
   files = readdirSync(dir).filter((f) => f.endsWith(".bin"));
-} catch {
-  /* no baked cast */
+} catch (error) {
+  // No baked cast is fine; anything else should fail the build loudly.
+  if (error?.code !== "ENOENT") throw error;
 }
 for (const f of files) {
   const raw = readFileSync(join(dir, f));

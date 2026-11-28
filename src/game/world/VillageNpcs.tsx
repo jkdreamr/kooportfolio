@@ -1,9 +1,10 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { useWorldActive } from "../engine/active";
 import { RigBatch, RigMeshes } from "./character/CharacterRig";
 import { createGait, seatPose, stepGait } from "./character/locomotion";
 import { NEAR_RIG, nearRig } from "./character/rig";
+import { assignTiers, type TierSlots } from "./character/crowdTiers";
 import { HIP } from "./character/skeleton";
 import { SculptBatch } from "./character/sculpt/runtime";
 import { sculptCharFor, useCast } from "./character/sculpt/useSculpt";
@@ -52,6 +53,7 @@ const HERO_RADIUS = 13;
 const MID_RADIUS = { high: 20, medium: 10, low: 0 } as const;
 /** At most this many mid-tier villagers at once (worst-case triangle cap). */
 const MID_MAX = { high: 10, medium: 8, low: 0 } as const;
+type Sculpts = { hero: SculptBatch | null; mid: SculptBatch };
 
 /** The whole crowd: hero + mid sculpted BatchedMeshes (one draw each) and
  * the low primitive rig (≤8 instanced draws). Before the bake loads, the
@@ -59,18 +61,29 @@ const MID_MAX = { high: 10, medium: 8, low: 0 } as const;
 function CrowdRig({ crowd }: { crowd: NpcEntry[] }) {
   // Every villager wears their own outfit (character/cast.ts).
   const looks = useMemo(() => crowd.map(({ npc }) => lookFor(npc)), [crowd]);
-  const cast = useCast();
-  const sculpt = useMemo(() => {
-    if (!cast) return null;
-    const ids = crowd.map(({ npc }) => npc.id);
-    if (!ids.every((id) => cast.has(id))) return null;
+  const stageTier = useStage((s) => s.tier) ?? "medium";
+  // The low tier shows no sculpt at all: no download, no decode.
+  const cast = useCast(MID_RADIUS[stageTier] > 0);
+  // Built and disposed in the same (layout) effect and held in state, so
+  // StrictMode's extra cleanup cannot leave a disposed batch in use. The
+  // hero bake only exists on high, the one tier that shows it.
+  const [sculpt, setSculpt] = useState<Sculpts | null>(null);
+  useLayoutEffect(() => {
+    if (!cast || MID_RADIUS[stageTier] <= 0 || !crowd.every(({ npc }) => cast.has(npc.id))) {
+      setSculpt(null);
+      return;
+    }
     const chars = crowd.map(({ npc }) => sculptCharFor(npc));
-    return { hero: new SculptBatch(cast, chars, "hero"), mid: new SculptBatch(cast, chars, "mid") };
-  }, [cast, crowd]);
-  useEffect(() => () => {
-    sculpt?.hero.dispose();
-    sculpt?.mid.dispose();
-  }, [sculpt]);
+    const built: Sculpts = {
+      hero: stageTier === "high" ? new SculptBatch(cast, chars, "hero") : null,
+      mid: new SculptBatch(cast, chars, "mid"),
+    };
+    setSculpt(built);
+    return () => {
+      built.hero?.dispose();
+      built.mid.dispose();
+    };
+  }, [cast, crowd, stageTier]);
   const near = useMemo(() => new RigBatch(sculpt ? [] : looks, "high"), [looks, sculpt]);
   const far = useMemo(() => new RigBatch(looks, "low"), [looks]);
   const slots = useMemo(
@@ -80,7 +93,11 @@ function CrowdRig({ crowd }: { crowd: NpcEntry[] }) {
       /** 0 low, 1 near/mid, 2 hero. */
       tier: new Uint8Array(Math.max(1, crowd.length)),
       dist: new Float32Array(Math.max(1, crowd.length)),
+      /** Camera distance to each villager's placed root (for the LOD test). */
+      range: new Float32Array(Math.max(1, crowd.length)),
       order: Array.from(crowd, (_, i) => i),
+      /** Where each villager stands this frame (x, y, z). */
+      at: new Float32Array(Math.max(1, crowd.length) * 3),
     }),
     [crowd],
   );
@@ -106,21 +123,35 @@ function CrowdRig({ crowd }: { crowd: NpcEntry[] }) {
     const clock = performance.now() / 1000;
     let nearCount = 0,
       farCount = 0;
-    // Rank by camera distance for the hero tier.
-    if (camera) {
-      crowd.forEach(({ actor }, i) => {
-        slots.dist[i] = Math.hypot(camera.position.x - actor.x, camera.position.z - actor.z);
-      });
-      slots.order.sort((a, b) => slots.dist[a] - slots.dist[b]);
+    const seatY = HIP * NPC_SCALE - 0.008;
+    for (let i = 0; i < crowd.length; i++) {
+      const { actor } = crowd[i];
+      const seated = actor.seat ? actor.posture : 0;
+      const x = actor.x + ((actor.seat?.position[0] ?? actor.x) - actor.x) * seated;
+      const z = actor.z + ((actor.seat?.position[1] ?? actor.z) - actor.z) * seated;
+      const y = 0.2 + ((actor.seat?.height ?? seatY) + 0.04 - seatY) * seated;
+      slots.at[i * 3] = x;
+      slots.at[i * 3 + 1] = y;
+      slots.at[i * 3 + 2] = z;
+      if (camera) {
+        slots.dist[i] = Math.hypot(camera.position.x - x, camera.position.z - z);
+        slots.range[i] = Math.hypot(camera.position.x - x, camera.position.y - y, camera.position.z - z);
+      }
     }
-    const heroRank = new Int16Array(crowd.length).fill(999);
-    slots.order.forEach((i, rank) => (heroRank[i] = rank));
+    // Tiers, counted as they are handed out, nearest first, with incumbents
+    // preferred (no frame-to-frame swaps at the caps). Without a camera
+    // (the first layout write) everyone is low and the tiers are kept.
+    if (camera)
+      assignTiers(slots as TierSlots, {
+        heroMax: sculpt?.hero && heroRadius > 0 ? HERO_MAX : 0,
+        midMax: sculpt ? MID_MAX[tier] : crowd.length,
+        heroIn: (i, was) => nearRig(slots.range[i], fov, heroRadius, was),
+        midIn: (i, was) => radius > 0 && nearRig(slots.range[i], fov, radius, was),
+      });
     crowd.forEach(({ actor }, i) => {
       const seated = actor.seat ? actor.posture : 0;
-      const x =
-        actor.x + ((actor.seat?.position[0] ?? actor.x) - actor.x) * seated;
-      const z =
-        actor.z + ((actor.seat?.position[1] ?? actor.z) - actor.z) * seated;
+      const x = slots.at[i * 3],
+        z = slots.at[i * 3 + 2];
       let vx = 0,
         vz = 0;
       if (dt > 0 && !Number.isNaN(prev[i * 2])) {
@@ -157,19 +188,15 @@ function CrowdRig({ crowd }: { crowd: NpcEntry[] }) {
       pose.talk = isTalking
         ? Math.max(0, Math.sin(clock * 11 + i) * 0.5 + Math.sin(clock * 6.3) * 0.35) * (Math.sin(clock * 1.7 + i) > -0.6 ? 1 : 0)
         : 0;
-      const seatY = HIP * NPC_SCALE - 0.008;
-      at.set(x, 0.2 + ((actor.seat?.height ?? seatY) + 0.04 - seatY) * seated, z);
+      at.set(x, slots.at[i * 3 + 1], z);
       turn.setFromAxisAngle(up, actor.heading);
       base.compose(at, turn, size);
-      const d = camera ? camera.position.distanceTo(at) : 1e9;
-      const was = slots.tier[i];
-      const hero =
-        !!sculpt && heroRadius > 0 && heroRank[i] < HERO_MAX && nearRig(d, fov, heroRadius, was === 2);
-      const close = hero || (radius > 0 && heroRank[i] < (sculpt ? HERO_MAX + MID_MAX[tier] : 999) && nearRig(d, fov, radius, was >= 1));
-      slots.tier[i] = hero ? 2 : close ? 1 : 0;
+      const level = camera ? slots.tier[i] : 0;
+      const hero = level === 2,
+        close = level >= 1;
       if (sculpt) {
-        if (hero) sculpt.hero.write(i, pose, base);
-        else sculpt.hero.hide(i);
+        if (hero) sculpt.hero?.write(i, pose, base);
+        else sculpt.hero?.hide(i);
         if (close && !hero) sculpt.mid.write(i, pose, base);
         else sculpt.mid.hide(i);
       }
@@ -184,7 +211,9 @@ function CrowdRig({ crowd }: { crowd: NpcEntry[] }) {
     near.commit(nearCount);
     far.commit(farCount);
   };
-  useLayoutEffect(() => write(0));
+  // First pose before paint, whenever the batches change (not every render:
+  // that would reset the LOD hysteresis on unrelated re-renders).
+  useLayoutEffect(() => write(0), [near, far, sculpt]);
   useFrame(({ camera }, delta) => {
     if (!active) return;
     write(Math.min(delta, 0.05), camera);
@@ -210,7 +239,7 @@ function CrowdRig({ crowd }: { crowd: NpcEntry[] }) {
     <>
       {sculpt && (
         <>
-          <primitive object={sculpt.hero.mesh} castShadow receiveShadow onPointerDown={talkSculpt(sculpt.hero)} />
+          {sculpt.hero && <primitive object={sculpt.hero.mesh} castShadow receiveShadow onPointerDown={talkSculpt(sculpt.hero)} />}
           <primitive object={sculpt.mid.mesh} castShadow={shadowsMid} receiveShadow onPointerDown={talkSculpt(sculpt.mid)} />
         </>
       )}

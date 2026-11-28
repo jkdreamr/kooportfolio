@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, type RefObject } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
 import { runtime, useGame, walkTo } from "../../core/store";
@@ -205,17 +205,27 @@ export function Character({
   const batch = useMemo(() => new RigBatch([look]), [look]);
   // In the hub, the baked sculpted figure (hero on high, mid on medium)
   // replaces the primitive rig once the cast has loaded.
-  const cast = useCast();
   const scene = useGame((s) => s.scene);
   const tier = useStage((s) => s.tier) ?? "high";
+  // The low tier never shows the sculpt: it does not download the cast.
+  const cast = useCast(!outfit && scene === "hub" && tier !== "low");
   const sculptLod = !cast || outfit || scene !== "hub" || tier === "low" || !cast.has(PLAYER_SCULPT.hat) ? null : tier === "high" ? "hero" : "mid";
-  const sculpt = useMemo(() => {
-    if (!cast || !sculptLod) return null;
+  // Built and disposed by the same effect (held in state, not a memo):
+  // StrictMode's extra cleanup then disposes a batch nothing uses again.
+  // A layout effect, so the swap re-renders before paint (no primitive frame).
+  const [sculpt, setSculpt] = useState<SculptBatch | null>(null);
+  useLayoutEffect(() => {
+    if (!cast || !sculptLod) {
+      setSculpt(null);
+      return;
+    }
     const chars = [PLAYER_SCULPT.hat, PLAYER_SCULPT.bare].map((id) => ({ id, palette: sculptPaletteFor(DEFAULT_PALETTE), holds: {}, scale: 1 }));
-    return new SculptBatch(cast, chars, sculptLod);
+    const batch = new SculptBatch(cast, chars, sculptLod);
+    setSculpt(batch);
+    return () => batch.dispose();
   }, [cast, sculptLod]);
-  useEffect(() => () => sculpt?.dispose(), [sculpt]);
-  useEffect(() => {
+  // Before the first write and before paint: never a frame in the default colours.
+  useLayoutEffect(() => {
     if (!sculpt) return;
     const p = sculptPaletteFor(pal);
     sculpt.setPalette(0, p);

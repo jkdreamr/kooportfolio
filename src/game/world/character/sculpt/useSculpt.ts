@@ -4,27 +4,37 @@ import type { Villager } from "../../../core/npcs";
 import { outfitFor } from "../cast";
 import { holdsFor, mix, outfitFromPalette, shade, type Outfit, type PaletteLike } from "../outfit";
 import { outfitPalette } from "./figure";
-import { castNow, loadCast, type Cast, type SculptChar } from "./runtime";
+import { castNow, castRetryDelay, loadCast, type Cast, type SculptChar } from "./runtime";
 
 /** The baked cast, fetched once the visitor is actually in the game (never
  * while the stage only warms behind the portfolio), shortly after ready.
- * Null until then, or if it fails: callers keep the primitive rig. */
-export function useCast(): Cast | null {
+ * Null until then, or if it fails: callers keep the primitive rig. A failed
+ * load is retried a few times with a growing delay. `want: false` (a tier
+ * that never shows the sculpt) downloads nothing and returns null. */
+export function useCast(want = true): Cast | null {
   const [cast, setCast] = useState<Cast | null>(castNow());
+  const [attempt, setAttempt] = useState(0);
   const ready = useStage((s) => s.ready);
   const inGame = useStage((s) => s.mode === "game");
   useEffect(() => {
-    if (!ready || !inGame || cast) return;
-    let live = true;
+    if (!want || !ready || !inGame || cast) return;
+    let live = true,
+      retry = 0;
     const id = window.setTimeout(() => {
-      loadCast().then((c) => live && setCast(c));
+      loadCast().then((c) => {
+        if (!live) return;
+        if (c) return setCast(c);
+        const delay = castRetryDelay();
+        if (delay !== null) retry = window.setTimeout(() => setAttempt((n) => n + 1), delay);
+      });
     }, 1200);
     return () => {
       live = false;
       window.clearTimeout(id);
+      window.clearTimeout(retry);
     };
-  }, [ready, inGame, cast]);
-  return cast;
+  }, [want, ready, inGame, cast, attempt]);
+  return want ? cast : null;
 }
 
 function glowFor(o: Outfit) {
