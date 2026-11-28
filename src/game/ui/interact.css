@@ -1,0 +1,145 @@
+/* Room-life prompt, card and the discovered counter. The prompt reuses the
+   door prompt's classes (.context-action) and adds only what differs. */
+.game-shell .interact-prompt {
+  /* The door prompt owns this spot when it has something to say. */
+  pointer-events: none;
+}
+.game-shell .interact-prompt.visible {
+  pointer-events: auto;
+}
+.game-shell .interact-prompt strong {
+  font: 600 var(--text-lg) / var(--leading-title) var(--font-ui);
+}
+.game-shell .interact-prompt > button {
+  min-height: var(--hit-min);
+  font: 600 var(--text-sm) / 1.2 var(--font-ui);
+  white-space: nowrap;
+}
+@media (pointer: coarse) {
+  .game-shell .interact-prompt > button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+.game-shell .interact-prompt .life-card {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 10px);
+  padding: 14px 44px 14px 18px;
+  color: var(--glass-ink);
+  background: var(--glass-sheen) var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  backdrop-filter: var(--glass-blur-sm);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--glass-radius);
+  box-shadow: var(--glass-highlight), var(--glass-shadow-sm);
+  animation: life-card-in 0.22s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.game-shell .interact-prompt .life-card h2 {
+  margin: 0 0 6px;
+  font: 700 var(--text-md) / var(--leading-title) var(--font-ui);
+  letter-spacing: 0;
+}
+.game-shell .interact-prompt .life-card p {
+  margin: 0;
+  font: 400 var(--text-sm) / 1.45 var(--font-ui);
+  color: var(--glass-ink);
+}
+.game-shell .interact-prompt .life-card-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: var(--hit-min);
+  height: var(--hit-min);
+  display: grid;
+  place-content: center;
+  color: var(--glass-ink);
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+}
+@media (pointer: coarse) {
+  .game-shell .interact-prompt .life-card-close {
+    width: 44px;
+    height: 44px;
+    top: 0;
+    right: 0;
+  }
+}
+.game-shell .interact-prompt .life-card-close:hover {
+  background: var(--glass-well-hover);
+}
+.game-shell .interact-prompt .life-card-close:focus-visible {
+  outline: 3px solid var(--glass-focus);
+  outline-offset: 2px;
+}
+@keyframes life-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* "✦ 3/8 discovered": its own line in the room's header bar, under the
+   name and above the games (beside the name on phones, where the bar is short). */
+.game-shell.game-shell .interior-intro .interior-heading:has(.room-finds) {
+  grid-template-areas:
+    "exit title"
+    "finds finds"
+    "launch launch";
+}
+.game-shell .room-finds {
+  grid-area: finds;
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 8px 0 0 4px;
+  padding: 4px 10px;
+  font: 600 var(--text-xs) / 1.2 var(--font-ui);
+  color: var(--glass-ink);
+  background: var(--glass-well);
+  border: 1px solid var(--glass-hairline);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.game-shell .room-finds i {
+  font-style: normal;
+  color: #ffd97a;
+}
+.game-shell .room-finds.is-complete {
+  color: var(--glass-accent-ink);
+  background: var(--glass-accent);
+  border-color: var(--glass-accent-border);
+}
+.game-shell .room-finds[data-pulse] {
+  animation: room-finds-pulse 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+@keyframes room-finds-pulse {
+  40% {
+    transform: scale(1.14);
+  }
+}
+@media (max-width: 700px) {
+  .game-shell.game-shell .interior-intro .interior-heading:has(.room-finds) {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "exit title finds"
+      "launch launch launch";
+  }
+  .game-shell .room-finds {
+    justify-self: end;
+    margin: 0;
+  }
+  .game-shell .room-finds-word {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .game-shell .interact-prompt .life-card,
+  .game-shell .room-finds[data-pulse] {
+    animation: none;
+  }
+}

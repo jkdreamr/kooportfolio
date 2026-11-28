@@ -31,6 +31,7 @@ import { MovieTheaterInterior, useTheater } from "./MovieTheater";
 import { SecretRoomInterior } from "./SecretRoom";
 import { HOOVER_STASH } from "../core/hoover";
 import { TownHallInterior } from "./TownHallInterior";
+import { RoomLifeLive, RoomLifeStatic, SeatLift, useRoomLifeKit } from "./life/RoomLife";
 
 export function Interior() {
   const world = useGame((s) => s.world);
@@ -46,6 +47,8 @@ export function Interior() {
       ? "Hoover vault"
       : (doors.find((door) => door.id === scene)?.name ?? "");
   const room = roomFor(scene);
+  // The room's dressing and the small things to poke at (scenes/life).
+  const life = useRoomLifeKit(world, scene);
   const back = -room.depth / 2 + 0.2;
   const left = -room.width / 2 + 0.2;
   const walkFloor = (
@@ -220,6 +223,7 @@ export function Interior() {
         {!theater && scene !== "secret" && (
           <RoomDressing scene={scene as PlaceId} />
         )}
+        {life.kit && <RoomLifeStatic kit={life.kit} />}
         <Box p={[0, 0.1, room.doorZ]} s={[3, 0.12, 2]} c="#4f7966" />
         <Box p={[-1.7, 1.6, room.doorZ + 1]} s={[0.35, 3.2, 0.4]} c="#8c6947" />
         <Box p={[1.7, 1.6, room.doorZ + 1]} s={[0.35, 3.2, 0.4]} c="#8c6947" />
@@ -245,9 +249,11 @@ export function Interior() {
           />
         )}
       </StaticBatch>
+      {life.kit && <RoomLifeLive kit={life.kit} roomId={life.roomId} />}
       {!badmintonActive && (
         <Walker interior locked={theater && theaterSeated} />
       )}
+      <SeatLift />
     </group>
   );
 }

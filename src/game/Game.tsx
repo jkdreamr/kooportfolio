@@ -55,6 +55,7 @@ import { ISLAND_CAMERA_OFFSET } from "./core/islandView";
 import { updateGloss } from "./world/GlossKit";
 import { WORLDS } from "./core/worlds";
 import { runtime, useGame, type Scene } from "./core/store";
+import { activateFocused } from "./core/interactables";
 import { useInput } from "./core/input";
 import { endGameMode, useGameMode } from "./core/gameMode";
 import { doors, doorsInWorld, isInterior } from "./core/world";
@@ -704,6 +705,8 @@ export default function Game({ autoEnter = true }: { autoEnter?: boolean } = {})
       g.panel !== "none"
     )
       return;
+    // Nothing else in reach: the small thing in front of the player.
+    if (!g.near && activateFocused("key")) return;
     if (g.scene === "hub" && doors.some((door) => door.id === g.near))
       throughDoorway(g.near as Scene);
     else if (g.near === "exit") leaveRoom();
