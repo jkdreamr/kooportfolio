@@ -11,6 +11,7 @@ import { kitchen } from "./kitchen";
 import { math } from "./math";
 import { music } from "./music";
 import { EXTRAS } from "./extras";
+import { dividers } from "./dividers";
 import { office } from "./office";
 import { secret } from "./secret";
 import { theater, theaterKorea } from "./theater";
@@ -49,6 +50,7 @@ export function buildRoomLife(roomId: string, options: { thin?: boolean } = {}):
     kit = new Kit(options);
     build(kit);
     extras?.(kit);
+    dividers(kit, roomId);
     cache.set(key, kit);
   }
   return kit;

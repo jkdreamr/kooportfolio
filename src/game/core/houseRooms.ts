@@ -55,6 +55,33 @@ export const HOUSE_PARTITIONS: Record<string, readonly Partition[]> = {
     { x: -5.4, z: -2.3, width: 0.4, depth: 5.6 },
   ],
 };
+/**
+ * Low dividing walls that split the bigger halls into a front and a back
+ * room, each with its own purpose. A divider runs along x at `z`; `runs` are
+ * its solid stretches (it stops where furniture already stands), `doors` the
+ * centres of its 3 m open archways (drawn by scenes/life/rooms/dividers.ts).
+ * Kept at the partitions' 1.44 m so the camera reads both rooms over it.
+ */
+export type RoomDivider = {
+  z: number;
+  doors: readonly number[];
+  runs: readonly (readonly [number, number])[];
+};
+export const DIVIDER_DEPTH = 0.36;
+export const ROOM_DIVIDERS: Record<string, RoomDivider> = {
+  office: { z: -5.25, doors: [-7, 7], runs: [[-16.6, -8.6], [-5.4, 3.1], [8.6, 10.4], [12, 16.6]] },
+  music: { z: 6, doors: [-7, 7], runs: [[-16.6, -8.6], [-5.4, 5.4], [8.6, 12.8], [13.8, 16.6]] },
+  writing: { z: -9.25, doors: [-7, 7], runs: [[-15.3, -8.6], [-5.4, 5.4], [8.6, 16.6]] },
+  go: { z: 4.75, doors: [-7, 7], runs: [[-16.6, -8.6], [-5.4, 5.4], [8.6, 12.2], [13.4, 16.6]] },
+  gym: { z: -6, doors: [-7, 7], runs: [[-16.6, -8.6], [-5.4, 5.4], [8.6, 15.2]] },
+  boathouse: { z: 4.25, doors: [-7, 7], runs: [[-16.6, -8.6], [-5.4, 5.4], [8.6, 15.1]] },
+  math: { z: 6.5, doors: [-7, 7], runs: [[-16.6, -8.6], [-5.4, 5.4], [8.6, 16.6]] },
+};
+const dividerWalls = ({ z, runs }: RoomDivider): Partition[] =>
+  runs.map(([a, b]) => ({ x: (a + b) / 2, z, width: b - a, depth: DIVIDER_DEPTH }));
+for (const [scene, divider] of Object.entries(ROOM_DIVIDERS))
+  (HOUSE_PARTITIONS as Record<string, readonly Partition[]>)[scene] = [...(HOUSE_PARTITIONS[scene] ?? []), ...dividerWalls(divider)];
+
 export const HOUSE_DOORS: Record<string, readonly RoomDoor[]> = {
   kappa: [
     { x: 0, z: 1.2, width: 4, axis: "x", label: "COMMON ROOM" },

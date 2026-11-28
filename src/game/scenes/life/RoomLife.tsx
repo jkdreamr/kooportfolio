@@ -198,6 +198,26 @@ function motionMatrix(run: PropRun) {
   return anim.compose(pos, quat, scl);
 }
 
+/** The prop nearest the ray under a screen point, within `slack` metres. */
+function pickRun(runs: readonly PropRun[], camera: THREE.Camera, canvas: HTMLElement, clientX: number, clientY: number, slack: number): PropRun | null {
+  const rect = canvas.getBoundingClientRect();
+  ndc.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+  caster.setFromCamera(ndc, camera);
+  ray.copy(caster.ray);
+  let best: PropRun | null = null,
+    bestDistance = slack;
+  for (const run of runs) {
+    const prop = run.prop;
+    point.set(prop.x, prop.y + Math.min(prop.anchor, 1.2) * 0.6, prop.z);
+    const distance = Math.sqrt(ray.distanceSqToPoint(point));
+    if (distance < bestDistance) {
+      best = run;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
 function BoardMesh({ board, step }: { board: Board; step: number }) {
   const { texture, canvas } = useMemo(() => {
     const canvas = document.createElement("canvas");
@@ -462,24 +482,7 @@ export function RoomLifeLive({ kit, roomId }: { kit: Kit; roomId: string }) {
       const s = useGame.getState();
       return s.paused || s.overlayLocked || s.traveling || s.panel !== "none" || !!useGameMode.getState().active || !gameInputEnabled(useStage.getState());
     };
-    const pick = (event: PointerEvent, slack: number): PropRun | null => {
-      const rect = canvas.getBoundingClientRect();
-      ndc.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1);
-      caster.setFromCamera(ndc, camera);
-      ray.copy(caster.ray);
-      let best: PropRun | null = null,
-        bestDistance = slack;
-      for (const run of model.runs) {
-        const prop = run.prop;
-        point.set(prop.x, prop.y + Math.min(prop.anchor, 1.2) * 0.6, prop.z);
-        const distance = Math.sqrt(ray.distanceSqToPoint(point));
-        if (distance < bestDistance) {
-          best = run;
-          bestDistance = distance;
-        }
-      }
-      return best;
-    };
+    const pick = (event: PointerEvent, slack: number) => pickRun(model.runs, camera, canvas, event.clientX, event.clientY, slack);
     const down = (event: PointerEvent) => {
       downX = event.clientX;
       downY = event.clientY;
@@ -536,13 +539,18 @@ export function RoomLifeLive({ kit, roomId }: { kit: Kit; roomId: string }) {
       roomLife: {
         roomId,
         progress: () => roomProgress(roomId),
+        /** What a tap at this screen point would pick (debugging taps). */
+        pickAt: (x: number, y: number) => {
+          const run = pickRun(model.runs, camera, gl.domElement, x, y, 0.85);
+          return run ? run.prop.id : null;
+        },
         use: (id: string) => {
           const run = model.runs.find((r) => r.prop.id === id);
           return run ? activate(run.item, "script") : false;
         },
       },
     });
-  }, [model, roomId]);
+  }, [model, roomId, camera, gl]);
 
   // Discovery keys, built once (the sparkle loop runs every frame).
   const findKeys = useMemo(() => model.runs.map((run) => `${roomId}:${run.prop.id}`), [model, roomId]);
