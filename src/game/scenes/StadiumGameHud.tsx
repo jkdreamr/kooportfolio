@@ -77,6 +77,8 @@ export function StadiumGameHud({
 }) {
   const gl = useThree((s) => s.gl);
   const hidden = useGame((s) => s.paused || s.panel !== "none");
+  // The record this drive is chasing (score-attack and daily keep separate bests).
+  const record = useGame((s) => s.save.bests?.[drive.mode === "daily" ? "stadium.daily" : "stadium.score"] ?? 0);
   const portal = useMemo(() => ({ current: gl.domElement.parentElement! }), [gl]);
   const focusAction = useCallback((button: HTMLButtonElement | null) => button?.focus({ preventScroll: true }), []);
   const keySample = useRef<number | undefined>(undefined);
@@ -121,6 +123,7 @@ export function StadiumGameHud({
           <strong>{attempt.gameWinner ? "0:03 · GAME-WINNER" : `${attempt.yards}-YARD ATTEMPT`}</strong>
           <small>
             {drive.score} pts · {drive.mode === "daily" ? `kick ${Math.min(drive.kicks + 1, DAILY_DISTANCES.length)}/${DAILY_DISTANCES.length}` : `misses left ${"●".repeat(Math.max(0, missesLeft))}${"○".repeat(MISSES_ALLOWED - Math.max(0, missesLeft))}`}
+            {record > 0 && <> · {drive.score > record ? <b className="stadium-game-record">new best</b> : `best ${record}`}</>}
           </small>
         </div>
         <button className="stadium-game-close" type="button" onClick={onClose} aria-label="Close field goals">

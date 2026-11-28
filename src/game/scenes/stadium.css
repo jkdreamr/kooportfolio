@@ -51,6 +51,9 @@
   color: var(--hud-muted);
   font-size: 12px;
 }
+.stadium-game-score .stadium-game-record {
+  color: #efd18c;
+}
 .stadium-game-score > span {
   display: inline-block;
   font-weight: 700;

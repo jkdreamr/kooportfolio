@@ -35,7 +35,7 @@ import { GameControls, gameIsActive } from "./InteriorProps";
 import { StadiumArchitecture } from "./StadiumArchitecture";
 import { StadiumView } from "./StadiumView";
 import { StadiumGameHud, type StadiumOutcome, type StadiumPhase } from "./StadiumGameHud";
-import { startGameMode, endGameMode, useGameMode } from "../core/gameMode";
+import { claimEscape, startGameMode, endGameMode, useGameMode } from "../core/gameMode";
 import "./stadium.css";
 
 export { StadiumBuilding } from "./StadiumArchitecture";
@@ -331,6 +331,15 @@ export function StadiumInterior() {
     };
   });
 
+  // Escape pauses a kick in progress; once the drive is over it leaves.
+  useEffect(
+    () =>
+      claimEscape("stadium", () => {
+        if (phaseRef.current === "result" && drive.current.over) return false;
+        useGame.setState({ paused: true });
+      }),
+    [],
+  );
   const actRef = useRef(act);
   actRef.current = act;
   const playRef = useRef(play);
