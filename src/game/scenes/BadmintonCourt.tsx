@@ -9,10 +9,18 @@ import { setViewZoom, viewZoom, zoomedOffset } from "../engine/camera";
 const courtOffset = new THREE.Vector3(),
   courtCamera = new THREE.Vector3();
 import {
+  BADMINTON_MARK_COUNT,
+  badmintonMarkGeometry,
+  badmintonMarkMaterial,
+} from "../core/badminton-marks";
+import {
   BADMINTON,
   canReturnBadminton,
   newBadmintonGame,
+  newBadmintonLanding,
+  predictBadmintonLanding,
   stepBadminton,
+  type BadmintonCall,
   type BadmintonGame,
   type BadmintonInput,
   type BadmintonShot,
@@ -32,6 +40,156 @@ import "./badminton.css";
 
 // Enlarge only the horizontal playing surface; avatars retain village scale.
 const COURT_SCALE = 1.4;
+
+// Court cues, all in one instanced draw (core/badminton-marks.ts). Slots:
+const SHADOW = 0,
+  LAND_RING = 1,
+  LAND_DOT = 2,
+  REACH_RING = 3,
+  REACH_GLOW = 4,
+  LINE = 5,
+  PULSE = 6,
+  TRAIL = 7,
+  TRAIL_COUNT = BADMINTON_MARK_COUNT - TRAIL;
+const MARK_Y = 0.236;
+const markColor = {
+  shadow: new THREE.Color("#0b2423"),
+  /** Lands in on your side: yours to return. */
+  yours: new THREE.Color("#ffc93d"),
+  /** Lands in on their side: a good shot. */
+  theirs: new THREE.Color("#4ff2c4"),
+  out: new THREE.Color("#ff4f4f"),
+  reach: new THREE.Color("#ffe07a"),
+  idle: new THREE.Color("#eaf6f0"),
+  trail: new THREE.Color("#fff6de"),
+};
+const markFloor = new THREE.Quaternion().setFromAxisAngle(
+  new THREE.Vector3(1, 0, 0),
+  -Math.PI / 2,
+);
+const markSlot = new THREE.Object3D();
+const landing = newBadmintonLanding();
+const callText: Record<BadmintonCall, string> = {
+  none: "Point",
+  in: "In!",
+  out: "Out!",
+  net: "Net!",
+  short: "Short",
+};
+
+function placeMark(
+  mesh: THREE.InstancedMesh,
+  shape: THREE.InstancedBufferAttribute,
+  i: number,
+  x: number,
+  y: number,
+  z: number,
+  sx: number,
+  sy: number,
+  color: THREE.Color,
+  inner: number,
+  soft: number,
+  alpha: number,
+  facing: THREE.Quaternion = markFloor,
+) {
+  if (alpha > 0) markSlot.position.set(x, y, z);
+  else markSlot.position.set(0, -10, 0);
+  markSlot.quaternion.copy(facing);
+  markSlot.scale.set(alpha > 0 ? sx : 0, alpha > 0 ? sy : 0, 1);
+  markSlot.updateMatrix();
+  mesh.setMatrixAt(i, markSlot.matrix);
+  mesh.setColorAt(i, color);
+  shape.setXYZ(i, inner, soft, alpha);
+}
+
+/** Shadow, predicted landing, reach, line call and trail for this frame. */
+function drawMarks(
+  mesh: THREE.InstancedMesh,
+  game: BadmintonGame,
+  trail: Float32Array,
+  camera: THREE.Camera,
+  time: number,
+) {
+  const shape = mesh.geometry.getAttribute(
+    "aMark",
+  ) as THREE.InstancedBufferAttribute;
+  const s = game.shuttle,
+    k = COURT_SCALE;
+  const sx = s.x * k,
+    sz = (s.z - 2) * k,
+    height = Math.max(0, s.y - BADMINTON.floor);
+  // A soft contact shadow: tight and dark near the floor, wide and faint high.
+  placeMark(mesh, shape, SHADOW, sx, MARK_Y, sz, 0.46 + height * 0.1, 0.46 + height * 0.1,
+    markColor.shadow, 0, 0.85, Math.max(0.16, 0.62 - height * 0.09));
+  predictBadmintonLanding(game, landing);
+  const land = landing.active ? (landing.net || !landing.inBounds ? markColor.out : landing.side === "player" ? markColor.yours : markColor.theirs) : markColor.out;
+  // The ring closes on the spot as contact nears; the dot is the exact point.
+  const ring = 0.5 + Math.min(1.6, landing.time * 0.9);
+  const lx = landing.x * k,
+    lz = (landing.z - 2) * k;
+  placeMark(mesh, shape, LAND_RING, lx, MARK_Y + 0.002, lz, ring * 2, ring * 2, land,
+    0.8, 0.1, landing.active ? 0.95 : 0);
+  placeMark(mesh, shape, LAND_DOT, lx, MARK_Y + 0.003, lz, 0.34, 0.34, land,
+    0, 0.45, landing.active ? 0.95 : 0);
+  // Reach: the racket's true radius around the player, lit when a hit is legal.
+  const ready = canReturnBadminton(game);
+  const incoming = game.phase === "rally" && game.lastHit === "opponent";
+  const px = game.player.x * k,
+    pz = (game.player.z - 2) * k,
+    reach = 1.65 * k * 2;
+  const beat = 0.85 + 0.15 * Math.sin(time * 18);
+  placeMark(mesh, shape, REACH_RING, px, MARK_Y + 0.001, pz, reach, reach,
+    ready ? markColor.reach : markColor.idle, 0.93, 0.05, ready ? beat : incoming ? 0.22 : 0);
+  placeMark(mesh, shape, REACH_GLOW, px, MARK_Y, pz, reach, reach, markColor.reach,
+    0, 1, ready ? 0.3 * beat : 0);
+  // Line call: the judged boundary flashes green (in) or red (out) at the
+  // contact, with a pulse ring, through the point pause.
+  const call = game.call;
+  const showing = game.phase !== "rally" && call.kind !== "none" && call.kind !== "short";
+  const fade = showing ? Math.max(0, 1 - game.pointTime / 1.4) : 0;
+  const flash = fade * (0.65 + 0.35 * Math.cos(game.pointTime * 16));
+  const tone = call.kind === "in" ? markColor.theirs : markColor.out;
+  const hw = BADMINTON.halfWidth,
+    hl = BADMINTON.halfLength;
+  const ax = Math.abs(call.x),
+    az = Math.abs(call.z);
+  const sideline =
+    call.kind === "net" ? false : call.kind === "out" ? ax - hw > az - hl : hw - ax < hl - az;
+  const zSign = call.z < 0 ? -1 : 1;
+  if (call.kind === "net")
+    placeMark(mesh, shape, LINE, 0, MARK_Y + 0.004, -2 * k, hw * 2 * k + 0.3, 0.3, tone, -1, 0.5, flash);
+  else if (sideline)
+    placeMark(mesh, shape, LINE, (call.x < 0 ? -hw : hw) * k, MARK_Y + 0.004, ((zSign * hl) / 2 - 2) * k,
+      0.3, hl * k + 0.3, tone, -1, 0.5, flash);
+  else
+    placeMark(mesh, shape, LINE, 0, MARK_Y + 0.004, (zSign * hl - 2) * k, hw * 2 * k + 0.3, 0.3, tone, -1, 0.5, flash);
+  const pulse = 0.6 + (1 - fade) * 2.4;
+  placeMark(mesh, shape, PULSE, call.x * k, MARK_Y + 0.005, (call.z - 2) * k, pulse, pulse, tone,
+    0.78, 0.12, fade * 0.95);
+  // Trail: the last few sampled positions, facing the camera, fading out.
+  const flying = game.phase === "rally";
+  const wy = s.y + 0.18;
+  const dx = sx - trail[0],
+    dy = wy - trail[1],
+    dz = sz - trail[2];
+  if (!flying) trail.fill(NaN);
+  else if (!(dx * dx + dy * dy + dz * dz < 0.09)) {
+    trail.copyWithin(3, 0, trail.length - 3);
+    trail[0] = sx;
+    trail[1] = wy;
+    trail[2] = sz;
+  }
+  for (let i = 0; i < TRAIL_COUNT; i++) {
+    const x = trail[i * 3],
+      f = 1 - i / TRAIL_COUNT,
+      size = 0.1 + 0.16 * f;
+    placeMark(mesh, shape, TRAIL + i, x, trail[i * 3 + 1], trail[i * 3 + 2], size, size,
+      markColor.trail, 0, 0.9, flying && i > 0 && x === x ? 0.32 * f : 0, camera.quaternion);
+  }
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  shape.needsUpdate = true;
+}
 
 function Racket({ color = "#dba752" }: { color?: string }) {
   return (
@@ -339,9 +497,23 @@ export function BadmintonCourt({
   const color = useGame((s) => s.save.color);
   const gl = useThree((s) => s.gl),
     portal = useMemo(() => ({ current: gl.domElement.parentElement! }), [gl]);
-  const shuttle = useRef<THREE.Group>(null),
-    shadow = useRef<THREE.Mesh>(null),
-    contactRing = useRef<THREE.Mesh>(null);
+  const shuttle = useRef<THREE.Group>(null);
+  const marks = useMemo(() => {
+    const mesh = new THREE.InstancedMesh(
+      badmintonMarkGeometry(),
+      badmintonMarkMaterial,
+      BADMINTON_MARK_COUNT,
+    );
+    mesh.frustumCulled = false;
+    mesh.renderOrder = 2;
+    // Colour attribute present from the first frame: the prewarmed program.
+    for (let i = 0; i < BADMINTON_MARK_COUNT; i++)
+      mesh.setColorAt(i, markColor.idle);
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    return mesh;
+  }, []);
+  useEffect(() => () => marks.geometry.dispose(), [marks]);
+  const trail = useMemo(() => new Float32Array(TRAIL_COUNT * 3).fill(NaN), []);
   const clock = useRef(0);
   const direction = useMemo(() => new THREE.Vector3(), []);
   const matchCamera = useThree((s) => s.camera);
@@ -422,7 +594,7 @@ export function BadmintonCourt({
       input.current.swing = false;
     }
   }, [blocked]);
-  useFrame(({ camera, size }, delta) => {
+  useFrame(({ camera, size, clock: frameClock }, delta) => {
     if (!playing) return;
     if (gameIsActive() && runtime.active) {
       const h = held.current;
@@ -445,7 +617,8 @@ export function BadmintonCourt({
       input.current.swing = false;
       {
         const now = game.current;
-        const landing: [number, number, number] = [now.shuttle.x * COURT_SCALE, 0.4, (now.shuttle.z - 2) * COURT_SCALE];
+        const spot: [number, number, number] = [now.shuttle.x * COURT_SCALE, 0.4, (now.shuttle.z - 2) * COURT_SCALE];
+        const called = callText[now.call.kind];
         if (now.phase === "over" && prev.phase !== "over") {
           const won = now.winner === "player";
           const g = useGame.getState();
@@ -465,11 +638,11 @@ export function BadmintonCourt({
           }
         } else if (now.score[0] > prev.score[0]) {
           sound("score");
-          fx.score(landing, "Point", "good");
+          fx.score(spot, called, "good");
         } else if (now.score[1] > prev.score[1]) {
           sound("miss");
-          const [x, y] = fx.at(landing);
-          fx.pop("Their point", x, y, "miss");
+          const [x, y] = fx.at(spot);
+          fx.pop(called, x, y, "miss");
         } else if (now.rally > prev.rally) {
           if (now.lastHit === "player") {
             const smash = chosenShot === "smash";
@@ -486,15 +659,7 @@ export function BadmintonCourt({
       }
     }
     const s = game.current.shuttle;
-    if (contactRing.current) {
-      contactRing.current.visible =
-        gameIsActive() && runtime.active && canReturnBadminton(game.current);
-      contactRing.current.position.set(
-        s.x * COURT_SCALE,
-        0.27,
-        (s.z - 2) * COURT_SCALE,
-      );
-    }
+    drawMarks(marks, game.current, trail, camera, frameClock.elapsedTime);
     if (shuttle.current) {
       shuttle.current.position.set(
         s.x * COURT_SCALE,
@@ -507,14 +672,6 @@ export function BadmintonCourt({
           THREE.Object3D.DEFAULT_UP,
           direction.normalize().negate(),
         );
-    }
-    if (shadow.current) {
-      shadow.current.position.set(
-        s.x * COURT_SCALE,
-        0.24,
-        (s.z - 2) * COURT_SCALE,
-      );
-      shadow.current.scale.setScalar(0.8 + s.y * 0.06);
     }
     const narrow = size.width < 700;
     // Keep the entire court between the score and two compact touch surfaces.
@@ -580,23 +737,7 @@ export function BadmintonCourt({
           <group ref={shuttle}>
             <Shuttlecock />
           </group>
-          <mesh ref={shadow} rotation={[-Math.PI / 2, 0, 0]}>
-            <circleGeometry args={[0.2, 20]} />
-            <meshBasicMaterial
-              color="#143c3b"
-              transparent
-              opacity={0.4}
-              depthWrite={false}
-            />
-          </mesh>
-          <mesh
-            ref={contactRing}
-            visible={false}
-            rotation={[-Math.PI / 2, 0, 0]}
-          >
-            <ringGeometry args={[0.55, 0.66, 32]} />
-            <meshBasicMaterial color="#e7c27e" depthWrite={false} />
-          </mesh>
+          <primitive object={marks} dispose={null} />
         </>
       )}
       {!blocked && (

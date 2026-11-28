@@ -18,6 +18,7 @@ import { STADIUM_BACKDROP_SHADERS } from "../scenes/StadiumView";
 import { pondWater } from "../world/Landscape";
 import { PLAYER_MARKER_MATERIALS } from "../world/PlayerMarker";
 import { riverMaterial } from "../world/KoreaWorldEnvironment";
+import { badmintonMarkMaterial } from "../core/badminton-marks";
 
 /**
  * Idle prewarm of the programs an activity links on its first visit, by
@@ -168,6 +169,8 @@ export const PREWARM_ACTIVITIES: Activity[] = [
       { shared: () => PLAYER_MARKER_MATERIALS[0] },
       { shared: () => PLAYER_MARKER_MATERIALS[1] },
       { live: { key: "env-contact-blob" }, instanced: true },
+      // Court cues (shadow, landing ring, reach ring, line call, trail).
+      { shared: () => badmintonMarkMaterial, instanced: true, instanceColor: true },
       { make: () => new THREE.MeshStandardMaterial() },
       { make: () => new THREE.MeshStandardMaterial({ map: texture(), transparent: true }) },
       { make: () => new THREE.MeshBasicMaterial({ transparent: true }) },

@@ -38,6 +38,22 @@ export type BadmintonGame = {
   playerCooldown: number;
   flightTime: number;
   message: string;
+  /** The last line call, kept through the point pause for the court's highlight. */
+  call: { kind: BadmintonCall; x: number; z: number };
+};
+export type BadmintonCall = "none" | "in" | "out" | "net" | "short";
+/** Where the shuttle comes down if nobody touches it (see predictBadmintonLanding). */
+export type BadmintonLanding = {
+  active: boolean;
+  x: number;
+  z: number;
+  /** Seconds until contact. */
+  time: number;
+  net: boolean;
+  inBounds: boolean;
+  side: BadmintonSide;
+  /** Who wins the point if it lands untouched. */
+  winner: BadmintonSide;
 };
 export function newBadmintonGame(): BadmintonGame {
   return {
@@ -55,7 +71,55 @@ export function newBadmintonGame(): BadmintonGame {
     playerCooldown: 0,
     flightTime: 0,
     message: "Your serve",
+    call: { kind: "none", x: 0, z: 0 },
   };
+}
+export const newBadmintonLanding = (): BadmintonLanding => ({
+  active: false,
+  x: 0,
+  z: 0,
+  time: 0,
+  net: false,
+  inBounds: true,
+  side: "player",
+  winner: "player",
+});
+
+const inCourt = (x: number, z: number) =>
+  Math.abs(x) <= BADMINTON.halfWidth && Math.abs(z) <= BADMINTON.halfLength;
+
+/**
+ * The untouched flight's end, in closed form. Between hits the shuttle is
+ * ballistic (x, z linear; y the exact quadratic the substeps integrate), and
+ * stepBadminton resolves floor contact at the same exact instant, so the
+ * marker and the call always agree. Writes into `out`; no allocation.
+ */
+export function predictBadmintonLanding(
+  game: BadmintonGame,
+  out: BadmintonLanding,
+): BadmintonLanding {
+  const s = game.shuttle,
+    g = BADMINTON.gravity;
+  out.active =
+    game.phase === "rally" && (s.vx !== 0 || s.vy !== 0 || s.vz !== 0);
+  if (!out.active) return out;
+  const time =
+    (s.vy + Math.sqrt(Math.max(0, s.vy * s.vy + 2 * g * (s.y - BADMINTON.floor)))) / g;
+  const tn = s.vz !== 0 ? -s.z / s.vz : -1;
+  out.net =
+    s.z !== 0 &&
+    tn > 0 &&
+    tn < time &&
+    s.y + s.vy * tn - 0.5 * g * tn * tn <= BADMINTON.net;
+  out.time = out.net ? tn : time;
+  out.x = s.x + s.vx * out.time;
+  out.z = out.net ? 0 : s.z + s.vz * out.time;
+  out.inBounds = !out.net && inCourt(out.x, out.z);
+  out.side = out.z > 0 || (out.net && s.z > 0) ? "player" : "opponent";
+  const correctHalf = game.lastHit === "player" ? out.z < 0 : out.z > 0;
+  out.winner =
+    out.inBounds && correctHalf ? game.lastHit : other(game.lastHit);
+  return out;
 }
 const clamp = (v: number, min: number, max: number) =>
   Math.max(min, Math.min(max, v));
@@ -100,7 +164,15 @@ function launch(
   game.message = "";
 }
 
-function point(game: BadmintonGame, side: BadmintonSide, reason: string) {
+function point(
+  game: BadmintonGame,
+  side: BadmintonSide,
+  reason: string,
+  call: BadmintonCall,
+) {
+  game.call.kind = call;
+  game.call.x = game.shuttle.x;
+  game.call.z = game.shuttle.z;
   game.score[side === "player" ? 0 : 1]++;
   game.server = side;
   game.pointTime = 0;
@@ -139,6 +211,7 @@ export function stepBadminton(
       if (game.pointTime >= 1.4) {
         game.phase = "ready";
         game.rally = 0;
+        game.call.kind = "none";
         game.player.x = game.opponent.x = 0;
         game.player.z = 5.7;
         game.opponent.z = -5.7;
@@ -245,8 +318,10 @@ export function stepBadminton(
               : -1;
       launch(game, "opponent", aim, game.rally % 4 === 0 ? "drop" : "clear");
     }
-    const oldZ = s.z,
-      oldY = s.y;
+    const oldX = s.x,
+      oldZ = s.z,
+      oldY = s.y,
+      oldVy = s.vy;
     s.x += s.vx * dt;
     s.z += s.vz * dt;
     s.y += s.vy * dt - 0.5 * BADMINTON.gravity * dt * dt;
@@ -255,20 +330,30 @@ export function stepBadminton(
       const netY = oldY + (s.y - oldY) * Math.abs(oldZ / (s.z - oldZ));
       if (netY <= BADMINTON.net) {
         s.z = 0;
-        point(game, other(game.lastHit), "Net");
+        point(game, other(game.lastHit), "Net", "net");
         continue;
       }
     }
     if (s.y <= BADMINTON.floor) {
+      // Contact at the exact instant inside this substep, not its end, so a
+      // line call matches the predicted landing to the millimetre.
+      const g = BADMINTON.gravity;
+      const into = Math.min(
+        dt,
+        (oldVy +
+          Math.sqrt(Math.max(0, oldVy * oldVy + 2 * g * (oldY - BADMINTON.floor)))) /
+          g,
+      );
+      s.x = oldX + s.vx * into;
+      s.z = oldZ + s.vz * into;
       s.y = BADMINTON.floor;
-      const inBounds =
-        Math.abs(s.x) <= BADMINTON.halfWidth &&
-        Math.abs(s.z) <= BADMINTON.halfLength;
+      const inBounds = inCourt(s.x, s.z);
       const correctHalf = game.lastHit === "player" ? s.z < 0 : s.z > 0;
       point(
         game,
         inBounds && correctHalf ? game.lastHit : other(game.lastHit),
-        inBounds ? "Down" : "Out",
+        inBounds ? (correctHalf ? "In!" : "Short") : "Out!",
+        inBounds ? (correctHalf ? "in" : "short") : "out",
       );
     }
     // A recovered position/timing must not retain the previous missed-swing hint.

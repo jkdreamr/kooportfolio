@@ -3,6 +3,8 @@ import {
   BADMINTON,
   canReturnBadminton,
   newBadmintonGame,
+  newBadmintonLanding,
+  predictBadmintonLanding,
   stepBadminton,
   type BadmintonGame,
   type BadmintonInput,
@@ -265,5 +267,48 @@ describe("badminton quick singles", () => {
     const before = structuredClone(straight);
     stepBadminton(straight, idle, NaN);
     expect(straight).toEqual(before);
+  });
+
+  it.each([
+    { vx: 0.9, vz: 5.2, kind: "in", winner: "opponent" },
+    { vx: 3.4, vz: 5.2, kind: "out", winner: "player" },
+    { vx: 0.2, vz: 9.5, kind: "out", winner: "player" },
+  ] as const)(
+    "predicts the exact landing spot and call of an untouched flight ($kind)",
+    ({ vx, vz, kind, winner }) => {
+      const game = newBadmintonGame();
+      game.phase = "rally";
+      game.lastHit = "opponent";
+      Object.assign(game.shuttle, { x: 0.4, y: 2.2, z: -4, vx, vy: 4.5, vz });
+      const landing = predictBadmintonLanding(game, newBadmintonLanding());
+      expect(landing.active).toBe(true);
+      expect(landing.side).toBe("player");
+      expect(landing.winner).toBe(winner);
+      const { x, z, time } = landing;
+      // Uneven frames: the contact is resolved inside the substep, not at its end.
+      let t = 0;
+      for (let i = 0; game.phase === "rally" && i < 400; i++) {
+        const dt = [0.016, 0.033, 0.007][i % 3];
+        stepBadminton(game, idle, dt);
+        t += dt;
+      }
+      expect(game.call.kind).toBe(kind);
+      expect(game.call.x).toBeCloseTo(x, 6);
+      expect(game.call.z).toBeCloseTo(z, 6);
+      expect(Math.abs(t - time)).toBeLessThan(0.034);
+      expect(game.score[winner === "player" ? 0 : 1]).toBe(1);
+      expect(game.message).toContain(kind === "in" ? "In!" : "Out!");
+    },
+  );
+
+  it("predicts a net cord and reports no landing outside a rally", () => {
+    const game = newBadmintonGame();
+    expect(predictBadmintonLanding(game, newBadmintonLanding()).active).toBe(false);
+    game.phase = "rally";
+    Object.assign(game.shuttle, { x: 0, y: 1, z: 0.5, vx: 0, vy: 0, vz: -6 });
+    const landing = predictBadmintonLanding(game, newBadmintonLanding());
+    expect(landing.net).toBe(true);
+    expect(landing.inBounds).toBe(false);
+    expect(landing.z).toBe(0);
   });
 });
