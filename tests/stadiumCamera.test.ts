@@ -1,101 +1,63 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
-import {
-  FIELD_GOAL,
-  goalClearanceTime,
-  kickPosition,
-} from "../src/game/core/fieldGoal";
-import {
-  stadiumCameraFrame,
-  stadiumViewOffset,
-} from "../src/game/core/stadiumCamera";
+import { FIELD_GOAL, FLIGHT_STEP, fieldZ, simulateKick } from "../src/game/core/fieldGoal";
+import { stadiumCameraFrame, stadiumViewOffset } from "../src/game/core/stadiumCamera";
+import { attemptFor, buildKick, idealAngle, aimForAngle, ladderYards, neededPower } from "../src/game/core/stadiumChallenge";
+
+function project(camera: THREE.PerspectiveCamera, p: readonly number[], width: number, height: number) {
+  const v = new THREE.Vector3(p[0], p[1], p[2]).project(camera);
+  return [((v.x + 1) * width) / 2, ((1 - v.y) * height) / 2] as const;
+}
+function aimAt(camera: THREE.PerspectiveCamera, frame: ReturnType<typeof stadiumCameraFrame>) {
+  camera.position.set(...frame.position);
+  camera.lookAt(...frame.target);
+  camera.updateMatrixWorld();
+}
 
 describe("stadium game camera", () => {
   it.each([
-    [568, 270],
-    [844, 390],
-  ])(
-    "keeps the football and posts outside the landscape HUD rail at %s×%s",
-    (width, height) => {
-      const camera = new THREE.PerspectiveCamera(56, width / height, 0.1, 180);
-      camera.setViewOffset(
-        width,
-        height,
-        stadiumViewOffset(width, height),
-        0,
-        width,
-        height,
-      );
-      const railLeft = width - 14 - Math.min(180, width * 0.3);
-      for (const angle of [-18, 0, 18]) {
-        for (const power of [0.47, 0.7, 1]) {
-          const kick = { angle: (angle * Math.PI) / 180, power };
-          for (let time = 0; time <= goalClearanceTime(kick); time += 0.04) {
-            const ball = kickPosition(kick, time);
-            if (ball[1] < 0.28) break;
-            const frame = stadiumCameraFrame(
-              { x: 0, z: 26.5 },
-              true,
-              ball,
-              false,
-            );
-            camera.position.set(...frame.position);
-            camera.lookAt(...frame.target);
-            camera.updateMatrixWorld();
-            for (const point of [
-              ball,
-              [0, FIELD_GOAL.crossbar, FIELD_GOAL.goalZ],
-            ]) {
-              const projected = new THREE.Vector3(...point).project(camera);
-              const x = ((projected.x + 1) * width) / 2;
-              const y = ((1 - projected.y) * height) / 2;
-              expect(x).toBeGreaterThan(8);
-              expect(x).toBeLessThan(railLeft - 8);
-              expect(y).toBeGreaterThan(8);
-              expect(y).toBeLessThan(height - 8);
-            }
-          }
-        }
-      }
-    },
-  );
-  it.each([
+    [800, 500],
     [390, 844],
-    [320, 844],
     [1440, 900],
-  ])(
-    "keeps the tee, full kick arc and posts clear of the HUD at %s×%s",
-    (width, height) => {
-      const camera = new THREE.PerspectiveCamera(56, width / height, 0.1, 180);
-      for (const angle of [-18, 0, 18]) {
-        for (const power of [0.47, 0.7, 1]) {
-          const kick = { angle: (angle * Math.PI) / 180, power };
-          const end = goalClearanceTime(kick);
-          for (let time = 0; time <= end; time += 0.04) {
-            const ball = kickPosition(kick, time);
-            const frame = stadiumCameraFrame(
-              { x: 0, z: 26.5 },
-              true,
-              ball,
-              width < 700,
-            );
-            camera.position.set(...frame.position);
-            camera.lookAt(...frame.target);
-            camera.updateMatrixWorld();
-            const projected = new THREE.Vector3(...ball).project(camera);
-            expect(Math.abs(projected.x)).toBeLessThan(0.9);
-            expect(projected.y).toBeLessThan(1 - 150 / height);
-            expect(projected.y).toBeGreaterThan(-1 + 340 / height);
-            const goal = new THREE.Vector3(
-              0,
-              FIELD_GOAL.crossbar,
-              FIELD_GOAL.goalZ,
-            ).project(camera);
-            expect(Math.abs(goal.x)).toBeLessThan(0.8);
-            expect(goal.y).toBeLessThan(1 - 150 / height);
-          }
-        }
+  ])("before every kick both uprights and the bar are in frame and ≥ 40 px wide at %s×%s", (width, height) => {
+    const camera = new THREE.PerspectiveCamera(56, width / height, 0.1, 180);
+    const portrait = width < 700 && height > width;
+    for (let rung = 0; rung < 16; rung++) {
+      const a = attemptFor(7, rung, rung);
+      const spot = { x: a.spot.x, z: fieldZ(a.spot.d) };
+      aimAt(camera, stadiumCameraFrame({ x: 0, z: 0 }, true, [spot.x, FIELD_GOAL.tee, spot.z], portrait, spot));
+      const left = project(camera, [-FIELD_GOAL.halfWidth, FIELD_GOAL.crossbar + 3, FIELD_GOAL.goalZ], width, height);
+      const right = project(camera, [FIELD_GOAL.halfWidth, FIELD_GOAL.crossbar + 3, FIELD_GOAL.goalZ], width, height);
+      const bar = project(camera, [0, FIELD_GOAL.crossbar, FIELD_GOAL.goalZ], width, height);
+      const tee = project(camera, [spot.x, FIELD_GOAL.tee, spot.z], width, height);
+      for (const [x, y] of [left, right, bar, tee]) {
+        expect(x, `rung ${rung}`).toBeGreaterThan(8);
+        expect(x).toBeLessThan(width - 8);
+        expect(y).toBeGreaterThan(8);
+        expect(y).toBeLessThan(height - 8);
       }
-    },
-  );
+      expect(right[0] - left[0], `rung ${rung} (${ladderYards(rung)} yd)`).toBeGreaterThanOrEqual(40);
+    }
+  });
+  it("keeps the ball in frame through a long kick", () => {
+    const [width, height] = [800, 500];
+    const camera = new THREE.PerspectiveCamera(56, width / height, 0.1, 180);
+    camera.setViewOffset(width, height, stadiumViewOffset(width, height), 0, width, height);
+    for (const yards of [25, 43, 60]) {
+      const a = attemptFor(3, 5, 1, yards);
+      const p = Math.min(1, neededPower(a.spot) + 0.02);
+      const flight = simulateKick(buildKick(a.spot, p, aimForAngle(idealAngle(a.spot, p))));
+      const spot = { x: a.spot.x, z: fieldZ(a.spot.d) };
+      for (let i = 0; i < flight.path.length / 3; i += 3) {
+        const ball = [flight.path[i * 3], flight.path[i * 3 + 1], fieldZ(flight.path[i * 3 + 2])] as [number, number, number];
+        if (i * FLIGHT_STEP > flight.crossT) break;
+        aimAt(camera, stadiumCameraFrame({ x: 0, z: 0 }, true, ball, false, spot));
+        const [x, y] = project(camera, ball, width, height);
+        expect(x).toBeGreaterThan(0);
+        expect(x).toBeLessThan(width);
+        expect(y).toBeGreaterThan(0);
+        expect(y).toBeLessThan(height);
+      }
+    }
+  });
 });

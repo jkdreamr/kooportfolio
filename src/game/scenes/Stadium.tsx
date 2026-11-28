@@ -8,32 +8,33 @@ import { runtime, useGame } from "../core/store";
 import { useLauncher, useLauncherHosted } from "../core/launchers";
 import { useJuice } from "./juice/Juice";
 import { useSoundLoop } from "./useSoundLoop";
+import { FIELD_GOAL, FLIGHT_STEP, fieldZ } from "../core/fieldGoal";
 import {
-  FIELD_GOAL,
-  goalClearanceTime,
-  judgeKick,
-  kickPosition,
-  type Kick,
-} from "../core/fieldGoal";
-import {
-  stadiumAimWindow,
-  stadiumKick,
-  stadiumPowerTarget,
-  stadiumRush,
-  stadiumTiming,
-  stadiumTimingStart,
-  STADIUM_KICKS,
-  STADIUM_STEER,
+  aimAngle,
+  aimAt,
+  aimForAngle,
+  currentAttempt,
+  idealAngle,
+  neededPower,
+  newDrive,
+  perfectTimes,
+  powerAt,
+  powerZone,
+  recordKick,
+  resolveAttempt,
+  snapClock,
+  swingWindow,
+  type Attempt,
+  type Drive,
+  type DriveMode,
 } from "../core/stadiumChallenge";
+import { registerGameQa } from "../core/gameQa";
+import { dayNumber, reportRun } from "../core/daily";
 import { sound } from "../core/sound";
 import { GameControls, gameIsActive } from "./InteriorProps";
 import { StadiumArchitecture } from "./StadiumArchitecture";
 import { StadiumView } from "./StadiumView";
-import {
-  StadiumGameHud,
-  type StadiumOutcome,
-  type StadiumPhase,
-} from "./StadiumGameHud";
+import { StadiumGameHud, type StadiumOutcome, type StadiumPhase } from "./StadiumGameHud";
 import { startGameMode, endGameMode, useGameMode } from "../core/gameMode";
 import "./stadium.css";
 
@@ -131,25 +132,17 @@ function Fireworks({
   );
 }
 
-const WALKING_SPOT = { x: 0, z: FIELD_GOAL.startZ, wind: 0 };
+const WALKING_SPOT = { x: 0, z: FIELD_GOAL.startZ };
 const TRAIL_DOTS = 7;
 
 type Flight = {
-  kick: Kick;
+  path: Float32Array;
+  crossT: number;
   time: number;
-  /** Accumulated lateral steer offset and its velocity. */
-  sx: number;
-  sv: number;
-  postHit: "post" | "crossbar" | null;
-  /** Outcome judged the moment the ball crossed the goal plane. */
-  judged?: StadiumOutcome;
+  result: StadiumOutcome;
+  hit: "post" | "crossbar" | null;
   blocked: boolean;
-  /** [time, sx] samples so the trail can reuse the steered path. */
-  samples: [number, number][];
-  /** Previous rendered position, for plane-crossing tests between frames. */
-  prevX: number;
-  prevY: number;
-  prevZ: number;
+  slowed: boolean;
 };
 
 /** Complete room-sized outdoor stadium. Mount instead of the generic room shell. */
@@ -157,20 +150,24 @@ export function StadiumInterior() {
   const nearExit = useGame((state) => state.near === "exit");
   const playing = useGameMode((state) => state.active?.id === "stadium");
   const hosted = useLauncherHosted("stadium");
-  useLauncher("stadium", "stadium", "Play", () => play(), { enabled: !playing, hint: "Enter" });
-  const [attempt, setAttempt] = useState(0);
+  useLauncher("stadium", "stadium", "Drive", () => play("drive"), { enabled: !playing, hint: "Enter" });
+  useLauncher("stadium", "stadium-daily", "Daily", () => play("daily"), { enabled: !playing });
+  const drive = useRef<Drive>(newDrive("drive", 1));
+  const [attempt, setAttempt] = useState<Attempt>(() => currentAttempt(drive.current));
   const [phase, setPhase] = useState<StadiumPhase>("power");
-  const [results, setResults] = useState<StadiumOutcome[]>([]);
-  const [postHit, setPostHit] = useState<"post" | "crossbar" | null>(null);
+  const [last, setLast] = useState<{ result: StadiumOutcome; hit: "post" | "crossbar" | null; points: number; overswing: boolean } | null>(null);
+  const [summary, setSummary] = useState<null | { score: number; longest: number; made: number; newBest: boolean; mode: DriveMode }>(null);
   const [lockedPower, setLockedPower] = useState(0);
-  const [best, setBest] = useState<null | { made: number; record: number; newBest: boolean }>(null);
   const fx = useJuice();
   // The crowd murmurs through the session and roars on a made kick.
   const crowd = useSoundLoop(playing ? "crowd" : null);
   const roarTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => {
-    if (roarTimer.current) clearTimeout(roarTimer.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (roarTimer.current) clearTimeout(roarTimer.current);
+    },
+    [],
+  );
   const ball = useRef<THREE.Group>(null);
   const controls = useRef<THREE.Group>(null);
   const aimMarker = useRef<THREE.Group>(null);
@@ -179,6 +176,7 @@ export function StadiumInterior() {
   const defender = useRef<THREE.Group>(null);
   const flag = useRef<THREE.Group>(null);
   const trailDot = useMemo(() => new THREE.Object3D(), []);
+  const fireworkColor = useMemo(() => new THREE.Color(), []);
   const fxVelocity = useMemo(() => {
     const v = new Float32Array(FIREWORK_PARTS * 3);
     for (let i = 0; i < FIREWORK_PARTS; i++) {
@@ -193,38 +191,35 @@ export function StadiumInterior() {
   }, []);
   const fxTime = useRef(-1);
   const cursor = useRef<HTMLSpanElement>(null);
-  const rushBar = useRef<HTMLSpanElement>(null);
+  const clockBar = useRef<HTMLSpanElement>(null);
   const returnFocus = useRef(false);
   const flight = useRef<Flight | null>(null);
-  const rushT = useRef(0);
-  const steerDir = useRef(0);
   const flagT = useRef(0);
+  /** Seconds since the current bar started (snap, or power lock). */
   const clock = useRef(0);
-  const sweepStart = useRef(0);
-  const timing = useRef(0);
+  const powerT = useRef<number | null>(null);
   const bindCursor = useCallback((element: HTMLSpanElement | null) => {
     cursor.current = element;
-    if (element) element.style.left = `${timing.current * 100}%`;
   }, []);
-  const bindRush = useCallback((element: HTMLSpanElement | null) => {
-    rushBar.current = element;
+  const bindClock = useCallback((element: HTMLSpanElement | null) => {
+    clockBar.current = element;
   }, []);
   const phaseRef = useRef<StadiumPhase>("power");
   const flying = phase === "flight";
-  const finished = phase === "result" && attempt === STADIUM_KICKS.length - 1;
-  const spot = playing ? STADIUM_KICKS[attempt] : WALKING_SPOT;
-  const result = results[attempt] ?? null;
-  const powerTarget = useMemo(() => stadiumPowerTarget(spot), [spot]);
-  const aimWindow = useMemo(
-    () => stadiumAimWindow(spot, lockedPower),
-    [spot, lockedPower],
-  );
-
-  function showTiming(start: number) {
-    clock.current = 0;
-    sweepStart.current = timing.current = start;
-    if (cursor.current) cursor.current.style.left = `${start * 100}%`;
-  }
+  const spotZ = playing ? fieldZ(attempt.spot.d) : WALKING_SPOT.z;
+  const spotX = playing ? attempt.spot.x : WALKING_SPOT.x;
+  const spot = useMemo(() => ({ x: spotX, z: spotZ }), [spotX, spotZ]);
+  const pStar = useMemo(() => neededPower(attempt.spot), [attempt]);
+  const zone = powerZone(attempt.yards);
+  const powerWindow = useMemo(() => [Math.min(1, pStar), Math.min(1, pStar + zone)] as const, [pStar, zone]);
+  const aimWindow = useMemo(() => {
+    // Aim values whose kick (at the locked power, no over-swing) goes through.
+    const p = Math.min(lockedPower, pStar + zone);
+    const lo = aimForAngle(idealAngle({ ...attempt.spot, x: attempt.spot.x + 2.4 }, p));
+    const hi = aimForAngle(idealAngle({ ...attempt.spot, x: attempt.spot.x - 2.4 }, p));
+    return [Math.min(lo, hi), Math.max(lo, hi)] as const;
+  }, [attempt, lockedPower, pStar, zone]);
+  const barValue = () => (phaseRef.current === "power" ? powerAt(clock.current) : aimAt(clock.current, attempt.rung, attempt.aimStart));
 
   function moveTo(next: StadiumPhase) {
     phaseRef.current = next;
@@ -236,85 +231,75 @@ export function StadiumInterior() {
     if (!fxMesh.current) return;
     fxMesh.current.visible = true;
     fxMesh.current.count = big ? FIREWORK_PARTS : FIREWORK_PARTS / 2;
-    const color = new THREE.Color();
-    for (let i = 0; i < FIREWORK_PARTS; i++) {
-      fxMesh.current.setColorAt(
-        i,
-        color.set(
-          i % 3 === 0 ? "#f8d45c" : i % 3 === 1 ? "#e8f0f2" : "#d0453f",
-        ),
-      );
-    }
-    if (fxMesh.current.instanceColor)
-      fxMesh.current.instanceColor.needsUpdate = true;
+    for (let i = 0; i < FIREWORK_PARTS; i++)
+      fxMesh.current.setColorAt(i, fireworkColor.set(i % 3 === 0 ? "#f8d45c" : i % 3 === 1 ? "#e8f0f2" : "#d0453f"));
+    if (fxMesh.current.instanceColor) fxMesh.current.instanceColor.needsUpdate = true;
   }
 
-  function reset() {
-    setAttempt(0);
-    setResults([]);
-    setBest(null);
-    sound("whistle", { gain: 0.5 });
-    setPostHit(null);
-    steerDir.current = 0;
-    rushT.current = 0;
+  function snap(next: Attempt) {
+    setAttempt(next);
+    setLast(null);
+    clock.current = 0;
+    powerT.current = null;
+    sound("whistle", { gain: 0.4 });
+    if (next.gameWinner) sound("crowd-hush");
     if (defender.current) defender.current.rotation.x = 0;
-    showTiming(
-      stadiumTimingStart(0, [stadiumPowerTarget(STADIUM_KICKS[0]), 1]),
-    );
     moveTo("power");
   }
 
-  function nextAttempt() {
-    setAttempt(attempt + 1);
-    sound("whistle", { gain: 0.5 });
-    setPostHit(null);
-    rushT.current = 0;
-    steerDir.current = 0;
-    if (defender.current) defender.current.rotation.x = 0;
-    showTiming(0);
-    moveTo("power");
+  function begin(mode: DriveMode) {
+    drive.current = newDrive(mode, mode === "daily" ? dayNumber() : Math.floor(Math.random() * 1e9));
+    setSummary(null);
+    snap(currentAttempt(drive.current));
   }
 
-  function act(sample = timing.current) {
-    if (
-      !playing ||
-      !gameIsActive() ||
-      !runtime.active ||
-      phaseRef.current !== phase
-    )
-      return;
-    if (phase === "power") {
-      setLockedPower(sample);
-      showTiming(stadiumTimingStart(attempt, stadiumAimWindow(spot, sample)));
+  /** A lock on the current bar, `elapsed` s into it (input time, not frame time). */
+  function act(elapsed = clock.current) {
+    if (!playing || !gameIsActive() || !runtime.active) return;
+    const p = phaseRef.current;
+    if (p === "power") {
+      if (elapsed > snapClock(attempt.rung)) return;
+      powerT.current = elapsed;
+      const power = powerAt(elapsed);
+      setLockedPower(power);
+      const inZone = power >= pStar && power <= pStar + zone;
+      sound(inZone ? "ui-confirm" : "ui-error");
+      if (power > pStar + zone) fx.banner("Over-swing", "miss");
+      clock.current = 0;
       moveTo("aim");
-    } else if (phase === "aim") {
-      flight.current = {
-        kick: stadiumKick(spot, lockedPower, sample),
-        time: 0,
-        sx: 0,
-        sv: 0,
-        postHit: null,
-        blocked: false,
-        samples: [],
-        prevX: spot.x,
-        prevY: 0.48,
-        prevZ: spot.z,
-      };
-      sound("kick");
-      fx.shake(0.3);
-      fx.haptic("tap");
-      timing.current = sample;
-      if (cursor.current) cursor.current.style.left = `${sample * 100}%`;
-      sound("swish", { delay: 0.05 });
-      moveTo("flight");
-    } else if (phase === "result") {
-      if (finished) reset();
-      else nextAttempt();
+    } else if (p === "aim") {
+      if (elapsed > swingWindow(attempt.rung)) return;
+      kick(resolveAttempt(attempt, powerT.current, elapsed));
+    } else if (p === "result") {
+      if (drive.current.over) begin(drive.current.mode);
+      else snap(currentAttempt(drive.current));
     }
   }
 
-  function play() {
-    if (startGameMode("stadium")) reset();
+  function kick(res: ReturnType<typeof resolveAttempt>) {
+    if (!res.flight) {
+      // Blocked at the line: the ball squibs backward off the rusher's hands.
+      flight.current = { path: new Float32Array(0), crossT: 0.6, time: 0, result: "Blocked", hit: null, blocked: true, slowed: false };
+      if (defender.current) {
+        defender.current.position.set(spot.x, 0.17, spot.z - 0.2);
+        defender.current.rotation.x = -0.9;
+      }
+      sound("whistle");
+      moveTo("flight");
+      return;
+    }
+    flight.current = { path: res.flight.path, crossT: res.flight.crossT, time: 0, result: res.result as StadiumOutcome, hit: res.flight.hit, blocked: false, slowed: false };
+    sound("kick");
+    fx.hitStop(80);
+    fx.shake(0.3);
+    fx.haptic("tap");
+    sound("swish", { delay: 0.05 });
+    setLast({ result: res.result as StadiumOutcome, hit: res.flight.hit, points: 0, overswing: res.overswing > 0 });
+    moveTo("flight");
+  }
+
+  function play(mode: DriveMode = "drive") {
+    if (startGameMode("stadium")) begin(mode);
   }
 
   function cancelFlight() {
@@ -328,109 +313,106 @@ export function StadiumInterior() {
     endGameMode();
   }
 
-  const steer = useCallback((dir: number) => {
-    steerDir.current = dir;
-  }, []);
-
   useEffect(() => {
-    function dirFor(code: string) {
-      return code === "ArrowLeft" || code === "KeyA"
-        ? -1
-        : code === "ArrowRight" || code === "KeyD"
-          ? 1
-          : 0;
-    }
     function onKey(event: KeyboardEvent) {
       if (!playing || !gameIsActive() || !runtime.active) return;
-      // Steering keys work even while a steer button holds focus.
-      const dir = dirFor(event.code);
-      if (dir && phaseRef.current === "flight") {
-        steerDir.current = dir;
-        event.preventDefault();
-        return;
-      }
       const target = event.target;
-      if (
-        target instanceof HTMLElement &&
-        target.closest("button, input, select, textarea, a, [contenteditable]")
-      )
-        return;
+      if (target instanceof HTMLElement && target.closest("button, input, select, textarea, a, [contenteditable]")) return;
       if (event.code === "Space" && !event.repeat) {
         event.preventDefault();
         act();
       }
     }
-    function onKeyUp(event: KeyboardEvent) {
-      const dir = dirFor(event.code);
-      if (dir && steerDir.current === dir) steerDir.current = 0;
-    }
     window.addEventListener("interior-game-close", cancelFlight);
     window.addEventListener("keydown", onKey);
-    window.addEventListener("keyup", onKeyUp);
     return () => {
       window.removeEventListener("interior-game-close", cancelFlight);
       window.removeEventListener("keydown", onKey);
-      window.removeEventListener("keyup", onKeyUp);
     };
   });
 
-  function finishKick(
-    outcome: StadiumOutcome,
-    hit: "post" | "crossbar" | null,
-  ) {
-    if (outcome === "Good") {
-      sound("cheer");
-      celebrate(finished && results.every((r) => r === "Good"));
-      fx.confetti(18);
+  const actRef = useRef(act);
+  actRef.current = act;
+  const playRef = useRef(play);
+  playRef.current = play;
+  useEffect(
+    () =>
+      registerGameQa("stadium", {
+        state: () => ({
+          phase: phaseRef.current,
+          mode: drive.current.mode,
+          yards: currentAttempt(drive.current).yards,
+          rung: drive.current.rung,
+          misses: drive.current.misses,
+          score: drive.current.score,
+          longest: drive.current.longest,
+          over: drive.current.over,
+          clock: clock.current,
+          history: drive.current.history,
+        }),
+        act: (name, value) => {
+          if (name === "start") playRef.current((value as DriveMode) ?? "drive");
+          // "lock" at a time into the current bar (s); default = now.
+          else if (name === "lock") actRef.current(typeof value === "number" ? value : undefined);
+          else if (name === "perfect") {
+            const t = perfectTimes(currentAttempt(drive.current));
+            actRef.current(phaseRef.current === "power" ? t.powerT : t.aimT);
+          } else if (name === "next") actRef.current();
+          else if (name === "land" && flight.current) flight.current.time = 99;
+        },
+      }),
+    [],
+  );
+
+  function finishKick(f: Flight) {
+    const result = f.result;
+    const d = drive.current;
+    const points = recordKick(d, attempt, result);
+    if (result === "Good") {
+      sound(attempt.gameWinner ? "win" : "cheer");
+      fx.banner(f.hit ? "Doink… it's good!" : attempt.gameWinner ? "Game-winner!" : "It's good!", "great");
+      celebrate(attempt.gameWinner);
+      fx.confetti(attempt.gameWinner ? 40 : 18);
       fx.haptic("score");
+      if (attempt.gameWinner) fx.slowMo(0.35, 1500);
       crowd.current?.set(1);
       if (roarTimer.current) clearTimeout(roarTimer.current);
       roarTimer.current = setTimeout(() => crowd.current?.set(0), 1500);
     } else {
-      if (hit) {
+      if (f.hit) {
         sound("rim");
-        fx.shake(0.3);
-      } else if (outcome === "Blocked") sound("whistle");
-      sound("miss", { delay: hit ? 0.25 : 0 });
-      // A low groan from the stands.
+        fx.shake(0.6);
+      }
+      sound("miss", { delay: f.hit ? 0.25 : 0 });
       sound("groan", { delay: 0.15 });
+      fx.banner(result === "Doink" ? "Doink! No good" : result, "miss");
     }
-    const all = [...results, outcome];
-    if (attempt === STADIUM_KICKS.length - 1) {
-      const made = all.filter((r) => r === "Good").length;
+    setLast({ result, hit: f.hit, points, overswing: !!last?.overswing });
+    if (d.over) {
       const g = useGame.getState();
-      const record = g.recordBest("stadium.made", made);
-      const far = all.reduce((m, r, i) => (r === "Good" ? Math.max(m, Math.round(STADIUM_KICKS[i].z - FIELD_GOAL.goalZ)) : m), 0);
-      const distance = far > 0 ? g.recordBest("stadium.distance", far) : null;
-      setBest({
-        made,
-        record: record.bests["stadium.made"] ?? made,
-        newBest: (record.improved && made > 0) || !!distance?.improved,
-      });
-      if (record.improved && made > 0) sound("win", { delay: 0.6 });
+      const yards = d.longest > 0 ? g.recordBest("stadium.yards", d.longest) : null;
+      const score = d.mode === "drive" ? g.recordBest("stadium.score", d.score) : g.recordBest("stadium.daily", d.score);
+      g.recordBest("stadium.streak", d.bestStreak);
+      reportRun("stadium", { mode: d.mode, score: d.score, daily: d.mode === "daily", stats: { longest: d.longest, made: d.made } });
+      const newBest = (!!score.improved && d.score > 0) || !!yards?.improved;
+      setSummary({ score: d.score, longest: d.longest, made: d.made, newBest, mode: d.mode });
+      if (newBest) sound("win", { delay: 0.6 });
     }
-    setPostHit(hit);
-    setResults((previous) => [...previous, outcome]);
     moveTo("result");
     flight.current = null;
-    steerDir.current = 0;
   }
 
   useFrame((_, delta) => {
-    if (aimMarker.current)
-      aimMarker.current.visible = playing && phase === "aim";
+    if (aimMarker.current) aimMarker.current.visible = playing && phase === "aim";
     if (trail.current) trail.current.visible = playing && flying;
     if (!playing && ball.current) {
       ball.current.position.set(0, 0.48, FIELD_GOAL.startZ);
       ball.current.rotation.set(0, 0, 0);
     }
     // The wind flag waves even while walking around the stadium.
+    const wind = playing ? attempt.spot.wind : 0;
     flagT.current += Math.min(delta, 0.08);
-    if (flag.current)
-      flag.current.rotation.y =
-        (spot.wind || 0.15) * 0.5 +
-        Math.sin(flagT.current * 3.2) *
-          (0.25 + Math.min(0.5, Math.abs(spot.wind) * 0.3));
+    if (flag.current) flag.current.rotation.y = (wind || 0.15) * 0.5 + Math.sin(flagT.current * 3.2) * (0.25 + Math.min(0.5, Math.abs(wind) * 0.3));
     // Fireworks decay on their own clock.
     if (fxTime.current >= 0 && fxMesh.current) {
       fxTime.current += delta;
@@ -441,11 +423,7 @@ export function StadiumInterior() {
       } else {
         const fade = 1 - t / FIREWORK_LIFE;
         for (let i = 0; i < fxMesh.current.count; i++) {
-          trailDot.position.set(
-            fxVelocity[i * 3] * t,
-            5.4 + fxVelocity[i * 3 + 1] * t - 4.4 * t * t,
-            FIELD_GOAL.goalZ - 1 + fxVelocity[i * 3 + 2] * t,
-          );
+          trailDot.position.set(fxVelocity[i * 3] * t, 5.4 + fxVelocity[i * 3 + 1] * t - 4.4 * t * t, FIELD_GOAL.goalZ - 1 + fxVelocity[i * 3 + 2] * t);
           trailDot.scale.setScalar(Math.max(0.05, fade));
           trailDot.updateMatrix();
           fxMesh.current.setMatrixAt(i, trailDot.matrix);
@@ -453,220 +431,102 @@ export function StadiumInterior() {
         fxMesh.current.instanceMatrix.needsUpdate = true;
       }
     }
-    if (
-      !playing ||
-      !gameIsActive() ||
-      !runtime.active ||
-      phaseRef.current !== phase
-    )
-      return;
-    const dt = Math.min(delta, 0.08);
-    // The rush keeps coming through both meter phases — a late kick is blocked.
-    const rush = stadiumRush(attempt);
-    if (phase === "power" || phase === "aim") {
-      rushT.current += dt;
-      const gap = Math.max(0, rush.distance - rushT.current * rush.speed);
-      if (rushBar.current)
-        rushBar.current.style.width = `${(gap / rush.distance) * 100}%`;
+    if (!playing || !gameIsActive() || !runtime.active) return;
+    const dt = fx.clock.scaled(Math.min(delta, 0.08));
+    const p = phaseRef.current;
+    if (p === "power" || p === "aim") {
+      clock.current += dt;
+      const limit = p === "power" ? snapClock(attempt.rung) : swingWindow(attempt.rung);
+      const left = Number.isFinite(limit) ? Math.max(0, 1 - clock.current / limit) : 1;
+      if (clockBar.current) clockBar.current.style.transform = `scaleX(${left.toFixed(3)})`;
+      // The rusher closes in as the clock runs (rungs 3+ only).
       if (defender.current) {
-        defender.current.visible = true;
-        defender.current.position.set(
-          spot.x + Math.sin(rushT.current * 6) * 0.15,
-          0.17 + Math.abs(Math.sin(rushT.current * 9)) * 0.09,
-          spot.z - gap,
-        );
-        defender.current.rotation.z = Math.sin(rushT.current * 9) * 0.07;
+        defender.current.visible = Number.isFinite(limit);
+        const gap = 1.2 + 7.8 * (p === "power" ? left * 0.5 + 0.5 : left * 0.5);
+        defender.current.position.set(spot.x + Math.sin(clock.current * 6) * 0.15, 0.17 + Math.abs(Math.sin(clock.current * 9)) * 0.09, spot.z - gap);
       }
-      if (gap <= 0) {
-        // Sacked at the spot: the ball squibs backward.
-        flight.current = {
-          kick: { power: 0.1, angle: 0, spot },
-          time: 0,
-          sx: 0,
-          sv: 0,
-          postHit: null,
-          blocked: true,
-          samples: [],
-          prevX: spot.x,
-          prevY: 0.48,
-          prevZ: spot.z,
-        };
-        if (ball.current) ball.current.position.set(spot.x, 0.48, spot.z);
-        if (defender.current) {
-          defender.current.position.set(spot.x, 0.17, spot.z - 0.2);
-          defender.current.rotation.x = -0.9;
-        }
-        moveTo("flight");
+      if (clock.current > limit) {
+        kick({ result: "Blocked", flight: null, power: 0, aim: 0, overswing: 0 });
         return;
       }
-    } else if (defender.current) {
-      // The beaten rusher whiffs past the kicker.
-      const z = defender.current.position.z;
-      if (z < spot.z + 1.4) defender.current.position.z = z + dt * 2.4;
-      defender.current.rotation.z *= 0.9;
-    }
-    const current = flight.current;
-    if (current) {
-      const flightDelta = Math.min(delta, 0.16);
-      current.time += flightDelta;
-      let x: number, y: number, z: number;
-      if (current.blocked) {
-        // Blocked kick: a short backward pop-up off the defender's hands.
-        const t = current.time;
-        x = spot.x;
-        y = 0.48 + 4.4 * t - 5.2 * t * t;
-        z = spot.z + 3.4 * t;
-        if (ball.current) ball.current.rotation.x += flightDelta * 9;
-      } else {
-        // Held steer input bends the flight, fighting (or riding) the wind.
-        current.sv += steerDir.current * STADIUM_STEER.accel * flightDelta;
-        current.sv *= Math.exp(-STADIUM_STEER.damp * flightDelta);
-        current.sv = Math.max(
-          -STADIUM_STEER.max,
-          Math.min(STADIUM_STEER.max, current.sv),
-        );
-        current.sx += current.sv * flightDelta;
-        current.samples.push([current.time, current.sx]);
-        [x, y, z] = kickPosition(current.kick, current.time);
-        x += current.sx;
-        if (ball.current) ball.current.rotation.x -= flightDelta * 13;
-        // Judge the kick at the goal plane so later steering can't change it.
-        const prevZ = current.prevZ;
-        current.prevZ = z;
-        if (current.judged === undefined && z <= FIELD_GOAL.goalZ)
-          current.judged = judgeKick({
-            ...current.kick,
-            spot: { ...spot, x: spot.x + current.sx },
-          });
-        // Grazing an upright or the crossbar clangs and deflects the steer;
-        // test at the plane crossing so fast kicks can't skip between frames.
-        if (
-          !current.postHit &&
-          prevZ > FIELD_GOAL.goalZ &&
-          z <= FIELD_GOAL.goalZ
-        ) {
-          const f = (prevZ - FIELD_GOAL.goalZ) / (prevZ - z);
-          const cx = current.prevX + (x - current.prevX) * f;
-          const cy = current.prevY + (y - current.prevY) * f;
-          const half = FIELD_GOAL.halfWidth;
-          const clearance = FIELD_GOAL.ballRadius + FIELD_GOAL.postRadius;
-          const nearPost =
-            Math.min(Math.abs(cx - half), Math.abs(cx + half)) <
-              clearance + 0.05 &&
-            cy > FIELD_GOAL.crossbar - 0.2 &&
-            cy < FIELD_GOAL.crossbar + 3.2;
-          const nearBar =
-            Math.abs(cy - FIELD_GOAL.crossbar) < clearance + 0.05 &&
-            Math.abs(cx) < half + 0.2;
-          if (nearPost || nearBar) {
-            current.postHit = nearPost ? "post" : "crossbar";
-            current.sv = -current.sv * 0.4;
-            sound("clang");
-          }
-        }
-        current.prevX = x;
-        current.prevY = y;
-      }
-      if (ball.current) ball.current.position.set(x, Math.max(0.32, y), z);
-      if (trail.current) {
-        const count = Math.min(TRAIL_DOTS, Math.floor(current.time / 0.03));
-        trail.current.count = count;
-        for (let i = 0; i < count; i++) {
-          const sampleTime = current.time - (i + 1) * 0.03;
-          if (current.blocked) {
-            trailDot.position.set(
-              spot.x,
-              0.48 + 4.4 * sampleTime - 5.2 * sampleTime * sampleTime,
-              spot.z + 3.4 * sampleTime,
-            );
-          } else {
-            const [px, py, pz] = kickPosition(current.kick, sampleTime);
-            let sx = 0;
-            for (let s = current.samples.length - 1; s >= 0; s--)
-              if (current.samples[s][0] <= sampleTime) {
-                sx = current.samples[s][1];
-                break;
-              }
-            trailDot.position.set(px + sx, py, pz);
-          }
-          trailDot.scale.setScalar(0.13 - i * 0.013);
-          trailDot.updateMatrix();
-          trail.current.setMatrixAt(i, trailDot.matrix);
-        }
-        trail.current.instanceMatrix.needsUpdate = true;
-      }
-      if (current.blocked ? y < 0.3 : y < 0.28 || z < FIELD_GOAL.goalZ - 1.5) {
-        if (current.blocked) finishKick("Blocked", null);
-        else
-          finishKick(
-            current.judged ??
-              (current.time < goalClearanceTime(current.kick)
-                ? "Short"
-                : judgeKick(current.kick)),
-            current.postHit,
-          );
-      }
-    } else if (phase === "power" || phase === "aim") {
-      clock.current += dt;
-      timing.current = stadiumTiming(
-        clock.current,
-        attempt,
-        phase === "aim",
-        sweepStart.current,
-      );
-      if (cursor.current)
-        cursor.current.style.left = `${timing.current * 100}%`;
-      if (aimMarker.current)
-        aimMarker.current.rotation.y = -stadiumKick(
-          spot,
-          lockedPower,
-          timing.current,
-        ).angle;
+      const value = barValue();
+      if (cursor.current) cursor.current.style.left = `${(value * 100).toFixed(2)}%`;
+      if (aimMarker.current && p === "aim") aimMarker.current.rotation.y = -aimAngle(value);
       if (ball.current) {
         ball.current.position.set(spot.x, 0.48, spot.z);
         ball.current.rotation.set(0, 0, 0);
       }
+      return;
     }
+    const current = flight.current;
+    if (!current || p !== "flight") return;
+    current.time += Math.min(dt, 0.16);
+    let x: number, y: number, z: number;
+    if (current.blocked) {
+      const t = current.time;
+      x = spot.x;
+      y = 0.48 + 4.4 * t - 5.2 * t * t;
+      z = spot.z + 3.4 * t;
+      if (ball.current) ball.current.rotation.x += dt * 9;
+      if (y < 0.3 || t > 1.2) {
+        finishKick(current);
+        return;
+      }
+    } else {
+      const samples = current.path.length / 3;
+      const f = current.time / FLIGHT_STEP;
+      const i = Math.min(samples - 1, Math.floor(f));
+      const j = Math.min(samples - 1, i + 1),
+        k = Math.min(1, f - i);
+      x = current.path[i * 3] + (current.path[j * 3] - current.path[i * 3]) * k;
+      y = current.path[i * 3 + 1] + (current.path[j * 3 + 1] - current.path[i * 3 + 1]) * k;
+      const d = current.path[i * 3 + 2] + (current.path[j * 3 + 2] - current.path[i * 3 + 2]) * k;
+      z = fieldZ(d);
+      if (ball.current) ball.current.rotation.x -= dt * 13;
+      // Near the posts the moment slows down until the ball has crossed.
+      if (!current.slowed && d < 6 && d > 0) {
+        current.slowed = true;
+        fx.slowMo(0.5, Math.min(900, ((current.crossT - current.time) / 0.5) * 1000 + 120));
+      }
+      if (trail.current) {
+        const count = Math.min(TRAIL_DOTS, i);
+        trail.current.count = count;
+        for (let n = 0; n < count; n++) {
+          const s = Math.max(0, i - (n + 1) * 2);
+          trailDot.position.set(current.path[s * 3], current.path[s * 3 + 1], fieldZ(current.path[s * 3 + 2]));
+          trailDot.scale.setScalar(0.13 - n * 0.013);
+          trailDot.updateMatrix();
+          trail.current.setMatrixAt(n, trailDot.matrix);
+        }
+        trail.current.instanceMatrix.needsUpdate = true;
+      }
+      if (i >= samples - 1 || current.time > current.crossT + 0.9) {
+        finishKick(current);
+        return;
+      }
+    }
+    if (ball.current) ball.current.position.set(x, Math.max(0.32, y), z);
   });
 
+  const made = phase === "result" && last?.result === "Good";
+  const board = playing ? `${attempt.yards}-YARD ATTEMPT` : "";
   return (
     <StaticBatch id="StadiumInterior">
       <group>
-        <StadiumArchitecture
-          attempt={playing ? attempt + 1 : 0}
-          made={playing && phase === "result" && result === "Good"}
-        />
+        <StadiumArchitecture board={board} made={made} />
         <group ref={aimMarker} position={[spot.x, 0.2, spot.z]} visible={false}>
           {[0, 1, 2, 3, 4].map((i) => (
-            <Cylinder
-              key={i}
-              p={[0, 0, -0.8 - i * 0.58]}
-              s={[0.065, 0.025, 0.065]}
-              c="#e5c56d"
-            />
+            <Cylinder key={i} p={[0, 0, -0.8 - i * 0.58]} s={[0.065, 0.025, 0.065]} c="#e5c56d" />
           ))}
         </group>
         <Football ballRef={ball} />
-        <instancedMesh
-          ref={trail}
-          args={[undefined, undefined, TRAIL_DOTS]}
-          count={0}
-          visible={false}
-          frustumCulled={false}
-        >
+        <instancedMesh ref={trail} args={[undefined, undefined, TRAIL_DOTS]} count={0} visible={false} frustumCulled={false}>
           <sphereGeometry args={[1, 6, 4]} />
           <meshBasicMaterial color="#ffdfa0" />
         </instancedMesh>
         <Fireworks meshRef={fxMesh} />
-        <FootballPlayer
-          p={[spot.x - 0.6, 0.17, spot.z + 0.7]}
-          kicking={flying}
-        />
-        <FootballPlayer
-          p={[spot.x, 0.17, spot.z - 9]}
-          jersey="#2b3f63"
-          playerRef={defender}
-        />
+        <FootballPlayer p={[spot.x - 0.6, 0.17, spot.z + 0.7]} kicking={flying} />
+        <FootballPlayer p={[spot.x, 0.17, spot.z - 9]} jersey="#2b3f63" playerRef={defender} />
         {/* Sideline flag telegraphs the wind for the next kick. */}
         <group position={[9.8, 0, -4]}>
           <Cylinder p={[0, 1.5, 0]} s={[0.05, 3, 0.05]} c="#8f9aa0" />
@@ -682,7 +542,7 @@ export function StadiumInterior() {
           </group>
         ))}
         <Walker interior locked={playing} followCamera={false} />
-        <StadiumView ballRef={ball} playing={playing} controlsRef={controls} />
+        <StadiumView ballRef={ball} playing={playing} controlsRef={controls} spot={spot} />
         <group ref={controls}>
           {!nearExit && !playing && !hosted && (
             <GameControls name="49ers field goals" position={[0, 0, 0]}>
@@ -695,7 +555,7 @@ export function StadiumInterior() {
                 }}
                 className="stadium-play"
                 type="button"
-                onClick={play}
+                onClick={() => play("drive")}
               >
                 Play
               </button>
@@ -705,21 +565,18 @@ export function StadiumInterior() {
         {playing && (
           <StadiumGameHud
             attempt={attempt}
-            wind={spot.wind}
+            drive={drive.current}
             phase={phase}
-            finished={finished}
-            results={results}
-            postHit={postHit}
+            last={last}
+            summary={summary}
             lockedPower={lockedPower}
-            powerTarget={powerTarget}
+            powerWindow={powerWindow}
             aimWindow={aimWindow}
             cursor={bindCursor}
-            rushBar={bindRush}
-            readTiming={() => timing.current}
+            clockBar={bindClock}
+            readElapsed={() => clock.current}
             onAction={act}
-            onSteer={steer}
             onClose={close}
-            best={best}
           />
         )}
       </group>

@@ -241,16 +241,21 @@ export function GoalPosts({
   const paint = made ? "#b3ee8b" : "#f8d45c";
   return (
     <group scale={miniature ? 0.35 : 1}>
-      <Cylinder p={[0, 1.45, 0]} s={[0.095, 2.9, 0.095]} c="#edc342" />
+      <Cylinder p={[0, FIELD_GOAL.crossbar / 2, 0]} s={[0.095, FIELD_GOAL.crossbar, 0.095]} c="#edc342" />
       <Box p={[0, 0.55, 0]} s={[0.43, 1.1, 0.43]} c={RED} />
       <Cylinder
-        p={[0, 2.9, 0]}
+        p={[0, FIELD_GOAL.crossbar, 0]}
         s={[0.085, width * 2, 0.085]}
         r={[0, 0, Math.PI / 2]}
         c={paint}
       />
       {[-width, width].map((x) => (
-        <Cylinder key={x} p={[x, 4.45, 0]} s={[0.075, 3.1, 0.075]} c={paint} />
+        <Cylinder
+          key={x}
+          p={[x, FIELD_GOAL.crossbar + FIELD_GOAL.uprightHeight / 2, 0]}
+          s={[0.075, FIELD_GOAL.uprightHeight, 0.075]}
+          c={paint}
+        />
       ))}
     </group>
   );
@@ -270,10 +275,11 @@ function Floodlight({ p }: { p: [number, number, number] }) {
 }
 
 export function StadiumArchitecture({
-  attempt = 0,
+  board = "",
   made = false,
 }: {
-  attempt?: number;
+  /** Scoreboard line ("43-YARD ATTEMPT"); empty shows the house line. */
+  board?: string;
   made?: boolean;
 }) {
   return (
@@ -316,7 +322,7 @@ export function StadiumArchitecture({
         ink="#f7e4b3"
       />
       <Sign
-        text={attempt ? `KICK ${attempt} / ${FIELD_GOAL.attempts}` : "GO 49ERS"}
+        text={board || "GO 49ERS"}
         p={[0, 3.9, -28.45]}
         size={[6.2, 0.82]}
         color="#243d32"

@@ -34,8 +34,11 @@ export function StadiumView({
   playing,
   ballRef,
   controlsRef,
+  spot,
 }: {
   playing: boolean;
+  /** The attempt's spot in world units; the game camera sits behind it. */
+  spot?: { x: number; z: number };
   ballRef: React.RefObject<THREE.Group | null>;
   controlsRef: React.RefObject<THREE.Group | null>;
 }) {
@@ -49,6 +52,7 @@ export function StadiumView({
   const anchor = useMemo(() => new THREE.Vector3(), []);
   const target = useMemo(() => new THREE.Vector3(), []);
   const nextTarget = useMemo(() => new THREE.Vector3(), []);
+  const ballAt = useMemo<[number, number, number]>(() => [0, 0.48, FIELD_GOAL.startZ], []);
   const wasPlaying = useRef(false);
 
   useFrame(({ camera, size, scene }, delta) => {
@@ -75,8 +79,9 @@ export function StadiumView({
     const frame = stadiumCameraFrame(
       runtime,
       playing,
-      ballRef.current?.position.toArray() ?? [0, 0.48, FIELD_GOAL.startZ],
+      ballRef.current ? (ballRef.current.position.toArray(ballAt) as [number, number, number]) : ballAt,
       portrait,
+      spot,
     );
     camera.position.set(...frame.position);
     nextTarget.set(...frame.target);
