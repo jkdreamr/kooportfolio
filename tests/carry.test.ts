@@ -83,6 +83,6 @@ describe("carry", () => {
     expect(questStamps(s)).toContain("stanford.books");
     const c = { kind: "book" as const, count: 1, parcel: null };
     expect(purposeOf("stanford", c, { ...s, books: 1, booksReturned: 1 }, () => false)).toMatch(/Overdue 1\/3/);
-    expect(purposeOf("stanford", c, s, () => true)).toBe("Return it to the book drop");
+    expect(purposeOf("stanford", c, s, () => true)).toBe("Return to the book drop");
   });
 });

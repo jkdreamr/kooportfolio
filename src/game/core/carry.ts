@@ -98,12 +98,12 @@ export const questStamps = (s: ActivityState) => QUESTS.filter((q) => q.progress
 export function purposeOf(world: WorldId, c: Carried, s: ActivityState, done: (stamp: string) => boolean): string {
   const base =
     c.kind === "basket"
-      ? "Take it to the market crate"
+      ? "Take to the market crate"
       : c.kind === "parcel"
-        ? `Deliver it to the ${PARCEL_DOORS[c.parcel ?? 0].name} door`
+        ? `Deliver to the ${PARCEL_DOORS[c.parcel ?? 0].name} door`
         : c.kind === "ramen"
-          ? "Serve it to the picnic guest by the river"
-          : "Return it to the book drop";
+          ? "Serve the picnic guest"
+          : "Return to the book drop";
   const q = questFor(world, c.kind);
   if (!q || done(q.stamp)) return base;
   return `${base} · ${q.name} ${Math.min(q.progress(s), q.goal)}/${q.goal}`;
