@@ -46,6 +46,7 @@ import {
 import { showToast, useToasts, TOAST_MAX } from "./toasts";
 import { attachUiSounds } from "./uiSounds";
 import { closeListen, ListenTabs, openListen, useListen } from "./ListenPanel";
+import { restoreFocus, trapTab } from "./focusTrap";
 import { ResultCard } from "./ResultCard";
 import { exposeQa, qaEnabled } from "../../stage/qa";
 
@@ -92,28 +93,18 @@ function Modal({
   const ref = useRef<HTMLDivElement>(null);
   const phase = useContext(PresencePhase);
   useEffect(() => {
-    const old = document.activeElement as HTMLElement;
-    ref.current?.focus();
+    const old = document.activeElement as HTMLElement | null;
+    const root = ref.current;
+    root?.focus();
     const handler = (e: KeyboardEvent) => {
-      if (e.key !== "Tab") return;
-      const els = ref.current?.querySelectorAll<HTMLElement>(
-        "button,a,input,select",
-      );
-      if (!els?.length) return;
-      const first = els[0],
-        last = els[els.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
+      // Only the topmost modal traps (an exiting one is inert).
+      if (root && !root.closest("[inert]")) trapTab(root, e);
     };
     document.addEventListener("keydown", handler);
     return () => {
       document.removeEventListener("keydown", handler);
-      old?.focus();
+      // A1: never pull focus out of a modal that opened meanwhile (Listen).
+      restoreFocus(root, old);
     };
   }, []);
   return (
@@ -436,7 +427,8 @@ function useSceneFocus(hudShown: boolean) {
         usePresented.getState().scene !== g.scene ||
         g.overlayLocked ||
         g.paused ||
-        g.panel !== "none"
+        g.panel !== "none" ||
+        useListen.getState().open
       )
         return;
       const shell = document.querySelector<HTMLElement>(".game-shell");
