@@ -29,13 +29,22 @@ import { SkateParkTerrain } from "./SkateParkTerrain";
 import {
   SKATE,
   SKATE_EXIT,
+  SKATE_GOALS,
+  SKATE_LETTERS,
   idleSkateInput,
+  isCleanLine,
   newSkateGame,
+  skateComboValue,
+  skateGoalMet,
+  skateGoalsMet,
   skateHeight,
   stepSkate,
+  type SkateGoalId,
   type SkateState,
   type SkateTrick,
 } from "../core/skate";
+import { registerGameQa } from "../core/gameQa";
+import { dayNumber, reportRun } from "../core/daily";
 import "./skate-park.css";
 
 const S = SKATE.worldScale;
@@ -61,8 +70,23 @@ function snapshot(g: SkateState) {
     speed: Math.round(g.speed * S * 3.6),
     feedback: g.messageTime > 0 ? g.message : "",
     grinding: g.rail >= 0,
+    score: g.score,
+    combo: g.count ? skateComboValue(g) : 0,
+    multiplier: Math.min(6, g.count),
+    manual: g.manual ? g.needle : null,
+    letters: g.letters,
+    goals: g.goals.map((id) => [id, skateGoalMet(id, g)] as const),
   };
 }
+type Result = {
+  score: number;
+  combo: number;
+  bestCombo: number;
+  newBest: boolean;
+  goals: (readonly [SkateGoalId, boolean])[];
+  clean: boolean;
+  mode: SkateState["mode"];
+};
 
 function Skateboard() {
   return (
@@ -304,8 +328,13 @@ export function SkateParkInterior() {
     if (active()) {
       if (riding) {
         const h = held.current,
-          buttons = [...pointers.current.values(), ...uiKeys.current];
-        const has = (name: Hold) => buttons.includes(name);
+          ptr = pointers.current,
+          ui = uiKeys.current;
+        const has = (name: Hold) => {
+          if (ui.has(name)) return true;
+          for (const v of ptr.values()) if (v === name) return true;
+          return false;
+        };
         input.current.push =
           h.has("w") || h.has("arrowup") || has("push")
             ? 1
@@ -317,30 +346,23 @@ export function SkateParkInterior() {
         input.current.brake =
           h.has("s") || h.has("arrowdown") || has("brake") || touch.z > 0.3;
         input.current.grind = h.has("shift") || has("grind");
-        const before = {
-          grounded: g.grounded,
-          trick: g.trick,
-          score: g.score,
-          phase: g.phase,
-          bail: g.bailTime,
-          rail: g.rail,
-          label: g.lastTrick,
-        };
+        const before = frameBefore;
+        before.grounded = g.grounded;
+        before.trick = g.trick;
+        before.score = g.score;
+        before.phase = g.phase;
+        before.bail = g.bailTime;
+        before.label = g.lastTrick;
+        before.letters = g.letters;
         const pushing = input.current.push > 0.2;
         stepSkate(g, input.current, delta);
         const board: [number, number, number] = [g.x * S, g.y * S + 1.2, g.z * S];
-        if (g.phase !== before.phase && g.phase === "done") {
-          const best = useGame.getState().recordBest("skate.combo", g.bestCombo);
-          const run = mode === "run" ? useGame.getState().recordBest("skate.score.run", g.score) : null;
-          setResult({
-            score: g.score,
-            combo: g.bestCombo,
-            bestCombo: best.bests["skate.combo"] ?? g.bestCombo,
-            newBest: (best.improved && g.bestCombo > 0) || (!!run?.improved && g.score > 0),
-          });
-          sound(best.improved && g.bestCombo > 0 ? "win" : "score");
-          if (best.improved && g.bestCombo > 0) fx.confetti();
-        } else if (g.bailTime > before.bail) {
+        if (g.letters !== before.letters) {
+          sound(g.letters === 15 ? "perfect" : "ui-confirm");
+          if (g.letters === 15) useGame.getState().earnStamp("stanford.josh");
+        }
+        if (g.phase !== before.phase && g.phase === "done") finishRun(g);
+        else if (g.bailTime > before.bail) {
           sound("miss");
           fx.shake(0.6);
           fx.haptic("score");
@@ -452,10 +474,32 @@ export function SkateParkInterior() {
     setViewZoom(camera, zoom, size.height);
   });
 
+  const finishRun = (g: SkateState) => {
+    const store = useGame.getState();
+    const best = store.recordBest("skate.combo", g.bestCombo);
+    const run = store.recordBest("skate.score.run", g.score);
+    const clean = isCleanLine(g);
+    if (clean) store.countBest("skate.clean");
+    const met = skateGoalsMet(g);
+    if (g.mode === "daily") store.recordBest("skate.daily.goals", met);
+    reportRun("skate", { mode: g.mode, score: g.score, daily: g.mode === "daily", stats: { goals: met, bails: g.stats.bails } });
+    const newBest = !!run.improved && g.score > 0;
+    setResult({
+      score: g.score,
+      combo: g.bestCombo,
+      bestCombo: best.bests["skate.combo"] ?? g.bestCombo,
+      newBest,
+      goals: g.goals.map((id) => [id, skateGoalMet(id, g)] as const),
+      clean,
+      mode: g.mode,
+    });
+    sound(newBest || met === 3 ? "win" : "score");
+    if (newBest || met === 3) fx.confetti();
+  };
   const begin = (nextMode: SkateState["mode"]) => {
     if (!riding && !startGameMode("skate")) return;
     setResult(null);
-    game.current = newSkateGame(nextMode);
+    game.current = newSkateGame(nextMode, nextMode === "daily" ? dayNumber() : Math.floor(Math.random() * 1e9));
     game.current.x = THREE.MathUtils.clamp(runtime.x / S, -7, 7);
     game.current.z = THREE.MathUtils.clamp(runtime.z / S, -9, 9);
     game.current.y = skateHeight(game.current.x, game.current.z);
@@ -536,9 +580,34 @@ export function SkateParkInterior() {
   const wheels = useSoundLoop(riding ? "wheels" : null);
   const pushedRef = useRef(false),
     sparkClock = useRef(0);
-  const [result, setResult] = useState<null | { score: number; combo: number; bestCombo: number; newBest: boolean }>(null);
+  const frameBefore = useMemo(
+    () => ({ grounded: true, trick: null as SkateTrick | null, score: 0, phase: "riding" as SkateState["phase"], bail: 0, label: "", letters: 0 }),
+    [],
+  );
+  const [result, setResult] = useState<null | Result>(null);
   useLauncher("skate", "skate-free", "Free skate", () => begin("free"), { enabled: !riding, hint: "Enter" });
   useLauncher("skate", "skate-run", "60s run", () => begin("run"), { enabled: !riding });
+  useLauncher("skate", "skate-daily", "Daily run", () => begin("daily"), { enabled: !riding });
+  const beginRef = useRef(begin);
+  beginRef.current = begin;
+  useEffect(
+    () =>
+      registerGameQa("skate", {
+        state: () => {
+          const g = game.current;
+          return { mode: g.mode, phase: g.phase, score: g.score, combo: g.combo, count: g.count, speed: g.speed, message: g.message, goals: g.goals, letters: g.letters, stats: g.stats, time: g.time };
+        },
+        act: (name, value) => {
+          const g = game.current;
+          if (name === "start") beginRef.current((value as SkateState["mode"]) ?? "run");
+          else if (name === "trick") input.current.trick = (value as SkateTrick) ?? "kickflip";
+          else if (name === "jump") input.current.jump = true;
+          else if (name === "set") Object.assign(g, value as Partial<SkateState>);
+          else if (name === "finish") g.time = SKATE.duration - 0.01;
+        },
+      }),
+    [],
+  );
   return (
     <>
       <group
@@ -604,14 +673,47 @@ export function SkateParkInterior() {
                 <div className="skate-modes">
                   <button onClick={() => begin("free")}>Free skate</button>
                   <button onClick={() => begin("run")}>60s run</button>
+                  <button onClick={() => begin("daily")}>Daily</button>
                 </div>
               </section>
             ) : (
               <>
                 <section className="skate-score" aria-label="Skate session">
-                  <span>{mode === "run" ? `${view.time}s` : "Free skate"}</span>
+                  <span>{mode !== "free" ? `${view.time}s` : "Free skate"}</span>
+                  <span className="skate-banked">
+                    <strong>{view.score.toLocaleString("en-US")}</strong>
+                  </span>
                   <span>{view.speed} km/h</span>
+                  {view.combo > 0 && (
+                    <span className={`skate-combo${view.multiplier >= 4 ? " is-hot" : ""}`} style={{ transform: `translateX(-50%) scale(${1 + 0.02 * view.multiplier})` }}>
+                      <b>
+                        {view.combo.toLocaleString("en-US")}
+                        <small>×{view.multiplier}</small>
+                      </b>
+                    </span>
+                  )}
+                  {view.manual !== null && (
+                    <span className="skate-needle" aria-hidden="true">
+                      <i style={{ transform: `translateX(${(view.manual * 50).toFixed(1)}px)` }} />
+                    </span>
+                  )}
                 </section>
+                {mode !== "free" && view.phase !== "done" && (
+                  <ul className="skate-goals" aria-label="Run goals">
+                    {view.goals.map(([id, met]) => (
+                      <li key={id} className={met ? "is-met" : ""}>
+                        <span aria-hidden="true">{met ? "★" : "☆"}</span> {SKATE_GOALS[id]}
+                      </li>
+                    ))}
+                    <li className="skate-letters" aria-label={`Letters ${SKATE_LETTERS.filter((_, i) => view.letters & (1 << i)).map((l) => l.letter).join("") || "none"}`}>
+                      {SKATE_LETTERS.map((l, i) => (
+                        <b key={l.letter} className={view.letters & (1 << i) ? "is-got" : ""}>
+                          {l.letter}
+                        </b>
+                      ))}
+                    </li>
+                  </ul>
+                )}
                 <p className="skate-feedback" role="status">
                   {view.feedback}
                 </p>
@@ -620,14 +722,24 @@ export function SkateParkInterior() {
                     className="skate-card skate-done"
                     aria-label="Skate run result"
                   >
-                    <span className="skate-eyebrow">Run complete</span>
-                    <h2>Nice line</h2>
+                    <span className="skate-eyebrow">{result?.mode === "daily" ? "Daily run" : "Run complete"}</span>
+                    <h2>{result?.clean ? "Clean Line" : "Nice line"}</h2>
+                    {result && result.goals.length > 0 && (
+                      <ul className="skate-goals is-result" aria-label={`${result.goals.filter(([, m]) => m).length} of 3 goals`}>
+                        {result.goals.map(([id, met]) => (
+                          <li key={id} className={met ? "is-met" : ""}>
+                            <span aria-hidden="true">{met ? "★" : "☆"}</span> {SKATE_GOALS[id]}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                     <ResultCard
+                      game="skate"
                       score={result?.score}
                       unit="points"
                       best={!!result?.newBest}
                       detail={result ? `Best combo ${result.combo.toLocaleString("en-US")}${result.newBest ? "" : ` · record ${result.bestCombo.toLocaleString("en-US")}`}` : undefined}
-                      onReplay={() => begin("run")}
+                      onReplay={() => begin(result?.mode ?? "run")}
                       onBack={leaveBoard}
                       backLabel="Step off"
                     />
@@ -668,7 +780,7 @@ export function SkateParkInterior() {
                         Step off
                       </button>
                     </div>
-                    <p className="skate-hint">Flip to jump. Land to bank.</p>
+                    <p className="skate-hint">Flip at speed. Manual (S) or grind to link.</p>
                   </>
                 )}
               </>

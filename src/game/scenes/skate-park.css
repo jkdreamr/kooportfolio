@@ -369,3 +369,75 @@
   font-weight: 700;
   font-size: var(--text-xs, 12px);
 }
+.skate-score .skate-combo.is-hot b {
+  color: #ffd97a;
+}
+.skate-needle {
+  position: absolute;
+  top: calc(100% + 58px);
+  left: 50%;
+  width: 110px;
+  height: 8px;
+  margin-left: -55px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #a5463a 0 14%, #3e5a62 14% 86%, #a5463a 86%);
+}
+.skate-needle i {
+  position: absolute;
+  left: 53px;
+  top: -3px;
+  width: 4px;
+  height: 14px;
+  border-radius: 2px;
+  background: #f5f4e9;
+}
+.skate-goals {
+  position: absolute;
+  top: 94px;
+  left: 16px;
+  margin: 0;
+  padding: 8px 12px;
+  list-style: none;
+  display: grid;
+  gap: 3px;
+  border: 1px solid #536873;
+  border-radius: 7px;
+  background: rgb(48 70 80 / 0.9);
+  font-size: 12px;
+  max-width: calc(50% - 40px);
+}
+.skate-goals li {
+  color: #c3d0d0;
+}
+.skate-goals li.is-met {
+  color: #ffd97a;
+}
+.skate-goals.is-result {
+  position: static;
+  max-width: none;
+  margin: 0 0 12px;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-size: 13px;
+}
+.skate-letters {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+.skate-letters b {
+  min-width: 14px;
+  text-align: center;
+  color: #6b7f86;
+  font-size: 13px;
+}
+.skate-letters b.is-got {
+  color: #ffd97a;
+}
+@media (max-width: 700px) {
+  .skate-goals {
+    top: 140px;
+    font-size: 11px;
+  }
+}
