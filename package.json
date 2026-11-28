@@ -14,6 +14,12 @@
     "preview": "vite preview --host 0.0.0.0",
     "deploy:staging": "node scripts/free-gate.mjs && CLOUDFLARE_ENV=staging npm run build && node scripts/check-staging.mjs && wrangler deploy --config dist/joshua_exe_local/wrangler.json",
     "audit:assets": "node scripts/asset-audit.mjs",
+    "qa:build": "node scripts/gzip-cast.mjs && VITE_QA=1 vite build && node scripts/prerender.mjs && node scripts/flatten-dist.mjs",
+    "qa:smoke": "node scripts/qa/smoke.mjs",
+    "qa:soak": "node scripts/qa/soak.mjs",
+    "qa:site-audit": "node scripts/qa/site-audit.mjs",
+    "qa:loadperf": "node scripts/qa/loadperf.mjs",
+    "qa:links": "node scripts/qa/links-audit.mjs",
     "verify:theater": "NODE_USE_ENV_PROXY=1 node --no-warnings scripts/verify-theater.mjs",
     "harvest:theater": "NODE_USE_ENV_PROXY=1 node --no-warnings scripts/harvest-theater.mjs"
   },
