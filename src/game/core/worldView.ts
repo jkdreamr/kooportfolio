@@ -75,3 +75,109 @@ export function setView(view: WorldViewMode) {
 export function toggleView() {
   setView(useWorldView.getState().view === "explore" ? "diorama" : "explore");
 }
+
+/**
+ * Village-view look-around: yaw around the island (radians, 0 = the painted
+ * three-quarter overview) and a small pitch nudge on top of its elevation.
+ * Non-reactive and mutated in place; WorldZoomInput writes drags, Hub's
+ * frame steps inertia and reads the pose. The walk view always uses the
+ * unrotated heading, so its controls never change under the player.
+ */
+export const ORBIT_PITCH_MIN = -0.1;
+export const ORBIT_PITCH_MAX = 0.14;
+/** Radians per CSS pixel of horizontal drag (a full turn ≈ 1.6 widths of 1440). */
+export const ORBIT_YAW_PER_PIXEL = 0.0028;
+const ORBIT_PITCH_PER_PIXEL = 0.0018;
+/** Keyboard turn rate, radians per second. */
+export const ORBIT_KEY_SPEED = 1.5;
+/** Inertia half-life feel: velocity decays by e^(-dt * friction). */
+const ORBIT_FRICTION = 4.5;
+const ORBIT_MAX_SPIN = 4;
+
+export const orbit = {
+  yaw: 0,
+  pitch: 0,
+  /** Spin left after a release, radians per second. */
+  velocity: 0,
+  dragging: false,
+  /** Easing back to the painted overview ("Whole island"). */
+  homing: false,
+};
+
+const wrap = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle));
+const clampPitch = (pitch: number) =>
+  Math.max(ORBIT_PITCH_MIN, Math.min(ORBIT_PITCH_MAX, pitch));
+
+/** A drag step in CSS pixels over `dt` seconds (dt 0: unknown). */
+export function orbitDrag(dx: number, dy: number, dt: number) {
+  if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
+  orbit.homing = false;
+  const turn = -dx * ORBIT_YAW_PER_PIXEL;
+  orbit.yaw = wrap(orbit.yaw + turn);
+  orbit.pitch = clampPitch(orbit.pitch + dy * ORBIT_PITCH_PER_PIXEL);
+  if (dt > 0) {
+    const sample = Math.max(-ORBIT_MAX_SPIN, Math.min(ORBIT_MAX_SPIN, turn / dt));
+    // Low-pass the release speed so one jittery sample cannot fling it.
+    orbit.velocity = orbit.velocity * 0.5 + sample * 0.5;
+  }
+}
+
+export function orbitGrab() {
+  orbit.dragging = true;
+  orbit.homing = false;
+  orbit.velocity = 0;
+}
+
+/** Let go: keep spinning (unless reduced motion), or stop dead. */
+export function orbitRelease(reduced: boolean, idleMs = 0) {
+  orbit.dragging = false;
+  // A pause before lifting the finger means "put it here", not "fling".
+  if (reduced || idleMs > 90) orbit.velocity = 0;
+}
+
+/** Turn back to the painted overview (eased, or at once for reduced motion). */
+export function orbitHome(reduced = false) {
+  orbit.velocity = 0;
+  orbit.dragging = false;
+  if (reduced) {
+    orbit.yaw = 0;
+    orbit.pitch = 0;
+    orbit.homing = false;
+  } else orbit.homing = orbit.yaw !== 0 || orbit.pitch !== 0;
+}
+
+/** Drop the look-around at once (another controller owns the camera). */
+export function orbitReset() {
+  const moved = orbit.yaw !== 0 || orbit.pitch !== 0;
+  orbit.yaw = orbit.pitch = orbit.velocity = 0;
+  orbit.dragging = orbit.homing = false;
+  return moved;
+}
+
+/** One frame: keys (-1..1, + turns the view right), inertia, homing. */
+export function stepOrbit(dt: number, key: number, reduced: boolean) {
+  if (key !== 0) {
+    orbit.homing = false;
+    orbit.velocity = 0;
+    orbit.yaw = wrap(orbit.yaw - key * ORBIT_KEY_SPEED * dt);
+    return;
+  }
+  if (orbit.homing) {
+    const k = 1 - Math.exp(-dt * 5);
+    orbit.yaw = wrap(orbit.yaw * (1 - k));
+    orbit.pitch *= 1 - k;
+    if (Math.abs(orbit.yaw) < 1e-4 && Math.abs(orbit.pitch) < 1e-4) {
+      orbit.yaw = orbit.pitch = 0;
+      orbit.homing = false;
+    }
+    return;
+  }
+  if (orbit.dragging || orbit.velocity === 0) return;
+  if (reduced) {
+    orbit.velocity = 0;
+    return;
+  }
+  orbit.yaw = wrap(orbit.yaw + orbit.velocity * dt);
+  orbit.velocity *= Math.exp(-dt * ORBIT_FRICTION);
+  if (Math.abs(orbit.velocity) < 0.01) orbit.velocity = 0;
+}

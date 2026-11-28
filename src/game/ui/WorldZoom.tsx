@@ -12,6 +12,10 @@ import {
   useWorldView,
   zoomWorld,
   fitIsland,
+  orbitDrag,
+  orbitGrab,
+  orbitHome,
+  orbitRelease,
   setView,
   toggleView,
 } from "../core/worldView";
@@ -40,18 +44,65 @@ function zoomView(factor: number) {
 function wholeIsland() {
   setView("diorama");
   fitIsland();
+  orbitHome(
+    typeof matchMedia === "function" &&
+      matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
 }
 
 const typing = (target: EventTarget | null) =>
   target instanceof HTMLElement &&
   (target.isContentEditable || target.matches("input,textarea,select"));
 
-/** Native input is scoped to the canvas; menus keep ordinary scrolling. */
+/** Village view (not walk view) with the world taking input: drags turn it. */
+function canOrbit() {
+  return (
+    canZoom() &&
+    useWorldView.getState().view === "diorama" &&
+    gameInputEnabled(useStage.getState())
+  );
+}
+
+/** CSS pixels a press may wander and still count as a tap. */
+const TAP_SLOP = { mouse: 6, touch: 10 } as const;
+const reducedMotion =
+  typeof matchMedia === "function"
+    ? matchMedia("(prefers-reduced-motion: reduce)")
+    : null;
+/** Presses re-sent to the scene after they turned out to be taps. */
+const replayed = new WeakSet<Event>();
+
+/** Native input is scoped to the canvas; menus keep ordinary scrolling.
+ *
+ * In the village view a press on the canvas is held back from the scene
+ * (whose tap-to-walk and tap-to-use fire on pointerdown) until it is known:
+ * released within TAP_SLOP it is replayed as the original press, so taps
+ * behave as before; moved further it turns the view (yaw with inertia, a
+ * little pitch) and the scene never sees it. */
 export function WorldZoomInput() {
   const canvas = useThree((state) => state.gl.domElement);
   useEffect(() => {
     const touches = new Map<number, { x: number; y: number }>();
     let previousDistance = 0;
+    // The held press (one at a time; a second finger turns it into a pinch).
+    const press = {
+      id: -1,
+      dragging: false,
+      x: 0,
+      y: 0,
+      lastX: 0,
+      lastY: 0,
+      lastT: 0,
+      init: null as PointerEventInit | null,
+    };
+    let swallowClick = false;
+    const drop = () => {
+      press.id = -1;
+      press.init = null;
+      if (press.dragging) orbitRelease(true);
+      press.dragging = false;
+      canvas.style.cursor = "";
+    };
     const wheel = (event: WheelEvent) => {
       if (!canZoom()) return;
       event.preventDefault();
@@ -65,27 +116,129 @@ export function WorldZoomInput() {
       zoomView(Math.exp(-Math.max(-100, Math.min(100, pixels)) * 0.003));
     };
     const down = (event: PointerEvent) => {
-      if (event.pointerType !== "touch" || !canZoom()) return;
-      touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
-      previousDistance = 0;
-      if (touches.size > 1) {
-        event.stopPropagation();
-        runtime.target = null;
-        runtime.path = [];
+      if (replayed.has(event)) return;
+      swallowClick = false;
+      if (event.pointerType === "touch" && canZoom()) {
+        touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+        previousDistance = 0;
+        if (touches.size > 1) {
+          event.stopPropagation();
+          runtime.target = null;
+          runtime.path = [];
+          // A pinch, not a tap or a turn.
+          drop();
+          return;
+        }
       }
+      if (
+        press.id !== -1 ||
+        !event.isPrimary ||
+        event.button !== 0 ||
+        !canOrbit()
+      )
+        return;
+      // Hold the press back from the scene until it is a tap or a drag.
+      event.stopPropagation();
+      press.id = event.pointerId;
+      press.dragging = false;
+      press.x = press.lastX = event.clientX;
+      press.y = press.lastY = event.clientY;
+      press.lastT = event.timeStamp;
+      press.init = {
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+        clientX: event.clientX,
+        clientY: event.clientY,
+        screenX: event.screenX,
+        screenY: event.screenY,
+        pointerId: event.pointerId,
+        pointerType: event.pointerType,
+        isPrimary: true,
+        button: 0,
+        buttons: 1,
+        width: event.width,
+        height: event.height,
+        pressure: event.pressure,
+        shiftKey: event.shiftKey,
+        ctrlKey: event.ctrlKey,
+        altKey: event.altKey,
+        metaKey: event.metaKey,
+      };
     };
     const move = (event: PointerEvent) => {
-      if (!touches.has(event.pointerId)) return;
-      touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
-      if (touches.size !== 2 || !canZoom()) return;
-      const [a, b] = [...touches.values()];
-      const distance = Math.hypot(a.x - b.x, a.y - b.y);
-      if (previousDistance > 0) zoomView(distance / previousDistance);
-      previousDistance = distance;
+      if (touches.has(event.pointerId)) {
+        touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+        if (touches.size === 2 && canZoom()) {
+          const [a, b] = [...touches.values()];
+          const distance = Math.hypot(a.x - b.x, a.y - b.y);
+          if (previousDistance > 0) zoomView(distance / previousDistance);
+          previousDistance = distance;
+        }
+      }
+      if (event.pointerId !== press.id) return;
+      if (!canOrbit()) {
+        drop();
+        return;
+      }
+      if (!press.dragging) {
+        const slop = event.pointerType === "touch" ? TAP_SLOP.touch : TAP_SLOP.mouse;
+        if (Math.hypot(event.clientX - press.x, event.clientY - press.y) <= slop)
+          return;
+        press.dragging = true;
+        canvas.style.cursor = "grabbing";
+        orbitGrab();
+      }
+      orbitDrag(
+        event.clientX - press.lastX,
+        event.clientY - press.lastY,
+        Math.max(0, (event.timeStamp - press.lastT) / 1000),
+      );
+      press.lastX = event.clientX;
+      press.lastY = event.clientY;
+      press.lastT = event.timeStamp;
+    };
+    /** On the canvas, before the scene's own pointerup and click: a tap is
+     * replayed as its press so R3F sees down, up, click in order. */
+    const canvasUp = (event: PointerEvent) => {
+      if (event.pointerId !== press.id) return;
+      const init = press.init;
+      if (press.dragging) {
+        orbitRelease(
+          !!reducedMotion?.matches,
+          event.timeStamp - press.lastT,
+        );
+        swallowClick = true;
+        press.dragging = false;
+        press.id = -1;
+        press.init = null;
+        canvas.style.cursor = "";
+        return;
+      }
+      press.id = -1;
+      press.init = null;
+      if (init && canOrbit()) {
+        const replay = new PointerEvent("pointerdown", init);
+        replayed.add(replay);
+        canvas.dispatchEvent(replay);
+      }
     };
     const up = (event: PointerEvent) => {
       touches.delete(event.pointerId);
       previousDistance = 0;
+      // Released off the canvas (or cancelled): no tap.
+      if (event.pointerId === press.id) {
+        if (press.dragging) orbitRelease(!!reducedMotion?.matches, event.timeStamp - press.lastT);
+        press.dragging = false;
+        canvas.style.cursor = "";
+        press.id = -1;
+        press.init = null;
+      }
+    };
+    const click = (event: MouseEvent) => {
+      if (!swallowClick) return;
+      swallowClick = false;
+      event.stopPropagation();
     };
     // V toggles walk / village view (hub only, same gate as zooming).
     const key = (event: KeyboardEvent) => {
@@ -105,6 +258,8 @@ export function WorldZoomInput() {
     window.addEventListener("keydown", key);
     canvas.addEventListener("wheel", wheel, { passive: false });
     canvas.addEventListener("pointerdown", down);
+    canvas.addEventListener("pointerup", canvasUp);
+    canvas.addEventListener("click", click);
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
     window.addEventListener("pointercancel", up);
@@ -112,9 +267,12 @@ export function WorldZoomInput() {
       window.removeEventListener("keydown", key);
       canvas.removeEventListener("wheel", wheel);
       canvas.removeEventListener("pointerdown", down);
+      canvas.removeEventListener("pointerup", canvasUp);
+      canvas.removeEventListener("click", click);
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", up);
+      if (press.dragging) orbitRelease(true);
     };
   }, [canvas]);
   return null;

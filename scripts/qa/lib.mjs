@@ -201,7 +201,7 @@ function gateProbe() {
  * failed requests and HTTP ≥ 400 (outside the `/api/` probe), and any WebGL
  * context loss the script did not ask for.
  */
-export async function gatedContext(browser, base, options = {}, { seed, expectContextLoss = false } = {}) {
+export async function gatedContext(browser, base, options = {}, { seed, expectContextLoss = false, welcome = false } = {}) {
   const context = await browser.newContext(options);
   const origin = new URL(base).origin;
   const gate = {
@@ -216,6 +216,15 @@ export async function gatedContext(browser, base, options = {}, { seed, expectCo
     problems: (from = 0) => [...new Set(gate.errors.slice(from))],
   };
   await context.addInitScript(gateProbe);
+  // The first-visit welcome card is modal; QA builds skip it on this flag.
+  if (!welcome)
+    await context.addInitScript(() => {
+      try {
+        localStorage.setItem("qa-no-welcome", "1");
+      } catch {
+        /* storage blocked: the card shows */
+      }
+    });
   if (seed)
     await context.addInitScript((save) => {
       if (sessionStorage.getItem("qa-seeded")) return;

@@ -28,7 +28,8 @@ import { rig } from "../engine/Engine";
 import { Environment } from "./env";
 import { StaticBatch } from "./StaticBatch";
 import { GlazedPanel } from "./GlazedPanel";
-import { RegionalActivities } from "./RegionalActivities";
+import { RegionalActivities, useActivities } from "./RegionalActivities";
+import { carriedIn } from "../core/carry";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import {
@@ -42,7 +43,7 @@ import {
   Ring,
 } from "./Models";
 import { runtime, useGame, walkTo } from "../core/store";
-import { movement, movementSpeed } from "../core/input";
+import { keys, movement, movementSpeed } from "../core/input";
 import { footstep } from "../core/sound";
 import {
   canWalk,
@@ -61,7 +62,13 @@ import { KoreaWorldEnvironment } from "./KoreaWorldEnvironment";
 import { Bulletin } from "./Bulletin";
 import { roomFor } from "../core/room";
 import { useGameMode } from "../core/gameMode";
-import { useWorldView, viewRuntime } from "../core/worldView";
+import {
+  orbit,
+  orbitReset,
+  stepOrbit,
+  useWorldView,
+  viewRuntime,
+} from "../core/worldView";
 import {
   islandCenter,
   islandZoom,
@@ -160,6 +167,14 @@ function refreshTreeGrid() {
     ]),
   );
 }
+/** Rotate a horizontal vector about +Y by `angle` (as Object3D.rotateY). */
+function yawX(x: number, z: number, angle: number) {
+  return x * Math.cos(angle) + z * Math.sin(angle);
+}
+function yawZ(x: number, z: number, angle: number) {
+  return z * Math.cos(angle) - x * Math.sin(angle);
+}
+
 function boomBlocked(x: number, z: number, y: number) {
   const solids = solidsFor(boomWorld);
   for (let i = 0; i < solids.length; i++) {
@@ -189,6 +204,8 @@ export function Walker({
   const follow = useRef(new THREE.Vector3()),
     desired = useRef(new THREE.Vector3()),
     offset = useRef(new THREE.Vector3()),
+    // The village view's offset: the overview turned by the look-around.
+    orbitOffset = useRef(new THREE.Vector3()),
     look = useRef(new THREE.Vector3()),
     // Scene and world the follow camera last framed (compared field by
     // field: no per-frame key string).
@@ -233,7 +250,12 @@ export function Walker({
     if (locked || useGameMode.getState().active) {
       runtime.moving = false;
       state.setNear("");
-      if (!interior) leaveExplore();
+      if (!interior) {
+        leaveExplore();
+        // Travel, the train and game modes frame from the painted overview:
+        // drop the look-around and let the rig smooth the cut.
+        if (orbitReset()) rig.blend(HANDOFF_BLEND_SECONDS);
+      }
       if (locked && !interior) {
         // Travel owns the live view. Keep its last framing for a damped handoff,
         // including the new world key so landing cannot trigger a camera cut.
@@ -271,6 +293,13 @@ export function Walker({
       const x = dx;
       dx = x * 0.83 + dz * 0.55;
       dz = dz * 0.83 - x * 0.55;
+      // Turned village view: keys stay screen-relative.
+      const turn = interior ? 0 : orbit.yaw * (1 - viewRuntime.blend);
+      if (turn !== 0) {
+        const tx = dx;
+        dx = yawX(tx, dz, turn);
+        dz = yawZ(tx, dz, turn);
+      }
     } else if (runtime.target) {
       const [tx, tz] = runtime.target,
         distance = Math.hypot(tx - runtime.x, tz - runtime.z);
@@ -400,9 +429,10 @@ export function Walker({
       // The overview also frames the rock hanging beneath the island.
       const [shiftX, shiftY, shiftZ] = islandViewShift(state.world);
       const overview = 1 - playerFollow;
-      desired.current.x += shiftX * overview;
+      // A screen-down pan: it turns with the look-around.
+      desired.current.x += yawX(shiftX, shiftZ, orbit.yaw) * overview;
       desired.current.y += shiftY * overview;
-      desired.current.z += shiftZ * overview;
+      desired.current.z += yawZ(shiftX, shiftZ, orbit.yaw) * overview;
     }
     const changedScene =
       cameraScene.current.scene !== state.scene || cameraScene.current.world !== state.world;
@@ -415,6 +445,35 @@ export function Walker({
     follow.current.lerp(desired.current, 1 - Math.exp(-dt * 3));
     if (interior) offset.current.set(15, 21, 25);
     else offset.current.set(...ISLAND_CAMERA_OFFSET);
+    const turned = orbitOffset.current;
+    if (interior) turned.copy(offset.current);
+    else {
+      // Village view look-around: Q/E turn it unless they have a job here
+      // (E uses what is near, Q drops what is carried).
+      const villageView =
+        enabled &&
+        useWorldView.getState().view === "diorama" &&
+        !state.paused &&
+        !state.overlayLocked &&
+        state.panel === "none";
+      const key = villageView
+        ? Number(
+            keys.has("q") &&
+              !carriedIn(state.world, useActivities.getState().play),
+          ) - Number(keys.has("e") && state.near === "")
+        : 0;
+      stepOrbit(dt, key, !!reducedMotion?.matches);
+      const [ox, oy, oz] = ISLAND_CAMERA_OFFSET;
+      const flat = Math.hypot(ox, oz),
+        reach = Math.hypot(flat, oy),
+        elevation = Math.atan2(oy, flat) + orbit.pitch,
+        scale = (reach * Math.cos(elevation)) / flat;
+      turned.set(
+        yawX(ox, oz, orbit.yaw) * scale,
+        reach * Math.sin(elevation),
+        yawZ(ox, oz, orbit.yaw) * scale,
+      );
+    }
     const fitted = islandZoom(size.width, size.height, state.world);
     const targetZoom = interior
       ? mobile
@@ -439,7 +498,7 @@ export function Walker({
       follow.current.z,
     );
     if (interior || !perspective.isPerspectiveCamera) {
-      aimCamera(camera, look.current, offset.current, nextZoom, size.height);
+      aimCamera(camera, look.current, turned, nextZoom, size.height);
       return;
     }
     // --- hub: diorama, explore, or the parametric blend between them ---
@@ -473,10 +532,10 @@ export function Walker({
         perspective.updateProjectionMatrix();
       }
       v.ownsLens = false;
-      aimCamera(camera, look.current, offset.current, nextZoom, size.height);
+      aimCamera(camera, look.current, turned, nextZoom, size.height);
       return;
     }
-    dioramaPose(v.diorama, look.current, offset.current, nextZoom, size.height);
+    dioramaPose(v.diorama, look.current, turned, nextZoom, size.height);
     const lens = exploreLens(size.width, size.height);
     const reach =
       useWorldView.getState().exploreDistance * lens.distanceScale;

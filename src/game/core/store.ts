@@ -121,7 +121,8 @@ type State = {
     | "travel"
     | "npc"
     | "telescope"
-    | "desk";
+    | "desk"
+    | "welcome";
   near: string;
   notice: string;
   /** Master mute. Mirrors `sound.muted`; setting either keeps both in step. */

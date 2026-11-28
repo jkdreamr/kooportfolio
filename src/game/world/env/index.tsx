@@ -25,7 +25,7 @@ import { tickReflection } from "./reflection";
 import { surfaceDetail, surfaceExplore } from "../Surface";
 import { useEnvTier } from "./tier";
 import { exposeQa } from "../../../stage/qa";
-import { viewRuntime } from "../../core/worldView";
+import { orbit, viewRuntime } from "../../core/worldView";
 import { detailStats } from "./detail";
 
 /**
@@ -70,7 +70,7 @@ export function Environment({ world }: { world: WorldId }) {
 // environment on the next frame.
 onContextRestored(() => invalidateGlossEnvironment());
 // QA builds only: the view blend (read-only here) and the detail bake stats.
-exposeQa({ viewRuntime, envDetail: detailStats });
+exposeQa({ viewRuntime, orbit, envDetail: detailStats });
 
 const reducedMotion =
   typeof matchMedia === "function"

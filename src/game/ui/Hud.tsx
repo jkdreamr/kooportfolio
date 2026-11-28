@@ -3,6 +3,7 @@ import {
   Suspense,
   useContext,
   useEffect,
+  useId,
   useRef,
   useState,
   type ReactNode,
@@ -12,6 +13,7 @@ import { keys, touch } from "../core/input";
 import { usePresence, type PresenceState } from "./motion";
 import { useGlassMode, useHudReveal } from "./hudStage";
 import { FirstSteps, useHintLearning, useHints } from "./FirstSteps";
+import { WelcomeCard, useWelcome } from "./WelcomeCard";
 import { DoorTransition } from "./DoorTransition";
 import { useStage } from "../../stage/contract";
 import { BasketballHud, BoathouseRaceSelect, RowingHud } from "../scenes/lazyModes";
@@ -95,6 +97,7 @@ function Modal({
   className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const titleId = useId();
   const phase = useContext(PresencePhase);
   useEffect(() => {
     const old = document.activeElement as HTMLElement | null;
@@ -117,7 +120,7 @@ function Modal({
         className={className ? `game-modal ${className}` : "game-modal"}
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-labelledby={titleId}
         tabIndex={-1}
         ref={ref}
         onKeyDown={(event) => {
@@ -132,7 +135,7 @@ function Modal({
           <Icon name="close" />
         </button>
         {eyebrow && <span className="eyebrow">{eyebrow}</span>}
-        <h2>{title}</h2>
+        <h2 id={titleId}>{title}</h2>
         {children}
       </div>
     </div>
@@ -650,6 +653,7 @@ export function Hud({ interact }: { interact: () => void }) {
   const g = useGame();
   const leaving = useExitIntent(g.scene);
   useSceneFocus(hudMotion !== "hidden");
+  const welcomePending = useWelcome(hudMotion === "shown");
   useEffect(() => {
     if (pendingExit.current && pendingExit.current !== g.scene)
       pendingExit.current = null;
@@ -876,6 +880,7 @@ export function Hud({ interact }: { interact: () => void }) {
               <FirstSteps
                 active={
                   hudMotion === "shown" &&
+                  !welcomePending &&
                   g.panel === "none" &&
                   !g.paused &&
                   !g.traveling &&
@@ -980,6 +985,14 @@ export function Hud({ interact }: { interact: () => void }) {
           <JoshLinks />
         </Modal>
       </Presence>
+      <Presence show={g.panel === "welcome"}>
+        <Modal title="Welcome to Joshua’s world" close={closePanel} className="welcome-modal">
+          <WelcomeCard
+            close={closePanel}
+            showAround={() => useGame.setState({ panel: "places" })}
+          />
+        </Modal>
+      </Presence>
       <Presence show={g.panel === "settings"}>
         <Modal eyebrow="" title="Settings" close={closePanel}>
           <button
@@ -991,6 +1004,13 @@ export function Hud({ interact }: { interact: () => void }) {
           >
             <span>Passport: stamps, medals, Daily Three</span>
             <kbd>P</kbd>
+          </button>
+          <button
+            className="setting-row"
+            onClick={() => useGame.setState({ panel: "welcome" })}
+          >
+            <span>Welcome tour</span>
+            <Icon name="arrow" size={17} />
           </button>
           <SoundSettings />
           <QualitySetting />
@@ -1038,6 +1058,19 @@ export function Hud({ interact }: { interact: () => void }) {
                 Drag the round stick or tap the ground.
               </span>{" "}
               Choose a building label to walk there.
+            </p>
+            <b>Look</b>
+            <p>
+              In the village view, drag the world to turn it
+              <span className="keyboard-hint">
+                {" "}
+                or hold <kbd>Q</kbd> / <kbd>E</kbd>
+              </span>
+              . Scroll or pinch to zoom.
+              <span className="keyboard-hint">
+                {" "}
+                <kbd>V</kbd> switches to the walk view.
+              </span>
             </p>
             <b>Doors</b>
             <p>
