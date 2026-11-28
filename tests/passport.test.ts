@@ -115,7 +115,7 @@ describe("passport stamps (J0 skeleton)", () => {
       ["home.go", save({ bests: { "go.wins.easy": 1 } }), save({ bests: { "go.capture.wins": 0 } })],
       ["home.go", save({ bests: { "go.capture.wins": 1 } }), save()],
       ["home.kick", save({ bests: { "stadium.yards": 40 } }), save({ bests: { "stadium.distance": 60 } })],
-      ["home.beat", save({ bests: { "music.accuracy.b1-easy": 71 } }), save({ bests: { "music.accuracy": 69 } })],
+      ["home.beat", save({ bests: { "music.rounds": 1 } }), save({ bests: { "music.landed": 9 } })],
       ["home.banner", save({ bests: { "banner-rush.wins": 1 } }), save()],
       ["stanford.hoops", save({ bests: { "basketball.points.rush": 30 } }), save({ bests: { "basketball.points.attack": 90 } })],
       ["stanford.shuttle", save({ bests: { "badminton.wins": 2 } }), save({ bests: { "badminton.rally": 30 } })],
@@ -205,9 +205,8 @@ describe("medals (J0 skeleton)", () => {
     expect(medalFor("rowing", bests, "750")).toBe(1);
     expect(medalFor("rowing", bests)).toBe(4);
     expect(medalFor("rowing", { "rowing.cox.place.750": 2 })).toBe(2);
-    const music = { "music.accuracy.b1-easy": 95, "music.accuracy.b2-hard": 72 };
-    expect(medalFor("music", music, "b2-hard")).toBe(1);
-    expect(medalFor("music", music)).toBe(3);
+    expect(medalFor("music", { "music.rounds": 4, "music.beats": 3 })).toBe(2);
+    expect(medalFor("music", { "music.rounds": 9, "music.beats": 8, "music.landed": 16 })).toBe(4);
     expect(meets({ "music.accuracy": 99 }, { key: "music.accuracy.{v}", atLeast: 10 })).toBe(false);
   });
   it("counts games at a tier", () => {

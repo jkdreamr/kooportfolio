@@ -104,16 +104,17 @@ export const MEDALS: Readonly<Record<MedalGame, MedalSpec>> = {
       atLeast("stadium.yards", 60, "A 60-yard make"),
     ],
   },
-  // Per chart `<beat>-<level>`: `music.accuracy.<chart>` (best %), and
-  // `music.pocket.<chart>` counts full combos at ≥ 97%.
+  // Open Mic is freestyle, so its medals are for taking part: `music.rounds`
+  // counts finished takes, `music.beats` distinct beats finished, and
+  // `music.landed` the most rhymes landed in one take (of 16).
   music: {
     name: "Beat Lab",
-    top: "In the Pocket",
+    top: "Open Mic Regular",
     tiers: [
-      atLeast("music.accuracy.{v}", 70, "70% accuracy"),
-      atLeast("music.accuracy.{v}", 85, "85% accuracy"),
-      atLeast("music.accuracy.{v}", 93, "93% accuracy"),
-      atLeast("music.pocket.{v}", 1, "Full combo at 97%"),
+      atLeast("music.rounds", 1, "Finish a take"),
+      atLeast("music.beats", 3, "Takes on 3 different beats"),
+      atLeast("music.beats", 8, "Takes on all 8 beats"),
+      atLeast("music.landed", 16, "Land all 16 rhymes in a take"),
     ],
   },
   // `skate.clean` counts gold runs with no bails and all three goals.

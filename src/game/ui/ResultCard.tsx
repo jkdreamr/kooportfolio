@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
+import { MedalRow } from "./MedalRow";
+import { QueuedStamps } from "./Passport";
+import { isMedalGame } from "../core/medals";
 
 /** Score count-up: 600 ms on the shared ease, skipped with reduced motion. */
 export const COUNT_MS = 600;
@@ -43,14 +46,18 @@ function useCountUp(score: number | undefined) {
 
 /**
  * One result layout for every game: title, the score counting up, a
- * "New best" chip, "Play again" (focused, so Enter replays) and a quiet
- * way back (Escape does the same).
+ * "New best" chip, the game's medals and what the next one needs (when
+ * `game` is given), stamps earned during the run, "Play again" (focused, so
+ * Enter replays) and a quiet way back (Escape does the same).
  */
 export function ResultCard({
   score,
   unit,
   detail,
   best,
+  game,
+  variant,
+  daily,
   onReplay,
   onBack,
   backLabel,
@@ -59,6 +66,11 @@ export function ResultCard({
   unit?: string;
   detail?: string;
   best?: boolean;
+  /** Medal game id (core/medals.ts); without one there is no medal row. */
+  game?: string;
+  variant?: string;
+  /** A Daily Three task this run finished ("Daily task done"). */
+  daily?: string;
   onReplay: () => void;
   onBack: () => void;
   backLabel: string;
@@ -94,6 +106,9 @@ export function ResultCard({
         </p>
       )}
       {detail && <p className="result-detail">{detail}</p>}
+      {isMedalGame(game) && <MedalRow game={game} variant={variant} />}
+      {daily && <p className="result-daily">Daily task done: {daily}</p>}
+      <QueuedStamps />
       <button ref={replay} className="primary-button" onClick={onReplay}>
         Play again <Icon name="arrow" size={17} />
       </button>

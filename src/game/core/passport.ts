@@ -66,7 +66,7 @@ export const STAMPS: readonly Stamp[] = [
   { id: "home.kitchen", world: "home", name: "Line Cook", how: "Pass a kitchen shift", when: best("kitchen.day", 2) },
   { id: "home.go", world: "home", name: "First Stone", how: "Win First Capture or a game of Go", when: { any: [best("go.capture.wins", 1), best("go.wins.*", 1)] } },
   { id: "home.kick", world: "home", name: "Forty Yards", how: "Make a 40-yard field goal", when: best("stadium.yards", 40) },
-  { id: "home.beat", world: "home", name: "Drummer", how: "Finish a Beat Lab chart at 70%", when: { any: [best("music.accuracy", 70), best("music.accuracy.*", 70)] } },
+  { id: "home.beat", world: "home", name: "Open Mic", how: "Finish a freestyle take in the Beat Lab", when: best("music.rounds", 1) },
   { id: "home.cinema", world: "home", name: "Matinee", how: "Sit through a minute at the cinema" },
   { id: "home.words", world: "home", name: "Reader", how: "Read a piece in the Writing room" },
   { id: "home.banner", world: "home", name: "Banner Rush", how: "Win a Banner Rush match", when: best("banner-rush.wins", 1) },

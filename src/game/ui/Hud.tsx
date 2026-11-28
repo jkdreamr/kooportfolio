@@ -48,6 +48,8 @@ import { attachUiSounds } from "./uiSounds";
 import { closeListen, ListenTabs, openListen, useListen } from "./ListenPanel";
 import { restoreFocus, trapTab } from "./focusTrap";
 import { ResultCard } from "./ResultCard";
+import { PassportPanel, openPassport, usePassportAnnouncer, usePassportKey } from "./Passport";
+import { DailyChip } from "./DailyChip";
 import { exposeQa, qaEnabled } from "../../stage/qa";
 
 /** QA builds only: how often the HUD commits (C11 measures it). */
@@ -680,6 +682,8 @@ export function Hud({ interact }: { interact: () => void }) {
     if (qaEnabled()) hudCommits++;
   });
   useNoticeToasts(g.notice);
+  usePassportAnnouncer();
+  usePassportKey();
   const listenOpen = useListen((s) => s.open);
   // The panel belongs to the village; leaving the scene closes it.
   useEffect(() => closeListen, [g.scene]);
@@ -733,6 +737,7 @@ export function Hud({ interact }: { interact: () => void }) {
       </header>
       {hub && <WorldLabels />}
       {hub && <span className="world-name">{WORLDS[g.world].name}</span>}
+      {hub && !gameMode && <DailyChip />}
       {interior && (
         <div className="interior-intro">
           <div className="interior-heading interior-bar">
@@ -921,6 +926,7 @@ export function Hud({ interact }: { interact: () => void }) {
         </button>
       </div>
       <ToastStack />
+      <PassportPanel />
       <Presence show={listenOpen}>
         <Modal title="Listen" close={closeListen} className="listen-modal">
           <ListenTabs onClose={closeListen} />
@@ -967,6 +973,16 @@ export function Hud({ interact }: { interact: () => void }) {
       </Presence>
       <Presence show={g.panel === "settings"}>
         <Modal eyebrow="" title="Settings" close={closePanel}>
+          <button
+            className="setting-row"
+            onClick={() => {
+              closePanel();
+              openPassport();
+            }}
+          >
+            <span>Passport: stamps, medals, Daily Three</span>
+            <kbd>P</kbd>
+          </button>
           <SoundSettings />
           <QualitySetting />
           <p className="local-note">
