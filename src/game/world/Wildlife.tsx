@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { runtime, useGame } from "../core/store";
@@ -23,6 +23,22 @@ import {
   wildlifeClock,
   type Animal,
 } from "../core/wildlife";
+import {
+  ALERT,
+  CIRCLING,
+  FEEDING,
+  FLYING,
+  LIFE_COUNTS,
+  createFlocks,
+  startBurst,
+  stepFlocks,
+  type Flocks,
+} from "../core/life";
+import { cue } from "../core/audio/cues";
+import type { WorldId } from "../core/worlds";
+import { exposeQa } from "../../stage/qa";
+import { FLOCK_STATE_NAMES } from "../core/life";
+import { LifeSprites } from "./life/LifeSprites";
 
 /*
  * Every animal and bird is procedurally posed into one shared instanced part
@@ -315,22 +331,98 @@ function bird(b: PartBatch, index: number, t: number) {
   b.pop();
 }
 
+/** Songbird plumage per world: sparrows, magpies, robins. */
+const SONGBIRD: Record<WorldId, { body: string; belly: string; head: string; wing: string }> = {
+  home: { body: "#8a6a4c", belly: "#dcc9a4", head: "#6a5039", wing: "#5d4633" },
+  korea: { body: "#1f2228", belly: "#f1efe8", head: "#16181c", wing: "#e9e7e0" },
+  stanford: { body: "#6c7178", belly: "#d27a45", head: "#3d4147", wing: "#585d64" },
+};
+// Reused part arguments: songbirds push no new arrays per frame.
+const P: [number, number, number] = [0, 0, 0],
+  S: [number, number, number] = [0, 0, 0],
+  R: [number, number, number] = [0, 0, 0];
+const v3 = (o: [number, number, number], x: number, y: number, z: number) => {
+  o[0] = x;
+  o[1] = y;
+  o[2] = z;
+  return o;
+};
+/** A ground songbird (pecks, hops, watches) or one in flight (flapping). */
+function songbird(b: PartBatch, f: Flocks, i: number, world: WorldId, t: number) {
+  const k = Math.floor(i / f.perFlock),
+    state = f.state[k],
+    air = state >= FLYING || f.y[i] > 0.2,
+    c = SONGBIRD[world];
+  b.push(f.x[i], f.y[i] + 0.06, f.z[i], air ? -0.15 : 0, f.heading[i], 0, 0.55);
+  b.part("sphere", c.body, v3(P, 0, 0.12, 0), v3(S, 0.11, 0.1, 0.17));
+  b.part("sphere", c.belly, v3(P, 0, 0.08, 0.04), v3(S, 0.085, 0.07, 0.12));
+  b.part("sphere", c.body, v3(P, 0, 0.13, -0.2), v3(S, 0.05, 0.02, world === "korea" ? 0.17 : 0.1), v3(R, 0.35, 0, 0));
+  // Head: pecks while feeding, up and still when alert.
+  const peck =
+    state === FEEDING && f.hop[i] >= 1 ? Math.max(0, Math.sin(t * 5 + i * 1.7)) ** 6 * 1.1 : state === ALERT ? -0.25 : 0;
+  b.push(0, 0.2, 0.12, peck, 0, 0);
+  b.part("sphere", c.head, v3(P, 0, 0.02, 0.02), v3(S, 0.07, 0.07, 0.075));
+  b.part("cone", "#d9a441", v3(P, 0, 0.01, 0.1), v3(S, 0.022, 0.07, 0.022), v3(R, Math.PI / 2, 0, 0));
+  b.pop();
+  if (air) {
+    const flap = Math.sin(t * (state === CIRCLING ? 14 : 22) + i) * 0.9;
+    for (const side of [-1, 1]) {
+      b.push(side * 0.07, 0.15, 0, 0, 0, side * flap);
+      b.part("sphere", c.wing, v3(P, side * 0.16, 0, -0.02), v3(S, 0.18, 0.02, 0.08));
+      b.pop();
+    }
+  } else {
+    b.part("sphere", c.wing, v3(P, 0, 0.14, -0.04), v3(S, 0.115, 0.06, 0.13));
+  }
+  b.pop();
+}
+const SONGBIRD_SPHERES = 6,
+  SONGBIRD_CONES = 1;
+
 const DRAW = { cat, dog, rabbit, duck } as const;
 const at = new THREE.Vector3(),
   facing = new THREE.Quaternion(),
   size = new THREE.Vector3();
 
-function Menagerie({ animals, birds }: { animals: Animal[]; birds: number }) {
+const lastPlayer = { x: Number.NaN, z: 0, speed: 0 };
+let liveFlocks: Flocks | null = null;
+exposeQa({
+  life: {
+    flock: (k: number) =>
+      liveFlocks && k < liveFlocks.flocks
+        ? { state: FLOCK_STATE_NAMES[liveFlocks.state[k]], birds: liveFlocks.perFlock }
+        : null,
+  },
+});
+
+function Menagerie({
+  animals,
+  birds,
+  world,
+  songbirds,
+}: {
+  animals: Animal[];
+  birds: number;
+  world: WorldId;
+  songbirds: number;
+}) {
   const active = useWorldActive();
+  const flocks = useMemo(() => createFlocks(world, songbirds), [world, songbirds]);
+  useEffect(() => {
+    liveFlocks = flocks;
+    return () => {
+      if (liveFlocks === flocks) liveFlocks = null;
+    };
+  }, [flocks]);
   const batch = useMemo(
     () =>
       new PartBatch({
-        sphere: animals.length * 34 + birds * 6 + 8,
-        cone: animals.length * 4 + birds + 2,
+        sphere: animals.length * 34 + birds * 6 + 8 + songbirds * 2 * SONGBIRD_SPHERES,
+        cone: animals.length * 4 + birds + 2 + songbirds * 2 * SONGBIRD_CONES,
         capsule: animals.length * 10 + 2,
         box: 1,
       }),
-    [animals, birds],
+    [animals, birds, songbirds],
   );
   const creatures = useMemo<Creature[]>(
     () =>
@@ -353,11 +445,20 @@ function Menagerie({ animals, birds }: { animals: Animal[]; birds: number }) {
       })),
     [animals],
   );
+  const songN = flocks.flocks * flocks.perFlock;
   const base = useRef(new THREE.Matrix4());
   // Below high the menagerie is a few pixels tall: coarser parts and no
   // shadow (medium's caster budget is 120k triangles).
   const full = (useStage.getState().tier ?? "high") === "high";
   const geometries = shapeGeometries(full ? "high" : "low");
+  // Songbirds cast no shadow (Home's high shadow budget is spent): on high
+  // they get their own sphere + cone batch (+2 draws, same program); below
+  // high nothing in the menagerie casts, so they ride its batch (+0).
+  const own = full && songN > 0;
+  const birdBatch = useMemo(
+    () => (own ? new PartBatch({ sphere: songN * SONGBIRD_SPHERES, cone: songN * SONGBIRD_CONES, capsule: 1, box: 1 }) : null),
+    [own, songN],
+  );
   useFrame((_, delta) => {
     if (!active) return;
     const dt = Math.min(delta, 0.05);
@@ -405,6 +506,25 @@ function Menagerie({ animals, birds }: { animals: Animal[]; birds: number }) {
         weather.snow < 0.2;
       if (show) for (let i = 0; i < birds; i++) bird(batch, i, t);
     }
+    // Ground flocks: react to the player, scatter with a feather burst.
+    if (Number.isNaN(lastPlayer.x)) lastPlayer.x = runtime.x;
+    if (dt > 0) {
+      const v = Math.hypot(runtime.x - lastPlayer.x, runtime.z - lastPlayer.z) / dt;
+      lastPlayer.speed += (Math.min(v, 12) - lastPlayer.speed) * (1 - Math.exp(-dt * 10));
+    }
+    lastPlayer.x = runtime.x;
+    lastPlayer.z = runtime.z;
+    stepFlocks(flocks, dt, runtime.x, runtime.z, lastPlayer.speed);
+    if (flocks.scattered > 0) {
+      flocks.scattered = 0;
+      startBurst(flocks.lastX, 0.15, flocks.lastZ);
+      cue("flutter");
+      if (world === "korea") useGame.getState().earnStamp("korea.magpies");
+    }
+    const target = birdBatch ?? batch;
+    if (birdBatch) birdBatch.begin();
+    for (let i = 0; i < songN; i++) songbird(target, flocks, i, world, t);
+    if (birdBatch) birdBatch.end();
     batch.end();
   });
   return (
@@ -427,6 +547,25 @@ function Menagerie({ animals, birds }: { animals: Animal[]; birds: number }) {
           dispose={null}
         />
       ))}
+      {birdBatch &&
+        (["sphere", "cone"] as const).map((shape) => (
+          <instancedMesh
+            key={`song-${shape}`}
+            name={`songbirds-${shape}`}
+            ref={(mesh) => {
+              if (mesh) {
+                birdBatch.meshes[shape] = mesh;
+                mesh.count = 0;
+                mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+              } else delete birdBatch.meshes[shape];
+            }}
+            args={[geometries[shape], partMaterial(), birdBatch.capacity[shape]]}
+            frustumCulled={false}
+            receiveShadow
+            userData={{ noBake: true }}
+            dispose={null}
+          />
+        ))}
     </group>
   );
 }
@@ -515,6 +654,7 @@ function Plane() {
 export function Wildlife() {
   const quality = useGame((s) => s.quality);
   const world = useGame((s) => s.world);
+  const tier = useStage((s) => s.tier) ?? "high";
   const active = useWorldActive();
   useFrame((_, delta) => {
     if (
@@ -537,7 +677,10 @@ export function Wildlife() {
         key={world}
         animals={animals}
         birds={quality === "high" ? 7 : 3}
+        world={world}
+        songbirds={LIFE_COUNTS[tier].birds}
       />
+      <LifeSprites world={world} tier={tier} />
       <Plane />
     </group>
   );

@@ -11,6 +11,7 @@ import { grassField, grassFieldAsync, type GrassTuft } from "./placement";
 import { envBudget, useEnvTier } from "./tier";
 import { nextSlice } from "./slice";
 import { lawnGrade } from "../Surface";
+import { BLOOM_OFFSET, bloomPick } from "./bloom";
 
 /**
  * Instanced grass tufts: tapered blades with a root→tip gradient, wind, a
@@ -286,6 +287,9 @@ function grassMaterial() {
         "#include <begin_vertex>",
         `vec3 transformed = vec3(position);
         transformed.xz += aWide * 0.4 * uGrassLod.w;
+        // Meadow blossom (instance colour offset by BLOOM_OFFSET): the upper
+        // blade widens 35% into a flower head.
+        transformed.xz += aWide * 0.35 * step(1.5, vColor.g) * step(0.5, uv.y);
         vGrassT = uv.y;
         vGrassU = uv.x;
         // Explore: tall instances shrink toward a common, under-knee height
@@ -338,6 +342,11 @@ function grassMaterial() {
         "#include <color_fragment>",
         `#include <color_fragment>
         vec3 grassInst = diffuseColor.rgb;
+        // Blooming tufts carry their flower colour + ${BLOOM_OFFSET.toFixed(1)}; the blade
+        // body takes the lawn's mid green.
+        float grassBloom = step(1.5, grassInst.g);
+        vec3 grassFlower = grassInst - ${BLOOM_OFFSET.toFixed(1)};
+        grassInst = mix(grassInst, mix(uGrassRoot, uGrassTip, 0.42), grassBloom);
         vec3 grassBody = mix(uGrassRoot, grassInst, smoothstep(0.0, 0.55, vGrassT));
         grassBody = mix(grassBody, uGrassTip, smoothstep(0.62, 1.0, vGrassT) * mix(0.55, 0.35, uGrassLod.w));
         // Explore: lawn root → body → a long, light tip; flower centres
@@ -348,7 +357,8 @@ function grassMaterial() {
         diffuseColor.rgb = mix(grassBody, grassSoft, uGrassStyle);
         // Explore: a lighter, sunnier carpet (the low camera sees blades
         // against the lawn, where the diorama's dark roots read as sockets).
-        diffuseColor.rgb *= 1.0 + 0.14 * uGrassLod.w * smoothstep(0.2, 0.9, vGrassT);`,
+        diffuseColor.rgb *= 1.0 + 0.14 * uGrassLod.w * smoothstep(0.2, 0.9, vGrassT);
+        diffuseColor.rgb = mix(diffuseColor.rgb, grassFlower, grassBloom * step(0.62, vGrassT));`,
       )
       .replace(
         "#include <lights_fragment_end>",
@@ -369,7 +379,7 @@ function grassMaterial() {
         totalEmissiveRadiance += diffuseColor.rgb * uEnvSunColor * 0.07 * uGrassStyle * smoothstep(0.5, 1.0, vGrassT) * (1.0 - uEnvNight);`,
       );
   };
-  material.customProgramCacheKey = () => "env-grass-v3";
+  material.customProgramCacheKey = () => "env-grass-v4";
   return material;
 }
 
@@ -454,6 +464,9 @@ function packField(world: WorldId, tufts: GrassTuft[]): Field {
           color.copy(lush).lerp(dry, tuft.shade);
           // The explore carpet carries a lighter, wider tint range.
           if (tuft.extra) color.lerp(tip, 0.18 * ((tuft.shade * 7.3) % 1));
+          // Meadow patches: some tufts flower (colour + offset, see bloom.ts).
+          const pick = tuft.reed ? -1 : bloomPick(tuft.x, tuft.z, blooms.length);
+          if (pick >= 0) color.copy(blooms[pick]).addScalar(BLOOM_OFFSET);
         }
         matrix.compose(p, q, s).toArray(matrices, n * 16);
         color.toArray(colors, n * 3);
