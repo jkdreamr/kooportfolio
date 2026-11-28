@@ -70,6 +70,8 @@ export const STAMPS: readonly Stamp[] = [
   { id: "home.cinema", world: "home", name: "Matinee", how: "Sit through a minute at the cinema" },
   { id: "home.words", world: "home", name: "Reader", how: "Read a piece in the Writing room" },
   { id: "home.banner", world: "home", name: "Banner Rush", how: "Win a Banner Rush match", when: best("banner-rush.wins", 1) },
+  { id: "home.keep", world: "home", name: "Keep Taker", how: "Win Banner Rush with all three banners", when: best("banner-rush.three-banners", 1) },
+  { id: "home.ground", world: "home", name: "Palace Court", how: "Reach 300 Ribbons in Banner Rush", when: best("banner-rush.ribbons", 300) },
   { id: "home.market", world: "home", name: "Market Day", how: "Take three baskets to the market" },
   { id: "home.post", world: "home", name: "Post Round", how: "Deliver all four parcels" },
   { id: "home.cat", world: "home", name: "Cat Friend", how: "Pet the cat" },

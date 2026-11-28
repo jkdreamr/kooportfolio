@@ -211,7 +211,7 @@ export const PREWARM_ACTIVITIES: Activity[] = [
   {
     id: "banner-rush",
     scenes: "Banner Rush stage: unlit instanced FX (fxMaterial in scenes/bannerRush/Fx.ts)",
-    stageLight: true,
+    lights: ["key-shadow"],
     entries: [
       { make: () => new THREE.MeshBasicMaterial({ transparent: true, toneMapped: false, depthWrite: false }), instanced: true, instanceColor: true },
     ],

@@ -1,3 +1,4 @@
+import { BannerRush } from "./BannerRush";
 import { Ball, Bench, Box, Cone, Cylinder, Flowers, Ring } from "../world/Models";
 import { useGame } from "../core/store";
 import { roomFor } from "../core/room";
@@ -125,6 +126,8 @@ export function TownHallInterior() {
       {/* The plaque, word for word, under the hall's name. */}
       <Plaque text={TOWN_HALL_STORY.text} p={[0, 1.78, BACK + 0.62]} size={[5.2, 1.8]} />
       <Hearth />
+      {/* Banner Rush starts from the launcher ring at the table's foot. */}
+      <BannerRush room="townhall" />
       {/* The launcher ring at the table's foot. */}
       <Cylinder p={[0, 0.08, T.z + T.depth / 2 + 1.6]} s={[1.5, 0.05, 1.5]} c="#6e8a5a" />
       <Ring p={[0, 0.13, T.z + T.depth / 2 + 1.6]} radius={1.36} tube={0.05} c="#e8c26e" />

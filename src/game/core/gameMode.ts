@@ -18,7 +18,8 @@ export type GameModeId =
   | "music"
   | "math"
   | "gym"
-  | "photo-booth";
+  | "photo-booth"
+  | "banner-rush";
 type ActiveGame = {
   id: GameModeId;
   scene: Scene;
@@ -44,6 +45,7 @@ const rooms: Record<GameModeId, Scene> = {
   math: "math",
   gym: "gym",
   "photo-booth": "hub",
+  "banner-rush": "townhall",
 };
 function clearInput() {
   keys.clear();

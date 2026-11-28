@@ -88,10 +88,10 @@ describe("save: memories, daily and kit (J0)", () => {
 });
 
 describe("passport stamps (J0 skeleton)", () => {
-  it("has the 38 stamps of §3.2, unique ids, four worlds", () => {
-    expect(STAMPS).toHaveLength(38);
-    expect(new Set(STAMP_IDS).size).toBe(38);
-    expect(STAMPS.filter((s) => s.world === "home")).toHaveLength(12);
+  it("has the 40 stamps of §3.2 (with Banner Rush's keep and ground), unique ids, four worlds", () => {
+    expect(STAMPS).toHaveLength(40);
+    expect(new Set(STAMP_IDS).size).toBe(40);
+    expect(STAMPS.filter((s) => s.world === "home")).toHaveLength(14);
     expect(STAMPS.filter((s) => s.world === "stanford")).toHaveLength(12);
     expect(STAMPS.filter((s) => s.world === "korea")).toHaveLength(8);
     expect(STAMPS.filter((s) => s.world === "village")).toHaveLength(6);
@@ -106,7 +106,7 @@ describe("passport stamps (J0 skeleton)", () => {
   });
   it("a fresh save has none; every stamp can be earned by its memory flag", () => {
     expect(stampsEarned(save()).size).toBe(0);
-    expect(stampsEarned(save({ memories: STAMP_IDS.map(stampMemory) })).size).toBe(38);
+    expect(stampsEarned(save({ memories: STAMP_IDS.map(stampMemory) })).size).toBe(40);
   });
   it("derived stamps: true and false cases", () => {
     const cases: [string, PassportSave, PassportSave][] = [
