@@ -182,3 +182,207 @@
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+/* ------------------------------------------- Regatta Grand Prix (§2.2) */
+.row-hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 30;
+  font-family: var(--font-ui, system-ui);
+  color: #fff8e6;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+.row-hud button {
+  pointer-events: auto;
+  touch-action: none;
+}
+.row-place {
+  position: absolute;
+  left: max(16px, env(safe-area-inset-left));
+  top: max(72px, env(safe-area-inset-top));
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.row-place b {
+  font-size: 3.4rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.row-place small {
+  font-size: 1rem;
+  font-weight: 700;
+}
+.row-lap {
+  position: absolute;
+  left: max(16px, env(safe-area-inset-left));
+  top: calc(max(72px, env(safe-area-inset-top)) + 60px);
+  display: grid;
+  gap: 2px;
+}
+.row-lap small {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.85;
+}
+.row-lap b {
+  font-size: 1.3rem;
+}
+.row-lap em,
+.row-lap i {
+  font-style: normal;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+.row-map {
+  position: absolute;
+  right: max(16px, env(safe-area-inset-right));
+  top: max(72px, env(safe-area-inset-top));
+  padding: 4px;
+  border-radius: 12px;
+  background: rgba(16, 40, 44, 0.55);
+}
+.row-map path {
+  fill: none;
+  stroke: rgba(255, 248, 230, 0.75);
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+.row-map circle {
+  stroke: #10282c;
+  stroke-width: 1;
+}
+.row-coach,
+.row-wrong,
+.row-chip {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 8px 14px;
+  border-radius: 14px;
+  font-weight: 800;
+  text-shadow: none;
+  white-space: nowrap;
+}
+.row-coach {
+  top: 34%;
+  background: rgba(255, 248, 230, 0.94);
+  color: #2b2a25;
+}
+.row-wrong {
+  top: 42%;
+  background: #e89a8a;
+  color: #2a1406;
+  font-size: 1.2rem;
+}
+.row-chip {
+  bottom: 150px;
+  background: rgba(16, 40, 44, 0.7);
+  font-size: 0.85rem;
+}
+.row-chip:not(.row-chip--wake) {
+  background: #ffd97a;
+  color: #3a2a10;
+}
+.row-meter {
+  position: absolute;
+  left: 50%;
+  bottom: 96px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+.row-meter span {
+  position: relative;
+  width: 58px;
+  height: 12px;
+  border-radius: 6px;
+  background: rgba(16, 40, 44, 0.6);
+  overflow: hidden;
+}
+.row-meter span i {
+  position: absolute;
+  inset: 0;
+  background: #ffb067;
+  transform-origin: 0 50%;
+}
+.row-meter span[data-full="true"] i {
+  background: #ffd97a;
+}
+.row-meter small {
+  margin-left: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.row-hud[data-boost="true"] .row-meter small {
+  color: #ffd97a;
+}
+.row-keys {
+  position: absolute;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+.row-strip {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 50%;
+  height: 46%;
+  pointer-events: auto;
+  touch-action: none;
+  display: none;
+}
+.row-buttons {
+  position: absolute;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(22px, env(safe-area-inset-bottom));
+  display: none;
+  align-items: flex-end;
+  gap: 12px;
+}
+.row-buttons button {
+  border: 0;
+  border-radius: 50%;
+  font-weight: 800;
+  color: #2b2a25;
+  text-shadow: none;
+}
+.row-boost {
+  width: 96px;
+  height: 96px;
+  background: #ffb067;
+}
+.row-boost[data-ready="false"] {
+  opacity: 0.55;
+}
+.row-hold {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 30px;
+  background: #e8f0de;
+}
+@media (pointer: coarse) {
+  .row-strip {
+    display: block;
+  }
+  .row-buttons {
+    display: flex;
+  }
+  .row-keys {
+    display: none;
+  }
+  .row-meter {
+    bottom: 140px;
+  }
+  .row-chip {
+    bottom: 190px;
+  }
+}

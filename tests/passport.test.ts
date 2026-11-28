@@ -200,11 +200,11 @@ describe("medals (J0 skeleton)", () => {
     expect(medalFor("badminton", { "badminton.wins.freshman": 3, "badminton.wins.captain": 1 })).toBe(2);
   });
   it("variants: per distance or chart, and best over all without one", () => {
-    const bests = { "rowing.cox.place.360": 1, "rowing.cox.place.750": 3, "rowing.cox.hotr.360": 1 };
-    expect(medalFor("rowing", bests, "360")).toBe(4);
-    expect(medalFor("rowing", bests, "750")).toBe(1);
-    expect(medalFor("rowing", bests)).toBe(4);
-    expect(medalFor("rowing", { "rowing.cox.place.750": 2 })).toBe(2);
+    const bests = { "rowing.gp.place.novice": 1, "rowing.gp.place.varsity": 3 };
+    expect(medalFor("rowing", bests)).toBe(2);
+    expect(medalFor("rowing", { ...bests, "rowing.gp.place.head": 1 })).toBe(4);
+    expect(medalFor("rowing", { "rowing.gp.place.novice": 4 })).toBe(1);
+    expect(medalFor("rowing", { "rowing.gp.place.varsity": 1 })).toBe(3);
     expect(medalFor("music", { "music.rounds": 4, "music.beats": 3 })).toBe(2);
     expect(medalFor("music", { "music.rounds": 9, "music.beats": 8, "music.landed": 16 })).toBe(4);
     expect(meets({ "music.accuracy": 99 }, { key: "music.accuracy.{v}", atLeast: 10 })).toBe(false);

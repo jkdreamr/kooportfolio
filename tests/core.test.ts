@@ -13,12 +13,7 @@ import {
   moveWorld,
 } from "../src/game/core/world";
 import { WORLD_IDS } from "../src/game/core/worlds";
-import {
-  dailySeed,
-  newRace,
-  riverCenter,
-  stepRace,
-} from "../src/game/core/rowing";
+import { dailySeed } from "../src/game/core/rowing";
 import {
   launchBall,
   stepBall,
@@ -230,42 +225,7 @@ describe("walkable physical world", () => {
   });
 });
 describe("rowing simulation", () => {
-  const run = (burst = false) => {
-    let s = newRace();
-    for (let i = 0; i < 120 * 60 && !s.finished; i++) {
-      const target = riverCenter(s.distance + 6, 7);
-      s = stepRace(
-        s,
-        {
-          cadence: 30,
-          steer: Math.max(-1, Math.min(1, (target - s.x) * 0.5)),
-          burst,
-        },
-        360,
-        7,
-      );
-    }
-    return s;
-  };
-  it("is repeatable and completes a steered race with splits", () => {
-    const a = run();
-    expect(a).toEqual(run());
-    expect(a.finished).toBe(true);
-    expect(a.distance).toBe(360);
-    expect(a.splits).toHaveLength(3);
-    expect(a.time).toBeGreaterThan(25);
-    expect(a.stamina).toBeGreaterThanOrEqual(0);
-  });
-  it("penalizes bank contact and spends stamina for burst", () => {
-    expect(
-      stepRace(
-        { ...newRace(), time: 1, x: 11 },
-        { cadence: 36, steer: 1, burst: true },
-        360,
-      ).bank,
-    ).toBe(true);
-    expect(run(true).stamina).toBeLessThan(run().stamina);
-  });
+  // The race itself is covered by rowing.test.ts and rowing.tuning.test.ts.
   it("uses the UTC calendar date for daily practice", () => {
     expect(dailySeed(new Date("2026-11-23T00:01Z"))).toBe(
       dailySeed(new Date("2026-11-23T23:59Z")),

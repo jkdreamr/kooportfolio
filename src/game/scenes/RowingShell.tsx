@@ -1,7 +1,19 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import type { RaceState } from "../core/rowing";
+/** Where a shell is this frame (world), written by the race loop. */
+export type ShellView = {
+  x: number;
+  z: number;
+  yaw: number;
+  roll: number;
+  speed: number;
+  stroke: number;
+  moving: boolean;
+  travel: number;
+  visible: boolean;
+};
+export const shellView = (): ShellView => ({ x: 0, z: 0, yaw: 0, roll: 0, speed: 0, stroke: 0, moving: false, travel: 0, visible: true });
 import { Box, Cylinder } from "../world/Models";
 import { makeRower } from "./RowingCrew";
 
@@ -53,7 +65,7 @@ export function RowingShell({
   color,
   player = false,
 }: {
-  state: () => RaceState;
+  state: () => ShellView;
   color: string;
   player?: boolean;
 }) {
@@ -102,21 +114,14 @@ export function RowingShell({
   useEffect(() => () => hull.dispose(), [hull]);
   useFrame(() => {
     const s = state();
-    const moving = s.time >= 0;
+    const moving = s.moving;
     const drive = s.stroke < 0.38;
     const sweep = drive ? s.stroke / 0.38 : 1 - (s.stroke - 0.38) / 0.62;
     const lean = (sweep - 0.5) * 0.65;
     if (root.current) {
-      root.current.position.set(
-        s.x,
-        0.02 + (moving ? Math.sin(s.stroke * Math.PI * 2) * 0.035 : 0),
-        -s.distance,
-      );
-      root.current.rotation.set(
-        0,
-        -s.heading,
-        -s.heading * Math.min(s.speed / 12, 1) * 0.11,
-      );
+      root.current.visible = s.visible;
+      root.current.position.set(s.x, 0.02 + (moving ? Math.sin(s.stroke * Math.PI * 2) * 0.035 : 0), s.z);
+      root.current.rotation.set(0, s.yaw, s.roll);
     }
     crew.current?.children.forEach((rower) => {
       rower.rotation.x = moving ? lean : -0.3;
@@ -135,7 +140,7 @@ export function RowingShell({
       wake.current.visible = s.speed > 0.8;
       wake.current.scale.set(1, 1, Math.min(1.5, s.speed / 9));
       wake.current.children.forEach((ripple, i) => {
-        const t = (s.distance * 0.16 + i / 8) % 1;
+        const t = (s.travel * 0.16 + i / 8) % 1;
         ripple.position.set(
           (i % 2 ? 1 : -1) * (0.35 + t * 1.6),
           -0.02,

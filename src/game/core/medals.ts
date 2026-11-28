@@ -73,17 +73,17 @@ export const MEDALS: Readonly<Record<MedalGame, MedalSpec>> = {
       atLeast("basketball.ladder", 1, "Beat all three in one sitting"),
     ],
   },
-  // Place is the best (lowest) finishing place; `rowing.cox.hotr.<d>` counts
-  // wins within 3% of ROW_PAR (written by the rowing game).
+  // Written by the Regatta Grand Prix (scenes/Rowing.tsx): the best (lowest)
+  // finishing place per cup, `rowing.gp.place.<cup>`.
   rowing: {
     name: "Rowing",
     top: "Head of the River",
-    variants: ["360", "750"],
+    variants: ["novice", "varsity", "head"],
     tiers: [
-      exists("rowing.cox.place.{v}", "Finish a race"),
-      atMost("rowing.cox.place.{v}", 2, "Finish in the top two"),
-      atMost("rowing.cox.place.{v}", 1, "Win a race"),
-      atLeast("rowing.cox.hotr.{v}", 1, "Win within 3% of par"),
+      exists("rowing.gp.place.*", "Finish a Grand Prix"),
+      atMost("rowing.gp.place.varsity", 3, "A Varsity podium"),
+      atMost("rowing.gp.place.varsity", 1, "Win the Varsity Cup"),
+      atMost("rowing.gp.place.head", 1, "Win the Head Cup"),
     ],
   },
   badminton: {
