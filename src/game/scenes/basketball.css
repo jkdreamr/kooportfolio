@@ -100,6 +100,25 @@
   }
 }
 
+/* Lobby title sits on a glass plate so it reads over the bright court. */
+.scene-basketball .bt-heading h1 {
+  display: inline-block;
+  padding: 4px 14px;
+  border-radius: 10px;
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--glass-border);
+  color: #fff8e6;
+  text-shadow: none;
+}
+.bt-lobby p,
+.bt-lobby .bt-mode-blurb {
+  display: block;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--glass-bg-dense);
+  color: #fff8e6;
+}
+
 /* Live points and streak in the session header. */
 
 /* ------------------------------------------------ Blacktop (§2.1) */
@@ -117,9 +136,21 @@
   min-height: 48px;
   border-left: 4px solid var(--shirt, #888);
 }
+.bt-lobby .bt-rival {
+  background: var(--glass-bg-dense);
+  color: #fff8e6;
+}
 .bt-lobby .bt-rival[aria-checked="true"] {
-  background: rgba(255, 217, 122, 0.22);
+  background: var(--glass-bg-strong);
+  color: #ffd97a;
   outline: 2px solid #ffd97a;
+}
+.bt-lobby .bt-rival[aria-checked="true"] small {
+  color: #fff8e6;
+}
+.bt-lobby .bt-rival-rung,
+.bt-lobby .bt-rival small {
+  opacity: 1;
 }
 .bt-rival-rung {
   grid-row: span 2;

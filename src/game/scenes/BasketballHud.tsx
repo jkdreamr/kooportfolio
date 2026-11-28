@@ -230,7 +230,7 @@ export function BasketballHud({ hidden }: { hidden: boolean }) {
   if (playing) return null;
   return (
     <>
-      <div className="challenge-heading">
+      <div className="challenge-heading bt-heading">
         <h1>Blacktop</h1>
         <p className="touch-hint">1v1 to 15 · drag to move · Shoot and Juke buttons · drive at the rim to dunk</p>
       </div>

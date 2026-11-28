@@ -82,7 +82,9 @@
 .skate-view-controls {
   position: absolute;
   right: 22px;
-  top: 100px;
+  /* Clear the 100px room header with a gap, and never paint over it. */
+  top: 116px;
+  z-index: 1;
   display: flex;
   gap: 6px;
 }
