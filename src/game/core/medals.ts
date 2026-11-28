@@ -65,10 +65,12 @@ export const MEDALS: Readonly<Record<MedalGame, MedalSpec>> = {
     name: "Basketball",
     top: "MVP",
     tiers: [
-      atLeast("basketball.points.rush", 30, "30 points"),
-      atLeast("basketball.points.rush", 60, "60 points"),
-      atLeast("basketball.points.rush", 100, "100 points"),
-      atLeast("basketball.points.rush", 150, "150 points"),
+      // Written by Blacktop (scenes/Basketball.tsx): wins per rival, and
+      // `basketball.ladder` = 1 for all three in one sitting without a loss.
+      atLeast("basketball.wins.classmate", 1, "Beat the Classmate"),
+      atLeast("basketball.wins.hooper", 1, "Beat the Hooper"),
+      atLeast("basketball.wins.legend", 1, "Beat The Legend"),
+      atLeast("basketball.ladder", 1, "Beat all three in one sitting"),
     ],
   },
   // Place is the best (lowest) finishing place; `rowing.cox.hotr.<d>` counts

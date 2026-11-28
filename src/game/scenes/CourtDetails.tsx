@@ -61,7 +61,8 @@ const paint = new THREE.MeshStandardMaterial({
   bumpScale: 0.025,
   roughness: 0.86,
 });
-const ballMaterial = new THREE.MeshStandardMaterial({
+/** The court ball (On Fire lights its emissive; same material, no new program). */
+export const courtBallMaterial = new THREE.MeshStandardMaterial({
   color: "#df7a27",
   bumpMap: texture,
   bumpScale: 0.008,
@@ -73,7 +74,7 @@ export function CourtBall() {
   return (
     <mesh
       geometry={ballGeometry}
-      material={ballMaterial}
+      material={courtBallMaterial}
       castShadow
       receiveShadow
     />

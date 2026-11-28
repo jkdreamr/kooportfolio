@@ -147,7 +147,7 @@ describe("passport stamps (J0 skeleton)", () => {
     expect(stampsEarned(save(), { "cognition:coffee": true }).has("korea.office")).toBe(false);
   });
   it("village.gold needs gold in five games", () => {
-    const four = { "basketball.points.rush": 100, "stadium.yards": 54, "gym.reps": 20, "blackjack.stack": 400 };
+    const four = { "basketball.wins.legend": 1, "stadium.yards": 54, "gym.reps": 20, "blackjack.stack": 400 };
     expect(stampsEarned(save({ bests: four })).has("village.gold")).toBe(false);
     expect(stampsEarned(save({ bests: { ...four, "skate.score.run": 12000 } })).has("village.gold")).toBe(true);
   });
@@ -187,11 +187,11 @@ describe("medals (J0 skeleton)", () => {
   });
   it("medalFor and nextMedal", () => {
     expect(medalFor("basketball", undefined)).toBe(0);
-    expect(nextMedal("basketball", undefined)).toEqual({ tier: 1, name: "Bronze", need: "30 points" });
-    expect(medalFor("basketball", { "basketball.points.rush": 99 })).toBe(2);
-    expect(medalFor("basketball", { "basketball.points.rush": 150 })).toBe(4);
-    expect(nextMedal("basketball", { "basketball.points.rush": 150 })).toBeNull();
-    expect(nextMedal("basketball", { "basketball.points.rush": 100 })).toMatchObject({ tier: 4, name: "MVP" });
+    expect(nextMedal("basketball", undefined)).toEqual({ tier: 1, name: "Bronze", need: "Beat the Classmate" });
+    expect(medalFor("basketball", { "basketball.wins.classmate": 3, "basketball.wins.hooper": 1 })).toBe(2);
+    expect(medalFor("basketball", { "basketball.ladder": 1 })).toBe(4);
+    expect(nextMedal("basketball", { "basketball.ladder": 1 })).toBeNull();
+    expect(nextMedal("basketball", { "basketball.wins.legend": 1 })).toMatchObject({ tier: 4, name: "MVP" });
     expect(tierName("stadium", 4)).toBe("Ice in the Veins");
     expect(medalFor("pong", { "pong.throws": 10 })).toBe(1);
     expect(medalFor("pong", { "pong.throws": 7 })).toBe(3);
