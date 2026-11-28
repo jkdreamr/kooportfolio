@@ -50,6 +50,7 @@ import { restoreFocus, trapTab } from "./focusTrap";
 import { ResultCard } from "./ResultCard";
 import { PassportPanel, openPassport, usePassportAnnouncer, usePassportKey } from "./Passport";
 import { DailyChip } from "./DailyChip";
+import { InteractPrompt, RoomFinds } from "./InteractPrompt";
 import { exposeQa, qaEnabled } from "../../stage/qa";
 
 /** QA builds only: how often the HUD commits (C11 measures it). */
@@ -771,6 +772,7 @@ export function Hud({ interact }: { interact: () => void }) {
             >
               <span aria-live="polite">{leaving ? "Leaving…" : "← Exit"}</span>
             </button>
+            <RoomFinds scene={g.scene} />
             <RoomLaunchers scene={g.scene} />
           </div>
           <RoomStory
@@ -862,6 +864,7 @@ export function Hud({ interact }: { interact: () => void }) {
                 <Icon name="arrow" size={17} />
               </button>
             </div>
+            {interior && <InteractPrompt near={g.near} />}
             {g.panel === "none" && !g.overlayLocked && !g.traveling && (
               <Joystick />
             )}
