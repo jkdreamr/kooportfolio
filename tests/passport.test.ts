@@ -111,7 +111,7 @@ describe("passport stamps (J0 skeleton)", () => {
   it("derived stamps: true and false cases", () => {
     const cases: [string, PassportSave, PassportSave][] = [
       ["home.toss", save({ bests: { "paper-toss.level": 3 } }), save({ bests: { "paper-toss.level": 2 } })],
-      ["home.kitchen", save({ bests: { "kitchen.day": 2 } }), save({ bests: { "kitchen.day": 1 } })],
+      ["home.kitchen", save({ bests: { "kitchen.stars": 1 } }), save({ bests: { "kitchen.stars": 0 } })],
       ["home.go", save({ bests: { "go.wins.easy": 1 } }), save({ bests: { "go.capture.wins": 0 } })],
       ["home.go", save({ bests: { "go.capture.wins": 1 } }), save()],
       ["home.kick", save({ bests: { "stadium.yards": 40 } }), save({ bests: { "stadium.distance": 60 } })],

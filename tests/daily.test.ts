@@ -27,6 +27,8 @@ describe("Daily Three", () => {
     expect(dailyTask("home.kick-daily")!.done(run("stadium", { mode: "drive", score: 400 }), day)).toBe(false);
     expect(dailyTask("home.beat-day")!.done(run("music", { mode: "freestyle", score: 3, stats: { beat: day % 8 } }), day)).toBe(true);
     expect(dailyTask("home.beat-day")!.done(run("music", { mode: "freestyle", score: 3, stats: { beat: (day + 1) % 8 } }), day)).toBe(false);
+    expect(dailyTask("home.kitchen-rush")!.done(run("kitchen", { mode: "rush", score: 1200, stats: { stars: 2 } }), day)).toBe(true);
+    expect(dailyTask("home.kitchen-rush")!.done(run("kitchen", { mode: "rush", score: 500, stats: { stars: 1 } }), day)).toBe(false);
     expect(dailyTask("stanford.skate-goals")!.done(run("skate", { mode: "daily", score: 900, daily: true, stats: { goals: 2 } }), day)).toBe(true);
   });
   it("counts down to 00:00 UTC", () => {

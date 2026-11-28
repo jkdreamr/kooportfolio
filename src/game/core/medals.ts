@@ -162,16 +162,16 @@ export const MEDALS: Readonly<Record<MedalGame, MedalSpec>> = {
       atLeast("go.wins.hard", 1, "Beat Hard"),
     ],
   },
-  // `kitchen.day` is the next day to play, so passing Day n stores n + 1.
-  // `kitchen.allA` counts shifts with every plate graded A.
+  // Written by Lunch Rush (scenes/PapaKitchenGame.tsx): the best run's
+  // stars (0–3) and the longest streak of Perfect plates.
   kitchen: {
     name: "Kitchen",
     top: "Head Chef",
     tiers: [
-      atLeast("kitchen.day", 2, "Pass Day 1"),
-      atLeast("kitchen.day", 4, "Pass Day 3"),
-      atLeast("kitchen.day", 6, "Pass Day 5"),
-      atLeast("kitchen.allA", 1, "A shift of all A plates"),
+      atLeast("kitchen.stars", 1, "Earn a star in a lunch rush"),
+      atLeast("kitchen.stars", 2, "A two-star rush"),
+      atLeast("kitchen.stars", 3, "A three-star rush"),
+      atLeast("kitchen.combo", 5, "Five Perfect plates in a row"),
     ],
   },
   gym: {

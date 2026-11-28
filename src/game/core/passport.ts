@@ -63,7 +63,7 @@ const best = (key: string, n: number): BestCondition => ({ key, atLeast: n });
 export const STAMPS: readonly Stamp[] = [
   // Home
   { id: "home.toss", world: "home", name: "Paper Toss", how: "Clear level 3 of Paper Toss", when: best("paper-toss.level", 3) },
-  { id: "home.kitchen", world: "home", name: "Line Cook", how: "Pass a kitchen shift", when: best("kitchen.day", 2) },
+  { id: "home.kitchen", world: "home", name: "Line Cook", how: "Earn a star in a lunch rush", when: best("kitchen.stars", 1) },
   { id: "home.go", world: "home", name: "First Stone", how: "Win First Capture or a game of Go", when: { any: [best("go.capture.wins", 1), best("go.wins.*", 1)] } },
   { id: "home.kick", world: "home", name: "Forty Yards", how: "Make a 40-yard field goal", when: best("stadium.yards", 40) },
   { id: "home.beat", world: "home", name: "Open Mic", how: "Finish a freestyle take in the Beat Lab", when: best("music.rounds", 1) },

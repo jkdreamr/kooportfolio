@@ -1,20 +1,18 @@
-const KEY = "joshua:kitchen-day";
-const validDay = (day: number) => Number.isSafeInteger(day) && day > 0;
+/** Whether this browser has finished (or skipped) the kitchen's practice order. */
+const KEY = "joshua:kitchen-tutorial";
 
-export function readKitchenDay(): number {
+export function readKitchenTutorialDone(): boolean {
   try {
-    const day = Number(localStorage.getItem(KEY));
-    return validDay(day) ? day : 1;
+    return localStorage.getItem(KEY) === "1";
   } catch {
-    return 1;
+    return false;
   }
 }
 
-export function saveKitchenDay(day: number): void {
-  if (!validDay(day)) return;
+export function saveKitchenTutorialDone(): void {
   try {
-    if (day > readKitchenDay()) localStorage.setItem(KEY, String(day));
+    localStorage.setItem(KEY, "1");
   } catch {
-    // Storage can be unavailable; the current session still keeps its unlock.
+    // Storage can be unavailable; the practice order simply shows again.
   }
 }

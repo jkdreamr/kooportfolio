@@ -90,7 +90,7 @@ export const DAILY_LANDMARKS = ["gwanghwamun", "bukchon", "sejong", "namsan"] as
 
 /**
  * Every task is a target one run of an existing mode can be judged on. Paper
- * Toss levels, Go's First Capture, a clean kitchen shift and the daily Lights
+ * Toss levels, Go's First Capture and the daily Lights
  * board come back when those modes report runs (PLAN_GAMES L4/L5).
  */
 export const DAILY_POOL: Readonly<Record<DailyWorld, readonly DailyTask[]>> = {
@@ -98,6 +98,7 @@ export const DAILY_POOL: Readonly<Record<DailyWorld, readonly DailyTask[]>> = {
     { id: "home.kick-daily", world: "home", label: "Field Goals Daily: score 150", done: (r) => r.game === "stadium" && !!r.result.daily && r.result.score >= 150 },
     { id: "home.banner-daily", world: "home", label: "Banner Rush: today's challenge", done: (r) => (r.game as string) === "banner-rush" && !!r.result.daily },
     { id: "home.beat-day", world: "home", label: "Beat Lab: a take on the day's beat", done: (r, d) => r.game === "music" && stat(r, "beat") === d % 8 },
+    { id: "home.kitchen-rush", world: "home", label: "Kitchen: a two-star lunch rush", done: (r) => r.game === "kitchen" && Number(stat(r, "stars") ?? 0) >= 2 },
   ],
   stanford: [
     { id: "stanford.river-daily", world: "stanford", label: "Daily river: top 2", done: (r) => r.game === "rowing" && !!r.result.daily && (r.result.place ?? 9) <= 2 },
