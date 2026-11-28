@@ -32,6 +32,7 @@ import {
   throwPaper,
 } from "../core/paperToss";
 import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
+import { usePauseOnEscape } from "./usePauseOnEscape";
 import { runtime, useGame } from "../core/store";
 import { sound } from "../core/sound";
 import { useLauncher, useLauncherHosted } from "../core/launchers";
@@ -144,6 +145,7 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
   const level = TOSS_LEVELS[hud.level];
   const finished = roundOver(hud);
   const cleared = levelCleared(hud);
+  usePauseOnEscape("paper-toss", () => !finished);
 
   const focusLauncher = useCallback((node: HTMLButtonElement | null) => {
     if (node && restoreLauncher.current) {
@@ -549,7 +551,7 @@ export function StudyPaperToss({ playing }: { playing: boolean }) {
                     <>
                       <p className="toss-hint">
                         <span className="toss-hint-keys">
-                          ← → or drag to aim · Hold Space, or flick up to toss
+                          ← → or drag to aim · Hold Space, or flick up to toss · Esc pause
                         </span>
                         <span className="toss-hint-touch">
                           Drag sideways to aim · Swipe up to toss
