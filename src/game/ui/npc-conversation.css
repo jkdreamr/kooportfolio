@@ -1,175 +1,303 @@
+/* NPC conversation: a solid storybook dialogue box anchored at the bottom,
+   the speaker's portrait on its top-left corner, a name plate, choices
+   stacked above it on the right. Ink on cream: 15:1. */
 .npc-conversation-layer {
   position: absolute;
   inset: 0;
   z-index: 48;
+  pointer-events: none;
+  --npc-ink: #221a12;
+  --npc-paper: #fff8ea;
+  --npc-edge: #2b2118;
+  --npc-portrait: 92px;
+  --npc-gutter: 12px;
 }
-.npc-dialog {
-  --npc-dock-clearance: calc(150px + env(safe-area-inset-bottom));
+.npc-dim {
   position: absolute;
-  z-index: 48;
-  bottom: var(--npc-dock-clearance);
+  inset: 0;
+  background: linear-gradient(to bottom, rgb(10 14 22 / 0) 35%, rgb(10 14 22 / 0.5) 100%);
+  animation: npc-fade 0.25s ease-out both;
+}
+.game-shell .npc-dialog {
+  position: absolute;
   left: 50%;
+  bottom: max(var(--npc-gutter), env(safe-area-inset-bottom));
   transform: translateX(-50%);
-  width: min(380px, calc(100% - 32px));
-  max-height: calc(
-    100% - var(--npc-dock-clearance) - max(16px, env(safe-area-inset-top))
-  );
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  /* Surface, edge and depth come from the shared glass recipe (glass.css). */
-  padding: 20px 20px 14px;
-  font-family: inherit;
+  width: min(720px, calc(100% - 2 * var(--npc-gutter)));
+  pointer-events: auto;
+  color: var(--npc-ink);
+  font-family: var(--font-ui, system-ui, sans-serif);
+  animation: npc-rise 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
 }
-.npc-speaker {
-  display: flex;
-  align-items: center;
-  gap: 9px;
+.npc-box {
+  position: relative;
+  padding: 30px 18px 16px;
+  border: 3px solid var(--npc-edge);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 1px 1px, #0000000a 1px, transparent 1.5px) 0 0 / 10px 10px,
+    var(--npc-paper);
+  box-shadow:
+    inset 0 0 0 3px #fff,
+    inset 0 0 0 5px color-mix(in srgb, var(--npc-accent, #c9a45c) 55%, #fff),
+    0 10px 28px rgb(0 0 0 / 0.35);
 }
-.npc-speaker i {
-  width: 12px;
-  height: 12px;
-  border: 1px solid var(--glass-border, #ffffff40);
-  border-radius: 50%;
-  box-shadow: 0 1px 2px rgb(4 16 24 / 0.3);
+.npc-portrait {
+  position: absolute;
+  left: 14px;
+  bottom: calc(100% - 22px);
+  width: var(--npc-portrait);
+  height: var(--npc-portrait);
+  border: 3px solid var(--npc-edge);
+  border-radius: 20px;
+  overflow: visible;
+  background:
+    radial-gradient(circle at 50% 38%, #fff 0 30%, transparent 70%),
+    color-mix(in srgb, var(--npc-accent, #c9a45c) 40%, #fdf1d6);
+  box-shadow: 0 6px 16px rgb(0 0 0 / 0.3);
+  transform-origin: 50% 100%;
 }
-.npc-dialog h2 {
-  font-size: 14px;
-  font-weight: 600;
-  margin: 0;
+.npc-portrait > img,
+.npc-portrait > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 17px;
+  object-fit: cover;
 }
-.npc-dialog p {
-  font-size: 15px;
-  line-height: 1.5;
-  margin: 12px 0 14px;
+.npc-portrait.is-happy {
+  animation: npc-bob 0.5s ease-out;
 }
-.npc-dialog-actions,
-.npc-topics {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px 8px;
+.npc-portrait.is-surprised {
+  animation: npc-hop 0.36s ease-out;
 }
-.npc-topics {
-  margin-bottom: 8px;
-}
-.npc-topics button {
-  flex: 1 1 auto;
-  text-align: left;
-}
-.npc-dialog-illustrated {
-  width: min(480px, calc(100% - 32px));
-}
-.npc-dialog-illustrated .npc-reply {
+.npc-portrait-mark {
+  position: absolute;
+  top: -10px;
+  right: -10px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr);
-  gap: 14px;
-  align-items: center;
-  margin: 12px 0;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--npc-edge);
+  border-radius: 50%;
+  background: #ffd84a;
+  color: var(--npc-ink);
+  font-weight: 900;
+  font-size: 17px;
+  animation: npc-pop 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
 }
-.npc-picture {
+.npc-portrait-mark.is-note {
+  background: #ffe2ea;
+  font-size: 15px;
+}
+.game-shell .npc-nameplate {
+  position: absolute;
+  top: -19px;
+  left: calc(14px + var(--npc-portrait) + 10px);
   margin: 0;
-  padding: 5px 5px 4px;
-  border-radius: var(--glass-radius-xs, 8px);
-  border: 1px solid var(--glass-hairline, #536873);
-  background: var(--glass-well, #21353f);
-  color: var(--glass-ink, #f5f4e9);
+  padding: 6px 16px 7px;
+  border: 3px solid var(--npc-edge);
+  border-radius: 999px;
+  background: var(--npc-edge);
+  color: #fff8ea;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+  box-shadow: inset 4px 0 0 var(--npc-accent, #c9a45c);
 }
-.npc-picture svg {
+.game-shell .npc-say {
+  display: block;
+  position: relative;
+  width: 100%;
+  min-height: calc(3 * 1.45em);
+  margin: 0;
+  padding: 2px 30px 4px 2px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--npc-ink);
+  font: inherit;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.npc-say-rest {
+  visibility: hidden;
+}
+.npc-next {
+  position: absolute;
+  right: 4px;
+  bottom: 0;
+  color: color-mix(in srgb, var(--npc-accent, #c9a45c) 45%, var(--npc-ink));
+  font-size: 16px;
+  animation: npc-nudge 0.9s ease-in-out infinite;
+}
+.game-shell .npc-goodbye {
+  position: absolute;
+  top: -22px;
+  right: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 3px solid var(--npc-edge);
+  border-radius: 999px;
+  background: var(--npc-paper);
+  color: var(--npc-ink);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  box-shadow: none;
+}
+.npc-goodbye kbd,
+.npc-choices kbd {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border: 1.5px solid currentColor;
+  border-radius: 6px;
+  opacity: 0.75;
+}
+.npc-choices {
+  position: absolute;
+  right: 6px;
+  bottom: calc(100% + 30px);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  max-width: calc(100% - var(--npc-portrait) - 40px);
+  min-width: min(240px, calc(100% - var(--npc-portrait) - 40px));
+}
+.game-shell .npc-choices button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 8px 16px 8px 10px;
+  border: 3px solid var(--npc-edge);
+  border-radius: 16px;
+  background: var(--npc-paper);
+  color: var(--npc-ink);
+  font: inherit;
+  font-size: 17px;
+  font-weight: 750;
+  line-height: 1.2;
+  text-align: left;
+  box-shadow: 0 4px 0 var(--npc-edge);
+  animation: npc-rise 0.22s ease-out both;
+}
+.npc-choices button > span:nth-of-type(1) {
+  flex: 1;
+}
+.npc-choices button:nth-child(2) {
+  animation-delay: 0.04s;
+}
+.npc-choices button:nth-child(3) {
+  animation-delay: 0.08s;
+}
+.game-shell .npc-choices button.is-deed {
+  background: #ffe9a8;
+}
+.game-shell .npc-choices button.is-end {
+  background: #efe6d6;
+}
+.game-shell .npc-choices button:is(:hover, :focus-visible) {
+  background: var(--npc-edge);
+  color: #fff8ea;
+}
+.game-shell .npc-choices button:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--npc-edge);
+}
+.game-shell .npc-dialog :is(.npc-goodbye, .npc-choices button):focus-visible {
+  outline: 3px solid #1a6fd1;
+  outline-offset: 2px;
+}
+/* The line keeps focus so E/Space/Enter advance; a quiet dashed rim marks it. */
+.game-shell .npc-dialog .npc-say:focus-visible {
+  outline: 2px dashed color-mix(in srgb, var(--npc-accent, #c9a45c) 50%, var(--npc-ink));
+  outline-offset: 3px;
+}
+.npc-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.npc-body > .npc-say {
+  flex: 1;
+  min-width: 0;
+}
+.npc-box .npc-picture {
+  flex: none;
+  width: min(140px, 34%);
+  margin: 0;
+  border: 2px solid var(--npc-edge);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.npc-box .npc-picture svg {
   display: block;
   width: 100%;
   height: auto;
 }
-.npc-picture figcaption {
-  padding: 4px 2px 0;
-  font-size: var(--text-xs);
-  line-height: 1.25;
+.npc-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
-.npc-dialog button {
-  min-width: 44px;
-  min-height: 44px;
-  padding: 8px 10px;
-  border-radius: var(--glass-radius-sm, 11px);
-  border: 1px solid var(--glass-hairline, #536873);
-  background: var(--glass-well, #21353f);
-  color: inherit;
-  font-family: inherit;
-  font-size: var(--text-xs);
-  font-weight: 600;
-  cursor: pointer;
-}
-.npc-dialog .npc-continue,
-.npc-dialog .npc-topics button {
-  background: var(--glass-active, #48616d);
-  border-color: var(--glass-border, #82959b);
-}
-.npc-dialog button:hover {
-  background: var(--glass-well-hover, #48616d);
-}
-.npc-dialog :is(.npc-continue, .npc-topics button):hover {
-  filter: brightness(1.1);
-  background: var(--glass-active, #48616d);
-}
-.npc-dialog .npc-goodbye {
-  margin-left: auto;
-  border-color: transparent;
-  color: var(--glass-muted, #d3dedd);
-}
-.npc-dialog kbd {
-  margin-left: 12px;
-  font-size: var(--text-xs);
-  color: var(--glass-muted, #d3dedd);
-}
-@media (pointer: coarse) {
-  .npc-dialog kbd {
-    display: none;
+@media (min-width: 700px) {
+  .npc-conversation-layer {
+    --npc-portrait: 128px;
+    --npc-gutter: 24px;
+  }
+  .npc-box {
+    padding: 34px 26px 20px calc(14px + var(--npc-portrait) + 16px);
+    min-height: 130px;
+  }
+  .npc-portrait {
+    bottom: auto;
+    top: -42px;
+  }
+  .game-shell .npc-say {
+    font-size: 21px;
+  }
+  .npc-choices {
+    bottom: calc(100% + 34px);
   }
 }
-@media (max-height: 500px) {
-  .npc-dialog {
-    padding: 12px 16px 10px;
-  }
-  .npc-dialog p {
-    margin: 8px 0;
-  }
+@keyframes npc-rise {
+  from { opacity: 0; translate: 0 12px; }
 }
-@media (max-height: 500px) and (min-width: 560px) {
-  .npc-dialog {
-    width: min(520px, calc(100% - 32px));
-    padding: 8px 12px;
-  }
-  .npc-speaker {
-    gap: 6px;
-  }
-  .npc-speaker i {
-    width: 10px;
-    height: 10px;
-    flex-shrink: 0;
-  }
-  .npc-dialog h2 {
-    font-size: var(--text-xs);
-    white-space: nowrap;
-  }
-  .npc-dialog .npc-reply p {
-    min-width: 0;
-    margin: 6px 0;
-    font-size: var(--text-xs);
-    line-height: 1.4;
-  }
-  .npc-dialog-illustrated .npc-reply {
-    grid-template-columns: minmax(0, 1fr) 120px;
-    margin: 4px 0;
-  }
-  .npc-dialog button {
-    padding: 6px;
-    font-size: var(--text-xs);
-    white-space: nowrap;
-  }
-  .npc-dialog kbd {
-    margin-left: 6px;
-  }
+@keyframes npc-fade {
+  from { opacity: 0; }
 }
-@media (max-height: 500px) and (min-width: 701px) {
-  .npc-dialog {
-    --npc-dock-clearance: calc(112px + env(safe-area-inset-bottom));
+@keyframes npc-bob {
+  40% { transform: translateY(-6px) rotate(-3deg); }
+}
+@keyframes npc-hop {
+  35% { transform: translateY(-10px) scale(1.04); }
+}
+@keyframes npc-pop {
+  from { transform: scale(0); }
+}
+@keyframes npc-nudge {
+  50% { translate: 0 4px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .npc-conversation-layer *,
+  .npc-dim {
+    animation: none !important;
   }
 }

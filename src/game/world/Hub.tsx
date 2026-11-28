@@ -78,7 +78,7 @@ import {
 } from "../core/islandCamera";
 import { NpcCrowd } from "./VillageNpcs";
 import { applyQaCamera } from "./qaCamera";
-import { nearbyNpcId } from "../core/npcState";
+import { nearbyNpcId, talkFocus } from "../core/npcState";
 import { BadmintonPavilion } from "../scenes/BadmintonCourt";
 import { Wildlife } from "./Wildlife";
 import { WritingShell } from "./WritingShell";
@@ -416,14 +416,19 @@ export function Walker({
     const worldZoom = useWorldView.getState().zoom;
     const playerFollow = islandFollow(worldZoom);
     const [centerX, centerZ] = islandCenter(state.world);
+    // Talking: frame the villager and the player, a little up-screen of the
+    // dialogue box, closer in (eases both ways; none under reduced motion).
+    const talk = !interior && talkFocus.active && worldZoom > 1 && !reducedMotion?.matches;
+    const [ox, , oz] = ISLAND_CAMERA_OFFSET, lift = talk ? 1.6 / Math.hypot(ox, oz) : 0;
+    const px = talk ? talkFocus.x + ox * lift : runtime.x, pz = talk ? talkFocus.z + oz * lift : runtime.z;
     desired.current.set(
       interior
         ? runtime.x * 0.9
-        : THREE.MathUtils.lerp(centerX, runtime.x * 0.92, playerFollow),
+        : THREE.MathUtils.lerp(centerX, px * 0.92, playerFollow),
       0,
       interior
         ? runtime.z * 0.9 - 2
-        : THREE.MathUtils.lerp(centerZ, runtime.z * 0.92, playerFollow),
+        : THREE.MathUtils.lerp(centerZ, pz * 0.92, playerFollow),
     );
     if (!interior) {
       // The overview also frames the rock hanging beneath the island.
@@ -479,7 +484,7 @@ export function Walker({
       ? mobile
         ? Math.max(20, Math.min(34, size.width / 12, (size.height - 90) / 11.5))
         : Math.max(26, Math.min(52, size.width / 23, (size.height - 100) / 14))
-      : fitted;
+      : fitted * (talk ? 1.35 : 1);
     const zoom = !interior ? worldZoom : 1;
     const v = views.current;
     // The old orthographic zoom drives the telephoto camera's distance. While
@@ -539,7 +544,7 @@ export function Walker({
     const lens = exploreLens(size.width, size.height);
     const reach =
       useWorldView.getState().exploreDistance * lens.distanceScale;
-    v.feet.set(runtime.x, 0.18, runtime.z);
+    v.feet.set(px, 0.18, pz);
     const snap = wasIdle || changedScene || v.resumed;
     v.resumed = false;
     if (snap) v.focus.copy(v.feet);

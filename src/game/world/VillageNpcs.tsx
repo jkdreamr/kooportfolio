@@ -6,6 +6,7 @@ import { createGait, seatPose, stepGait } from "./character/locomotion";
 import { NEAR_RIG, nearRig } from "./character/rig";
 import { assignTiers, type TierSlots } from "./character/crowdTiers";
 import { HIP } from "./character/skeleton";
+import { NpcPortraitShot } from "./NpcPortraitShot";
 import { SculptBatch } from "./character/sculpt/runtime";
 import { sculptCharFor, useCast } from "./character/sculpt/useSculpt";
 import { registerSculptWarmup } from "./character/sculpt/warm";
@@ -29,7 +30,7 @@ import { useStage } from "../../stage/contract";
 import { exposeQa } from "../../stage/qa";
 
 // QA builds only (tree-shaken otherwise): screenshot tools find villagers.
-exposeQa({ npcCrowd: activeNpcCrowd, useNpcs });
+exposeQa({ npcCrowd: activeNpcCrowd, useNpcs, talkToNpc });
 registerSculptWarmup();
 
 function hashId(id: string) {
@@ -324,9 +325,12 @@ export function NpcCrowd() {
     }
   });
   return (
-    <group key={world} name="village-npcs">
-      <CrowdRig crowd={activeNpcCrowd(world)} />
-      <TalkRings world={world} />
-    </group>
+    <>
+      <group key={world} name="village-npcs">
+        <CrowdRig crowd={activeNpcCrowd(world)} />
+        <TalkRings world={world} />
+      </group>
+      <NpcPortraitShot />
+    </>
   );
 }

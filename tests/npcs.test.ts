@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import "../src/game/core/npcConversation";
 import {
   approachNpc,
   canTalkToNpc,
@@ -21,6 +22,7 @@ import {
   advanceConversation,
   chooseNpcTopic,
   closeConversation,
+  currentChoice,
   interactWithNpc,
   npcActors,
   nearbyNpcId,
@@ -218,30 +220,55 @@ describe("NPC interaction boundaries", () => {
     talkToNpc(npcActors[0].id);
     expect(useNpcs.getState().talking).toBeNull();
   });
-  it("lets the player pick an illustrated reply, go back, and ask something else", () => {
+  it("walks a conversation tree: lines, a choice, its reply, a second choice, goodbye", () => {
     const local = npcActors.find((actor) => actor.id === "mapmaker")!;
     runtime.x = local.x - 1;
     runtime.z = local.z;
     talkToNpc(local.id);
     expect(useNpcs.getState().talking).toBe(local.id);
-    expect(interactWithNpc()).toBe(true);
-    expect(useNpcs.getState().topic).toBeNull();
+    const atAsk = () => {
+      const { script, line } = useNpcs.getState();
+      return !!script && "ask" in script[line];
+    };
+    for (let i = 0; i < 4 && !atAsk(); i++) expect(interactWithNpc()).toBe(true);
+    expect(atAsk()).toBe(true);
     expect(useGame.getState().panel).toBe("npc");
+    // E never picks for you.
+    interactWithNpc();
+    expect(atAsk()).toBe(true);
     chooseNpcTopic("missing");
     expect(useNpcs.getState().topic).toBeNull();
     chooseNpcTopic("campus");
-    expect(
-      topicsFor(local.id).find(({ id }) => id === useNpcs.getState().topic)
-        ?.picture,
-    ).toBe("campus");
+    expect(currentChoice()?.picture).toBe("campus");
     expect(interactWithNpc()).toBe(true);
     expect(useNpcs.getState().topic).toBeNull();
-    chooseNpcTopic("water");
-    expect(useNpcs.getState().topic).toBe("water");
-    closeConversation();
+    expect(atAsk()).toBe(false);
+    interactWithNpc();
+    expect(atAsk()).toBe(true);
+    chooseNpcTopic("bye");
+    const { script, line } = useNpcs.getState();
+    expect(line).toBe(script!.length - 1);
+    interactWithNpc();
+    expect(useGame.getState().panel).toBe("none");
+    // A second visit opens with a single welcome-back line.
     talkToNpc(local.id);
-    expect(useNpcs.getState().topic).toBeNull();
-    expect(useNpcs.getState().line).toBe(0);
+    expect(useNpcs.getState()).toMatchObject({ topic: null, line: 0 });
+    expect("ask" in useNpcs.getState().script![1]).toBe(true);
+    closeConversation();
+  });
+  it("runs a choice's deed: walking off to the place once its reply is read", () => {
+    const local = npcActors.find((actor) => actor.id === "dockhand")!;
+    runtime.x = local.x - 1;
+    runtime.z = local.z;
+    talkToNpc(local.id);
+    const { script } = useNpcs.getState();
+    const second = script!.map((step) => "ask" in step).lastIndexOf(true);
+    useNpcs.setState({ line: second });
+    chooseNpcTopic("walk");
+    expect(useNpcs.getState().topic).toBe("walk");
+    advanceConversation();
+    expect(useGame.getState().panel).toBe("none");
+    expect(runtime.path.length + (runtime.target ? 1 : 0)).toBeGreaterThan(0);
   });
   it("does not approach a local from another island", () => {
     talkToNpc("postie");
