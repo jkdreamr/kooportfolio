@@ -97,7 +97,8 @@ export function gym(k: Kit) {
   onLeft(k, w, 8.6, 3.3, () => f.whiteboard(k, "board", "Whiteboard", 2.8, 1.7, ["Today", "Lift (a lot)", "Erg with the crew", "Stretch. Water. Repeat."], "Write the next line"));
   byLeft(k, w, 8.6, 0.5, () => {
     f.consoleTable(k, 2, "#46535a");
-    k.at(0, 0, 0, () => {
+    // At the table's end, so the board above it is in reach on its own.
+    k.at(0.75, 0, 0, () => {
       k.box([0, 0.2, 0], [0.9, 0.4, 0.3], "#2b3134");
       for (const x of [-0.26, 0.26]) k.cyl([x, 0.2, 0.16], [0.13, 0.03, 0.13], "#9aa3a3", [Math.PI / 2, 0, 0]);
       k.prop({ id: "boombox", label: "Boombox", verb: "Play", verbOn: "Stop", motion: { kind: "spin", speed: 5, axis: "z" }, pivot: [0, 0.2, 0], action: { type: "tune", tune: "backroom" }, sound: "tap", pop: "♪", anchor: 0.8 }, () =>
