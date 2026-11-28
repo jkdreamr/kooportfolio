@@ -186,7 +186,7 @@ export function Interior() {
             {Array.from({ length: 15 }, (_, i) => (
               <Box
                 key={i}
-                p={[3.5 + (i % 4) * 0.22, 0.7 + Math.floor(i / 4) * 0.75, -5.5]}
+                p={[3.5 + (i % 4) * 0.22, 0.7 + Math.floor(i / 4) * 0.75, -6.2]}
                 s={[0.17, 0.55, 0.55]}
                 c={["#b97d62", "#7b8b72", "#c4ab74"][i % 3]}
               />

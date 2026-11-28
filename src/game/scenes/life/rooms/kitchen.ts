@@ -33,7 +33,7 @@ export function kitchen(k: Kit) {
       f.notebook(k, { id: "guest-book", label: "Guest book", title: "kookwleigh", text: "One of Josh's side projects: kookwleigh, intimate dinners, by invitation." }, "#7d4a3a"), 1.27);
   });
   k.at(-3.4, 16.8, 0, () => f.wateredPlant(k, "herbs", 0, 1.1, "Herb pot"));
-  k.at(0, 14.2, 0, () => f.runner(k, 2.4, 6.4, "#365e50", "#d9b765"));
+  k.at(0, 14.1, 0, () => f.runner(k, 2.4, 6.2, "#365e50", "#d9b765"));
 
   // Left wall: the menu, a sideboard of glasses, a framed truth.
   onLeft(k, w, 9, 3.2, () =>

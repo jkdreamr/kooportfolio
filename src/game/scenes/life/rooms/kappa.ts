@@ -50,7 +50,8 @@ export function kappa(k: Kit) {
   onLeft(k, w, 13, 3.7, () =>
     k.prop({ id: "oar", label: "Mounted oar", verb: "Read the blade", motion: { kind: "wobble", axis: "z", angle: 0.05 }, action: { type: "read", title: "Walk-on", text: "Josh walked on to Stanford men's rowing as a sophomore, as a coxswain." }, sound: "oar", anchor: 0, reach: 2.8 }, () => f.mountedOar(k, 4.2, "#79332c")));
   onLeft(k, w, 17.4, 1.6, () => f.lightSwitch(k));
-  k.at(-3.2, 12.6, 0, () => {
+  k.at(-3.2, 13.2, 0, () => {
+    // Clear of the common room's big rug (HouseRooms.tsx), so no two rugs share a plane.
     f.rug(k, 4.6, 3.6, "#344b65", "#e2cf9f");
     k.at(-0.8, -0.4, 0.4, () => f.beanBag(k, "#344b65"));
     k.at(0.9, 0.2, 0, () => {

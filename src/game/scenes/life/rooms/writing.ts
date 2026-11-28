@@ -15,7 +15,7 @@ export function writing(k: Kit) {
     k.at(-1, 0, 0.3, () => f.bookStack(k, 4, 3), 0.56);
     k.at(0.9, 0, 0, () => f.cushion(k, "#2c6353", 0.7), 0.5);
   });
-  k.at(0, -15.6, 0, () => f.runner(k, 20, 2.2, "#3c5a50", "#d9b765"));
+  k.at(0, -15.6, 0, () => f.runner(k, 18, 2.2, "#3c5a50", "#d9b765"));
   k.at(-4.4, -16.6, 0, () => f.lantern(k, "stacks-lantern", true));
   k.at(4.4, -17.4, 0.4, () => {
     f.boxStack(k, 2);

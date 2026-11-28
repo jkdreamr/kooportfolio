@@ -26,28 +26,35 @@ const BOOKS = ["#496b61", "#a54f38", "#b5a16e", "#435668", "#7a5578", "#c98a4b",
 
 /** A flat rug with a border and optional stripes. Lies above the boards. */
 export function rug(k: Kit, w: number, d: number, color: string, border = CREAM, stripes?: string) {
-  k.slab([0, 0.085, 0], [w, 0.03, d], border);
-  k.slab([0, 0.1, 0], [w - 0.36, 0.03, d - 0.36], color);
-  if (stripes) {
-    k.slab([0, 0.115, -d * 0.28], [w - 0.7, 0.02, 0.16], stripes);
-    k.slab([0, 0.115, d * 0.28], [w - 0.7, 0.02, 0.16], stripes);
-  }
+  k.decal(w, d, () => {
+    k.slab([0, 0.085, 0], [w, 0.03, d], border);
+    k.slab([0, 0.1, 0], [w - 0.36, 0.03, d - 0.36], color);
+    if (stripes) {
+      k.slab([0, 0.115, -d * 0.28], [w - 0.7, 0.02, 0.16], stripes);
+      k.slab([0, 0.115, d * 0.28], [w - 0.7, 0.02, 0.16], stripes);
+    }
+  });
 }
 export function roundRug(k: Kit, r: number, color: string, border = CREAM) {
-  k.cyl([0, 0.085, 0], [r, 0.03, r], border);
-  k.cyl([0, 0.1, 0], [r - 0.22, 0.03, r - 0.22], color);
+  k.decal(r * 2, r * 2, () => {
+    k.cyl([0, 0.085, 0], [r, 0.03, r], border);
+    k.cyl([0, 0.1, 0], [r - 0.22, 0.03, r - 0.22], color);
+  });
 }
 /** A long hall runner. */
 export function runner(k: Kit, w: number, d: number, color: string, trim = BRASS) {
-  k.slab([0, 0.085, 0], [w, 0.03, d], color);
-  k.slab([-w / 2 + 0.14, 0.1, 0], [0.08, 0.02, d - 0.3], trim);
-  k.slab([w / 2 - 0.14, 0.1, 0], [0.08, 0.02, d - 0.3], trim);
+  k.decal(w, d, () => {
+    k.slab([0, 0.085, 0], [w, 0.03, d], color);
+    k.slab([-w / 2 + 0.14, 0.1, 0], [0.08, 0.02, d - 0.3], trim);
+    k.slab([w / 2 - 0.14, 0.1, 0], [0.08, 0.02, d - 0.3], trim);
+  });
 }
 
 /* --------------------------------------------------------------- seating */
 
 /** A sofa `w` wide, back to −z. Seat top is 0.62. */
 export function sofa(k: Kit, w = 3, color = "#5d7565", pillow = "#d1ab54") {
+  k.solid(w, 1.24);
   const dark = shade(color, 0.82);
   k.box([0, 0.3, 0], [w, 0.44, 1.2], dark);
   k.box([0, 0.86, -0.46], [w, 0.95, 0.34], color);
@@ -61,6 +68,7 @@ export function sofa(k: Kit, w = 3, color = "#5d7565", pillow = "#d1ab54") {
 }
 /** An armchair, back to −z. */
 export function armchair(k: Kit, color = "#a35e46", pillow?: string) {
+  k.solid(1.3, 1.16);
   const dark = shade(color, 0.82);
   k.box([0, 0.3, 0], [1.3, 0.44, 1.15], dark);
   k.box([0, 0.9, -0.44], [1.3, 1.05, 0.3], color);
@@ -95,6 +103,7 @@ export function chair(k: Kit, color = "#496159", wood = DARK_WOOD) {
 }
 /** A bench with a slatted top. */
 export function bench(k: Kit, w = 2.4, color = WOOD) {
+  k.solid(w, 0.6);
   k.box([0, 0.5, 0], [w, 0.12, 0.6], color);
   for (const side of [-1, 1]) k.box([side * (w / 2 - 0.2), 0.24, 0], [0.12, 0.46, 0.5], STEEL);
 }
@@ -102,23 +111,27 @@ export function bench(k: Kit, w = 2.4, color = WOOD) {
 /* ---------------------------------------------------------------- tables */
 
 export function coffeeTable(k: Kit, w = 1.7, d = 0.9, color = WOOD) {
+  k.solid(w, d);
   k.box([0, 0.46, 0], [w, 0.1, d], color);
   k.slab([0, 0.2, 0], [w - 0.3, 0.05, d - 0.25], shade(color, 0.8));
   for (const x of [-1, 1]) for (const z of [-1, 1]) k.slab([x * (w / 2 - 0.1), 0.22, z * (d / 2 - 0.1)], [0.08, 0.44, 0.08], shade(color, 0.72));
 }
 export function sideTable(k: Kit, color = WOOD, r = 0.42, h = 0.7) {
+  if (r >= 0.55) k.solid(r * 2, r * 2);
   k.cyl([0, h, 0], [r, 0.07, r], color);
   k.cyl([0, h / 2, 0], [0.06, h, 0.06], shade(color, 0.72));
   k.cyl([0, 0.04, 0], [r * 0.6, 0.06, r * 0.6], shade(color, 0.72));
 }
 /** A work desk `w` wide, 0.95 high, user sits at +z. */
 export function desk(k: Kit, w = 2.6, d = 1.2, color = WOOD) {
+  k.solid(w, d);
   k.box([0, 0.95, 0], [w, 0.12, d], color);
   for (const side of [-1, 1]) k.box([side * (w / 2 - 0.14), 0.46, 0], [0.12, 0.9, d - 0.2], shade(color, 0.72));
   k.slab([0, 0.6, -d / 2 + 0.08], [w - 0.3, 0.5, 0.05], shade(color, 0.8));
 }
 /** A long table on trestles. */
 export function longTable(k: Kit, w = 4, d = 1.3, color = WOOD, h = 0.95) {
+  k.solid(w, d);
   k.box([0, h, 0], [w, 0.14, d], color);
   for (const side of [-1, 1]) {
     k.box([side * (w / 2 - 0.5), h / 2 - 0.04, 0], [0.14, h - 0.1, d - 0.3], shade(color, 0.72));
@@ -127,6 +140,7 @@ export function longTable(k: Kit, w = 4, d = 1.3, color = WOOD, h = 0.95) {
   k.slab([0, 0.36, 0], [w - 1, 0.08, 0.1], shade(color, 0.72));
 }
 export function consoleTable(k: Kit, w = 1.8, color = DARK_WOOD) {
+  k.solid(w, 0.48);
   k.box([0, 0.86, 0], [w, 0.09, 0.48], color);
   k.slab([0, 0.3, 0], [w - 0.2, 0.05, 0.4], shade(color, 1.15));
   for (const x of [-1, 1]) for (const z of [-1, 1]) k.slab([x * (w / 2 - 0.08), 0.42, z * 0.18], [0.07, 0.84, 0.07], color);
@@ -155,6 +169,7 @@ export function bookRow(k: Kit, x0: number, x1: number, y: number, z: number, se
 }
 /** A bookcase `w` wide, `rows` shelves, against −z. */
 export function bookcase(k: Kit, w = 2.6, rows = 4, seed = 1, color = DARK_WOOD, full = true) {
+  k.solid(w + 0.1, 0.62);
   const h = 0.3 + rows * 0.78;
   k.slab([0, h / 2, -0.24], [w, h, 0.06], shade(color, 0.75));
   for (const side of [-1, 1]) k.box([side * (w / 2 - 0.06), h / 2, 0], [0.12, h, 0.56], color);
@@ -172,6 +187,7 @@ export function bookcase(k: Kit, w = 2.6, rows = 4, seed = 1, color = DARK_WOOD,
 }
 /** A low cabinet (sideboard) with doors; top at `h`. */
 export function sideboard(k: Kit, w = 2.4, h = 0.9, color = DARK_WOOD, door = "#617064") {
+  k.solid(w + 0.12, 0.68);
   k.box([0, h / 2, 0], [w, h, 0.6], color);
   k.slab([0, h + 0.03, 0], [w + 0.12, 0.07, 0.68], shade(color, 1.25));
   const doors = Math.max(2, Math.round(w / 0.8));
@@ -182,12 +198,14 @@ export function sideboard(k: Kit, w = 2.4, h = 0.9, color = DARK_WOOD, door = "#
   }
 }
 export function crate(k: Kit, s = 0.7, color = "#a98250") {
+  if (s >= 0.6) k.solid(s, s);
   k.box([0, s / 2, 0], [s, s, s], color);
   k.slab([0, s / 2, s / 2 + 0.01], [s * 0.86, s * 0.14, 0.03], shade(color, 0.75));
   k.slab([0, s * 0.82, s / 2 + 0.01], [s * 0.86, s * 0.1, 0.03], shade(color, 0.75));
 }
 /** A loose stack of cardboard boxes. */
 export function boxStack(k: Kit, seed = 1) {
+  k.solid(0.8, 0.72);
   k.box([0, 0.3, 0], [0.8, 0.6, 0.7], "#b89362", [0, 0.1, 0]);
   k.box([0.06, 0.82, 0.02], [0.62, 0.44, 0.56], "#c5a373", [0, -0.2 + hash01(seed) * 0.4, 0]);
   k.clutter(() => k.box([-0.02, 1.16, 0], [0.4, 0.24, 0.4], "#a98250", [0, 0.5, 0]));
@@ -207,6 +225,7 @@ export function plant(k: Kit, kind = 0, scale = 1) {
   k.at(0, 0, 0, () => plantLeaves(k, kind), 0, scale);
 }
 export function plantPot(k: Kit) {
+  k.solid(0.68, 0.68);
   k.cyl([0, 0.24, 0], [0.3, 0.48, 0.3], TERRACOTTA);
   k.cyl([0, 0.5, 0], [0.34, 0.08, 0.34], "#d68a58");
 }
@@ -418,6 +437,7 @@ export function trophy(k: Kit, color = "#d7aa45", h = 0.5) {
 }
 /** A speaker cabinet. */
 export function speaker(k: Kit, h = 1.2, color = "#3a3f3f") {
+  k.solid(0.62, 0.52);
   k.box([0, h / 2, 0], [0.62, h, 0.52], color);
   k.cyl([0, h * 0.68, 0.27], [0.2, 0.03, 0.2], "#1f2424", [Math.PI / 2, 0, 0]);
   k.cyl([0, h * 0.3, 0.27], [0.13, 0.03, 0.13], "#1f2424", [Math.PI / 2, 0, 0]);
@@ -535,6 +555,7 @@ export function bouncyBall(k: Kit, id: string, kind: "basketball" | "football" |
 }
 /** A chest of drawers; the top drawer slides open on a note. */
 export function drawerChest(k: Kit, init: { id: string; label?: string; title: string; text: string }, w = 1.3, color = DARK_WOOD) {
+  k.solid(w + 0.1, 0.68);
   k.box([0, 0.5, 0], [w, 1, 0.6], color);
   k.slab([0, 1.03, 0], [w + 0.1, 0.06, 0.68], shade(color, 1.25));
   for (const y of [0.2, 0.5]) {
@@ -601,6 +622,7 @@ export function skateboard(k: Kit, id = "skateboard", deck = "#35615a") {
 }
 /** A small keyboard synth on a stand; a key dips and it sings. */
 export function synth(k: Kit, id = "synth") {
+  k.solid(1.4, 0.44);
   for (const side of [-1, 1]) {
     k.slab([side * 0.5, 0.42, 0], [0.05, 0.9, 0.05], STEEL, [0.35, 0, 0]);
     k.slab([side * 0.5, 0.42, 0], [0.05, 0.9, 0.05], STEEL, [-0.35, 0, 0]);
@@ -657,6 +679,7 @@ export function shade(hex: string, k: number): string {
 
 /** A rowing machine, flywheel to −z; the seat and handle slide on a pull. */
 export function erg(k: Kit, id: string) {
+  k.solid(0.6, 2.3, 0, 0.2);
   k.slab([0, 0.16, 0.2], [0.12, 0.08, 2.3], "#9aa3a3");
   for (const z of [-0.85, 1.25]) k.slab([0, 0.07, z], [0.6, 0.12, 0.1], STEEL);
   k.cyl([0, 0.52, -0.95], [0.34, 0.14, 0.34], "#2b3134", [0, 0, Math.PI / 2]);
@@ -732,6 +755,7 @@ export function kettle(k: Kit, id = "kettle", label = "Kettle", verb = "Pour a c
 }
 /** A fridge whose door swings. Faces +z. */
 export function fridge(k: Kit, id = "fridge") {
+  k.solid(0.95, 0.8);
   k.box([0, 1, 0], [0.95, 2, 0.8], "#cfd6d2");
   k.slab([0, 1, 0.38], [0.8, 1.8, 0.04], "#eef1e8");
   k.clutter(() => {
@@ -808,6 +832,7 @@ export const hashStone = (a: number, b: number) => hash01(a * 7.3 + 1.7, b);
 
 /** A low two-shelf bookcase to divide a big floor; things stand on top. */
 export function lowShelf(k: Kit, w = 2.8, seed = 1, color = DARK_WOOD) {
+  k.solid(w + 0.1, 0.58);
   k.box([0, 0.55, 0], [w, 1.1, 0.5], color);
   k.slab([0, 1.13, 0], [w + 0.1, 0.06, 0.58], shade(color, 1.25));
   for (const side of [-1, 1])
@@ -855,6 +880,7 @@ export function storageCorner(k: Kit, seed = 1) {
 }
 /** A plinth with something worth a second look on it. */
 export function plinth(k: Kit, draw: () => void, color = "#d9d2bd") {
+  k.solid(0.8, 0.8);
   k.box([0, 0.5, 0], [0.7, 1, 0.7], color);
   k.slab([0, 1.02, 0], [0.8, 0.05, 0.8], shade(color, 0.85));
   k.at(0, 0, 0, draw, 1.05);

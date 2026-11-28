@@ -19,7 +19,7 @@ function cinema(k: Kit, korea: boolean) {
   const carpet = korea ? "#3d4f73" : "#7a2f34",
     rope = korea ? "#c9603f" : "#8c2f2f";
 
-  k.at(0, 12.4, 0, () => f.runner(k, 3, 11, carpet, "#d7aa45"));
+  k.at(0, 12.1, 0, () => f.runner(k, 3, 10.2, carpet, "#d7aa45"));
   stanchions(k, -2.2, 9.4, 16, rope);
   stanchions(k, 2.2, 9.4, 16, rope);
 

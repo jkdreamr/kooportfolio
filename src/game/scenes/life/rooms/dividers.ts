@@ -1,4 +1,7 @@
-import { DIVIDER_DEPTH, ROOM_DIVIDERS } from "../../../core/houseRooms";
+import { DIVIDER_DEPTH, DIVIDER_DOOR, ROOM_DIVIDERS } from "../../../core/houseRooms";
+
+const POST = 0.32,
+  POST_H = 2.6;
 import type { Kit } from "../kit";
 import { shade } from "../furniture";
 
@@ -33,13 +36,18 @@ export function dividers(k: Kit, roomId: string) {
     const n = Math.max(1, Math.floor(w / 1.4));
     for (let i = 0; i < n; i++) k.slab([a + ((i + 0.5) * w) / n, 0.78, z], [0.08, 1.06, DIVIDER_DEPTH + 0.04], shade(wall, 1.15));
   }
+  // Each arch's posts stand on the wall ends either side of the opening
+  // (the full DIVIDER_DOOR clear between them, matching the collision), and
+  // the header rests on the posts' tops.
+  const half = DIVIDER_DOOR / 2;
   for (const d of divider.doors)
     k.at(d, z, 0, () => {
       for (const side of [-1, 1]) {
-        k.box([side * 1.62, 1.32, 0], [0.32, 2.64, 0.5], trim);
-        k.slab([side * 1.62, 0.2, 0], [0.42, 0.4, 0.58], shade(trim, 1.25));
+        k.box([side * (half + POST / 2), POST_H / 2, 0], [POST, POST_H, 0.5], trim);
+        k.slab([side * (half + POST / 2), 0.2, 0], [POST + 0.1, 0.4, 0.58], shade(trim, 1.25));
       }
-      k.box([0, 2.74, 0], [3.6, 0.3, 0.5], trim);
-      k.slab([0, 2.93, 0], [3.8, 0.08, 0.6], shade(trim, 1.3));
+      const span = DIVIDER_DOOR + POST * 2;
+      k.box([0, POST_H + 0.15, 0], [span, 0.3, 0.5], trim);
+      k.slab([0, POST_H + 0.34, 0], [span + 0.2, 0.08, 0.6], shade(trim, 1.3));
     });
 }

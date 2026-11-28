@@ -120,8 +120,8 @@ export function HouseRooms({ scene }: { scene: "kappa" | "kitchen" }) {
         <>
           <CraftedBox p={[-5, 0.07, 6.8]} s={[9.6, 0.07, 9.1]} c="#7b3b32" />
           <CraftedBox p={[-5, 0.115, 6.8]} s={[9.1, 0.02, 8.6]} c="#a46445" />
-          <CraftedBox p={[6, 0.07, 6.3]} s={[7.5, 0.07, 8.7]} c="#344e3c" />
-          <CraftedBox p={[6, 0.115, 6.3]} s={[7.1, 0.02, 8.3]} c="#4d6c4b" />
+          <CraftedBox p={[6.5, 0.07, 6.3]} s={[6.9, 0.07, 8.7]} c="#344e3c" />
+          <CraftedBox p={[6.5, 0.115, 6.3]} s={[6.5, 0.02, 8.3]} c="#4d6c4b" />
         </>
       )}
     </group>

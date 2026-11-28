@@ -13,6 +13,8 @@ export type RoomDoor = {
   label: string;
 };
 
+/** x of the wall between Kappa's front room and its Pong Room. */
+const KAPPA_PONG_X = 2.6;
 export const COGNITION_OFFICE_WALL = { x: -2.1, z: 9.6, width: 7.8, depth: 0.36 };
 /** The Town Hall's long table with its benches (the village model sits on
  * it; Banner Rush is played from its foot). */
@@ -34,9 +36,12 @@ export const HOUSE_PARTITIONS: Record<string, readonly Partition[]> = {
   kappa: [
     { x: -(innerEdge + 2) / 2, z: 1.2, width: innerEdge - 2, depth: 0.4 },
     { x: (innerEdge + 2) / 2, z: 1.2, width: innerEdge - 2, depth: 0.4 },
-    { x: 1.2, z: 2.6, width: 0.4, depth: 2.8 },
+    // The Pong Room wall meets the Common Room wall on solid wall, just past
+    // that doorway's right post (2.0-2.4), and runs to the cut-away front
+    // edge clear of the exit arch (posts at x = +-1.7).
+    { x: KAPPA_PONG_X, z: 2.6, width: 0.4, depth: 2.8 },
     {
-      x: 1.2,
+      x: KAPPA_PONG_X,
       z: (7 + hall.depth / 2) / 2,
       width: 0.4,
       depth: hall.depth / 2 - 7,
@@ -59,7 +64,7 @@ export const HOUSE_PARTITIONS: Record<string, readonly Partition[]> = {
  * Low dividing walls that split the bigger halls into a front and a back
  * room, each with its own purpose. A divider runs along x at `z`; `runs` are
  * its solid stretches (it stops where furniture already stands), `doors` the
- * centres of its 3 m open archways (drawn by scenes/life/rooms/dividers.ts).
+ * centres of its open archways (DIVIDER_DOOR clear) (drawn by scenes/life/rooms/dividers.ts).
  * Kept at the partitions' 1.44 m so the camera reads both rooms over it.
  */
 export type RoomDivider = {
@@ -68,14 +73,17 @@ export type RoomDivider = {
   runs: readonly (readonly [number, number])[];
 };
 export const DIVIDER_DEPTH = 0.36;
+/** The clear width of every archway: runs end exactly DIVIDER_DOOR / 2 either
+ * side of a door's centre, and the arch posts stand on those ends. */
+export const DIVIDER_DOOR = 3.2;
 export const ROOM_DIVIDERS: Record<string, RoomDivider> = {
-  office: { z: -5.25, doors: [-7, 7], runs: [[-16.6, -8.6], [-5.4, 3.1], [8.6, 10.4], [12, 16.6]] },
-  music: { z: 6, doors: [-7, 7], runs: [[-16.6, -8.6], [-5.4, 5.4], [8.6, 12.8], [13.8, 16.6]] },
-  writing: { z: -9.25, doors: [-7, 7], runs: [[-15.3, -8.6], [-5.4, 5.4], [8.6, 16.6]] },
-  go: { z: 4.75, doors: [-7, 7], runs: [[-16.6, -8.6], [-5.4, 5.4], [8.6, 12.2], [13.4, 16.6]] },
+  office: { z: -5.25, doors: [-7, 7], runs: [[-16.6, -8.6], [-5.4, 5.4], [8.6, 17]] },
+  music: { z: 6, doors: [-7, 7], runs: [[-16.6, -8.6], [-5.4, 5.4], [8.6, 17]] },
+  writing: { z: -9.25, doors: [-7, 7], runs: [[-15.6, -8.6], [-5.4, 5.4], [8.6, 17]] },
+  go: { z: 4.75, doors: [-7, 7], runs: [[-16.6, -8.6], [-5.4, 5.4], [8.6, 12.5], [13.1, 17]] },
   gym: { z: -6, doors: [-7, 7], runs: [[-16.6, -8.6], [-5.4, 5.4], [8.6, 15.2]] },
   boathouse: { z: 4.25, doors: [-7, 7], runs: [[-16.6, -8.6], [-5.4, 5.4], [8.6, 15.1]] },
-  math: { z: 6.5, doors: [-7, 7], runs: [[-16.6, -8.6], [-5.4, 5.4], [8.6, 16.6]] },
+  math: { z: 6.5, doors: [-7, 7], runs: [[-16.6, -8.6], [-5.4, 5.4], [8.6, 17]] },
 };
 const dividerWalls = ({ z, runs }: RoomDivider): Partition[] =>
   runs.map(([a, b]) => ({ x: (a + b) / 2, z, width: b - a, depth: DIVIDER_DEPTH }));
@@ -85,7 +93,7 @@ for (const [scene, divider] of Object.entries(ROOM_DIVIDERS))
 export const HOUSE_DOORS: Record<string, readonly RoomDoor[]> = {
   kappa: [
     { x: 0, z: 1.2, width: 4, axis: "x", label: "COMMON ROOM" },
-    { x: 1.2, z: 5.5, width: 3, axis: "z", label: "PONG ROOM" },
+    { x: KAPPA_PONG_X, z: 5.5, width: 3, axis: "z", label: "PONG ROOM" },
   ],
   kitchen: [
     { x: -8.65, z: 0.5, width: 2.9, axis: "x", label: "PANTRY" },
@@ -96,6 +104,78 @@ export const HOUSE_DOORS: Record<string, readonly RoomDoor[]> = {
 
 const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
+
+/** The avatar's radius: every wall and footprint is padded by it. */
+export const AVATAR_RADIUS = 0.34;
+
+/**
+ * Furniture footprints (scenes/life kits) for the room being walked, padded
+ * by the avatar's radius. Registered by the room-life layer when a room's
+ * kit mounts, so core stays free of the room builders.
+ */
+export type FloorSolid = { x: number; z: number; hw: number; hd: number; turn: number };
+type Padded = { x: number; z: number; hw: number; hd: number; c: number; s: number };
+let solidScene = "";
+let solidBoxes: Padded[] = [];
+export function setRoomSolids(scene: string, solids: readonly FloorSolid[] | null) {
+  if (!solids) {
+    if (solidScene === scene) {
+      solidScene = "";
+      solidBoxes = [];
+    }
+    return;
+  }
+  solidScene = scene;
+  solidBoxes = solids.map((solid) => ({
+    x: solid.x,
+    z: solid.z,
+    hw: solid.hw + AVATAR_RADIUS,
+    hd: solid.hd + AVATAR_RADIUS,
+    c: Math.cos(solid.turn),
+    s: Math.sin(solid.turn),
+  }));
+}
+/** How deep (x, z) is inside a padded footprint; <= 0 is outside. */
+function depthIn(box: Padded, x: number, z: number) {
+  const dx = x - box.x,
+    dz = z - box.z;
+  // Into the footprint's frame (kit placements turn by rotY(+turn)).
+  const lx = dx * box.c - dz * box.s,
+    lz = dx * box.s + dz * box.c;
+  return Math.min(box.hw - Math.abs(lx), box.hd - Math.abs(lz));
+}
+function inWall(scene: string, x: number, z: number) {
+  const walls = HOUSE_PARTITIONS[scene];
+  if (!walls) return false;
+  for (const wall of walls)
+    if (
+      Math.abs(x - wall.x) < wall.width / 2 + AVATAR_RADIUS &&
+      Math.abs(z - wall.z) < wall.depth / 2 + AVATAR_RADIUS
+    )
+      return true;
+  return false;
+}
+/** Whether (x, z) is inside a furniture footprint of `scene`. */
+export function inFurniture(scene: string, x: number, z: number) {
+  if (scene !== solidScene) return false;
+  for (const box of solidBoxes) if (depthIn(box, x, z) > 1e-6) return true;
+  return false;
+}
+/**
+ * A step from (fx, fz) to (x, z) is blocked by a wall it would enter, or by
+ * a footprint it would go deeper into: someone set down inside one (a seat,
+ * a respawn) can always walk out, never further in.
+ */
+function stepBlocked(scene: string, fx: number, fz: number, x: number, z: number) {
+  if (inWall(scene, x, z)) return true;
+  if (scene !== solidScene) return false;
+  for (const box of solidBoxes) {
+    const next = depthIn(box, x, z);
+    if (next > 1e-6 && next > depthIn(box, fx, fz) + 1e-9) return true;
+  }
+  return false;
+}
+
 export function moveInterior(
   scene: string,
   x: number,
@@ -104,13 +184,6 @@ export function moveInterior(
   dz: number,
 ): [number, number] {
   const room = roomFor(scene);
-  const walls = HOUSE_PARTITIONS[scene] ?? [];
-  const blocked = (nextX: number, nextZ: number) =>
-    walls.some(
-      (wall) =>
-        Math.abs(nextX - wall.x) < wall.width / 2 + 0.34 &&
-        Math.abs(nextZ - wall.z) < wall.depth / 2 + 0.34,
-    );
   // Substeps prevent a long frame/tap target from tunneling through a wall.
   const steps = Math.max(
     1,
@@ -119,10 +192,26 @@ export function moveInterior(
   for (let step = 0; step < steps; step++) {
     const nextX = clamp(x + dx / steps, -room.walkX, room.walkX);
     const nextZ = clamp(z + dz / steps, room.minZ, room.maxZ);
-    if (!blocked(nextX, z)) x = nextX;
-    if (!blocked(x, nextZ)) z = nextZ;
+    if (!stepBlocked(scene, x, z, nextX, z)) x = nextX;
+    if (!stepBlocked(scene, x, z, x, nextZ)) z = nextZ;
   }
   return [x, z];
+}
+
+/** The nearest free floor to a point inside a furniture footprint (within
+ * 2.5 m), so tapping a sofa walks to its side instead of nowhere, and
+ * standing up from a seat lands beside the coffee table, not in it. */
+export function freeNear(scene: string, x: number, z: number): [number, number] | null {
+  const room = roomFor(scene);
+  for (let r = 0.25; r <= 2.5; r += 0.25)
+    for (let i = 0; i < 24; i++) {
+      const a = (i / 24) * Math.PI * 2;
+      const px = x + Math.sin(a) * r,
+        pz = z + Math.cos(a) * r;
+      if (Math.abs(px) > room.walkX || pz < room.minZ || pz > room.maxZ) continue;
+      if (!inWall(scene, px, pz) && !inFurniture(scene, px, pz)) return [px, pz];
+    }
+  return null;
 }
 
 // Floor taps and Exit use the same collision geometry as manual walking.
@@ -134,19 +223,21 @@ export function findInteriorPath(
   end: [number, number],
 ): [number, number][] {
   const room = roomFor(scene);
-  const goal: [number, number] = [
+  let goal: [number, number] = [
     clamp(end[0], -room.walkX, room.walkX),
     clamp(end[1], room.minZ, room.maxZ),
   ];
+  if (inWall(scene, goal[0], goal[1])) return [];
+  if (inFurniture(scene, goal[0], goal[1])) {
+    const free = freeNear(scene, goal[0], goal[1]);
+    if (!free) return [];
+    goal = free;
+  }
   const reaches = (from: [number, number], to: [number, number]) => {
     const moved = moveInterior(scene, ...from, to[0] - from[0], to[1] - from[1]);
     return Math.hypot(moved[0] - to[0], moved[1] - to[1]) < 0.00001;
   };
   if (reaches(start, goal)) return [goal];
-  if ((HOUSE_PARTITIONS[scene] ?? []).some((wall) =>
-    Math.abs(goal[0] - wall.x) < wall.width / 2 + 0.34 &&
-    Math.abs(goal[1] - wall.z) < wall.depth / 2 + 0.34,
-  )) return [];
 
   const grid = 0.5;
   const queue: [number, number][] = [[0, 0]];

@@ -12,6 +12,8 @@ import { sound } from "../../core/sound";
 import { gameInputEnabled, useStage } from "../../../stage/contract";
 import { exposeQa } from "../../../stage/qa";
 import { roomFor } from "../../core/room";
+import { freeNear, inFurniture, setRoomSolids } from "../../core/houseRooms";
+import { roomDressingSolids } from "../RoomDressing";
 import { isDiscovered, onDiscovery, roomProgress, useDiscoveries } from "../../core/discoveries";
 import {
   activate,
@@ -333,7 +335,7 @@ export function RoomLifeLive({ kit, roomId }: { kit: Kit; roomId: string }) {
     if (pools) {
       kit.pools.forEach((pool, i) => {
         const k = lampOn(pool.lamp) ? 2 : 0;
-        out.makeScale(pool.rx * k, 1, pool.rz * k).setPosition(pool.x, 0.17, pool.z);
+        out.makeScale(pool.rx * k, 1, pool.rz * k).setPosition(pool.x, 0.19, pool.z);
         pools.setMatrixAt(i, out);
       });
       pools.instanceMatrix.needsUpdate = true;
@@ -416,8 +418,9 @@ export function RoomLifeLive({ kit, roomId }: { kit: Kit; roomId: string }) {
           } else {
             // Stand up a step in front of the seat.
             seated.current = null;
-            runtime.x = action.seat[0] + Math.sin(action.face) * 0.9;
-            runtime.z = action.seat[2] + Math.cos(action.face) * 0.9;
+            const standX = action.seat[0] + Math.sin(action.face) * 0.9,
+              standZ = action.seat[2] + Math.cos(action.face) * 0.9;
+            [runtime.x, runtime.z] = inFurniture(scene, standX, standZ) ? (freeNear(scene, standX, standZ) ?? [standX, standZ]) : [standX, standZ];
           }
           break;
         default:
@@ -741,5 +744,11 @@ export function useRoomLifeKit(world: string, scene: string): { kit: Kit | null;
   const thin = useStage((s) => s.tier === "low");
   const roomId = discoveryRoomId(world, scene);
   const kit = useMemo(() => buildRoomLife(roomId, { thin }), [roomId, thin]);
+  // The furniture's footprints join the room's walking collision and routes.
+  useLayoutEffect(() => {
+    if (!kit) return;
+    setRoomSolids(scene, [...kit.solids, ...roomDressingSolids(scene)]);
+    return () => setRoomSolids(scene, null);
+  }, [kit, scene]);
   return { kit, roomId };
 }

@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { chamferBoxGeometry } from "../world/chamferBox";
 import { sculptedMaterial } from "../world/Surface";
 import { CognitionDeskBadge, CognitionScreen } from "./CognitionWordmark";
+import type { FloorSolid } from "../core/houseRooms";
 
 function Bookcase({ x, z }: { x: number; z: number }) {
   return (
@@ -151,11 +152,16 @@ function dressingPosition(
   ];
 }
 
-function roomDetails(scene: PlaceId) {
+function roomDetails(scene: PlaceId, solids: FloorSolid[] = []) {
   const out: Detail[] = [];
   const room = roomFor(scene);
   // Anchor peripheral props to the larger walls; never scale the objects themselves.
   const position = (p: V3) => dressingPosition(room, p);
+  /** A walking-collision footprint `w` by `d` at (x, z) (room-life rules). */
+  const solid = (x: number, z: number, w: number, d: number) => {
+    const [px, , pz] = position([x, 0, z]);
+    solids.push({ x: px, z: pz, hw: w / 2, hd: d / 2, turn: 0 });
+  };
   const box = (p: V3, s: V3, c: string, r?: V3) =>
     out.push({ p: position(p), s, c, shape: "box", r });
   const cylinder = (p: V3, s: V3, c: string, r?: V3) =>
@@ -173,6 +179,7 @@ function roomDetails(scene: PlaceId) {
     steel = "#46535a",
     brass = "#b19a65";
   const cabinet = (x: number, z: number, count = 4) => {
+    solid(x, z, count * 0.92 + 0.35, 1.28);
     box([x, 1.4, z], [count * 0.92 + 0.2, 2.8, 1.12], darkWood);
     box([x, 2.85, z], [count * 0.92 + 0.35, 0.14, 1.28], wood);
     for (let i = 0; i < count; i++) {
@@ -188,6 +195,7 @@ function roomDetails(scene: PlaceId) {
     }
   };
   const bench = (x: number, z: number, length: number) => {
+    solid(x, z, length, 0.85);
     box([x, 0.68, z], [length, 0.2, 0.85], wood);
     for (const side of [-1, 1]) {
       box([x + side * (length / 2 - 0.28), 0.32, z], [0.15, 0.64, 0.7], steel);
@@ -195,6 +203,7 @@ function roomDetails(scene: PlaceId) {
     }
   };
   const desk = (x: number, z: number) => {
+    solid(x, z, 3.5, 1.6);
     box([x, 1.15, z], [3.5, 0.19, 1.6], wood);
     for (const side of [-1, 1]) {
       box([x + side * 1.45, 0.56, z], [0.14, 1.12, 1.35], steel);
@@ -230,6 +239,9 @@ function roomDetails(scene: PlaceId) {
     cabinet(-7.8, 11.5, 4);
     bench(-7.5, 14, 4.4);
     // Full-height oar storage along the starboard side, away from the entrance.
+    solid(9.2, 10, 0.9, 4.8);
+    solid(7.2, 1.5, 4.3, 1.7);
+    solid(7.6, 5.5, 3.25, 1.2);
     box([9.2, 0.25, 10], [0.9, 0.35, 4.8], darkWood);
     box([9.2, 2.2, 10], [0.28, 0.2, 4.8], wood);
     for (let i = 0; i < 6; i++) {
@@ -279,6 +291,8 @@ function roomDetails(scene: PlaceId) {
     bench(7, 13.2, 3.8);
     cabinet(-7.5, 5.5, 3);
     // A quiet reading corner; the central desk/walking lane stays clear.
+    solid(-6.7, 0.95, 3.8, 1.75);
+    solid(-6.7, 3.2, 2.6, 1.2);
     box([-6.7, 0.75, 1], [3.5, 0.5, 1.6], "#5d7565");
     box([-6.7, 1.25, 0.3], [3.5, 0.9, 0.28], "#4e685c");
     for (const side of [-1, 1])
@@ -295,6 +309,8 @@ function roomDetails(scene: PlaceId) {
   }
   if (scene === "gym") {
     // A complete bench-press station and stretch bay occupy the new forward wings.
+    solid(7.3, 10.8, 2.4, 3);
+    solid(7.3, 1.85, 3.6, 3.6);
     box([7.3, 0.1, 11], [4.5, 0.12, 5.5], "#405c55");
     box([7.3, 0.8, 11], [0.85, 0.25, 2.8], "#7c5540");
     for (const z of [10, 12]) box([7.3, 0.4, z], [0.65, 0.8, 0.16], steel);
@@ -352,6 +368,57 @@ function roomDetails(scene: PlaceId) {
     box([-7.5, 0.13, 6.2], [3.8, 0.14, 1.7], "#567469");
   }
   return out;
+}
+
+/**
+ * The walking-collision footprints of this dressing (desks, cabinets,
+ * benches, racks, bookcases, the round table), in room coordinates, for
+ * core/houseRooms.ts. Pure: the same scene always gives the same list.
+ */
+export function roomDressingSolids(scene: string): FloorSolid[] {
+  if (scene === "theater" || scene === "stadium" || scene === "townhall") return [];
+  const solids: FloorSolid[] = [];
+  const room = roomFor(scene),
+    flank = room.width / 2 - 3.5,
+    rear = -room.depth / 2 + 1.6;
+  const add = (x: number, z: number, w: number, d: number) => solids.push({ x, z, hw: w / 2, hd: d / 2, turn: 0 });
+  // Interior.tsx's park benches by the door and against the back wall.
+  for (const side of [-1, 1]) {
+    add(side * (room.width / 2 - 4.5), room.depth / 2 - 5.2 - 0.07, 1.7, 0.8);
+    if (scene !== "secret") add(side * 9, -room.depth / 2 + 3.7 - 0.07, 1.7, 0.8);
+  }
+  // Kappa's house furniture (HouseInterior.tsx): sofas, tables, bar, hearth.
+  if (scene === "kappa") {
+    const back = 0.5 - room.depth / 2,
+      left = 0.5 - room.width / 2;
+    const sofa = (x: number, z: number, scale: number, turn: number) =>
+      solids.push({ x, z, hw: 1.71 * scale, hd: 0.74 * scale, turn });
+    sofa(-6.3 * 1.3, -2.6 * 1.3, 1.3, Math.PI / 2);
+    sofa(2.8 * 1.3, -4.4 * 1.3, 1.3, -Math.PI / 2);
+    sofa(-6.5, 6, 1.2, 0);
+    sofa(left + 1.8, -11.8, 1, Math.PI / 2);
+    sofa(-14.5, 9.5, 1, Math.PI / 2);
+    add(-6.5, 8.4, 2.8 * 1.2, 1.5 * 1.2);
+    add(-12, -11.8, 2.4, 1.6);
+    add(-11.8, 9.5, 2.4, 1.6);
+    add(-6, back + 0.9, 4.05 * 1.4, 1.05 * 1.4);
+    add(7.1, back + 0.6 + 0.15, 2.7 * 1.25, 1.3 * 1.25);
+  }
+  // The Study's paper-toss desk and its bench (Interior.tsx).
+  if (scene === "office") {
+    add(-2.5, -4, 4.1, 1.35);
+    add(-2.5, -2.77, 1.7, 0.8);
+  }
+  if (scene !== "boathouse" && scene !== "office" && scene !== "cognition" && scene !== "gym") return solids;
+  roomDetails(scene as PlaceId, solids);
+  if (scene === "boathouse") for (const x of [-flank, flank]) add(x, rear + 4, 2.8, 6.8);
+  if (scene === "office" || scene === "cognition") {
+    for (const x of [flank - 3, -flank + 3]) add(x, rear - 0.05, 4.3, 1.3);
+    add(flank, 0, 3.2, 3.2);
+    for (const side of [-1, 1]) add(flank, side * 2.3, 2.4, 0.8);
+  }
+  if (scene === "gym") for (const x of [-flank, flank]) add(x, rear + 3, 1.3, 1.3);
+  return solids;
 }
 
 function DetailBatch({

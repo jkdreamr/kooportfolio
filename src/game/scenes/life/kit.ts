@@ -90,6 +90,13 @@ export type Prop = {
 };
 
 export type Glow = { p: V3; s: V3; lamp?: string };
+/**
+ * A solid floor footprint in room coordinates: a rectangle centred at (x, z),
+ * half extents `hw` (along its local x) and `hd` (local z), turned `turn`
+ * about y. Walking collision and floor-tap routes pad it by the avatar's
+ * radius (core/houseRooms.ts), so it is the visible footprint, unpadded.
+ */
+export type Solid = { x: number; z: number; hw: number; hd: number; turn: number };
 export type Pool = { x: number; z: number; rx: number; rz: number; lamp?: string };
 export type Board = {
   /** Centre, in room coordinates, and the turn about y of its face. */
@@ -125,12 +132,17 @@ const rotY = (x: number, z: number, a: number): [number, number] => {
   return [x * c + z * s, -x * s + z * c];
 };
 
+/** How far rugs and runners are raised above their drawn heights. */
+export const COVERING_LIFT = 0.025;
+
 export class Kit {
   statics: Piece[] = [];
   props: Prop[] = [];
   glows: Glow[] = [];
   pools: Pool[] = [];
   boards: Board[] = [];
+  /** Floor footprints the avatar cannot walk through (sofas, tables...). */
+  solids: Solid[] = [];
   /** Low tier: `clutter()` blocks are skipped. */
   readonly thin: boolean;
   private frame: Frame = { x: 0, y: 0, z: 0, turn: 0, scale: 1 };
@@ -158,6 +170,26 @@ export class Kit {
     } finally {
       this.frame = outer;
     }
+  }
+
+  /** Floor coverings (rugs, mats, runners): room-space centre and half extents. */
+  coverings: { x: number; z: number; ex: number; ez: number }[] = [];
+  /**
+   * A flat floor covering `w` by `d` (rug, mat, runner), drawn in `draw`,
+   * lifted so its top clears the floorboards' by 5 cm or more: at the
+   * telephoto camera's range a 16-bit depth buffer resolves only a couple
+   * of centimetres, so a thinner gap shimmers at grazing angles and lets the
+   * boards bleed through the edges. Coverings never overlap one another
+   * (tests/roomSolids.test.ts), and their tops stay under the avatar's feet
+   * (0.18) and the lamp pools (RoomLife, 0.19).
+   */
+  decal(w: number, d: number, draw: () => void) {
+    const f = this.frame;
+    const [x, , z] = this.point([0, 0, 0]);
+    const c = Math.abs(Math.cos(f.turn)),
+      s = Math.abs(Math.sin(f.turn));
+    this.coverings.push({ x, z, ex: ((w * c + d * s) / 2) * f.scale, ez: ((w * s + d * c) / 2) * f.scale });
+    this.at(0, 0, 0, draw, COVERING_LIFT / f.scale);
   }
 
   /** Small things a low-tier device can do without. */
@@ -204,6 +236,17 @@ export class Kit {
   }
   box(p: V3, s: V3, c: string, r?: V3) {
     this.push("box", p, s, c, r);
+    // A chamfered box standing on the floor at least knee high and a
+    // stride across (cabinets, counters, crates) is furniture: solid.
+    if (!this.propFrame && !r?.[0] && !r?.[2]) this.autoSolid(p, s[0], s[1], s[2], r?.[1] ?? 0);
+  }
+  /** Floor-standing drums and barrels (cylinders), likewise. */
+  private autoSolid(p: V3, w: number, h: number, d: number, turn: number) {
+    const f = this.frame;
+    const bottom = f.y + (p[1] - h / 2) * f.scale;
+    if (bottom > 0.3 || h * f.scale < 0.5 || Math.min(w, d) * f.scale < 0.45 || Math.max(w, d) * f.scale < 0.7) return;
+    const [cx, , cz] = this.point(p);
+    this.solids.push({ x: cx, z: cz, hw: (w / 2) * f.scale, hd: (d / 2) * f.scale, turn: f.turn + turn });
   }
   slab(p: V3, s: V3, c: string, r?: V3) {
     this.push("slab", p, s, c, r);
@@ -211,6 +254,7 @@ export class Kit {
   /** `s` is [radius x, height, radius z]. */
   cyl(p: V3, s: V3, c: string, r?: V3) {
     this.push("cyl", p, s, c, r);
+    if (!this.propFrame && !r?.[0] && !r?.[2]) this.autoSolid(p, s[0] * 2, s[1], s[2] * 2, 0);
   }
   /** `s` is the three radii. */
   ball(p: V3, s: V3, c: string, r?: V3) {
@@ -274,6 +318,17 @@ export class Kit {
     const f = this.frame;
     const [wx, , wz] = this.point([x, 0, z]);
     this.pools.push({ x: wx, z: wz, rx: rx * f.scale, rz: rz * f.scale, lamp });
+  }
+  /**
+   * A solid footprint `w` by `d`, centred at local (x, z) of the current
+   * placement. Kept on every tier (it is collision, not clutter). Skipped
+   * for things standing on a table or shelf: only the floor blocks walking.
+   */
+  solid(w: number, d: number, x = 0, z = 0) {
+    const f = this.frame;
+    if (f.y > 0.3) return;
+    const [cx, , cz] = this.point([x, 0, z]);
+    this.solids.push({ x: cx, z: cz, hw: (w / 2) * f.scale, hd: (d / 2) * f.scale, turn: f.turn });
   }
   board(p: V3, size: [number, number], lines: string[], ink = "#2f4a43", ground = "#f3f1e4") {
     this.boards.push({ p: this.point(p), turn: this.frame.turn, size: [size[0] * this.frame.scale, size[1] * this.frame.scale], lines, ink, ground });

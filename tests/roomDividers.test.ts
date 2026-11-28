@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DIVIDER_DEPTH, findInteriorPath, moveInterior, ROOM_DIVIDERS } from "../src/game/core/houseRooms";
+import { DIVIDER_DEPTH, DIVIDER_DOOR, findInteriorPath, moveInterior, ROOM_DIVIDERS } from "../src/game/core/houseRooms";
 import { roomFor } from "../src/game/core/room";
 import { buildRoomLife } from "../src/game/scenes/life/rooms";
 import { DEFAULT_REACH } from "../src/game/core/interactables";
@@ -37,10 +37,23 @@ describe("room dividers", () => {
   });
 
   it.each(rooms)("%s: no dressing stands inside a wall", (scene) => {
-    const { z, runs } = ROOM_DIVIDERS[scene];
+    const { z, runs, doors } = ROOM_DIVIDERS[scene];
+    // The arch posts' plinths stand on the wall ends on purpose.
+    const arch = (x: number) => doors.some((d) => Math.abs(x - d) < DIVIDER_DOOR / 2 + 0.45);
     const inside = buildRoomLife(scene)!.statics.filter(
-      (p) => p.p[1] - p.s[1] / 2 < 1.4 && Math.abs(p.p[2] - z) < DIVIDER_DEPTH / 2 + 0.05 && runs.some(([a, b]) => p.p[0] > a + 0.05 && p.p[0] < b - 0.05) && Math.abs(p.s[2] - DIVIDER_DEPTH) > 0.2 && p.s[1] < 1.4,
+      (p) => !arch(p.p[0]) && p.p[1] - p.s[1] / 2 < 1.4 && Math.abs(p.p[2] - z) < DIVIDER_DEPTH / 2 + 0.05 && runs.some(([a, b]) => p.p[0] > a + 0.05 && p.p[0] < b - 0.05) && Math.abs(p.s[2] - DIVIDER_DEPTH) > 0.2 && p.s[1] < 1.4,
     );
     expect(inside.length).toBeLessThan(3);
+  });
+
+  it.each(rooms)("%s: each archway has wall either side, ending exactly at its posts", (scene) => {
+    const { doors, runs } = ROOM_DIVIDERS[scene];
+    for (const d of doors) {
+      expect(runs.some(([, b]) => Math.abs(b - (d - DIVIDER_DOOR / 2)) < 1e-6)).toBe(true);
+      expect(runs.some(([a]) => Math.abs(a - (d + DIVIDER_DOOR / 2)) < 1e-6)).toBe(true);
+    }
+    // Runs meet the left wall's face and the cut-away right edge of the floor.
+    expect(runs[0][0]).toBeLessThanOrEqual(-15.5);
+    expect(runs[runs.length - 1][1]).toBeGreaterThanOrEqual(15);
   });
 });

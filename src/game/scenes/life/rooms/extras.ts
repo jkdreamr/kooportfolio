@@ -40,8 +40,9 @@ export const EXTRAS: Record<string, RoomBuilder> = {
     k.at(2.4, -14.6, -0.3, () => f.readingNook(k, "#a35e46", "#3c5a50", 5));
     k.at(-12.2, -6.2, 0.3, () => f.storageCorner(k, 2));
     k.at(4.4, 5.4, 0, () => f.plinth(k, () => f.vase(k, "#435668", "#e2cf9f")));
-    k.at(11.2, -5.2, 0, () => f.rug(k, 4, 3, "#52776a", "#e2cf9f"));
-    k.at(11.2, -5.2, 0.4, () => f.pouf(k, "#a35e46", 0.5));
+    // A rug and pouf in the back room, clear of the dividing wall.
+    k.at(12, -7.6, 0, () => f.rug(k, 4, 3, "#52776a", "#e2cf9f"));
+    k.at(12, -7.6, 0.4, () => f.pouf(k, "#a35e46", 0.5));
   },
   music(k) {
     k.at(-9, -0.6, 0, () => f.cafeTable(k, "#4a3a2e", "#3c4a5e"));
@@ -84,7 +85,6 @@ export const EXTRAS: Record<string, RoomBuilder> = {
     k.at(13.8, 4.6, 0, () => f.plantCluster(k));
     k.at(-8.2, -14.6, 0.3, () => f.storageCorner(k, 3));
     k.at(-13.6, 4.4, 0, () => f.plinth(k, () => f.fruitBowl(k), "#bd914f"));
-    k.at(0, 16.9, 0, () => f.runner(k, 6, 1.6, "#7d4a3a", "#d9b765"));
     k.at(-9.6, 17.4, 0, () => f.lowShelf(k, 2.8, 5, "#51392a"));
     k.at(11.2, 17.4, 0, () => f.lowShelf(k, 2.6, 8, "#51392a"));
   },
@@ -93,7 +93,7 @@ export const EXTRAS: Record<string, RoomBuilder> = {
     k.at(13.4, -6.4, 0, () => f.plinth(k, () => f.vase(k, "#b99a4a", "#f1e8d0"), "#4a3a2e"));
     k.at(-13.4, -2.4, 0, () => f.plinth(k, () => f.candles(k), "#4a3a2e"));
     k.at(-13.4, -11.6, 0.2, () => f.storageCorner(k, 4));
-    k.at(-4.4, 16.6, 0, () => f.cafeTable(k, "#4a3a2e", "#7a2f34"));
+    k.at(-3.9, 16.6, 0, () => f.cafeTable(k, "#4a3a2e", "#7a2f34"));
     k.at(4.8, 17, 0, () => f.plant(k, 1, 1.3));
     k.at(13.6, 12.4, -Math.PI / 2, () => f.lowShelf(k, 2.8, 2, "#4a3a2e"));
   },
@@ -102,7 +102,7 @@ export const EXTRAS: Record<string, RoomBuilder> = {
     k.at(13.4, -6.4, 0, () => f.plinth(k, () => f.vase(k, "#3d4f73", "#f1e8d0"), "#4a3a2e"));
     k.at(-13.4, -2.4, 0, () => f.plinth(k, () => f.candles(k), "#4a3a2e"));
     k.at(-13.4, -11.6, 0.2, () => f.storageCorner(k, 4));
-    k.at(-4.4, 16.6, 0, () => f.cafeTable(k, "#4a3a2e", "#3d4f73"));
+    k.at(-3.9, 16.6, 0, () => f.cafeTable(k, "#4a3a2e", "#3d4f73"));
     k.at(4.8, 17, 0, () => f.plant(k, 1, 1.3));
     k.at(13.6, 12.4, -Math.PI / 2, () => f.lowShelf(k, 2.8, 2, "#4a3a2e"));
   },
@@ -147,7 +147,6 @@ export const EXTRAS: Record<string, RoomBuilder> = {
     k.at(-9.4, -15.4, -0.2, () => f.storageCorner(k, 7));
     k.at(8.6, 14.6, 0, () => f.cafeTable(k, "#9f805b", "#456d65"));
     k.at(-10, 16.6, 0, () => f.lowShelf(k, 2.8, 3, "#4a655d"));
-    k.at(0.6, 6, 0, () => f.rug(k, 4, 3, "#6e8171", "#d1c496"));
   },
   badminton(k) {
     k.at(13.6, 9.4, 0, () => f.plantCluster(k, "#35615a"));
