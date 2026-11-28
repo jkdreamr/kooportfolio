@@ -2,7 +2,8 @@
  * Banner Rush field, clock and pool constants. Rules are in tiles and ticks
  * (20 per second); the view scales tiles to metres.
  */
-export const RULES_VERSION = 1;
+/** 2: Revision 2's Lantern Keeper (3 most-damaged allies, auras do not stack). */
+export const RULES_VERSION = 2;
 
 export const TICK_HZ = 20;
 export const W = 16;

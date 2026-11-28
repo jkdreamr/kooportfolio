@@ -1,18 +1,18 @@
 /**
- * Stamp hook (§7.5, owner decision): Banner Rush awards stamps through this
- * one wrapper. WS-J's `earnStamp(id)` in core/store.ts replaces the body at
- * merge; until then it only records the ids for QA.
+ * Stamps [R2-2]: three ids owned by the village Passport. Banner Rush awards
+ * them through this one wrapper; at merge the lead points it at WS-J's
+ * `earnStamp(id): boolean` (true = newly earned). Until then it returns false
+ * (no chip is shown) and records the ids for QA.
  */
-export type StampId =
-  | "banner-rush.first-match"
-  | "banner-rush.first-win"
-  | "banner-rush.keep"
-  | "banner-rush.daily"
-  | "banner-rush.palace-court"
-  | "banner-rush.stanford-quad"
-  | "banner-rush.maxed";
+export type StampId = "home.banner" | "home.keep" | "home.ground";
 
 export const awardedStamps: StampId[] = [];
-export function awardStamp(id: StampId): void {
+let earn: ((id: StampId) => boolean) | null = null;
+/** The engine wires WS-J's earnStamp here once it exists. */
+export function setStampSink(fn: ((id: StampId) => boolean) | null) {
+  earn = fn;
+}
+export function awardStamp(id: StampId): boolean {
   if (!awardedStamps.includes(id)) awardedStamps.push(id);
+  return earn ? earn(id) : false;
 }

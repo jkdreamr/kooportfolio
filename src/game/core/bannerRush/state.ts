@@ -77,6 +77,7 @@ export function createMatch(config: MatchConfig): MatchState {
     banners: new Int32Array(2),
     cards: new Int8Array(16),
     deckIds: new Int8Array(16),
+    deckSize: new Int8Array([8, 8]),
     doubleAt: DOUBLE_AT,
     regEnd: REGULATION_END,
     tripleAt: TRIPLE_AT,
@@ -204,11 +205,11 @@ export function createMatch(config: MatchConfig): MatchState {
         s.speedMul = 1.15;
         break;
       case "fixedHand": {
-        // The listed cards in order: hand, next, then the rest of the deck.
+        // [R2-11] The deck is exactly these cards as a cycle: hand = the first
+        // four, next = the fifth, and the return queue is what remains.
         const fixed = m.cards.map((c) => CARD_IDS.indexOf(c));
-        const rest = Array.from(s.cards.subarray(m.side * 8, m.side * 8 + 8)).filter((c) => !fixed.includes(c));
-        const order = [...fixed, ...rest].slice(0, 8);
-        for (let i = 0; i < 8; i++) s.cards[m.side * 8 + i] = order[i];
+        for (let i = 0; i < 8; i++) s.cards[m.side * 8 + i] = i < fixed.length ? fixed[i] : -1;
+        s.deckSize[m.side] = Math.max(5, Math.min(8, fixed.length));
         break;
       }
       case "glowStart":
@@ -332,7 +333,7 @@ export function ownView(s: MatchState, side: Side): OwnView {
   return {
     side,
     hand: [0, 1, 2, 3].map((i) => CARD_IDS[s.cards[base + i]]) as CardId[],
-    next: CARD_IDS[s.cards[base + 4]] ?? null,
+    next: s.cards[base + 4] >= 0 ? CARD_IDS[s.cards[base + 4]] : null,
     glow: Math.floor(s.glow[side] / GLOW_UNIT),
     glowExact: s.glow[side] / GLOW_UNIT,
   };

@@ -86,7 +86,12 @@ describe("Banner Rush rules: determinism", () => {
       // Only bodies marked // @hot are checked.
       const parts = src.split("// @hot").slice(1);
       for (const part of parts) {
-        const body = part.slice(0, part.search(/\n}\n/) + 2);
+        // The body ends at the first closing brace at the declaration's indent.
+        const lines = part.split("\n").slice(1);
+        const decl = lines.findIndex((l) => l.trim() && !l.trim().startsWith("/*") && !l.trim().startsWith("*"));
+        const indent = lines[decl].match(/^\s*/)![0];
+        const end = lines.findIndex((l, i) => i > decl && l === `${indent}}`);
+        const body = lines.slice(decl, end + 1).join("\n");
         expect(body, f).not.toMatch(/\.(map|filter|forEach|reduce)\(/);
         expect(body, f).not.toMatch(/\.\.\.[a-zA-Z[(]/);
         expect(body, f).not.toMatch(/\bnew [A-Z]/);

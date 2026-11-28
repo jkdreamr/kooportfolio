@@ -112,6 +112,8 @@ export type MatchState = {
   /** Per side 8 card indices: 0–3 hand, 4 next, 5–7 queue. */
   cards: Int8Array;
   deckIds: Int8Array;
+  /** Cards in each side's cycle (8; 5 with the tutorial's fixedHand [R2-11]). */
+  deckSize: Int8Array;
   /** Clock and modifiers (read once at createMatch). */
   doubleAt: number;
   regEnd: number;

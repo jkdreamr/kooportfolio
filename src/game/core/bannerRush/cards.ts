@@ -243,8 +243,8 @@ export const BALLOON_POP = { radius: 2.0, dmg: 180, tower: 60 } as const;
 export const TELESCOPE = { beam: 8, ramp: [22, 60, 170] as const, stepTicks: 40, life: 600, decay: 3, decayEvery: 2 } as const;
 export const STALL = { firstSpawn: 20, every: 90, decay: 25, decayEvery: 18, ahead: 1.4, cookDeploy: 10 } as const;
 export const ROWER_CHARGE = { walkTicks: 40, speed: 2.0 / TICK_HZ, mult: 2 } as const;
-/** maxTargets: Revision 2 may cap the heal's targets (nearest first). */
-export const LANTERN_AURA = { every: 20, radius: 3.0, heal: 36, maxTargets: 99 } as const;
+/** [R2-5] Heals the 3 most-damaged other friendly troops in range; auras do not stack. */
+export const LANTERN_AURA = { every: 20, radius: 3.0, heal: 36, maxTargets: 3 } as const;
 export const HOOP_SWISH = { every: 3, mult: 1.5 } as const;
 
 /** Formations, own frame (forward is −y). */
@@ -353,21 +353,45 @@ export const COUNTERS: Readonly<Partial<Record<UnitKind, Partial<Record<CardId, 
   stall: { beekeeper: 2, mascot: 1 },
 };
 
-/** Balance index N of §3.4 (geometric-mean value per Glow, with modifiers). */
+/**
+ * Balance index N of §3.4 with Revision 2 (R2-6 … R2-9): geometric-mean
+ * value per Glow; the Lantern's heal counts as 36 × 2 expected allies per
+ * second (no support discount); `resist` uses the mean of raw HP and HP
+ * against projectiles; splash troops count 1.5 targets.
+ */
 export function balanceIndex(id: CardId): number {
   const c = CARDS[id];
-  if (c.type !== "troop") return NaN;
+  if (c.type !== "troop") return BUILDING_SPELL_INDEX[id] ?? NaN;
   const u = UNIT_SPECS[c.unit];
   let dmg = u.dmg;
   if (u.kind === "hoop") dmg = (u.dmg * (2 + HOOP_SWISH.mult)) / 3;
-  const dps = (dmg / (u.hit / TICK_HZ)) * c.count;
-  const ehp = u.hp * c.count * (1 + u.resist / 2);
-  const value = Math.sqrt(dps * ehp);
+  let dps = (dmg / (u.hit / TICK_HZ)) * c.count;
+  if (u.splash > 0 && !c.tags.includes("tank")) dps *= 1.5;
+  if (u.kind === "lantern") dps += LANTERN_AURA.heal * 2;
+  const hp = u.resist > 0 ? (u.hp + u.hp / (1 - u.resist)) / 2 : u.hp;
+  const value = Math.sqrt(dps * hp * c.count);
   let mod = 1;
   if (c.tags.includes("ranged") && u.range >= 4.5) mod *= 0.55;
   if (u.air) mod *= 0.8;
   if (c.tags.includes("swarm")) mod *= 1.25;
   if (u.targets === T_BUILDINGS) mod *= 1.1;
-  if (c.tags.includes("support")) mod *= 0.75;
   return value / (100 * c.cost * mod);
 }
+
+/** [R2-10] Buildings and spells: N = value delivered over the reference trades / cost (band 0.85–1.15). */
+export const TRADE_CASES: Partial<Record<CardId, { cost: number; cases: readonly { vs: string; glow: number }[]; total?: number }>> = {
+  telescope: { cost: 4, cases: [{ vs: "runners", glow: -2 }, { vs: "rowers", glow: 0 }, { vs: "haycart", glow: 1 }, { vs: "mascot", glow: 2 }] },
+  stall: { cost: 5, cases: [{ vs: "cooks", glow: 4.27 }, { vs: "pull", glow: 0.75 }], total: 5.02 },
+  gostone: { cost: 2, cases: [{ vs: "stun", glow: 0.6 }, { vs: "finish", glow: 1.0 }, { vs: "chip", glow: 0.23 }], total: 1.83 },
+  smash: { cost: 3, cases: [{ vs: "runners", glow: 2.0 }, { vs: "kites", glow: 3.0 }, { vs: "runners+", glow: 3.3 }], total: 2.97 },
+  comet: { cost: 4, cases: [{ vs: "troop", glow: 4.0 }, { vs: "chip", glow: 0.53 }], total: 3.85 },
+};
+function tradeIndex(id: CardId): number {
+  const t = TRADE_CASES[id]!;
+  if (t.total !== undefined) return t.total / t.cost;
+  const mean = t.cases.reduce((a, c) => a + c.glow, 0) / t.cases.length;
+  return (t.cost + mean) / t.cost;
+}
+const BUILDING_SPELL_INDEX: Partial<Record<CardId, number>> = Object.fromEntries(
+  Object.keys(TRADE_CASES).map((id) => [id, tradeIndex(id as CardId)]),
+);

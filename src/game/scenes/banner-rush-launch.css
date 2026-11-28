@@ -1,0 +1,23 @@
+/* Banner Rush before its chunk loads: the in-room button and the loader. */
+.br-launch {
+  position: absolute;
+  left: 50%;
+  bottom: calc(96px + env(safe-area-inset-bottom));
+  translate: -50% 0;
+  pointer-events: auto;
+}
+.br-launch .primary-button {
+  min-height: 44px;
+  padding: 0 20px;
+  font: 600 var(--text-md, 15px) / 1 var(--font-ui, sans-serif);
+}
+.br-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #f6f5ec;
+  font: 600 var(--text-md, 15px) / 1 var(--font-ui, sans-serif);
+  background: #1b3029;
+  pointer-events: auto;
+}

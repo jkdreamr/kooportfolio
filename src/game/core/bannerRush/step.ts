@@ -37,11 +37,11 @@ function perform(s: MatchState, side: number, slot: number) {
   const card = CARDS[CARD_IDS[cardIndex]];
   s.glow[side] -= card.cost * GLOW_UNIT;
   // Cycle: played card to the back, next into the slot.
+  // (a 5-card cycle has a return queue of depth 0: the played card is next).
+  const last = base + s.deckSize[side] - 1;
   s.cards[base + slot] = s.cards[base + 4];
-  s.cards[base + 4] = s.cards[base + 5];
-  s.cards[base + 5] = s.cards[base + 6];
-  s.cards[base + 6] = s.cards[base + 7];
-  s.cards[base + 7] = cardIndex;
+  for (let k = base + 4; k < last; k++) s.cards[k] = s.cards[k + 1];
+  s.cards[last] = cardIndex;
   s.stats[ST_PLAYS0 + side]++;
   const x = deployOut.x,
     y = deployOut.y;

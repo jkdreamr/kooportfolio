@@ -17,8 +17,37 @@ export function deployCountdown(s: MatchState) {
   for (let i = 6; i < MAX_ENTS; i++) if (s.alive[i] && s.deployT[i] > 0) s.deployT[i]--;
 }
 
+/** Troops healed this tick (cleared at the start of each timer step). */
+const healed = new Uint8Array(MAX_ENTS);
+
+// @hot
+/** [R2-5] The 3 most-damaged other friendly troops in range (ties: lower slot), skipping any troop already healed this tick. */
+function healAround(s: MatchState, i: number) {
+  const side = s.side[i];
+  const r2 = LANTERN_AURA.radius * LANTERN_AURA.radius;
+  for (let n = 0; n < LANTERN_AURA.maxTargets; n++) {
+    let best = -1,
+      bestMissing = 0;
+    for (let j = 6; j < MAX_ENTS; j++) {
+      if (j === i || !s.alive[j] || s.side[j] !== side || UNIT_SPECS[s.kind[j]].building) continue;
+      if (healed[j]) continue;
+      const missing = s.maxHp[j] - s.hp[j];
+      if (missing <= 0 || missing <= bestMissing) continue;
+      const dx = s.x[j] - s.x[i],
+        dy = s.y[j] - s.y[i];
+      if (dx * dx + dy * dy > r2) continue;
+      best = j;
+      bestMissing = missing;
+    }
+    if (best < 0) return;
+    healed[best] = 1;
+    queueDamage(s, best, -LANTERN_AURA.heal, 0, i, 0);
+  }
+}
+
 // @hot
 export function timerStep(s: MatchState) {
+  healed.fill(0);
   for (let i = 0; i < MAX_ENTS; i++) {
     if (!s.alive[i] || s.deployT[i] > 0) continue;
     if (s.stunT[i] > 0) s.stunT[i]--;
@@ -47,14 +76,7 @@ export function timerStep(s: MatchState) {
       s.auraT[i]++;
       if (s.auraT[i] >= LANTERN_AURA.every) {
         s.auraT[i] = 0;
-        const side = s.side[i];
-        const r2 = LANTERN_AURA.radius * LANTERN_AURA.radius;
-        for (let j = 6; j < MAX_ENTS; j++) {
-          if (j === i || !s.alive[j] || s.side[j] !== side || UNIT_SPECS[s.kind[j]].building) continue;
-          const dx = s.x[j] - s.x[i],
-            dy = s.y[j] - s.y[i];
-          if (dx * dx + dy * dy <= r2) queueDamage(s, j, -LANTERN_AURA.heal, 0, i, 0);
-        }
+        healAround(s, i);
       }
     }
   }
