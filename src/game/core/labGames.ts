@@ -205,6 +205,25 @@ export function newLightsBoard(round: number): number {
   const index = Math.floor(round) % lightsBoards.length;
   return lightsBoards[(index + lightsBoards.length) % lightsBoards.length];
 }
+/** Fewest taps that light every tile from `board` (0 when already lit). */
+export function lightsPar(board: number): number {
+  let best = 0;
+  if (board === LIGHTS_TARGET) return 0;
+  for (let mask = 1; mask < 512; mask++) {
+    let next = board,
+      taps = 0;
+    for (let tile = 0; tile < 9; tile++)
+      if (mask & (1 << tile)) {
+        next = flipLights(next, tile);
+        taps++;
+      }
+    if (next === LIGHTS_TARGET && (!best || taps < best)) best = taps;
+  }
+  return best;
+}
+/** Stars for a solve: 3 at par, 2 within two taps of it, else 1. */
+export const lightsStars = (moves: number, par: number) =>
+  moves <= par ? 3 : moves <= par + 2 ? 2 : 1;
 export function lightsHint(board: number): number | null {
   if (board === LIGHTS_TARGET) return null;
   // Only 512 move combinations exist; XOR moves commute and cancel in pairs.

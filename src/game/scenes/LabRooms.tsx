@@ -20,7 +20,7 @@ import { useLauncher, useLauncherHosted } from "../core/launchers";
 import { juice } from "./juice/Juice";
 import { sound } from "../core/sound";
 import { roomFor } from "../core/room";
-import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
+import { claimEscape, endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import {
   advanceRhyme,
   BEATS_PER_BAR,
@@ -38,6 +38,8 @@ import {
   rhymeRoundEnd,
   swapRhymeWord,
   type RhymeGame,
+  lightsPar,
+  lightsStars,
 } from "../core/labGames";
 import { labTone, scheduleLabBeat } from "./labAudio";
 import { beatSwing, variantForBar } from "../core/labBeats";
@@ -116,7 +118,19 @@ function LabGameActions({ onClose }: { onClose: () => void }) {
   );
 }
 
-function useLabClose(id: "music" | "math", cancelRound: () => void) {
+/** Close wiring for a lab game. While `pausable()` holds, Escape pauses
+ * instead of closing (a take in progress, an unsolved puzzle). */
+function useLabClose(id: "music" | "math", cancelRound: () => void, pausable: () => boolean) {
+  const canPause = useRef(pausable);
+  canPause.current = pausable;
+  useEffect(
+    () =>
+      claimEscape(id, () => {
+        if (!canPause.current()) return false;
+        useGame.setState({ paused: true });
+      }),
+    [id],
+  );
   const close = useCallback(() => {
     cancelRound();
     if (useGameMode.getState().active?.id === id) endGameMode();
@@ -422,8 +436,7 @@ export function BeatLabInterior() {
     rewarded = useRef(false),
     lastTick = useRef<number | null>(null);
   const beatTrack = useRef<(() => void) | null>(null);
-  const [view, setView] = useState(game.current),
-    [near, setNear] = useState(false);
+  const [view, setView] = useState(game.current);
   const [hype, setHype] = useState(flow.current.hype);
   const [sheet, setSheet] = useState<FlowSheet | null>(null);
   const [landedBar, setLandedBar] = useState(-1);
@@ -489,6 +502,7 @@ export function BeatLabInterior() {
       setSheet(null);
       cancelRound();
     }, [cancelRound]),
+    () => game.current.phase === "playing",
   );
   const syncBeat = useCallback(() => {
     if (game.current.phase !== "playing") return game.current;
@@ -601,11 +615,7 @@ export function BeatLabInterior() {
       stopBeatTrack();
       return;
     }
-    if (useGameMode.getState().active?.id !== "music") {
-      const nearby = Math.hypot(runtime.x, runtime.z + 2) <= 8;
-      if (nearby !== near) setNear(nearby);
-      return;
-    }
+    if (useGameMode.getState().active?.id !== "music") return;
     const g = syncBeat();
     if (g.phase === "playing") {
       const f = flow.current;
@@ -632,7 +642,7 @@ export function BeatLabInterior() {
   const start = (phase: BeatLaunch) => {
     if (!gameIsActive()) return;
     if (!active) {
-      if (!near || !startGameMode("music")) return;
+      if (!startGameMode("music")) return;
       launcher.current = phase;
     }
     setSheet(null);
@@ -670,9 +680,9 @@ export function BeatLabInterior() {
       }),
     [stopBeatTrack, syncBeatTrack],
   );
-  // Walk-up room: the header offers Play while you stand in the ring.
+  // The header offers Play from anywhere in the room: no walking to the ring first.
   const hosted = useLauncherHosted("music");
-  useLauncher("music", "music", "Play", () => start("playing"), { enabled: !active && near, hint: "Enter" });
+  useLauncher("music", "music", "Play", () => start("playing"), { enabled: !active, hint: "Enter" });
   const setBeat = (beat: number) => {
     if (game.current.phase === "playing") return;
     setSheet(null);
@@ -806,19 +816,13 @@ export function BeatLabInterior() {
               <strong>Beat Lab</strong>
               <span>{RHYME_BEATS[view.beat].bpm} BPM</span>
             </header>
-            {near ? (
-              <>
-                <p>Freestyle over a beat. Rap out loud; tap your flow.</p>
-                {!hosted && (
-                  <footer className="beat-launch">
-                    <button className="lab-primary" data-beat-launcher="playing" ref={focusLauncher} onClick={() => start("playing")}>
-                      Play
-                    </button>
-                  </footer>
-                )}
-              </>
-            ) : (
-              <p>Walk up to the ring.</p>
+            <p>Freestyle over a beat. Rap out loud; tap your flow.</p>
+            {!hosted && (
+              <footer className="beat-launch">
+                <button className="lab-primary" data-beat-launcher="playing" ref={focusLauncher} onClick={() => start("playing")}>
+                  Play
+                </button>
+              </footer>
             )}
           </>
         )}
@@ -902,10 +906,12 @@ export function MathLabInterior() {
     [board, setBoard] = useState(() => newLightsBoard(0));
   const [moves, setMoves] = useState(0),
     [hint, setHint] = useState<number | null>(null);
-  const [near, setNear] = useState(false);
   const startingBoard = useRef(board),
     boardRef = useRef(board);
   const solved = board === LIGHTS_TARGET;
+  // Par is the fewest taps for this puzzle; stars reward getting close to it.
+  const par = useMemo(() => lightsPar(newLightsBoard(round)), [round]);
+  const stars = lightsStars(moves, par);
   const roundRef = useRef(round);
   useEffect(() => {
     roundRef.current = round;
@@ -919,7 +925,7 @@ export function MathLabInterior() {
     setHint(null);
   }, []);
   const cancelRound = useCallback(() => resetPuzzle(0), [resetPuzzle]);
-  const close = useLabClose("math", cancelRound);
+  const close = useLabClose("math", cancelRound, () => boardRef.current !== LIGHTS_TARGET);
   const toggle = useCallback((tile: number) => {
     if (
       !gameIsActive() ||
@@ -953,21 +959,16 @@ export function MathLabInterior() {
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   }, [toggle]);
-  useFrame(() => {
-    if (!gameIsActive() || active) return;
-    const nearby = Math.hypot(runtime.x, runtime.z + 2) <= 8;
-    if (nearby !== near) setNear(nearby);
-  });
   const reset = (nextRound = round) => {
     if (!gameIsActive() || useGameMode.getState().active?.id !== "math") return;
     resetPuzzle(nextRound);
   };
   const start = () => {
-    if (!near || !gameIsActive() || !startGameMode("math")) return;
+    if (!gameIsActive() || !startGameMode("math")) return;
     cancelRound();
   };
   const hosted = useLauncherHosted("math");
-  useLauncher("math", "math", "Play", start, { enabled: !active && near, hint: "Enter" });
+  useLauncher("math", "math", "Play", start, { enabled: !active, hint: "Enter" });
   return (
     <>
       {active && <LabCamera id="math" />}
@@ -1020,7 +1021,7 @@ export function MathLabInterior() {
             <header className="lab-game-topbar">
               <div>
                 <strong>Math Lab</strong>
-                <span>{moves} moves</span>
+                <span>{moves} moves · par {par}</span>
               </div>
               <LabGameActions onClose={close} />
             </header>
@@ -1045,11 +1046,18 @@ export function MathLabInterior() {
             </div>
             <footer className="lab-game-bottom lab-math-bottom">
               <p role="status">
-                {solved
-                  ? mathBest?.improved
-                    ? `All lit · new best: puzzle ${mathBest.bests["math.puzzle"]}`
-                    : "All lit"
-                  : "Light all nine · 1–9"}
+                {solved ? (
+                  <>
+                    <span className="lab-stars" aria-label={`${stars} of 3 stars`}>
+                      {"★".repeat(stars)}
+                      <i>{"★".repeat(3 - stars)}</i>
+                    </span>{" "}
+                    {moves <= par ? "Par! " : `${moves - par} over par · `}
+                    {mathBest?.improved ? `new best: puzzle ${mathBest.bests["math.puzzle"]}` : "All lit"}
+                  </>
+                ) : (
+                  "Light all nine · tap or 1–9"
+                )}
               </p>
               {solved ? (
                 <button
@@ -1083,17 +1091,11 @@ export function MathLabInterior() {
             <header>
               <strong>Math Lab</strong>
             </header>
-            {near ? (
-              <>
-                <p>Light all nine. A tile flips its neighbours too.</p>
-                {!hosted && (
-                  <button className="lab-primary" onClick={start}>
-                    Play
-                  </button>
-                )}
-              </>
-            ) : (
-              <p>Walk up to the nine tiles.</p>
+            <p>Light all nine. A tile flips its neighbours too.</p>
+            {!hosted && (
+              <button className="lab-primary" onClick={start}>
+                Play
+              </button>
             )}
           </>
         )}

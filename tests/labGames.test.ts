@@ -143,3 +143,13 @@ describe("Math Lab", () => {
     expect(reloaded.wasUsed(second)).toBe(false);
   });
 });
+
+describe("lights par and stars", () => {
+  it("par is the shortest solution and stars follow it", async () => {
+    const { lightsPar, lightsStars, flipLights, LIGHTS_TARGET } = await import("../src/game/core/labGames");
+    expect(lightsPar(LIGHTS_TARGET)).toBe(0);
+    expect(lightsPar(flipLights(LIGHTS_TARGET, 4))).toBe(1);
+    expect(lightsPar([0, 8].reduce(flipLights, LIGHTS_TARGET))).toBe(2);
+    expect([lightsStars(2, 2), lightsStars(4, 2), lightsStars(5, 2)]).toEqual([3, 2, 1]);
+  });
+});

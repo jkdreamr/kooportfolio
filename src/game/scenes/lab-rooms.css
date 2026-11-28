@@ -280,6 +280,14 @@
 .lab-game .lab-math-bottom p {
   margin: 0;
 }
+.lab-stars {
+  color: #f6d875;
+  letter-spacing: 0.08em;
+}
+.lab-stars i {
+  font-style: normal;
+  opacity: 0.3;
+}
 .lab-game footer button {
   min-height: 44px;
   padding: 8px 13px;
