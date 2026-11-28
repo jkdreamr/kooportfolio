@@ -13,6 +13,7 @@ import {
 import { Box, Cylinder } from "../world/Models";
 import { BrassStud, CraftedBox } from "./CraftedDetails";
 import { startGameMode, useGameMode } from "../core/gameMode";
+import { usePauseOnEscape } from "./usePauseOnEscape";
 import { sound } from "../core/sound";
 import { useGame } from "../core/store";
 import { juice } from "./juice/Juice";
@@ -119,6 +120,9 @@ export function BlackjackTable() {
     undefined,
     newBlackjack,
   );
+  // Mid-hand Escape pauses; between hands it leaves the table.
+  usePauseOnEscape("blackjack", () => game.phase === "player" || game.phase === "dealer");
+  const savedBest = useGame((s) => s.save.bests?.["blackjack.stack"] ?? 0);
   const timer = useRef(0),
     focusDeal = useRef(true);
   useEffect(() => {
@@ -308,6 +312,12 @@ export function BlackjackTable() {
             </span>
           </div>
         </div>
+        {game.player.length === 0 && (
+          <p className="house-game-goal">
+            Beat the dealer, don’t bust 21 · grow your chips
+            {savedBest > 100 && <span> · best {savedBest}</span>}
+          </p>
+        )}
         {game.player.length > 0 && (
           <div className="blackjack-hands">
             <div>
@@ -350,7 +360,7 @@ export function BlackjackTable() {
                   dispatch({ type: "deal", deck: shuffledDeck() });
                 }}
               >
-                Deal
+                Deal <kbd>Enter</kbd>
               </button>
             </div>
           )
@@ -362,7 +372,7 @@ export function BlackjackTable() {
                 dispatch({ type: "hit" });
               }}
             >
-              Hit
+              Hit <kbd>H</kbd>
             </button>
             <button
               disabled={game.phase !== "player"}
@@ -371,7 +381,7 @@ export function BlackjackTable() {
                 dispatch({ type: "stand" });
               }}
             >
-              Stand
+              Stand <kbd>S</kbd>
             </button>
             <button
               disabled={!canDouble(game)}
@@ -379,7 +389,7 @@ export function BlackjackTable() {
                 dispatch({ type: "double" });
               }}
             >
-              Double
+              Double <kbd>D</kbd>
             </button>
           </div>
         )}

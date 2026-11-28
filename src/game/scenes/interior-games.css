@@ -258,6 +258,11 @@
     margin-top: 3px;
     font-size: 12px;
   }
+  .interior-game--sheet p.house-game-goal {
+    display: block;
+    margin: 2px 0 4px;
+    font-size: 12px;
+  }
   .interior-game--sheet .interior-heat {
     margin: 5px 0 8px;
     height: 12px;
@@ -343,6 +348,31 @@
 .house-game-best {
   margin: 4px 0;
   font-size: var(--text-sm, 13px);
+}
+.house-game-goal {
+  margin: 4px 0;
+  color: #ffe2a0;
+  font-weight: 700;
+  font-size: var(--text-sm, 13px);
+}
+.house-game-goal span {
+  white-space: nowrap;
+}
+.interior-game kbd {
+  display: inline-block;
+  min-width: 1.4em;
+  margin: 0 1px;
+  padding: 0 4px;
+  border: 1px solid #ffffff40;
+  border-radius: 4px;
+  font: 600 11px/1.5 var(--font-ui, system-ui, sans-serif);
+  text-align: center;
+}
+@media (pointer: coarse) {
+  .interior-game .kbd-hint,
+  .interior-game kbd {
+    display: none;
+  }
 }
 .house-new-best {
   display: inline-block;

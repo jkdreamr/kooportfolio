@@ -18,6 +18,7 @@ import { Ball, Cylinder, Ring } from "../world/Models";
 import { CraftedBox } from "./CraftedDetails";
 import { GameControls, gameIsActive } from "./InteriorProps";
 import { startGameMode, useGameMode } from "../core/gameMode";
+import { usePauseOnEscape } from "./usePauseOnEscape";
 import { GAME_STAGE_Y, InteriorGameStage } from "./InteriorGameStage";
 
 const HAND = new THREE.Vector3(0, 1.95, 2.6);
@@ -57,8 +58,10 @@ function Cup({ color = "#a94334" }: { color?: string }) {
 
 export function PongTable() {
   const active = useGameMode((s) => s.active?.id === "pong");
+  const savedBest = useGame((s) => s.save.bests?.["pong.throws"] ?? 0);
   const otherMode = useGameMode((s) => !!s.active && s.active.id !== "pong");
   const [game, dispatch] = useReducer(pongReducer, undefined, newPong);
+  usePauseOnEscape("pong", () => game.phase !== "over");
   const gl = useThree((s) => s.gl);
   const ball = useRef<THREE.Group>(null),
     sinking = useRef<THREE.Group>(null),
@@ -380,11 +383,21 @@ export function PongTable() {
               New rack
             </button>
           )}
+          {game.shots === 0 && game.phase !== "over" && (
+            <p className="house-game-goal">
+              Sink all 6 cups in {PONG_THROWS} throws
+              {savedBest > 0 && <span> · best {savedBest}</span>}
+            </p>
+          )}
           <p role="status">
             {game.message ||
-              (game.shots === 0
-                ? "Swipe up to throw. Arrows aim, Space throws."
-                : "")}
+              (game.shots === 0 ? (
+                <>
+                  Swipe up to throw<span className="kbd-hint"> · <kbd>←</kbd><kbd>→</kbd> aim, <kbd>Space</kbd> throws</span>
+                </>
+              ) : (
+                ""
+              ))}
           </p>
         </div>
       </GameControls>
