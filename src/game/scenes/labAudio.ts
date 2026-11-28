@@ -1,5 +1,6 @@
 import { useGame } from "../core/store";
 import { audio as host } from "../core/audio/live";
+import { LAB_BEAT_PATTERNS, beatBar, beatSwing, type LabVoice } from "../core/labBeats";
 
 /** Beat Lab's own voices sit on the effects bus at this trim, under the
  * engine's master chain (mute, levels, compressor, limiter). */
@@ -130,7 +131,7 @@ function noiseHit(
 
 // Simple synth voices: stacked partials through an optional filter, all
 // sharing one pluck/pad envelope.
-type LabVoice = "piano" | "guitar" | "synth" | "pad" | "bass";
+
 const LAB_VOICES: Record<
   LabVoice,
   {
@@ -239,155 +240,7 @@ function voiceNote(
   return nodes;
 }
 
-// A melodic loop layered over the drums: `step`/`length` count 16th-note
-// slots inside `steps` (16 = one bar), `midi` is the note number.
-type LabMelodyEvent = { step: number; midi: number; length?: number };
-type LabMelody = { voice: LabVoice; steps: number; events: LabMelodyEvent[] };
-
-// 16-step drum patterns per bar. `beat` marks which steps the ball/pads light on.
-export const LAB_BEAT_PATTERNS: Record<
-  string,
-  { kick: number[]; snare: number[]; hat: number[]; melody?: LabMelody[] }
-> = {
-  boombap: {
-    kick: [0, 7, 10],
-    snare: [4, 12],
-    hat: [0, 2, 4, 6, 8, 10, 12, 14],
-  },
-  lofi: { kick: [0, 10], snare: [4, 12], hat: [0, 2, 4, 6, 8, 10, 12, 14] },
-  house: { kick: [0, 4, 8, 12], snare: [4, 12], hat: [2, 6, 10, 14] },
-  trap: {
-    kick: [0, 6, 10],
-    snare: [8],
-    hat: [0, 1, 2, 4, 6, 8, 9, 10, 12, 14],
-  },
-  // Melodic variants: drums plus an instrument loop per pattern.
-  pianobap: {
-    kick: [0, 8, 10],
-    snare: [4, 12],
-    hat: [0, 2, 4, 6, 8, 10, 12, 14],
-    melody: [
-      {
-        voice: "piano",
-        steps: 32,
-        events: [
-          { step: 0, midi: 50 },
-          { step: 0, midi: 53 },
-          { step: 0, midi: 57 },
-          { step: 7, midi: 57 },
-          { step: 7, midi: 60 },
-          { step: 7, midi: 65 },
-          { step: 14, midi: 55 },
-          { step: 14, midi: 59 },
-          { step: 14, midi: 62 },
-          { step: 22, midi: 57 },
-          { step: 22, midi: 60 },
-          { step: 22, midi: 64 },
-          { step: 26, midi: 53 },
-          { step: 26, midi: 57 },
-          { step: 26, midi: 60 },
-        ],
-      },
-      {
-        voice: "bass",
-        steps: 32,
-        events: [
-          { step: 0, midi: 38, length: 6 },
-          { step: 16, midi: 45, length: 6 },
-        ],
-      },
-    ],
-  },
-  soulbap: {
-    kick: [0, 7, 11],
-    snare: [4, 12],
-    hat: [0, 2, 4, 6, 8, 10, 12, 14],
-    melody: [
-      {
-        voice: "guitar",
-        steps: 32,
-        events: [
-          { step: 0, midi: 57, length: 2 },
-          { step: 3, midi: 60 },
-          { step: 6, midi: 62 },
-          { step: 10, midi: 64, length: 3 },
-          { step: 14, midi: 62 },
-          { step: 18, midi: 57 },
-          { step: 22, midi: 60 },
-          { step: 26, midi: 64, length: 3 },
-          { step: 30, midi: 67, length: 2 },
-        ],
-      },
-      {
-        voice: "bass",
-        steps: 32,
-        events: [
-          { step: 0, midi: 33, length: 6 },
-          { step: 16, midi: 40, length: 6 },
-        ],
-      },
-    ],
-  },
-  darktrap: {
-    kick: [0, 6, 10],
-    snare: [8],
-    hat: [0, 1, 2, 4, 6, 7, 8, 9, 10, 12, 14, 15],
-    melody: [
-      {
-        voice: "synth",
-        steps: 16,
-        events: [
-          60, 63, 67, 70, 60, 63, 67, 72, 60, 63, 67, 70, 67, 70, 75, 72,
-        ].map((midi, step) => ({ step, midi, length: 1 })),
-      },
-      {
-        voice: "bass",
-        steps: 32,
-        events: [
-          { step: 0, midi: 36, length: 5 },
-          { step: 10, midi: 36, length: 4 },
-          { step: 16, midi: 31, length: 6 },
-          { step: 26, midi: 34, length: 4 },
-        ],
-      },
-    ],
-  },
-  cloudtrap: {
-    kick: [0, 7, 10],
-    snare: [8],
-    hat: [0, 2, 4, 6, 8, 10, 12, 14],
-    melody: [
-      {
-        voice: "pad",
-        steps: 64,
-        events: [
-          { step: 0, midi: 57, length: 15 },
-          { step: 0, midi: 60, length: 15 },
-          { step: 0, midi: 64, length: 15 },
-          { step: 16, midi: 53, length: 15 },
-          { step: 16, midi: 57, length: 15 },
-          { step: 16, midi: 60, length: 15 },
-          { step: 32, midi: 50, length: 15 },
-          { step: 32, midi: 53, length: 15 },
-          { step: 32, midi: 57, length: 15 },
-          { step: 48, midi: 52, length: 15 },
-          { step: 48, midi: 55, length: 15 },
-          { step: 48, midi: 59, length: 15 },
-        ],
-      },
-      {
-        voice: "synth",
-        steps: 64,
-        events: [
-          { step: 4, midi: 76, length: 2 },
-          { step: 20, midi: 79, length: 2 },
-          { step: 36, midi: 81, length: 2 },
-          { step: 52, midi: 71, length: 2 },
-        ],
-      },
-    ],
-  },
-};
+export { LAB_BEAT_PATTERNS } from "../core/labBeats";
 
 export function scheduleLabBeat(
   readTime: () => number,
@@ -412,6 +265,7 @@ export function scheduleLabBeat(
     const stepInterval = beatInterval / 4;
     const countInSteps = countInBars * stepsPerBar;
     const drums = LAB_BEAT_PATTERNS[pattern] ?? LAB_BEAT_PATTERNS.boombap;
+    const swing = beatSwing(pattern);
     const schedule = (node: AudioScheduledSourceNode) => {
       scheduled.add(node);
       const cleanup = node.onended;
@@ -442,20 +296,22 @@ export function scheduleLabBeat(
           continue;
         }
         const slot = (step - countInSteps) % stepsPerBar;
-        if (drums.kick.includes(slot)) schedule(kick(audio, when));
-        if (drums.snare.includes(slot)) {
-          schedule(noiseHit(audio, when, "bandpass", 1900, 0.32, 0.12));
-          schedule(playTone(audio, when, 185, "triangle", 0.12, 0.07));
+        const bar = beatBar(pattern, Math.floor((step - countInSteps) / stepsPerBar));
+        const at = slot % 2 === 1 ? when + swing * stepInterval : when;
+        if (bar.kick.includes(slot)) schedule(kick(audio, at));
+        if (bar.snare.includes(slot)) {
+          schedule(noiseHit(audio, at, "bandpass", 1900, 0.32, 0.12));
+          schedule(playTone(audio, at, 185, "triangle", 0.12, 0.07));
         }
-        if (drums.hat.includes(slot))
-          schedule(noiseHit(audio, when, "highpass", 7600, 0.1, 0.035));
+        if (bar.hat.includes(slot))
+          schedule(noiseHit(audio, at, "highpass", 7600, 0.1, 0.035));
         for (const layer of drums.melody ?? []) {
           const melodyStep = (step - countInSteps) % layer.steps;
           for (const event of layer.events) {
             if (event.step !== melodyStep) continue;
             for (const node of voiceNote(
               audio,
-              when,
+              at,
               event.midi,
               (event.length ?? 3) * stepInterval,
               layer.voice,

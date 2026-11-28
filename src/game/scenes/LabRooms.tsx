@@ -36,9 +36,29 @@ import {
   rhymeBeatInterval,
   rhymeCountIn,
   rhymeRoundEnd,
+  swapRhymeWord,
   type RhymeGame,
 } from "../core/labGames";
 import { labTone, scheduleLabBeat } from "./labAudio";
+import { beatSwing, variantForBar } from "../core/labBeats";
+import {
+  RHYME_SCHEMES,
+  flowAdlib,
+  flowCloseBars,
+  flowSheet,
+  flowTap,
+  hypeLevel,
+  newFlow,
+  type Flow,
+  type FlowGrid,
+  type FlowSheet,
+  type RhymeScheme,
+} from "../core/labFlow";
+import { audioContext } from "../core/audio/live";
+import { registerGameQa } from "../core/gameQa";
+import { reportRun } from "../core/daily";
+import { MedalRow } from "../ui/MedalRow";
+import { QueuedStamps } from "../ui/Passport";
 import "./lab-rooms.css";
 
 const colors = ["#7699bb", "#75a59a", "#bf8791", "#aa9cc0"];
@@ -294,7 +314,7 @@ function StudioDressing() {
   );
 }
 
-function BeatVisuals({ game }: { game: RefObject<RhymeGame> }) {
+function BeatVisuals({ game, hype }: { game: RefObject<RhymeGame>; hype: RefObject<Flow> }) {
   const pads = useRef<Group>(null),
     pulse = useRef<Group>(null),
     ball = useRef<Group>(null);
@@ -323,9 +343,11 @@ function BeatVisuals({ game }: { game: RefObject<RhymeGame> }) {
       ball.current.position.set(laneX[beat], 1.35 + bounce * 1.4, -2);
     }
     if (pulse.current) {
+      // The ring pulses on the beat, harder as the room warms up.
+      const lift = playing ? [0.13, 0.22, 0.32, 0.42][hypeLevel(hype.current.hype)] : 0.13;
       const scale =
         1 +
-        Math.max(0, 1 - ((g.time % beatInterval) / beatInterval) * 4) * 0.13;
+        Math.max(0, 1 - ((g.time % beatInterval) / beatInterval) * 4) * lift;
       pulse.current.scale.set(scale, 1, scale);
     }
   });
@@ -376,15 +398,39 @@ function BeatVisuals({ game }: { game: RefObject<RhymeGame> }) {
 }
 
 type BeatLaunch = "ready" | "playing";
+const ADLIB_KEYS = ["d", "f", "j", "k"] as const;
+const LEVEL_NAMES = ["", "Warm room", "Loud room", "Roof's off"] as const;
+
+/** The take's timing for the flow rules. */
+const flowGrid = (g: RhymeGame): FlowGrid => ({
+  beatS: rhymeBeatInterval(g),
+  swing: beatSwing(RHYME_BEATS[g.beat].pattern),
+  countIn: rhymeCountIn(g),
+  bars: g.bars.length,
+});
+/** Seconds the speakers are behind the clock (Bluetooth and the like). */
+function outputLatency() {
+  const ctx = audioContext() as (AudioContext & { outputLatency?: number }) | null;
+  const l = ctx?.outputLatency;
+  return typeof l === "number" && Number.isFinite(l) && l > 0 && l < 0.5 ? l : 0;
+}
 
 export function BeatLabInterior() {
   const active = useGameMode((s) => s.active?.id === "music");
   const game = useRef(newRhymeGame()),
+    flow = useRef<Flow>(newFlow()),
     rewarded = useRef(false),
     lastTick = useRef<number | null>(null);
   const beatTrack = useRef<(() => void) | null>(null);
   const [view, setView] = useState(game.current),
     [near, setNear] = useState(false);
+  const [hype, setHype] = useState(flow.current.hype);
+  const [sheet, setSheet] = useState<FlowSheet | null>(null);
+  const [landedBar, setLandedBar] = useState(-1);
+  const pad = useRef<HTMLButtonElement>(null);
+  const level = useRef(0),
+    confettiNext = useRef(false),
+    swappedBar = useRef(-1);
   const launcher = useRef<BeatLaunch | null>(null);
   const returnFocus = useRef<BeatLaunch | null>(null);
   const focusLauncher = useCallback((button: HTMLButtonElement | null) => {
@@ -394,7 +440,6 @@ export function BeatLabInterior() {
     }
   }, []);
   const refresh = useRef(0);
-  const barsSeen = useRef(0);
   const stopBeatTrack = useCallback(() => {
     beatTrack.current?.();
     beatTrack.current = null;
@@ -412,10 +457,7 @@ export function BeatLabInterior() {
       beatTrack.current = scheduleLabBeat(
         () => {
           const tick = lastTick.current;
-          return (
-            game.current.time +
-            (tick === null ? 0 : (performance.now() - tick) / 1000)
-          );
+          return game.current.time + (tick === null ? 0 : (performance.now() - tick) / 1000);
         },
         rhymeRoundEnd(game.current),
         rhymeBeatInterval(game.current),
@@ -424,18 +466,27 @@ export function BeatLabInterior() {
       );
     }
   }, [stopBeatTrack]);
-  const cancelRound = useCallback(() => {
-    stopBeatTrack();
-    game.current = newRhymeGame(Date.now(), game.current.beat);
+  const resetTake = useCallback((beat: number, scheme: RhymeScheme) => {
+    game.current = newRhymeGame(Date.now(), beat, scheme);
+    flow.current = newFlow(game.current.bars.length);
     rewarded.current = false;
     lastTick.current = null;
+    level.current = 0;
+    confettiNext.current = false;
+    swappedBar.current = -1;
+    setHype(flow.current.hype);
+    setLandedBar(-1);
     setView(game.current);
-  }, [stopBeatTrack]);
+  }, []);
+  const cancelRound = useCallback(() => {
+    stopBeatTrack();
+    resetTake(game.current.beat, game.current.scheme);
+  }, [stopBeatTrack, resetTake]);
   const close = useLabClose(
     "music",
     useCallback(() => {
-      if (useGameMode.getState().active?.id === "music")
-        returnFocus.current = launcher.current;
+      if (useGameMode.getState().active?.id === "music") returnFocus.current = launcher.current;
+      setSheet(null);
       cancelRound();
     }, [cancelRound]),
   );
@@ -444,19 +495,70 @@ export function BeatLabInterior() {
     const now = performance.now();
     const previous = lastTick.current;
     lastTick.current = now;
-    if (previous !== null)
-      game.current = advanceRhyme(game.current, (now - previous) / 1000);
+    if (previous !== null) game.current = advanceRhyme(game.current, (now - previous) / 1000);
     return game.current;
   }, []);
+  /** The take time of an input happening now, corrected for output latency. */
+  const takeNow = () => syncBeat().time - outputLatency();
+  const finish = (g: RhymeGame) => {
+    stopBeatTrack();
+    rewarded.current = true;
+    const f = flow.current;
+    flowCloseBars(f, rhymeRoundEnd(g) + 1, flowGrid(g));
+    const result = flowSheet(f);
+    setSheet(result);
+    sound("chime");
+    juice.haptic("score");
+    const store = useGame.getState();
+    store.countBest("music.rounds");
+    store.recordBest(`music.take.${RHYME_BEATS[g.beat].pattern}`, 1);
+    const beats = RHYME_BEATS.filter((b) => (useGame.getState().save.bests?.[`music.take.${b.pattern}`] ?? 0) > 0).length;
+    store.recordBest("music.beats", beats);
+    store.recordBest("music.landed", result.landed);
+    reportRun("music", { mode: "freestyle", score: result.landed, stats: { beat: g.beat, taps: result.taps } });
+  };
+  const tap = (at?: number) => {
+    const g = game.current;
+    if (g.phase !== "playing") return;
+    const t = at ?? takeNow();
+    const res = flowTap(flow.current, t, flowGrid(g));
+    const el = pad.current;
+    if (el) {
+      el.classList.remove("is-pocket", "is-close", "is-loose");
+      void el.offsetWidth;
+      if (res) el.classList.add(`is-${res.grade}`);
+    }
+    if (res?.landed) {
+      sound("perfect", { gain: 0.4 });
+      setLandedBar(res.bar);
+      if (confettiNext.current) {
+        confettiNext.current = false;
+        juice.confetti(40);
+      }
+    }
+    setHype(flow.current.hype);
+  };
+  const adlib = (lane: number) => {
+    const g = game.current;
+    if (g.phase !== "playing") return;
+    labTone(lane);
+    flowAdlib(flow.current, takeNow(), flowGrid(g));
+    setHype(flow.current.hype);
+  };
+  const swap = () => {
+    const g = game.current;
+    const bar = rhymeBarIndex(g);
+    if (g.phase !== "playing" || bar < 0 || swappedBar.current === bar) return;
+    swappedBar.current = bar;
+    game.current = swapRhymeWord(g, bar);
+    setView(game.current);
+  };
   useEffect(() => {
     const unsubscribeGame = useGame.subscribe(() => {
       if (!gameIsActive() || !runtime.active) {
         if (lastTick.current !== null) syncBeat();
         lastTick.current = null;
-      } else if (
-        game.current.phase === "playing" &&
-        lastTick.current === null
-      ) {
+      } else if (game.current.phase === "playing" && lastTick.current === null) {
         lastTick.current = performance.now();
       }
       syncBeatTrack();
@@ -468,6 +570,31 @@ export function BeatLabInterior() {
       stopBeatTrack();
     };
   }, [stopBeatTrack, syncBeat, syncBeatTrack]);
+  const inputs = useRef({ tap, adlib, swap });
+  inputs.current = { tap, adlib, swap };
+  // Keyboard: Space is the flow pad, D F J K the ad-libs, W swaps the word.
+  useEffect(() => {
+    if (!active) return;
+    const down = (e: KeyboardEvent) => {
+      if (e.repeat || e.metaKey || e.ctrlKey || e.altKey || !gameIsActive()) return;
+      const target = e.target as HTMLElement;
+      if (target.closest("input,textarea,select,[contenteditable=true]")) return;
+      const key = e.key.toLowerCase();
+      if (game.current.phase !== "playing") return;
+      if (key === " " && !target.closest("button:not(.flow-pad)")) {
+        e.preventDefault();
+        inputs.current.tap();
+      } else if ((ADLIB_KEYS as readonly string[]).includes(key)) {
+        e.preventDefault();
+        inputs.current.adlib(ADLIB_KEYS.indexOf(key as (typeof ADLIB_KEYS)[number]));
+      } else if (key === "w") {
+        e.preventDefault();
+        inputs.current.swap();
+      }
+    };
+    window.addEventListener("keydown", down, true);
+    return () => window.removeEventListener("keydown", down, true);
+  }, [active]);
   useFrame((_, dt) => {
     if (!gameIsActive() || !runtime.active) {
       lastTick.current = null;
@@ -479,21 +606,23 @@ export function BeatLabInterior() {
       if (nearby !== near) setNear(nearby);
       return;
     }
-    const before = barsSeen.current;
     const g = syncBeat();
-    barsSeen.current = g.barsDone;
-    if (g.phase === "playing" && g.barsDone > before && g.barsDone % 2 === 0) {
-      // A finished couplet: a chip over the word, on the beat's own sound.
-      const r = document.querySelector(".rhyme-word")?.getBoundingClientRect();
-      if (r) juice.pop(`Couplet ${g.barsDone / 2}`, r.left + r.width / 2, r.top, "great");
+    if (g.phase === "playing") {
+      const f = flow.current;
+      const closed = f.closed;
+      flowCloseBars(f, g.time, flowGrid(g));
+      if (f.closed !== closed) setHype(f.hype);
+      const lv = hypeLevel(f.hype);
+      if (lv > level.current) {
+        if (lv >= 2) sound("cheer", { gain: 0.15 });
+        if (lv === 3) {
+          juice.banner("Roof's off", "great");
+          confettiNext.current = true;
+        }
+      }
+      level.current = lv;
     }
-    if (g.phase === "done" && !rewarded.current) {
-      stopBeatTrack();
-      rewarded.current = true;
-      sound("score");
-      juice.haptic("score");
-      useGame.getState().countBest("music.rounds");
-    }
+    if (g.phase === "done" && !rewarded.current) finish(g);
     refresh.current += dt;
     if (refresh.current > 0.04) {
       refresh.current = 0;
@@ -506,6 +635,7 @@ export function BeatLabInterior() {
       if (!near || !startGameMode("music")) return;
       launcher.current = phase;
     }
+    setSheet(null);
     cancelRound();
     if (phase === "playing") {
       game.current = { ...game.current, phase };
@@ -514,13 +644,41 @@ export function BeatLabInterior() {
       syncBeatTrack();
     }
   };
+  const startRef = useRef(start);
+  startRef.current = start;
+  useEffect(
+    () =>
+      registerGameQa("music", {
+        state: () => {
+          const g = game.current,
+            f = flow.current;
+          return { phase: g.phase, beat: g.beat, scheme: g.scheme, topic: g.topic, time: g.time, bar: rhymeBarIndex(g), hype: f.hype, taps: f.taps, landed: f.landed.filter(Boolean).length, offset: f.offset, end: rhymeRoundEnd(g), grid: flowGrid(g) };
+        },
+        act: (name, value) => {
+          if (name === "start") startRef.current("playing");
+          else if (name === "tap") inputs.current.tap(typeof value === "number" ? value : undefined);
+          else if (name === "seek" && typeof value === "number") {
+            // QA: jump the take clock (the beat track is rescheduled).
+            stopBeatTrack();
+            game.current = advanceRhyme(game.current, Math.max(0, value - game.current.time));
+            lastTick.current = performance.now();
+            syncBeatTrack();
+          }
+        },
+      }),
+    [stopBeatTrack, syncBeatTrack],
+  );
   // Walk-up room: the header offers Play while you stand in the ring.
   const hosted = useLauncherHosted("music");
   useLauncher("music", "music", "Play", () => start("playing"), { enabled: !active && near, hint: "Enter" });
   const setBeat = (beat: number) => {
     if (game.current.phase === "playing") return;
-    game.current = newRhymeGame(game.current.seed, beat);
-    setView(game.current);
+    setSheet(null);
+    resetTake(beat, game.current.scheme);
+  };
+  const setScheme = (scheme: RhymeScheme) => {
+    if (game.current.phase === "playing") return;
+    resetTake(game.current.beat, scheme);
   };
   const beatInterval = rhymeBeatInterval(view);
   const countInLeft =
@@ -530,75 +688,113 @@ export function BeatLabInterior() {
   const bar = rhymeBarIndex(view);
   const word = bar >= 0 ? view.bars[bar].word : null;
   const next = view.bars[bar + 1]?.word;
+  const variant = bar >= 0 ? variantForBar(bar) : "A";
+  const lv = hypeLevel(hype);
   return (
     <>
       {active && <LabCamera id="music" />}
       <WalkFloor />
       <StudioDressing />
-      <BeatVisuals game={game} />
+      <BeatVisuals game={game} hype={flow} />
       <LabControls name="Beat Lab controls" active={active} tone="beat">
         {active ? (
           <>
             <header className="lab-game-topbar">
               <div>
-                <strong>Beat Lab</strong>
+                <strong>Beat Lab · Open Mic</strong>
                 <span>
                   {view.phase === "playing"
-                    ? `Bar ${Math.min(RHYME_BARS, Math.max(1, bar + 1))}/${RHYME_BARS}`
+                    ? `Bar ${Math.min(RHYME_BARS, Math.max(1, bar + 1))}/${RHYME_BARS}${variant === "drop" ? " · drop" : ""}`
                     : `${RHYME_BEATS[view.beat].name} · ${RHYME_BEATS[view.beat].bpm} BPM`}
                 </span>
               </div>
               <LabGameActions onClose={close} />
             </header>
             {view.phase === "playing" && (
-              <div className="rhyme-stage">
-                <p className="rhyme-word" role="status">
-                  {countInLeft ? `Ready · ${countInLeft}` : word}
-                </p>
+              <div className={`rhyme-stage${variant === "drop" ? " is-drop" : ""}`}>
+                <p className="rhyme-topic">Topic: {view.topic}</p>
                 <p className="rhyme-next">{next ?? ""}</p>
+                <p className={`rhyme-word${landedBar === bar && bar >= 0 ? " is-landed" : ""}`} role="status">
+                  {countInLeft ? `Ready · ${countInLeft}` : word}
+                  {landedBar === bar && bar >= 0 && <span className="rhyme-tick" aria-label="landed"> ✓</span>}
+                </p>
               </div>
             )}
             <div className="lab-game-bottom">
-              <div className="rhyme-toolbar">
-                <p className="lab-feedback" role="status">
-                  {view.phase === "done"
-                    ? `${view.barsDone}/${view.bars.length} bars done`
-                    : view.phase === "playing"
-                      ? "Rhyme on the last beat"
-                      : "Rhyme words to the beat"}
-                </p>
-                {view.phase !== "playing" && (
-                  <div className="rhyme-beats" role="group" aria-label="Beat">
-                    {RHYME_BEATS.map((beat, i) => (
-                      <button
-                        key={beat.name}
-                        aria-pressed={view.beat === i}
-                        onClick={() => setBeat(i)}
-                      >
-                        {beat.name}
+              {view.phase === "playing" && (
+                <div className="flow-row">
+                  <div className={`hype-meter level-${lv}`} aria-label={LEVEL_NAMES[lv] || "Calm room"} role="img">
+                    <i style={{ transform: `scaleX(${(hype / 100).toFixed(3)})` }} />
+                    <span>{LEVEL_NAMES[lv] || "Hype"}</span>
+                  </div>
+                  <div className="adlib-pads" role="group" aria-label="Ad-libs">
+                    {ADLIB_KEYS.map((key, lane) => (
+                      <button key={key} onPointerDown={(e) => { e.preventDefault(); adlib(lane); }} onClick={(e) => { if (e.detail === 0) adlib(lane); }} style={{ borderColor: colors[lane] }}>
+                        <kbd>{key.toUpperCase()}</kbd>
                       </button>
                     ))}
                   </div>
+                  <button
+                    ref={pad}
+                    className="flow-pad"
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      tap();
+                    }}
+                    onClick={(e) => {
+                      if (e.detail === 0) tap();
+                    }}
+                  >
+                    Flow <kbd>Space</kbd>
+                  </button>
+                </div>
+              )}
+              {sheet && view.phase !== "playing" && (
+                <section className="flow-sheet" aria-label="Flow sheet">
+                  <h3>{sheet.verdict}</h3>
+                  <p className="flow-style">{sheet.style}</p>
+                  <dl>
+                    <div><dt>In the pocket</dt><dd>{sheet.pocketPct}%</dd></div>
+                    <div><dt>Longest pocket run</dt><dd>{sheet.bestRun}</dd></div>
+                    <div><dt>Rhymes landed</dt><dd>{sheet.landed}/{sheet.bars}</dd></div>
+                    <div><dt>Taps per bar</dt><dd>{sheet.tapsPerBar}</dd></div>
+                  </dl>
+                  <MedalRow game="music" />
+                  <QueuedStamps />
+                </section>
+              )}
+              <div className="rhyme-toolbar">
+                <p className="lab-feedback" role="status">
+                  {view.phase === "done"
+                    ? "Take done. Nothing was recorded."
+                    : view.phase === "playing"
+                      ? "Rap out loud. Tap the pad on your stresses; land the word on beat 4."
+                      : `Topic: ${view.topic}`}
+                </p>
+                {view.phase !== "playing" && (
+                  <>
+                    <div className="rhyme-beats" role="group" aria-label="Beat">
+                      {RHYME_BEATS.map((beat, i) => (
+                        <button key={beat.name} aria-pressed={view.beat === i} onClick={() => setBeat(i)}>
+                          {beat.name}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="rhyme-beats rhyme-schemes" role="group" aria-label="Rhyme scheme">
+                      {RHYME_SCHEMES.map((scheme) => (
+                        <button key={scheme} aria-pressed={view.scheme === scheme} onClick={() => setScheme(scheme)}>
+                          {scheme}
+                        </button>
+                      ))}
+                    </div>
+                  </>
                 )}
-                <button
-                  className="lab-primary"
-                  onClick={() =>
-                    start(view.phase === "playing" ? "ready" : "playing")
-                  }
-                >
-                  {view.phase === "playing"
-                    ? "Stop"
-                    : view.phase === "done"
-                      ? "Again"
-                      : "Play"}
+                <button className="lab-primary" onClick={() => start(view.phase === "playing" ? "ready" : "playing")}>
+                  {view.phase === "playing" ? "Stop" : view.phase === "done" ? "Again" : "Play"}
                 </button>
               </div>
               <div className="beat-track" aria-hidden="true">
-                <i
-                  style={{
-                    width: `${Math.min(100, (view.time / rhymeRoundEnd(view)) * 100)}%`,
-                  }}
-                />
+                <i style={{ width: `${Math.min(100, (view.time / rhymeRoundEnd(view)) * 100)}%` }} />
               </div>
             </div>
           </>
@@ -610,15 +806,10 @@ export function BeatLabInterior() {
             </header>
             {near ? (
               <>
-                <p>Rhyme words to the beat.</p>
+                <p>Freestyle over a beat. Rap out loud; tap your flow.</p>
                 {!hosted && (
                   <footer className="beat-launch">
-                    <button
-                      className="lab-primary"
-                      data-beat-launcher="playing"
-                      ref={focusLauncher}
-                      onClick={() => start("playing")}
-                    >
+                    <button className="lab-primary" data-beat-launcher="playing" ref={focusLauncher} onClick={() => start("playing")}>
                       Play
                     </button>
                   </footer>

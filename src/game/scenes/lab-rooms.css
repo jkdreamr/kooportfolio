@@ -395,3 +395,157 @@
     min-height: 44px;
   }
 }
+
+/* Open Mic: topic, hype meter, flow pad, ad-libs, flow sheet. */
+.lab-beat .rhyme-stage .rhyme-topic {
+  margin: 0 0 4px;
+  color: var(--beat-muted);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.lab-beat .rhyme-stage .rhyme-next {
+  margin: 0 0 6px;
+}
+.lab-beat .rhyme-stage .rhyme-word {
+  transition: transform 120ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.lab-beat .rhyme-stage .rhyme-word.is-landed {
+  transform: scale(1.12);
+  color: #ffe6a3;
+}
+.lab-beat .rhyme-stage.is-drop .rhyme-word {
+  font-size: clamp(39px, 8vw, 74px);
+}
+.lab-beat .rhyme-tick {
+  font-size: 0.5em;
+  vertical-align: middle;
+}
+.lab-beat .flow-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "hype hype" "adlib pad";
+  gap: 8px;
+  align-items: stretch;
+  margin-bottom: 8px;
+}
+.lab-beat .hype-meter {
+  grid-area: hype;
+  position: relative;
+  height: 22px;
+  border-radius: 11px;
+  overflow: hidden;
+  background: rgb(255 255 255 / 8%);
+}
+.lab-beat .hype-meter i {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  background: linear-gradient(90deg, #7699bb, #bf8791 60%, #ffd97a);
+  transition: transform 160ms linear;
+}
+.lab-beat .hype-meter span {
+  position: relative;
+  display: block;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 22px;
+  text-shadow: 0 1px 2px #0b1017;
+}
+.lab-beat .hype-meter.level-3 i {
+  background: #ffd97a;
+}
+.lab-beat .adlib-pads {
+  grid-area: adlib;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.lab-beat .adlib-pads button {
+  min-height: 56px;
+  border-width: 2px;
+  touch-action: none;
+}
+.lab-beat .flow-pad,
+.lab-beat .flow-pad:hover {
+  grid-area: pad;
+  min-width: 120px;
+  min-height: 56px;
+  border: 2px solid #e6edf4;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 12%);
+  font-size: 16px;
+  touch-action: none;
+}
+.lab-beat .flow-pad.is-pocket {
+  animation: flow-pop 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  border-color: #ffd97a;
+}
+.lab-beat .flow-pad.is-close {
+  border-color: #c0dc91;
+}
+.lab-beat .flow-pad.is-loose {
+  border-color: #6b7787;
+}
+@keyframes flow-pop {
+  from {
+    transform: scale(1.08);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+.lab-beat .flow-sheet {
+  margin: 0 0 10px;
+  text-align: center;
+}
+.lab-beat .flow-sheet h3 {
+  margin: 0;
+  font-size: 22px;
+}
+.lab-beat .flow-sheet .flow-style {
+  margin: 2px 0 8px;
+  color: var(--beat-muted);
+}
+.lab-beat .flow-sheet dl {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin: 0 0 8px;
+}
+.lab-beat .flow-sheet dl div {
+  padding: 6px 4px;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 6%);
+}
+.lab-beat .flow-sheet dt {
+  color: var(--beat-muted);
+  font-size: 11px;
+}
+.lab-beat .flow-sheet dd {
+  margin: 2px 0 0;
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.lab-beat .rhyme-schemes {
+  margin-top: 6px;
+}
+@media (max-width: 520px) {
+  .lab-beat .flow-row {
+    grid-template-columns: 1fr;
+    grid-template-areas: "hype" "adlib" "pad";
+  }
+  .lab-beat .flow-sheet dl {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lab-beat .flow-pad.is-pocket {
+    animation: none;
+  }
+  .lab-beat .rhyme-stage .rhyme-word.is-landed {
+    transform: none;
+  }
+}

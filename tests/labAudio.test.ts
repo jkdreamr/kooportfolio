@@ -104,7 +104,9 @@ it("plays a metronome count-in then the drum pattern", async () => {
   // Steps 0-15 are count-in (4 clicks); kick slots 0,7,10 in bar 1 → steps 16,23,26.
   expect(clickStarts[4]).toBeCloseTo(16 * 0.15); // kick, slot 0
   expect(clickStarts[5]).toBeCloseTo(20 * 0.15); // snare tone, slot 4
-  expect(clickStarts[6]).toBeCloseTo(23 * 0.15); // kick, slot 7
+  // Slot 7 is an odd sixteenth: Boom Bap swings it late.
+  const { beatSwing } = await import("../src/game/core/labBeats");
+  expect(clickStarts[6]).toBeCloseTo((23 + beatSwing("boombap")) * 0.15); // kick, slot 7
   expect(noises.length).toBeGreaterThan(0);
 });
 

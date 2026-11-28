@@ -1,3 +1,4 @@
+import { LAB_TOPICS, schemeFamilySlot, type RhymeScheme } from "./labFlow";
 export const BEATS_PER_BAR = 4;
 export const RHYME_BARS = 16;
 export const RHYME_COUNT_IN_BARS = 1;
@@ -57,6 +58,8 @@ export type RhymeGame = {
   bars: RhymeBar[];
   barsDone: number;
   points: number;
+  scheme: RhymeScheme;
+  topic: string;
 };
 
 function mulberry32(seed: number) {
@@ -83,9 +86,12 @@ export function rhymeRoundEnd(game: RhymeGame): number {
   return rhymeCountIn(game) + game.bars.length * rhymeBarInterval(game);
 }
 
-// Bars run in AABB couplets: each pair shares one rhyme family, with the
-// second bar landing a different word of the same family.
-export function newRhymeGame(seed = Date.now(), beat = 0): RhymeGame {
+/**
+ * A take's prompts. The scheme (AABB by default, ABAB, or AAAA for multis)
+ * decides which rhyme family each bar draws from; bars that share a family
+ * get different words of it. The topic card is drawn from the same seed.
+ */
+export function newRhymeGame(seed = Date.now(), beat = 0, scheme: RhymeScheme = "AABB"): RhymeGame {
   const random = mulberry32(seed);
   const families = RHYME_FAMILIES.map((_, i) => i);
   for (let i = families.length - 1; i > 0; i--) {
@@ -93,14 +99,18 @@ export function newRhymeGame(seed = Date.now(), beat = 0): RhymeGame {
     [families[i], families[j]] = [families[j], families[i]];
   }
   const bars: RhymeBar[] = [];
-  for (let couplet = 0; couplet < RHYME_BARS / 2; couplet++) {
-    const family = families[couplet % families.length];
+  const used = new Map<number, number[]>();
+  for (let bar = 0; bar < RHYME_BARS; bar++) {
+    const slot = schemeFamilySlot(scheme, bar);
+    const family = families[slot % families.length];
     const words = RHYME_FAMILIES[family];
-    const first = Math.floor(random() * words.length);
-    let second = Math.floor(random() * (words.length - 1));
-    if (second >= first) second++;
-    bars.push({ family, word: words[first] }, { family, word: words[second] });
+    const taken = used.get(slot) ?? [];
+    const free = words.map((_, i) => i).filter((i) => !taken.includes(i));
+    const pick = free[Math.floor(random() * free.length)];
+    used.set(slot, [...taken, pick]);
+    bars.push({ family, word: words[pick] });
   }
+  const topic = LAB_TOPICS[Math.floor(random() * LAB_TOPICS.length)];
   return {
     phase: "ready",
     seed,
@@ -109,7 +119,22 @@ export function newRhymeGame(seed = Date.now(), beat = 0): RhymeGame {
     bars,
     barsDone: 0,
     points: 0,
+    scheme,
+    topic,
   };
+}
+
+/** "Swap word": another word of the same family for bar `bar`, avoiding
+ * the words of the bars it rhymes with. Returns the same game when none. */
+export function swapRhymeWord(game: RhymeGame, bar: number, pick = Math.random()): RhymeGame {
+  const target = game.bars[bar];
+  if (!target) return game;
+  const avoid = new Set(game.bars.filter((b) => b.family === target.family).map((b) => b.word));
+  const options = RHYME_FAMILIES[target.family].filter((w) => !avoid.has(w));
+  if (!options.length) return game;
+  const bars = game.bars.slice();
+  bars[bar] = { family: target.family, word: options[Math.floor(pick * options.length) % options.length] };
+  return { ...game, bars };
 }
 
 // Bar index the playhead sits in, or -1 during the count-in.
