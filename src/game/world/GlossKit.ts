@@ -91,6 +91,10 @@ function bakeEnvironment(renderer: THREE.WebGLRenderer) {
  * redoes it (and re-points every glossy material). Idempotent. */
 export function invalidateGlossEnvironment() {
   environmentFor = null;
+  // Called on context restore: the old target's GL objects belong to the lost
+  // context, so disposing it would warn "object does not belong to this
+  // context". Drop it unreleased; the next bake makes a fresh one.
+  environmentTarget = null;
 }
 
 const rim = new THREE.Color();

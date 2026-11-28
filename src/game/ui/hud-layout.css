@@ -16,11 +16,12 @@
     translate: 0 -4px;
   }
 }
-/* Mouse and keyboard: bottom-left, just above the footer. */
+/* Mouse and keyboard: bottom-left, clear above the toolbar (which reaches
+   the left edge on narrow desktops such as 960×600). */
 .game-shell.game-shell .first-steps {
   left: max(24px, env(safe-area-inset-left));
   right: auto;
-  bottom: calc(64px + env(safe-area-inset-bottom));
+  bottom: calc(116px + env(safe-area-inset-bottom));
   translate: 0 0;
   animation-name: first-steps-in;
 }
@@ -44,7 +45,8 @@
   .game-shell.game-shell .first-steps {
     left: 50%;
     right: auto;
-    top: max(132px, calc(env(safe-area-inset-top) + 124px));
+    top: max(160px, calc(env(safe-area-inset-top) + 152px));
+    /* Below the place name + Daily chip row, which ends ~148px. */
     bottom: auto;
     translate: -50% 0;
     max-width: calc(100vw - 32px);
