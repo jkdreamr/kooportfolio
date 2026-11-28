@@ -20,18 +20,26 @@ import { HouseInterior } from "./HouseInterior";
 import { KitchenInterior } from "./KitchenInterior";
 import { roomFor } from "../core/room";
 import { RoomDressing } from "./RoomDressing";
-import { BeatLabInterior, MathLabInterior } from "./LabRooms";
+import {
+  BeatLabInterior,
+  GoInterior,
+  MathLabInterior,
+  StadiumInterior,
+} from "./lazyModes";
 import type { PlaceId } from "../core/world";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { BadmintonCourt } from "./BadmintonCourt";
-import { GoInterior } from "./GoInterior";
 import { WritingInterior } from "./WritingInterior";
-import { StadiumInterior } from "./Stadium";
 import { MovieTheaterInterior, useTheater } from "./MovieTheater";
 import { SecretRoomInterior } from "./SecretRoom";
 import { HOOVER_STASH } from "../core/hoover";
 import { TownHallInterior } from "./TownHallInterior";
-import { RoomLifeLive, RoomLifeStatic, SeatLift, useRoomLifeKit } from "./life/RoomLife";
+import {
+  RoomLifeLive,
+  RoomLifeStatic,
+  SeatLift,
+  useRoomLifeKit,
+} from "./life/RoomLife";
 
 export function Interior() {
   const world = useGame((s) => s.world);
@@ -78,7 +86,9 @@ export function Interior() {
     return (
       <group>
         {walkFloor}
-        <StadiumInterior />
+        <Suspense fallback={null}>
+          <StadiumInterior />
+        </Suspense>
       </group>
     );
   return (
@@ -156,15 +166,15 @@ export function Interior() {
           scene !== "go" &&
           scene !== "townhall" &&
           !theater && (
-          <>
-            <Box
-              p={[0, 0.1, -2]}
-              s={[4.2, 0.1, 3]}
-              c={office ? "#768973" : "#758f8a"}
-            />
-            <Ring p={[0, 0.17, -2]} radius={1.2} tube={0.035} c="#e6d2a8" />
-          </>
-        )}
+            <>
+              <Box
+                p={[0, 0.1, -2]}
+                s={[4.2, 0.1, 3]}
+                c={office ? "#768973" : "#758f8a"}
+              />
+              <Ring p={[0, 0.17, -2]} radius={1.2} tube={0.035} c="#e6d2a8" />
+            </>
+          )}
         {office ? (
           <>
             <Box p={[-2.5, 1.1, -4]} s={[4, 0.18, 1.3]} c="#927650" />
@@ -205,12 +215,14 @@ export function Interior() {
         {scene === "kappa" && <HouseInterior />}
         {scene === "kitchen" && <KitchenInterior />}
         {scene === "gym" && <GymFurnishings />}
-        {scene === "music" && <BeatLabInterior />}
-        {scene === "math" && <MathLabInterior />}
+        <Suspense fallback={null}>
+          {scene === "music" && <BeatLabInterior />}
+          {scene === "math" && <MathLabInterior />}
+        </Suspense>
         {scene === "badminton" && (
           <BadmintonCourt onPlayingChange={setBadmintonActive} />
         )}
-        {scene === "go" && <GoInterior />}
+        <Suspense fallback={null}>{scene === "go" && <GoInterior />}</Suspense>
         {scene === "townhall" && <TownHallInterior />}
         {scene === "writing" && <WritingInterior />}
         {theater && (

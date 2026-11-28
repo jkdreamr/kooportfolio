@@ -75,7 +75,7 @@ import { nearbyNpcId } from "../core/npcState";
 import { BadmintonPavilion } from "../scenes/BadmintonCourt";
 import { Wildlife } from "./Wildlife";
 import { WritingShell } from "./WritingShell";
-import { StadiumBuilding } from "../scenes/Stadium";
+import { StadiumBuilding } from "../scenes/StadiumArchitecture";
 import { MovieTheaterBuilding } from "../scenes/MovieTheater";
 import { IslandTrain } from "./IslandTrain";
 import { WorldTravel } from "./WorldTravel";
@@ -89,7 +89,7 @@ import {
   STANFORD_BULLETIN,
   STANFORD_TELESCOPE,
 } from "../../shared/stanford-transport";
-import { SkateParkBuilding } from "../scenes/SkatePark";
+import { SkateParkBuilding } from "../scenes/SkateParkBuilding";
 import { BeatLabShell, MathLabShell } from "./LabBuildings";
 import { GoShell } from "./GoShell";
 import { HooverKey } from "./HooverTowerDoor";

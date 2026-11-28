@@ -1,5 +1,6 @@
 import {
   createContext,
+  Suspense,
   useContext,
   useEffect,
   useRef,
@@ -13,8 +14,7 @@ import { useGlassMode, useHudReveal } from "./hudStage";
 import { FirstSteps, useHintLearning, useHints } from "./FirstSteps";
 import { DoorTransition } from "./DoorTransition";
 import { useStage } from "../../stage/contract";
-import { BoathouseRaceSelect, RowingHud } from "../scenes/RowingHud";
-import { BasketballHud } from "../scenes/BasketballHud";
+import { BasketballHud, BoathouseRaceSelect, RowingHud } from "../scenes/lazyModes";
 import { Joystick } from "./Joystick";
 import { Icon } from "./Icon";
 import { destinationsInWorld, doors, isInterior } from "../core/world";
@@ -784,10 +784,12 @@ export function Hud({ interact }: { interact: () => void }) {
           />
         </div>
       )}
-      {g.scene === "rowing" && <RowingHud />}
-      {g.scene === "basketball" && (
-        <BasketballHud hidden={g.paused || g.panel !== "none"} />
-      )}
+      <Suspense fallback={null}>
+        {g.scene === "rowing" && <RowingHud />}
+        {g.scene === "basketball" && (
+          <BasketballHud hidden={g.paused || g.panel !== "none"} />
+        )}
+      </Suspense>
       {(hub || interior) &&
         g.panel !== "npc" &&
         !g.overlayLocked && (
@@ -885,7 +887,9 @@ export function Hud({ interact }: { interact: () => void }) {
           </>
         )}
       {interior && g.scene === "boathouse" && g.near === "race" && (
-        <BoathouseRaceSelect />
+        <Suspense fallback={null}>
+          <BoathouseRaceSelect />
+        </Suspense>
       )}
       {hub && (
         <nav className="world-toolbar" aria-label="World tools">

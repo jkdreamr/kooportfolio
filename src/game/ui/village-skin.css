@@ -93,13 +93,6 @@
 .game-shell .game-header {
   background: linear-gradient(#142b3e66, #142b3e00);
 }
-.game-shell .brand-glyph {
-  color: var(--glass-gold);
-  background: var(--hud-face);
-  border: 1px solid var(--hud-rim);
-  border-radius: 6px;
-  box-shadow: var(--hud-shadow);
-}
 .game-shell .game-brand b {
   color: #fff;
   letter-spacing: 0.5px;
@@ -154,9 +147,6 @@
   text-shadow: 0 1px 4px #0d233b40;
   letter-spacing: 0;
 }
-.game-shell :is(.label-level, .world-label > span:last-child) {
-  color: #d5dfdc;
-}
 .game-shell .label-dot {
   background: var(--glass-gold);
 }
@@ -171,70 +161,14 @@
 .game-shell .context-action kbd {
   background: #243e35;
 }
-.game-shell
-  :is(.world-heading, .interior-heading, .challenge-heading, .build-heading)
-  h1 {
-  color: white;
-  font-family: var(--font-ui);
-  font-weight: 600;
-  letter-spacing: -0.8px;
-  text-shadow: 0 1px 4px #0d233b40;
-}
-.game-shell :is(.interior-heading, .challenge-heading, .build-heading) p,
 .game-shell .back-link {
   color: #fff;
   text-shadow: 0 1px 4px #0d233b40;
   letter-spacing: 0;
 }
-.game-shell
-  :is(
-    .objective-card,
-    .race-instruments,
-    .race-control-panel,
-    .basket-score,
-    .shot-panel,
-    .build-panel,
-    .race-select
-  ) {
-  color: var(--glass-ink);
-  background: var(--hud-face);
-  border: 1px solid #6a7b7f;
-  border-bottom-width: 1px;
-  border-radius: 6px;
-  box-shadow: var(--hud-shadow);
-}
 .game-shell :is(.world-heading p, .world-coordinates) {
   color: #e3ebe3;
   text-shadow: 0 1px 4px #0d233b40;
-}
-.game-shell :is(.objective-card p, .context-action small, .help-grid b) {
-  color: var(--glass-muted);
-}
-.game-shell
-  :is(
-    .objective-card h3,
-    .build-option h3,
-    .race-select b,
-    .memory-card b,
-    .context-action strong
-  ) {
-  color: var(--glass-ink);
-  font-weight: 600;
-}
-.game-shell :is(.quest-icon, .build-preview, .build-preview.garden) {
-  color: var(--glass-gold);
-  background: #233943;
-  border-color: #61777b;
-  border-radius: 4px;
-}
-.game-shell .build-option {
-  border-color: #566c74;
-}
-.game-shell .quest-progress span {
-  background: #172d37;
-}
-.game-shell .quest-progress span.done {
-  background: #96b576;
 }
 .game-shell .text-action {
   color: var(--glass-gold);
@@ -246,76 +180,12 @@
   font-variant-numeric: tabular-nums;
   text-shadow: 0 1px 4px #0d233b40;
 }
-.game-shell
-  :is(
-    .stamina-label,
-    .race-instruments small,
-    .basket-score small,
-    .aim-label
-  ) {
-  color: var(--glass-muted);
-  letter-spacing: 0.25px;
-  text-transform: none;
-}
 .game-shell :is(.race-instruments > div + div, .basket-score > span) {
   border-color: #63747a;
-}
-.game-shell
-  :is(
-    .race-control-panel p,
-    .shot-panel p,
-    .build-option p,
-    .race-select span
-  ) {
-  color: var(--glass-muted);
-}
-.game-shell
-  :is(
-    .race-control-panel .stamina-label b,
-    .race-instruments em,
-    .basket-score em
-  ) {
-  color: var(--glass-ink);
-}
-.game-shell :is(.energy-track, .power-track) {
-  background: #172c36;
-  box-shadow: var(--hud-shadow);
-}
-.game-shell .energy-track i {
-  background: #9db77e;
-  box-shadow: var(--hud-shadow);
-}
-.game-shell .cadence-switch button {
-  color: var(--glass-muted);
-  background: #233944;
-  border-color: #596c72;
-}
-.game-shell .cadence-switch button.selected {
-  color: #fff4cf;
-  background: #557145;
-  border-color: #a3b97a;
-}
-.game-shell :is(.cadence-switch small, .last-split) {
-  color: #e0e9df;
-}
-.game-shell
-  .scene-rowing
-  :is(.stamina-label, .race-instruments small, .cadence-switch small) {
-  font-size: var(--text-xs);
-  letter-spacing: 0;
-  opacity: 1;
 }
 .game-shell .scene-rowing .race-progress {
   font-size: var(--text-xs);
   letter-spacing: 0;
-}
-.game-shell .last-split {
-  text-shadow: 0 1px 4px #0d233b40;
-}
-.game-shell .last-split b {
-  color: var(--glass-ink);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
 }
 .game-shell :is(.race-touch button, .race-touch button.burst) {
   color: #fff4d7;
@@ -346,14 +216,6 @@
   font-style: normal;
   font-weight: 600;
 }
-.game-shell
-  :is(.aim-label button, .basketball-controls button, .basketball-mode-select) {
-  color: var(--glass-ink);
-  background: #304a56;
-  border: 1px solid #788b90;
-  border-bottom-width: 1px;
-  border-radius: 4px;
-}
 .game-shell .basketball-controls button[aria-pressed="true"] {
   color: #fff2ca;
   background: #536e43;
@@ -365,22 +227,6 @@
 }
 .game-shell .basketball-controls p :is(span, b) {
   color: #fff0bd;
-}
-.game-shell :is(.primary-button, .shoot-button, .upgrade-button) {
-  color: #fff8e1;
-  background: #506c43;
-  border: 1px solid #a1b978;
-  border-bottom-width: 1px;
-  border-radius: 5px;
-  box-shadow: var(--hud-shadow);
-  font-family: inherit;
-  font-weight: 600;
-}
-.game-shell .shot-feedback {
-  color: #fff6ce;
-  font-style: normal;
-  font-weight: 600;
-  text-shadow: 0 1px 4px #0d233b40;
 }
 .game-shell .game-modal {
   background: var(--hud-face);
@@ -399,16 +245,6 @@
   text-shadow: 0 1px 4px #0d233b40;
 }
 .game-shell
-  :is(
-    .game-modal > p,
-    .local-note,
-    .memory-card p,
-    .help-grid p,
-    .game-modal .result-detail
-  ) {
-  color: var(--glass-muted);
-}
-.game-shell
   :is(.close-button, .quiet-button, .setting-row, .race-select > button) {
   color: var(--glass-ink);
   background: #233943;
@@ -418,39 +254,9 @@
 .game-shell .setting-row b {
   color: var(--glass-ink);
 }
-.game-shell :is(.memory-card, :where(.places-list button)) {
-  color: var(--glass-ink);
-  background: #243a44;
-  border-color: #566b72;
-  box-shadow: var(--hud-shadow);
-}
-.game-shell .memory-card :is(small, svg) {
-  color: var(--glass-muted);
-}
 .game-shell .study-links > a {
   color: #f2d18b;
   border-color: #6e7c7b;
-}
-.game-shell .reward-line {
-  color: var(--glass-gold);
-  background: #203740;
-  border-color: #6d7666;
-}
-.game-shell .reward-line > span {
-  color: var(--glass-muted);
-}
-.game-shell .court-keyboard-hint {
-  position: absolute;
-  left: 36px;
-  /* Keep this above the mode controls, not over the target on short screens. */
-  top: 215px;
-  margin: 0;
-  max-width: 330px;
-  font-size: var(--text-xs);
-  line-height: 1.7;
-  color: white;
-  text-shadow: 0 1px 4px #0d233b40;
-  pointer-events: none;
 }
 .game-shell :is(.room-story, .interior-game) {
   color: var(--hud-ink);
@@ -602,19 +408,6 @@
     left: 38px;
     padding: 16px;
   }
-  .game-shell .scene-rowing :is(.stamina-label, .race-instruments small) {
-    font-size: var(--text-xs);
-  }
-}
-@media (min-width: 701px) and (max-height: 500px) {
-  .game-shell .court-keyboard-hint {
-    left: 145px;
-    top: auto;
-    bottom: 42px;
-    max-width: 230px;
-    font-size: var(--text-xs);
-    line-height: 1.4;
-  }
 }
 
 /* Slim visible faces, without shrinking the actual pointer/touch targets. */
@@ -708,21 +501,6 @@
   border: 1px solid #718b65;
   border-radius: 4px;
   font-size: var(--text-xs);
-}
-.game-shell
-  :is(
-    .primary-button,
-    .quiet-button,
-    .shoot-button,
-    .upgrade-button,
-    .story-read
-  ) {
-  min-height: 44px;
-  box-shadow: none;
-}
-.game-shell
-  :is(.energy-track, .power-track, .cadence-switch button, .setting-row) {
-  box-shadow: none;
 }
 .game-shell :is(.race-instruments, .basket-score, .result-score) strong {
   text-shadow: none;
@@ -933,10 +711,6 @@
     display: none;
   }
 }
-.game-shell .scene-rowing .stamina-label {
-  font-size: var(--text-xs);
-  opacity: 1;
-}
 .game-shell .scene-rowing .race-progress {
   font-size: var(--text-xs);
 }
@@ -946,8 +720,5 @@
     bottom: auto;
     left: 38px;
     padding: 16px;
-  }
-  .game-shell .scene-rowing .stamina-label {
-    font-size: var(--text-xs);
   }
 }

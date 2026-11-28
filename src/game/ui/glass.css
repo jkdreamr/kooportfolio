@@ -90,33 +90,6 @@
 /* ── The recipe ────────────────────────────────────────────────────────── */
 
 /* Panes that frost the world behind them. */
-.game-shell
-  :is(
-    .world-toolbar,
-    .resources,
-    .context-action,
-    .game-toast,
-    .time-of-day-control,
-    .npc-dialog,
-    .island-rail-controls,
-    .world-travel-stop,
-    .world-travel-status,
-    .objective-card,
-    .race-instruments,
-    .race-control-panel,
-    .basket-score,
-    .shot-panel,
-    .build-panel,
-    .race-select
-  ) {
-  color: var(--glass-ink);
-  background: var(--glass-sheen) var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--glass-radius);
-  box-shadow: var(--glass-highlight), var(--glass-shadow);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
-}
 /* Panes that already sit on a frosted scrim: translucent, but no second
    backdrop pass (a nested filter would only re-blur the scrim). */
 .game-shell .game-modal {
@@ -137,9 +110,6 @@
   backdrop-filter: var(--glass-scrim-blur);
 }
 /* Long copy gets the denser fill. */
-.game-shell :is(.npc-dialog, .build-panel, .game-toast) {
-  background: var(--glass-sheen) var(--glass-bg-strong);
-}
 
 /* ── Header capsule: coins, level, sound, pause in one pane ────────────── */
 .game-shell .resources {
@@ -173,13 +143,6 @@
   width: 44px;
   height: 44px;
   border-radius: 50%;
-}
-.game-shell .brand-glyph {
-  color: var(--glass-gold);
-  background: var(--glass-bg-dense);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--glass-radius-sm);
-  box-shadow: var(--glass-highlight), var(--glass-shadow-sm);
 }
 
 /* ── Dock ──────────────────────────────────────────────────────────────── */
@@ -235,9 +198,6 @@
 }
 .game-shell .world-label {
   padding: 0 12px 0 11px;
-}
-.game-shell :is(.label-level, .world-label > span:last-child) {
-  color: var(--glass-muted);
 }
 .game-shell .label-dot {
   width: 4px;
@@ -335,10 +295,6 @@
     bottom: -1px;
   }
 }
-.game-shell :is(.time-of-day-control, .leaderboard) select option {
-  color: var(--glass-ink);
-  background: var(--glass-bg-solid);
-}
 .game-shell .time-of-day-control time {
   color: var(--glass-muted);
 }
@@ -372,13 +328,6 @@
   margin-top: 8px;
   border-radius: var(--glass-radius-sm);
 }
-.game-shell :is(.memory-card, .places-list button) {
-  color: var(--glass-ink);
-  background-color: var(--glass-well);
-  border: 1px solid var(--glass-hairline);
-  border-radius: var(--glass-radius-sm);
-  box-shadow: none;
-}
 .game-shell .places-list {
   gap: 6px;
 }
@@ -391,12 +340,6 @@
 .game-shell .study-links > a {
   color: var(--glass-gold);
   border-color: var(--glass-hairline);
-}
-.game-shell .reward-line {
-  color: var(--glass-gold);
-  background: var(--glass-well);
-  border-color: var(--glass-hairline);
-  border-radius: var(--glass-radius-sm);
 }
 .game-shell .result-score {
   color: var(--glass-ink);
@@ -411,29 +354,8 @@
 }
 
 /* ── Primary action ────────────────────────────────────────────────────── */
-.game-shell :is(.primary-button, .shoot-button, .upgrade-button) {
-  color: var(--glass-accent-ink);
-  background-color: var(--glass-accent);
-  border: 1px solid var(--glass-accent-border);
-  border-radius: var(--glass-radius-sm);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.22),
-    0 1px 2px rgb(4 16 24 / 0.24);
-}
 
 /* ── Scene panes that share the recipe ─────────────────────────────────── */
-.game-shell :is(.quest-icon, .build-preview, .build-preview.garden) {
-  color: var(--glass-gold);
-  background: var(--glass-well);
-  border-color: var(--glass-hairline);
-  border-radius: var(--glass-radius-sm);
-}
-.game-shell .build-option {
-  border-color: var(--glass-hairline);
-}
-.game-shell .build-panel {
-  border-radius: var(--glass-radius-lg);
-}
 .game-shell :is(.race-instruments > div + div, .basket-score > span) {
   border-color: var(--glass-hairline);
 }
@@ -492,31 +414,6 @@
 }
 
 /* ── Micro-interactions ────────────────────────────────────────────────── */
-.game-shell
-  :is(
-    .world-toolbar > button,
-    .world-toolbar > a,
-    .icon-button,
-    .close-button,
-    .quiet-button,
-    .setting-row,
-    .places-list button,
-    .primary-button,
-    .shoot-button,
-    .upgrade-button,
-    .context-action > button,
-    .world-zoom button,
-    .npc-dialog button,
-    .island-rail-controls button,
-    .world-travel-stop button
-  ) {
-  transition:
-    background-color var(--glass-speed) var(--glass-ease),
-    border-color var(--glass-speed) var(--glass-ease),
-    color var(--glass-speed) var(--glass-ease),
-    box-shadow var(--glass-speed) var(--glass-ease),
-    transform var(--glass-speed) var(--glass-ease);
-}
 .game-shell .world-label::before {
   transition:
     background-color var(--glass-speed) var(--glass-ease),
@@ -551,19 +448,6 @@
     transform: translateY(-1px);
     box-shadow: var(--glass-shadow-sm);
   }
-  .game-shell
-    :is(
-      .primary-button,
-      .shoot-button,
-      .upgrade-button,
-      .context-action > button
-    ):hover:not(:disabled) {
-    background-color: var(--glass-accent-hover);
-    transform: translateY(-1px);
-    box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 0.26),
-      0 4px 12px rgb(4 16 24 / 0.26);
-  }
   .game-shell .world-label:hover {
     color: var(--glass-ink);
     background: transparent;
@@ -577,25 +461,6 @@
     background-color: var(--glass-well-hover);
   }
 }
-.game-shell
-  :is(
-    .world-toolbar > button,
-    .world-toolbar > a,
-    .icon-button,
-    .close-button,
-    .quiet-button,
-    .places-list button,
-    .primary-button,
-    .shoot-button,
-    .upgrade-button,
-    .context-action > button,
-    .npc-dialog button,
-    .island-rail-controls button,
-    .world-travel-stop button
-  ):active:not(:disabled) {
-  transform: scale(0.97);
-  transition-duration: 0.06s;
-}
 .game-shell .setting-row:active:not(:disabled) {
   transform: scale(0.99);
   transition-duration: 0.06s;
@@ -605,25 +470,8 @@
 }
 @media (prefers-reduced-motion: reduce) {
   /* Colour may still change; nothing lifts, sinks or slides. */
-  .game-shell
-    :is(
-      .world-toolbar > button,
-      .world-toolbar > a,
-      .icon-button,
-      .close-button,
-      .quiet-button,
-      .setting-row,
-      .places-list button,
-      .primary-button,
-      .shoot-button,
-      .upgrade-button,
-      .context-action > button,
-      .npc-dialog button,
-      .island-rail-controls button,
-      .world-travel-stop button
-    ):is(:hover, :active):not(:disabled),
   .game-shell .world-toolbar > :is(button, a):hover svg,
-  .game-shell .world-label:is(:hover, :active)::before {
+      .game-shell .world-label:is(:hover, :active)::before {
     transform: none;
   }
 }
@@ -709,33 +557,6 @@
 }
 
 /* Independent floating surfaces, including scene controls outside the HUD. */
-.game-shell :is(
-  .world-toolbar, .resource, .icon-button, .brand-glyph, .context-action,
-  .objective-card, .race-instruments, .race-control-panel, .basket-score,
-  .shot-panel, .build-panel, .race-select, .room-story,
-  :where(.interior-game:not(.interior-game--viewport)), .game-modal,
-  .game-toast, .npc-dialog, .time-of-day-control, .world-zoom,
-  :where(.lab-controls:not(.lab-game)), .lab-game-topbar, .lab-game-bottom,
-  .gym-room-card, .gym-game-topbar, .gym-game-bottom,
-  .badminton-start, .badminton-result, .badminton-score, .badminton-selection,
-  .skate-card, .skate-score, .skate-hint,
-  .stadium-game-score, .stadium-game-controls,
-  :where(.toss-hud header > div), .toss-controls,
-  .court-session-header, .court-finished,
-  :where(.papa-top > div), .papa-actions, .papa-ticket, .papa-result,
-  .island-rail-controls, .world-travel-status, .world-travel-stop, .world-journey,
-  .cinema-controls, :where(#cinema-program), .photo-booth-dialog, .writing-dialog,
-  :where(.go-card:not(.go-card-playing))
-) {
-  color: var(--hud-ink);
-  background: var(--glass-fill);
-  border: var(--glass-edge);
-  border-top-color: var(--hud-rim);
-  border-radius: 14px;
-  box-shadow: var(--silver-shadow);
-  -webkit-backdrop-filter: var(--silver-blur);
-  backdrop-filter: var(--silver-blur);
-}
 
 .game-shell :is(.game-modal, .writing-dialog, .photo-booth-dialog) {
   background: var(--glass-panel-fill);
@@ -763,9 +584,6 @@
 
 .game-shell .world-toolbar {
   border-radius: 18px;
-}
-.game-shell :is(.resource, .icon-button, .brand-glyph) {
-  border-radius: 11px;
 }
 .game-shell .world-toolbar > :is(button, a) {
   border-radius: 12px;
@@ -806,38 +624,6 @@
 /* Explicit control families exclude Go intersections, color swatches and
    rhythm/puzzle pads: their colors communicate game state, not decoration.
    The repeated scope beats legacy scene selectors without !important. */
-.game-shell.game-shell :is(
-  .primary-button, .quiet-button, .shoot-button, .upgrade-button, .story-read,
-  .close-button, .setting-row, .basketball-mode-select, .papa-play,
-  .stadium-game-close,
-  :where(.places-list button, .race-select > button,
-    .context-action > button, .cadence-switch button, .race-touch button,
-    .race-catch button, .aim-label button, .basketball-controls button,
-    .court-session button, .interior-game button,
-    .go-card button:not(.go-point), .go-card select,
-    .lab-controls button:not(.beat-buttons button, .lights-buttons button),
-    .gym-room-card button, .gym-game button, .papa-game button,
-    .badminton-ui button, .skate-ui button, .stadium-game-controls button,
-    .toss-hud button, .toss-launch button, .npc-dialog button,
-    .photo-booth-card button, .writing-dialog button,
-    .island-rail-controls button, .world-travel-status button,
-    .world-travel-stop button, .world-journey button,
-    .cinema-viewer button, .cinema-viewer a, .world-zoom button)
-) {
-  color: var(--hud-ink);
-  background: var(--glass-control);
-  border: var(--glass-edge);
-  border-top-color: #ffffff8c;
-  border-radius: 10px;
-  box-shadow: inset 0 1px 0 #ffffff40, inset 1px 0 0 #ffffff12, 0 2px 6px #050e1c1a;
-  text-shadow: none;
-  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
-}
-
-.game-shell.game-shell :is(.primary-button, .shoot-button, .upgrade-button, .context-action > button) {
-  background: var(--glass-selected);
-  border-color: #d7e9fc70;
-}
 .game-shell .context-action kbd {
   color: var(--hud-ink);
   background: #101d2c70;
@@ -851,13 +637,6 @@
   margin-block: 8px;
   gap: 16px;
 }
-.game-shell :is(.memory-card, .reward-line, .build-preview, .quest-icon, .island-map-stop) {
-  color: var(--hud-ink);
-  background: linear-gradient(135deg, #ffffff1f, #ffffff05 55%, #ffffff0d), #1220301a;
-  border: var(--glass-edge);
-  border-radius: 10px;
-  box-shadow: inset 0 1px 0 #ffffff59, inset 1px 0 0 #ffffff1a, 0 4px 12px #030b1812;
-}
 .game-shell .island-map {
   background: linear-gradient(145deg, #304456, #172637);
   border-color: var(--hud-edge);
@@ -870,16 +649,6 @@
   background: #d6eaff24;
   border: 1px solid #dceaff4d;
 }
-.game-shell :is(.game-modal h2, .race-instruments strong, .basket-score strong,
-  .countdown, .countdown span, .countdown small, .shot-feedback,
-  .study-links > a, .room-story a, .basketball-controls p,
-  .basketball-controls p span, .basketball-controls p b) {
-  color: var(--hud-ink);
-}
-.game-shell :is(.brand-glyph, .resource.coins svg) {
-  color: #dce8f5;
-  filter: none;
-}
 .game-shell :is(.game-modal > p, .room-story p, .npc-dialog p) {
   color: var(--hud-muted);
 }
@@ -889,14 +658,6 @@
 .game-shell :is(.writing-header, .writing-list) {
   background: #101c2c45;
   border-color: var(--hud-edge);
-}
-.game-shell :is(.writing-compose input, .writing-compose textarea,
-  .photo-booth-card input, .leaderboard input, .leaderboard select) {
-  color: var(--hud-ink);
-  background: #0d192b70;
-  border: var(--glass-edge);
-  border-radius: 8px;
-  box-shadow: inset 0 1px 3px #02081426;
 }
 .game-shell select {
   color-scheme: dark;
@@ -911,33 +672,11 @@
 }
 
 /* Selected/held states remain distinct without bringing back brass or green. */
-.game-shell :is(
-  .setting-row[aria-pressed="true"], .cadence-switch button.selected,
-  .basketball-controls button[aria-pressed="true"],
-  .house-game-tabs button[aria-pressed="true"],
-  .blackjack-bets button[aria-pressed="true"],
-  .photo-booth-card button[aria-pressed="true"],
-  .papa-game button[aria-pressed="true"], .kitchen-orders button.active,
-  .race-touch button[data-held="true"], .badminton-ui button[aria-pressed="true"],
-  .writing-dialog .writing-post-link[aria-current="true"],
-  .race-catch button[data-ready="true"], .race-catch button[data-boosted="true"]
-) {
-  color: #fff;
-  background: var(--glass-selected);
-  border-color: #e3f1ff9c;
-  box-shadow: inset 0 1px 0 #ffffff4d, 0 0 0 1px #adcce526;
-}
 .game-shell :is(button, a, input, select, textarea, summary):focus-visible {
   outline: 2px solid #e1efff;
   outline-offset: 3px;
 }
 @media (hover: hover) {
-  .game-shell :is(button:not(.world-label, .go-point, .color-swatches button, .beat-buttons button, .lights-buttons button),
-    .world-toolbar > a, .cinema-viewer a):hover:not(:disabled) {
-    background-color: #ffffff1f;
-    border-color: #e7f2ff9c;
-    color: #fff;
-  }
   .game-shell button.world-label:hover {
     background: transparent;
   }

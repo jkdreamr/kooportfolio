@@ -133,73 +133,6 @@
   border-radius: 2px;
   transform: translateX(-50%);
 }
-.kitchen-shift {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 12px;
-  margin-bottom: 10px;
-}
-.kitchen-orders {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 10px;
-}
-.kitchen-orders button {
-  flex: 1;
-  min-width: 0;
-  padding: 8px 3px;
-  background: #314d3d;
-  color: #eee1bb;
-  border-color: #6c7853;
-  font-size: 12px;
-}
-.kitchen-orders button:disabled {
-  opacity: 0.75;
-}
-.kitchen-orders button.active {
-  background: #635d35;
-  opacity: 1;
-  border-color: #91632d;
-}
-.kitchen-orders button span {
-  display: block;
-  font-size: 12px;
-  margin-top: 3px;
-}
-.kitchen-orders meter {
-  display: block;
-  width: 90%;
-  height: 10px;
-  margin: 5px auto 0;
-}
-.interior-game .kitchen-close {
-  padding: 0;
-  width: 44px;
-  min-height: 44px;
-  background: transparent;
-  border: 0;
-  color: #c4bd98;
-  font-size: 24px;
-}
-.kitchen-active > meter {
-  display: none;
-}
-.house-game-tabs {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 6px;
-}
-.house-game-tabs button {
-  flex: 1;
-  background: transparent;
-  font-size: 12px;
-  padding: 5px 10px;
-}
-.house-game-tabs button[aria-pressed="true"] {
-  background: #827344;
-  border-color: #c5aa61;
-}
 .interior-game .blackjack-bets button[aria-pressed="true"] {
   background: #e8ecef;
   border-color: #ffffff;
@@ -259,16 +192,6 @@
   padding-right: 44px;
   margin-bottom: 4px;
 }
-.house-game-header .house-game-tabs {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-}
-.house-game-header .house-game-tabs button {
-  min-width: 0;
-  padding: 4px;
-  font-size: 12px;
-}
 .house-game-header .blackjack-bank,
 .house-game-header .pong-score {
   flex-direction: column;
@@ -323,19 +246,6 @@
     padding: 6px 10px;
     border-radius: 5px;
   }
-  .interior-game--sheet .kitchen-shift {
-    margin-bottom: 2px;
-    font-size: 12px;
-  }
-  .interior-game--sheet .kitchen-orders {
-    margin-bottom: 0;
-  }
-  .interior-game--sheet .kitchen-orders button {
-    padding: 4px;
-  }
-  .interior-game--sheet .kitchen-orders:has(.active) {
-    display: none;
-  }
   .interior-game--sheet h2 {
     font-size: 12px;
     margin: 0 0 3px;
@@ -343,17 +253,10 @@
   .interior-game--sheet p {
     display: none;
   }
-  .interior-game--sheet p[role="status"],
-  .interior-game--sheet p.kitchen-missed {
+  .interior-game--sheet p[role="status"] {
     display: block;
     margin-top: 3px;
     font-size: 12px;
-  }
-  .interior-game--sheet .kitchen-active > meter {
-    display: block;
-    width: 100%;
-    height: 6px;
-    margin-bottom: 5px;
   }
   .interior-game--sheet .interior-heat {
     margin: 5px 0 8px;

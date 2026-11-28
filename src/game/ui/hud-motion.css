@@ -234,35 +234,10 @@
   animation: pane-out var(--motion-exit) var(--motion-exit-ease) both;
 }
 /* Rows, links and cards arrive 28 ms apart after the pane has its footing. */
-.game-shell
-  .game-modal
-  :is(
-    .setting-row,
-    .places-list > button,
-    .memory-card,
-    .study-links > a,
-    .color-swatches > button,
-    .help-grid > *,
-    .primary-button,
-    .quiet-button,
-    .local-note,
-    .result-detail,
-    .island-map
-  ) {
-  animation: item-in 340ms var(--motion-ease) both;
-  animation-delay: calc(70ms + var(--i, 0) * 28ms);
-}
-.game-modal :is(.setting-row, .memory-card, .primary-button, .quiet-button,
-    .local-note, .result-detail):nth-of-type(2),
-.game-modal :is(.places-list, .study-links, .color-swatches) > :nth-child(2),
-.game-modal .help-grid > :nth-child(3),
-.game-modal .help-grid > :nth-child(4) {
+.game-modal :is(.places-list, .study-links, .color-swatches) > :nth-child(2), .game-modal .help-grid > :nth-child(3), .game-modal .help-grid > :nth-child(4) {
   --i: 1;
 }
-.game-modal :is(.setting-row, .memory-card, .quiet-button):nth-of-type(3),
-.game-modal :is(.places-list, .study-links, .color-swatches) > :nth-child(3),
-.game-modal .help-grid > :nth-child(5),
-.game-modal .help-grid > :nth-child(6) {
+.game-modal :is(.places-list, .study-links, .color-swatches) > :nth-child(3), .game-modal .help-grid > :nth-child(5), .game-modal .help-grid > :nth-child(6) {
   --i: 2;
 }
 .game-modal :is(.setting-row, .quiet-button):nth-of-type(4),
@@ -391,57 +366,6 @@
 /* ── Controls: spring back from a press ────────────────────────────────── */
 /* The silver layer narrows these transitions to colour; restore transform
    with a spring so a release settles instead of snapping. */
-.game-shell.game-shell.game-shell
-  :is(
-    .world-toolbar > button,
-    .world-toolbar > a,
-    .icon-button,
-    .close-button,
-    .quiet-button,
-    .setting-row,
-    .places-list button,
-    .primary-button,
-    .shoot-button,
-    .upgrade-button,
-    .context-action > button,
-    .world-zoom button,
-    .npc-dialog button,
-    .race-select > button,
-    .cadence-switch button,
-    .race-touch button,
-    .color-swatches button,
-    .story-read
-  ) {
-  transition:
-    background-color 160ms ease,
-    border-color 160ms ease,
-    color 160ms ease,
-    box-shadow 160ms ease,
-    transform 420ms var(--ease-spring),
-    scale 420ms var(--ease-spring);
-}
-.game-shell.game-shell.game-shell
-  :is(
-    .world-toolbar > button,
-    .world-toolbar > a,
-    .icon-button,
-    .close-button,
-    .quiet-button,
-    .places-list button,
-    .primary-button,
-    .shoot-button,
-    .upgrade-button,
-    .context-action > button,
-    .world-zoom button,
-    .race-select > button,
-    .cadence-switch button,
-    .color-swatches button,
-    .story-read
-  ):active:not(:disabled) {
-  transform: scale(0.95);
-  transition-duration: 160ms, 160ms, 160ms, 160ms, 70ms, 70ms;
-  transition-timing-function: ease, ease, ease, ease, ease-out, ease-out;
-}
 .game-shell.game-shell.game-shell .setting-row:active:not(:disabled) {
   transform: scale(0.985);
   transition-duration: 160ms, 160ms, 160ms, 160ms, 70ms, 70ms;

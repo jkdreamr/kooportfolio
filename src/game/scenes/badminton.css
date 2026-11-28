@@ -46,7 +46,6 @@
   margin: 8px 0 14px;
   font-size: 13px;
 }
-.badminton-tap-hint,
 .badminton-touch-selection {
   display: none;
 }
@@ -253,7 +252,6 @@
   display: none;
 }
 @media (max-width: 700px), (pointer: coarse) {
-  .badminton-tap-hint,
   .badminton-touch-selection {
     display: inline;
   }
@@ -316,7 +314,6 @@
   }
 }
 @media (max-height: 500px) and (min-width: 600px) {
-  .badminton-tap-hint,
   .badminton-touch-selection {
     display: inline;
   }
@@ -372,21 +369,4 @@
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
-}
-.badminton-final {
-  font-size: var(--text-xl, 24px);
-  font-variant-numeric: tabular-nums;
-}
-.badminton-bests {
-  font-size: var(--text-sm, 13px);
-}
-.badminton-new-best {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--hud-gold, #e7c27e);
-  color: #21353e;
-  font-weight: 700;
-  font-size: var(--text-xs, 12px);
 }

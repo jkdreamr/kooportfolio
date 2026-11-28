@@ -136,30 +136,6 @@
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
-.stadium-game-progress,
-.stadium-game-kicks {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.stadium-game-kicks {
-  gap: 4px;
-}
-.stadium-game-kicks i {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #577079;
-}
-.stadium-game-kicks i[data-state="current"] {
-  background: #efd18c;
-}
-.stadium-game-kicks i[data-state="made"] {
-  background: #a5d88a;
-}
-.stadium-game-kicks i[data-state="missed"] {
-  background: #e29884;
-}
 .stadium-game-bars {
   display: grid;
   gap: 6px;
@@ -244,17 +220,6 @@
   width: 100%;
   transform-origin: left center;
   background: repeating-linear-gradient(135deg, #c8645a 0 4px, #a84440 4px 8px);
-}
-.stadium-game-steer-pad {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-}
-.stadium-game-controls .stadium-game-steer {
-  border: 1px solid #7fa0b0;
-  border-radius: 6px;
-  background: #1d3b4d;
-  font-size: 18px;
 }
 .stadium-game-controls button[aria-disabled="true"] {
   opacity: 0.65;
@@ -361,9 +326,6 @@
   }
   .stadium-game-info {
     flex-wrap: wrap;
-  }
-  .stadium-game-kicks {
-    display: none;
   }
   .stadium-game-info strong {
     order: 1;

@@ -202,27 +202,6 @@ function Skater({
   );
 }
 
-/** Hub model only. The full-size 32×24 parcel is positioned by the world layout. */
-export function SkateParkBuilding({
-  position = [-50, 0, 50],
-  rotation = 0,
-}: {
-  position?: [number, number, number];
-  rotation?: number;
-}) {
-  return (
-    <StaticBatch id="SkateParkBuilding">
-      <group
-        position={position}
-        rotation={[0, rotation, 0]}
-        scale={[1.42, 1, 0.9]}
-      >
-        <SkateParkTerrain detailed={false} />
-      </group>
-    </StaticBatch>
-  );
-}
-
 /** Standalone 44×52 open-air scene: no generic wooden shell or ROOM-clamped Walker. */
 export function SkateParkInterior() {
   const game = useRef(newSkateGame());

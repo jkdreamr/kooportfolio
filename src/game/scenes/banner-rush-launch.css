@@ -11,13 +11,3 @@
   padding: 0 20px;
   font: 600 var(--text-md, 15px) / 1 var(--font-ui, sans-serif);
 }
-.br-loading {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  color: #f6f5ec;
-  font: 600 var(--text-md, 15px) / 1 var(--font-ui, sans-serif);
-  background: #1b3029;
-  pointer-events: auto;
-}

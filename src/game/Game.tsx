@@ -38,9 +38,8 @@ import { legacyQuality, pickTier, resolveAo } from "./engine/tier";
 import { setBoomObstacles } from "./engine/view";
 import { Hub } from "./world/Hub";
 import { Interior } from "./scenes/Interior";
-import { Rowing } from "./scenes/Rowing";
 import { StudyPaperToss } from "./scenes/StudyPaperToss";
-import { Basketball } from "./scenes/Basketball";
+import { Basketball, Rowing, SkateParkInterior, sceneChunk } from "./scenes/lazyModes";
 import { Hud } from "./ui/Hud";
 import { leaveRoom, throughDoorway } from "./core/doorway";
 import { TimeOfDayLighting } from "./world/TimeOfDayLighting";
@@ -68,7 +67,6 @@ import { openPhotoBooth } from "./ui/photoBoothLauncher";
 import { ArrivalCard } from "./ui/ArrivalCard";
 import { loadCatalogue } from "./core/stargazing";
 import { destinationsInWorld } from "./core/world";
-import { SkateParkInterior } from "./scenes/SkatePark";
 import { useTheater } from "./scenes/MovieTheater";
 import {
   collectHooverKey,
@@ -425,7 +423,13 @@ function useIncomingScene(scene: Scene, tier: Tier) {
     let cancelled = false;
     rig.hold();
     void (async () => {
-      // Let the incoming subtree mount and its effects run.
+      // A lazy mode's chunk first (scenes/lazyModes.ts), behind the hold;
+      // then let the incoming subtree mount and its effects run.
+      const chunk = sceneChunk(scene);
+      if (chunk) {
+        await chunk.catch(() => {});
+        await new Promise((r) => requestAnimationFrame(r));
+      }
       await new Promise((r) => requestAnimationFrame(r));
       const group = incoming.current;
       const root = useThreeRoot.current;
@@ -557,9 +561,11 @@ function World({ tier }: { tier: Tier }) {
           <Interior key={scene} />
         )}
         {scene === "office" && <StudyPaperToss playing={paperToss} />}
-        {scene === "skate" && <SkateParkInterior key={`skate-${run}`} />}
-        {scene === "rowing" && <Rowing key={`race-${run}`} />}
-        {scene === "basketball" && <Basketball key={`basket-${run}`} />}
+        <Suspense fallback={null}>
+          {scene === "skate" && <SkateParkInterior key={`skate-${run}`} />}
+          {scene === "rowing" && <Rowing key={`race-${run}`} />}
+          {scene === "basketball" && <Basketball key={`basket-${run}`} />}
+        </Suspense>
       </group>
     </>
   );
