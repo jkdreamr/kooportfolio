@@ -87,6 +87,7 @@ export function Interior() {
     return (
       <group>
         {walkFloor}
+        <GameSpotMarker scene={scene} />
         <Suspense fallback={null}>
           <StadiumInterior />
         </Suspense>

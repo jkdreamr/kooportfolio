@@ -36,6 +36,7 @@ import { npcName } from "../core/npcState";
 import { TravelMap } from "./TravelMap";
 import { useLaunchers } from "../core/launchers";
 import { gameSpotFor } from "../core/gameSpots";
+import { GameSpotLabel } from "./GameSpotLabel";
 import { cue } from "../core/audio/cues";
 import {
   isMuteKey,
@@ -804,6 +805,7 @@ export function Hud({ interact }: { interact: () => void }) {
           />
         </div>
       )}
+      {interior && <GameSpotLabel />}
       <Suspense fallback={null}>
         {g.scene === "rowing" && <RowingHud />}
         {g.scene === "basketball" && (

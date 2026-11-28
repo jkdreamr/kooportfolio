@@ -1,0 +1,113 @@
+/* Floating "<Game> · Play" label over a room's game ring (GameSpot.tsx).
+   Opaque dark pill with cream ink (13:1) so it reads over any floor. */
+.game-spot-label {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  pointer-events: auto;
+  will-change: transform;
+  transition: opacity 0.2s ease;
+}
+.game-spot-label[data-hidden="true"] {
+  opacity: 0;
+  pointer-events: none;
+}
+.game-spot-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 6px 8px 6px 14px;
+  color: #fff8e6;
+  background: #182a35;
+  border: 1px solid #e8c26e;
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgb(4 16 24 / 0.35);
+  font-size: var(--text-md, 15px);
+  white-space: nowrap;
+}
+.game-spot-pill b {
+  font-weight: 700;
+}
+.game-spot-play {
+  padding: 4px 10px;
+  color: #1d2a1a;
+  background: #f0cf8e;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: var(--text-sm, 13px);
+}
+.game-spot-arrow {
+  width: 0;
+  height: 0;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-top: 11px solid #e8c26e;
+  filter: drop-shadow(0 2px 2px rgb(4 16 24 / 0.4));
+  animation: game-spot-bob 1.2s ease-in-out infinite;
+}
+.game-spot-label[data-beacon="false"] .game-spot-beacon {
+  display: none;
+}
+.game-spot-label[data-edge="true"] .game-spot-arrow {
+  visibility: hidden;
+}
+.game-spot-beacon {
+  padding: 5px 12px;
+  color: #1d2a1a;
+  background: #f0cf8e;
+  border-radius: 8px;
+  font-size: var(--text-sm, 13px);
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgb(4 16 24 / 0.3);
+  animation: game-spot-bob 1.2s ease-in-out infinite;
+}
+.game-spot-label:hover .game-spot-pill,
+.game-spot-label:focus-visible .game-spot-pill {
+  background: #22394a;
+}
+.game-spot-label:focus-visible {
+  outline: none;
+}
+.game-spot-label:focus-visible .game-spot-pill {
+  outline: 2px solid #ffd98a;
+  outline-offset: 2px;
+}
+@keyframes game-spot-bob {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 5px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .game-spot-arrow,
+  .game-spot-beacon {
+    animation: none;
+  }
+}
+
+/* Header hint beside "Go to <game>" while the game is a walk away. */
+.game-shell .interior-launchers .launcher-hint {
+  align-self: center;
+  color: var(--glass-ink, #f6f5ec);
+  font-size: var(--text-sm, 13px);
+  white-space: nowrap;
+}
+@media (max-width: 700px) {
+  .game-shell .interior-launchers .launcher-hint {
+    display: none;
+  }
+}

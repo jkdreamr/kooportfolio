@@ -62,6 +62,7 @@ import { FLIGHT_OBSTACLES } from "./core/heroSpots";
 import type { WorldId } from "../shared/worlds";
 import { useGym } from "./scenes/CognitionGym";
 import { interactWithNpc } from "./core/npcState";
+import { GameSpotMarker } from "./scenes/GameSpot";
 import { WorldAmbience } from "./world/WorldAmbience";
 import { openPhotoBooth } from "./ui/photoBoothLauncher";
 import { ArrivalCard } from "./ui/ArrivalCard";
@@ -563,6 +564,7 @@ function World({ tier }: { tier: Tier }) {
         {scene === "office" && <StudyPaperToss playing={paperToss} />}
         <Suspense fallback={null}>
           {scene === "skate" && <SkateParkInterior key={`skate-${run}`} />}
+          {scene === "skate" && <GameSpotMarker scene="skate" />}
           {scene === "rowing" && <Rowing key={`race-${run}`} />}
           {scene === "basketball" && <Basketball key={`basket-${run}`} />}
         </Suspense>
