@@ -9,6 +9,7 @@ import { useLauncher, useLauncherHosted } from "../core/launchers";
 import { juice } from "./juice/Juice";
 import { keys, touch } from "../core/input";
 import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
+import { usePauseOnEscape } from "./usePauseOnEscape";
 import {
   GO_KOMI, GO_SIZE, newGoGame, passGo, playGo, resumeGo,
   scoreGo, toggleGoDead, type GoGame,
@@ -110,6 +111,7 @@ export function GoInterior() {
   const [level, setLevel] = useState(savedGoLevel);
   const [message, setMessage] = useState("");
   const [confirmNew, setConfirmNew] = useState(false);
+  usePauseOnEscape("go", () => match.game.phase !== "finished");
   const [focus, setFocus] = useState(40);
   const [aim, setAim] = useState<number | null>(null);
   const aimKind = useRef<"keyboard" | "pointer">("keyboard");
@@ -255,7 +257,13 @@ export function GoInterior() {
     }
     // Keep game keys away from walking input, including Escape from a select.
     event.stopPropagation();
-    if (event.key === "Escape") { event.preventDefault(); close(); return; }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      // Mid-game Escape pauses (the board waits); a finished game closes.
+      if (game.phase === "finished") close();
+      else useGame.setState({ paused: true });
+      return;
+    }
     if (event.key !== "Tab") return;
     const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(
       confirmNew ? '.go-confirm button' : 'button:not(:disabled):not([tabindex="-1"]), select, summary',
