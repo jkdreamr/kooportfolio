@@ -140,3 +140,63 @@ describe("request builders", () => {
     expect(JSON.parse(String(r.init.body))).toEqual({ kind: "strip", id: "abc" });
   });
 });
+
+import { readApiResponse as readApi, ApiUnavailable as Unavailable, apiStatus as status, resetApiAvailable as reset, API_RETRY_MS, apiBase as base } from "../src/shared/api";
+import { wallStrips, WALL_LIMIT } from "../src/shared/booth";
+import { writingPosts } from "../src/shared/writing";
+import { isTextEntry } from "../src/game/core/input";
+
+describe("review fixes (ui A4-A7)", () => {
+  const reply = (body: string, statusCode: number, type = "text/html") =>
+    new Response(body, { status: statusCode, headers: { "content-type": type } });
+  const fail = (s: number) => new Error(`status ${s}`);
+  it("reads the status before the body: a 429 or 5xx page is a failure, not 'backend gone'", async () => {
+    await expect(readApi(reply("<html>", 429), fail)).rejects.toThrow("status 429");
+    await expect(readApi(reply("<html>", 502), fail)).rejects.toThrow("status 502");
+    await expect(readApi(reply("<html>", 413), fail)).rejects.toThrow("status 413");
+    await expect(readApi(reply("{}", 503, "application/json"), fail)).rejects.toBeInstanceOf(Unavailable);
+    await expect(readApi(reply("<html>", 404), fail)).rejects.toBeInstanceOf(Unavailable);
+    await expect(readApi(reply("<html>", 200), fail)).rejects.toBeInstanceOf(Unavailable);
+    expect(await readApi(reply('{"a":1}', 200, "application/json"), fail)).toEqual({ a: 1 });
+  });
+  it("checks server items one by one", () => {
+    expect(wallStrips("x")).toBeNull();
+    const ok = { id: "a", jpeg: "QUJD" };
+    expect(wallStrips([ok, { id: 1, jpeg: "QUJD" }, { id: "b", jpeg: "<script>" }, null])).toEqual([ok]);
+    expect(wallStrips(Array.from({ length: 30 }, () => ok))).toHaveLength(WALL_LIMIT);
+    const post = { id: "p", title: "t", author: "a", body: "b", createdAt: 1 };
+    expect(writingPosts([post, { ...post, body: { x: 1 } }, { ...post, createdAt: NaN }])).toEqual([post]);
+    expect(writingPosts(undefined)).toEqual([]);
+  });
+  it("re-probes a not-live answer after a backoff, at most three times", async () => {
+    reset();
+    const fetcher = vi.fn(async () => reply("<html>", 404));
+    vi.stubGlobal("fetch", fetcher);
+    const t0 = Date.now();
+    expect((await status(t0)).live).toBe(false);
+    expect((await status(t0 + 1000)).live).toBe(false);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    let t = Date.now();
+    for (const wait of API_RETRY_MS) {
+      t += wait + 1;
+      await status(t);
+    }
+    expect(fetcher).toHaveBeenCalledTimes(4);
+    await status(t + 1e9);
+    expect(fetcher).toHaveBeenCalledTimes(4);
+    reset();
+    vi.unstubAllGlobals();
+  });
+  it("warns about a VITE_API_BASE without a scheme", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(base({ VITE_API_BASE: "worker.example.com" })).toBe("");
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+  it("lets Escape through from sliders, not from text fields", () => {
+    expect(isTextEntry({ tagName: "INPUT", type: "range" })).toBe(false);
+    expect(isTextEntry({ tagName: "INPUT", type: "checkbox" })).toBe(false);
+    expect(isTextEntry({ tagName: "INPUT", type: "" })).toBe(true);
+    expect(isTextEntry({ tagName: "TEXTAREA" })).toBe(true);
+  });
+});

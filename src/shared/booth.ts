@@ -13,6 +13,14 @@ const localWallKey = "joshua-booth-local-v1";
 type WallStorage = Pick<Storage, "getItem" | "setItem">;
 const isStrip = (v: unknown): v is WallStrip =>
   !!v && typeof v === "object" && typeof (v as WallStrip).id === "string" && typeof (v as WallStrip).jpeg === "string";
+const BASE64 = /^[A-Za-z0-9+/]+={0,2}$/;
+/** The wall's list as the server sent it, checked item by item: strips
+ * with a string id and base64 JPEG only, at most WALL_LIMIT. Null when the
+ * reply is not a list at all. */
+export function wallStrips(raw: unknown): WallStrip[] | null {
+  if (!Array.isArray(raw)) return null;
+  return raw.filter((v): v is WallStrip => isStrip(v) && BASE64.test(v.jpeg)).slice(0, WALL_LIMIT);
+}
 
 export function createLocalWall(storage: () => WallStorage = () => localStorage) {
   let memory: WallStrip[] = [];

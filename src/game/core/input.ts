@@ -35,7 +35,15 @@ export function useInput(interact: () => void) {
     };
     const down = (e: KeyboardEvent) => {
       // Keys can target window/document (not an Element) when nothing has focus.
-      if (e.target instanceof Element && e.target.matches("input,textarea,select")) return;
+      if (e.target instanceof Element && e.target.matches("input,textarea,select")) {
+        // Escape still closes a panel from a slider or checkbox (Settings'
+        // volume); text fields and selects keep it for themselves.
+        if (e.key !== "Escape" || e.repeat || isTextEntry(e.target as HTMLInputElement) || !stageInputLive()) return;
+        const s = useGame.getState();
+        if (s.panel !== "none") useGame.setState({ panel: "none" });
+        else useGame.setState({ paused: !s.paused });
+        return;
+      }
       if (!stageInputLive()) return;
       const k = e.key.toLowerCase();
       // Space activates a focused button on keyup; cancelling its keydown
@@ -111,4 +119,11 @@ export function movement(): [number, number] {
     z /= length;
   }
   return [x, z];
+}
+
+const TEXT_TYPES = /^(text|search|email|url|tel|password|number|date|datetime-local|month|time|week)$/;
+/** A control where keys type or pick (Escape may mean "clear" there). */
+export function isTextEntry(el: { tagName: string; type?: string }): boolean {
+  const tag = el.tagName.toLowerCase();
+  return tag === "textarea" || tag === "select" || (tag === "input" && TEXT_TYPES.test((el.type || "text").toLowerCase()));
 }

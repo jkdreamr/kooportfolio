@@ -19,7 +19,12 @@ export function apiBase(
 ): string {
   const raw = (env.VITE_API_BASE ?? "").trim();
   if (!raw) return "";
-  return /^https?:\/\//i.test(raw) ? raw.replace(/\/+$/, "") : "";
+  if (/^https?:\/\//i.test(raw)) return raw.replace(/\/+$/, "");
+  // A host without a scheme (worker.example.com) would silently fall back
+  // to same-origin: say so.
+  if (typeof console !== "undefined")
+    console.warn(`VITE_API_BASE "${raw}" has no http(s):// scheme; using same-origin /api instead.`);
+  return "";
 }
 
 const API_BASE = apiBase();
@@ -42,6 +47,22 @@ export class ApiUnavailable extends Error {
 
 const isJson = (response: Response) =>
   (response.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json");
+
+/**
+ * Reads an API reply, status first. 503 (the Worker without its database),
+ * or a 404/405 that is not JSON (a static host without the route), mean no
+ * API here: ApiUnavailable. Any other error status throws `failure(status)`
+ * whatever its body, so a 429 or a 5xx page keeps its own visitor copy
+ * instead of being taken for "backend gone". A success must be JSON.
+ */
+export async function readApiResponse<T = unknown>(response: Response, failure: (status: number) => Error): Promise<T> {
+  if (response.status === 503) throw new ApiUnavailable();
+  if (!response.ok) {
+    if ((response.status === 404 || response.status === 405) && !isJson(response)) throw new ApiUnavailable();
+    throw failure(response.status);
+  }
+  return readJson<T>(response);
+}
 
 /** Parses a JSON response body. Anything that is not JSON (an `<!doctype`
  * page from a static host, an empty body) throws ApiUnavailable instead of
@@ -99,10 +120,27 @@ export async function probeApi(
 }
 
 let memo: Promise<ApiStatus> | null = null;
+let offlineAt = -1;
+let retries = 0;
+/** After a "not live" answer, a later call probes again once this long has
+ * passed (a slow cold network must not keep the wall local all session). */
+export const API_RETRY_MS = [5000, 20000, 60000] as const;
 
-/** The shared backend's status, probed once per page session. */
-export function apiStatus(): Promise<ApiStatus> {
-  memo ??= probeApi();
+/** The shared backend's status. Probed once per page session; a not-live
+ * answer is probed again on a later call after a backoff, at most
+ * API_RETRY_MS.length times. */
+export function apiStatus(now = Date.now()): Promise<ApiStatus> {
+  if (memo && offlineAt >= 0 && retries < API_RETRY_MS.length && now - offlineAt >= API_RETRY_MS[retries]) {
+    retries++;
+    memo = null;
+  }
+  if (!memo) {
+    offlineAt = -1;
+    memo = probeApi().then((status) => {
+      if (!status.live) offlineAt = Date.now();
+      return status;
+    });
+  }
   return memo;
 }
 
@@ -112,6 +150,8 @@ export const apiAvailable = (): Promise<boolean> => apiStatus().then((s) => s.li
 /** Tests only: forget the memoised answer. */
 export function resetApiAvailable(): void {
   memo = null;
+  offlineAt = -1;
+  retries = 0;
 }
 
 // ── Request builders: the API contract ───────────────────────────────────

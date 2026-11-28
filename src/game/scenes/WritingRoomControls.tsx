@@ -14,13 +14,15 @@ import {
   cooldownLeft,
   notePost,
   textCheckCopy,
+  isWritingPost,
   validateWriting,
+  writingPosts,
   type WritingDraft,
   type WritingPost,
 } from "../../shared/writing";
 import {
   ApiUnavailable,
-  readJson,
+  readApiResponse,
   reportRequest,
   writingDeleteRequest,
   writingListRequest,
@@ -73,11 +75,9 @@ async function api<T>({ url, init }: ApiRequest): Promise<T> {
   const timeout = setTimeout(() => controller.abort(), 12000);
   try {
     const response = await fetch(url, { ...init, signal: controller.signal });
-    // 503: the Worker exists but its database does not; same as offline.
-    if (response.status === 503) throw new ApiUnavailable();
-    const data = await readJson<T>(response);
-    if (!response.ok) throw new WritingFailure(failureCopy(response.status));
-    return data;
+    // The status decides before the body is read: a 429 or 5xx page that
+    // is not JSON keeps its own copy and never switches the shelf to local.
+    return await readApiResponse<T>(response, (status) => new WritingFailure(failureCopy(status)));
   } catch (error) {
     if (error instanceof ApiUnavailable || error instanceof WritingFailure)
       throw error;
@@ -145,7 +145,7 @@ function WritingDialog({
         writingListRequest(cursor),
       );
       if (!alive.current) return;
-      const list = Array.isArray(result?.posts) ? result.posts : [];
+      const list = writingPosts(result?.posts);
       setPosts((old) => (cursor ? [...old, ...list] : list));
       setNext(typeof result?.next === "string" ? result.next : null);
       if (!cursor)
@@ -257,13 +257,16 @@ function WritingDialog({
     try {
       pending.current ??= { id: postId(), deleteToken: secret() };
       rememberToken(pending.current.id, pending.current.deleteToken);
-      const { post } = await api<{ post: WritingPost }>(
+      const result = await api<{ post?: unknown }>(
         writingPostRequest(draft, pending.current),
       );
       notePost("writing");
       if (!alive.current) return;
-      setPosts((old) => [post, ...old.filter((p) => p.id !== post.id)]);
-      setSelected(post);
+      const post = result?.post;
+      if (isWritingPost(post)) {
+        setPosts((old) => [post, ...old.filter((p) => p.id !== post.id)]);
+        setSelected(post);
+      } else void load();
       setMode("read");
       setDraft({ ...blank, author: draft.author });
       pending.current = null;

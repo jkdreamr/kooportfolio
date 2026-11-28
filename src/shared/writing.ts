@@ -7,6 +7,22 @@ export type WritingPost = {
   createdAt: number;
 };
 export type WritingDraft = Pick<WritingPost, "title" | "author" | "body">;
+/** One post as the server sent it: every field of the right type (a stray
+ * object in `body` would otherwise crash the shelf when rendered). */
+export const isWritingPost = (v: unknown): v is WritingPost => {
+  if (!v || typeof v !== "object") return false;
+  const p = v as Record<string, unknown>;
+  return (
+    typeof p.id === "string" &&
+    typeof p.title === "string" &&
+    typeof p.author === "string" &&
+    typeof p.body === "string" &&
+    typeof p.createdAt === "number" &&
+    Number.isFinite(p.createdAt)
+  );
+};
+/** The shelf's list, checked item by item (malformed posts are dropped). */
+export const writingPosts = (raw: unknown): WritingPost[] => (Array.isArray(raw) ? raw.filter(isWritingPost) : []);
 export function validateWriting(value: unknown): WritingDraft | null {
   if (!value || typeof value !== "object") return null;
   const post = value as Record<string, unknown>;

@@ -29,7 +29,7 @@ import {
   wallPostRequest,
   type ApiStatus,
 } from "../../shared/api";
-import { createLocalWall } from "../../shared/booth";
+import { createLocalWall, wallStrips } from "../../shared/booth";
 import {
   checkPublicText,
   cooldownCopy,
@@ -591,9 +591,10 @@ function Wall({
     void fetch(url, { ...init, signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new ApiUnavailable();
-        const result = await readJson<{ strips: WallStrip[] }>(response);
-        if (!Array.isArray(result.strips)) throw new ApiUnavailable();
-        setStrips(result.strips);
+        const result = await readJson<{ strips?: unknown }>(response);
+        const list = wallStrips(result?.strips);
+        if (!list) throw new ApiUnavailable();
+        setStrips(list);
       })
       .catch(() => {
         if (controller.signal.aborted) return;
