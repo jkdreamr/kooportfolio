@@ -69,6 +69,25 @@ const glintMaterial = new THREE.LineBasicMaterial({
  * room, under each room's own light set. */
 export const PLAYER_MARKER_MATERIALS = [glassMaterial, rimMaterial] as const;
 const noRaycast = () => {};
+const at = new THREE.Vector3();
+
+/**
+ * How much to grow the arrow. The village cameras store their view zoom
+ * (orthographic zoom, or `userData.viewZoom` on the perspective rig) and the
+ * arrow grows as that zooms out. A room's own perspective camera (the
+ * stadium's broadcast camera) stores none: reading it as zoom 1 blew the
+ * arrow up 28× into a glass wedge across the field, so there the arrow keeps
+ * a small on-screen size from its real distance instead.
+ */
+export function markerScale(camera: THREE.Camera, marker: THREE.Object3D): number {
+  if (camera instanceof THREE.PerspectiveCamera && typeof camera.userData.viewZoom !== "number") {
+    marker.getWorldPosition(at);
+    const view = 2 * camera.position.distanceTo(at) * Math.tan((camera.fov * Math.PI) / 360);
+    // About 4% of the screen height for the 0.8-unit arrow.
+    return (0.04 * view) / 0.8;
+  }
+  return 24 / (0.85 * viewZoom(camera));
+}
 
 export function PlayerMarker() {
   const marker = useRef<THREE.Group>(null);
@@ -82,9 +101,7 @@ export function PlayerMarker() {
     group.parent.getWorldScale(worldScale.current);
     // Remain legible on a whole-island/mobile view, without changing the
     // avatar, camera or collision size. Facing the camera prevents edge-on turns.
-    group.scale.setScalar(
-      Math.max(1, 24 / (0.85 * viewZoom(camera) * worldScale.current.y)),
-    );
+    group.scale.setScalar(Math.max(1, markerScale(camera, group) / worldScale.current.y));
   });
   return (
     <Billboard ref={marker} name="player-location-arrow" position={[0, 2.5, 0]}>
