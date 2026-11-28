@@ -188,6 +188,7 @@ export function PlayHud() {
           <h2>{hud.result.title}</h2>
           {hud.result.medal && <p className="bt-medal">{hud.result.medal}</p>}
           <ResultCard
+            game={mode === "1v1" ? "basketball" : undefined}
             score={hud.result.score}
             unit={hud.result.unit}
             best={hud.result.best}
