@@ -100,7 +100,6 @@ export const DAILY_POOL: Readonly<Record<DailyWorld, readonly DailyTask[]>> = {
     { id: "home.beat-day", world: "home", label: "Beat Lab: a take on the day's beat", done: (r, d) => r.game === "music" && stat(r, "beat") === d % 8 },
   ],
   stanford: [
-    { id: "stanford.hot-daily", world: "stanford", label: "Hot Shot Daily: 45 points", done: (r) => r.game === "basketball" && !!r.result.daily && r.result.score >= 45 },
     { id: "stanford.river-daily", world: "stanford", label: "Daily river: top 2", done: (r) => r.game === "rowing" && !!r.result.daily && (r.result.place ?? 9) <= 2 },
     { id: "stanford.shuttle-day", world: "stanford", label: "Badminton: beat the day's opponent", done: (r, d) => r.game === "badminton" && !!r.result.won && stat(r, "opponent") === (d % 2 ? "captain" : "freshman") },
     { id: "stanford.skate-goals", world: "stanford", label: "Skate Daily: 2 of 3 goals", done: (r) => r.game === "skate" && !!r.result.daily && Number(stat(r, "goals") ?? 0) >= 2 },

@@ -75,9 +75,9 @@ export const STAMPS: readonly Stamp[] = [
   { id: "home.cat", world: "home", name: "Cat Friend", how: "Pet the cat" },
   { id: "home.rooms", world: "home", name: "Explorer", how: "Find 10 things in the house rooms", when: { discovered: 10, rooms: HOME_ROOMS } },
   // Stanford
-  { id: "stanford.hoops", world: "stanford", name: "Buckets", how: "Score 30 in a 60-Second Rush", when: best("basketball.points.rush", 30) },
+  { id: "stanford.hoops", world: "stanford", name: "Buckets", how: "Score 30 in Hot Shot", when: best("basketball.points.hot", 30) },
   { id: "stanford.shuttle", world: "stanford", name: "Shuttler", how: "Win a badminton game", when: { any: [best("badminton.wins.*", 1), best("badminton.wins", 1)] } },
-  { id: "stanford.crew", world: "stanford", name: "Coxswain", how: "Finish a Sprint as cox", when: { key: "rowing.cox.time.360", exists: true } },
+  { id: "stanford.crew", world: "stanford", name: "Coxswain", how: "Finish a Grand Prix", when: { any: [{ key: "rowing.gp.place.novice", exists: true }, { key: "rowing.gp.place.varsity", exists: true }, { key: "rowing.gp.place.head", exists: true }] } },
   { id: "stanford.skate", world: "stanford", name: "Line Run", how: "Land a 2,000 run", when: best("skate.score.run", 2000) },
   { id: "stanford.josh", world: "stanford", name: "J-O-S-H", how: "Collect J-O-S-H in the skate park" },
   { id: "stanford.lights", world: "stanford", name: "Lights Out", how: "Solve a Lights board in par", when: best("math.par", 1) },
