@@ -200,7 +200,7 @@
 .row-place {
   position: absolute;
   left: max(16px, env(safe-area-inset-left));
-  top: max(72px, env(safe-area-inset-top));
+  top: max(84px, env(safe-area-inset-top));
   display: flex;
   align-items: baseline;
   gap: 4px;
@@ -217,7 +217,7 @@
 .row-lap {
   position: absolute;
   left: max(16px, env(safe-area-inset-left));
-  top: calc(max(72px, env(safe-area-inset-top)) + 60px);
+  top: calc(max(84px, env(safe-area-inset-top)) + 60px);
   display: grid;
   gap: 2px;
 }
@@ -239,7 +239,7 @@
 .row-map {
   position: absolute;
   right: max(16px, env(safe-area-inset-right));
-  top: max(72px, env(safe-area-inset-top));
+  top: max(84px, env(safe-area-inset-top));
   padding: 4px;
   border-radius: 12px;
   background: rgba(16, 40, 44, 0.55);

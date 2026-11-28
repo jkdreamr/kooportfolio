@@ -62,7 +62,7 @@ function MovePad() {
   );
 }
 
-function PlayHud() {
+export function PlayHud() {
   const hud = useBasketHud();
   const { mode, rival } = useBasketOptions();
   const meterRoot = useRef<HTMLDivElement>(null),
@@ -211,7 +211,8 @@ function PlayHud() {
 export function BasketballHud({ hidden }: { hidden: boolean }) {
   const playing = useGameMode((s) => s.active?.id === "basketball");
   const hosted = useLauncherHosted("basketball");
-  if (playing) return hidden ? null : <PlayHud />;
+  // In play the HUD is drawn over the canvas by Basketball.tsx.
+  if (playing) return null;
   return (
     <>
       <div className="challenge-heading">

@@ -528,7 +528,7 @@
   font-size: 0.85rem;
 }
 .bt-hud {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 70;
   pointer-events: none;
@@ -781,8 +781,8 @@
   width: min(360px, calc(100vw - 32px));
   padding: 18px;
   border-radius: 20px;
-  background: rgba(253, 248, 236, 0.97);
-  color: #2b2a25;
+  background: rgba(22, 30, 30, 0.94);
+  color: #fff8e6;
   pointer-events: auto;
   text-align: center;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);

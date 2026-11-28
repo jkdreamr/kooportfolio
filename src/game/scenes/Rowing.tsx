@@ -141,7 +141,7 @@ function qaState() {
   };
 }
 function qaAct(name: string, value?: unknown) {
-  if (name === "speed") control.speed = Math.max(1, Math.min(16, Number(value) || 1));
+  if (name === "speed") control.speed = Math.max(1, Math.min(64, Number(value) || 1)); // QA: up to 64× (SwiftShader renders ~1 fps)
   else if (name === "auto") control.bot = ROW_BOTS.includes(value as RowBot) ? (value as RowBot) : null;
   else if (name === "steer") control.steer = Math.max(-1, Math.min(1, Number(value) || 0));
   else if (name === "boost") control.boost = !!value;
@@ -453,7 +453,7 @@ export function Rowing() {
     const frameDt = Math.min(delta, 0.1);
     s.acc += juice.clock.scaled(frameDt) * control.speed;
     let steps = 0;
-    while (s.acc >= TICK && steps < 16 * 8) {
+    while (s.acc >= TICK && steps < 400) {
       s.acc -= TICK;
       steps++;
       if (r.over) break;

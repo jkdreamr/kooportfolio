@@ -6,8 +6,10 @@
  */
 import { StaticBatch } from "../world/StaticBatch";
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { Line } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
+import { Html, Line } from "@react-three/drei";
+import { useFrame, useThree } from "@react-three/fiber";
+import { screenOverlayNoOcclude } from "../world/screenOverlay";
+import { PlayHud } from "./BasketballHud";
 import { create } from "zustand";
 import * as THREE from "three";
 import { Cylinder, Flowers, Ring, Sign, Tree } from "../world/Models";
@@ -208,7 +210,7 @@ function qaAct(name: string, value?: unknown) {
     const v = (value ?? {}) as { mode?: HoopsMode; rival?: RivalId };
     return beginRound(v.mode, v.rival);
   }
-  if (name === "speed") control.speed = Math.max(1, Math.min(16, Number(value) || 1));
+  if (name === "speed") control.speed = Math.max(1, Math.min(64, Number(value) || 1)); // QA: up to 64× (SwiftShader renders ~1 fps)
   else if (name === "auto") control.bot = BOTS.includes(value as BotName) ? (value as BotName) : null;
   else if (name === "shoot") control.charge = Math.max(0, Math.min(1, Number((value as { charge?: number })?.charge ?? value ?? 0.62)));
   else if (name === "move") control.move = true;
@@ -297,9 +299,20 @@ export function Basketball() {
       if (useGameMode.getState().active?.id === "basketball") endGameMode();
     };
   }, []);
+  const hidden = useGame((s) => s.paused || s.panel !== "none");
+  const gl = useThree((s) => s.gl);
+  const portal = useMemo(() => ({ current: gl.domElement.parentElement! }), [gl]);
   return (
     <StaticBatch id="Basketball">
-      <BasketballCourt playing={playing} />
+      <>
+        <BasketballCourt playing={playing} />
+        {playing && !hidden && (
+          // The game HUD sits over the canvas (the room HUD hides in game modes).
+          <Html onOcclude={screenOverlayNoOcclude} fullscreen portal={portal} zIndexRange={[70, 70]} style={{ pointerEvents: "none" }} calculatePosition={(_, __, size) => [size.width / 2, size.height / 2]}>
+            <PlayHud />
+          </Html>
+        )}
+      </>
     </StaticBatch>
   );
 }
@@ -571,7 +584,7 @@ function BasketballCourt({ playing }: { playing: boolean }) {
     const frameDt = Math.min(delta, 0.1);
     s.acc += juice.clock.scaled(frameDt) * control.speed;
     let steps = 0;
-    while (s.acc >= 1 / 60 && steps < 16 * 8) {
+    while (s.acc >= 1 / 60 && steps < 400) {
       s.acc -= 1 / 60;
       steps++;
       if (g.over) break;
