@@ -101,6 +101,13 @@
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
+.skate-record {
+  color: #e9d9ac;
+  font-weight: 700;
+}
+.skate-record.is-beaten {
+  color: #ffd36a;
+}
 .skate-banked {
   display: grid;
   gap: 2px;
@@ -198,7 +205,7 @@
 }
 .skate-tricks .skate-stepoff {
   grid-column: 1 / 3;
-  min-height: 32px;
+  min-height: 44px;
   background: #21353f;
   font-size: 12px;
 }
@@ -286,6 +293,10 @@
     padding: 7px 2px;
   }
   .skate-tricks kbd {
+    display: none;
+  }
+  .skate-esc,
+  .skate-score:has(.skate-record) > span:nth-child(3) {
     display: none;
   }
   .skate-hint {

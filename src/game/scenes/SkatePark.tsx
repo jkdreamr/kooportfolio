@@ -20,7 +20,7 @@ import { useLauncher, useLauncherHosted } from "../core/launchers";
 import { useJuice } from "./juice/Juice";
 import { ResultCard } from "../ui/ResultCard";
 import { useSoundLoop } from "./useSoundLoop";
-import { endGameMode, startGameMode, useGameMode } from "../core/gameMode";
+import { claimEscape, endGameMode, startGameMode, useGameMode } from "../core/gameMode";
 import { keys, movement, movementSpeed, touch } from "../core/input";
 import { footstep, sound } from "../core/sound";
 import { Box, Ball, Character, Cylinder } from "../world/Models";
@@ -349,8 +349,17 @@ export function SkateParkInterior() {
           // A banked combo: the clean landing, with the trick that ended it.
           sound("land");
           const [x, y] = fx.at(board);
-          fx.pop(`${before.label || "Line"} +${(g.score - before.score).toLocaleString("en-US")}`, x, y, g.score - before.score >= 800 ? "great" : "good");
+          const gain = g.score - before.score;
+          fx.pop(`${before.label || "Line"} +${gain.toLocaleString("en-US")}`, x, y, gain >= 800 ? "great" : "good");
           fx.haptic("tap");
+          if (gain >= 800) fx.shake(0.25);
+          // Passing the run record mid-run: say so once, right when it happens.
+          const target = runBest.current;
+          if (g.mode !== "free" && target > 0 && before.score <= target && g.score > target) {
+            runBest.current = 0;
+            fx.banner("New best!", "great");
+            sound("perfect", { delay: 0.1 });
+          }
         } else if (!before.grounded && g.grounded) sound("bounce", { gain: 0.6 });
         else if (before.grounded && !g.grounded) sound("swish");
         else if (g.trick && g.trick !== before.trick) sound("swish", { gain: 1.2 });
@@ -478,6 +487,9 @@ export function SkateParkInterior() {
   const begin = (nextMode: SkateState["mode"]) => {
     if (!riding && !startGameMode("skate")) return;
     setResult(null);
+    const record = useGame.getState().save.bests?.["skate.score.run"] ?? 0;
+    runBest.current = record;
+    setRunRecord(record);
     game.current = newSkateGame(nextMode, nextMode === "daily" ? dayNumber() : Math.floor(Math.random() * 1e9));
     game.current.x = THREE.MathUtils.clamp(runtime.x / S, -7, 7);
     game.current.z = THREE.MathUtils.clamp(runtime.z / S, -9, 9);
@@ -564,6 +576,18 @@ export function SkateParkInterior() {
     [],
   );
   const [result, setResult] = useState<null | Result>(null);
+  // The run record to beat: shown in the score bar, cheered once when passed.
+  const runBest = useRef(0);
+  const [runRecord, setRunRecord] = useState(0);
+  // Escape pauses a line in progress; on the result card it steps off.
+  useEffect(
+    () =>
+      claimEscape("skate", () => {
+        if (game.current.phase === "done") return false;
+        useGame.setState({ paused: true });
+      }),
+    [],
+  );
   useLauncher("skate", "skate-free", "Free skate", () => begin("free"), { enabled: !riding, hint: "Enter" });
   useLauncher("skate", "skate-run", "60s run", () => begin("run"), { enabled: !riding });
   useLauncher("skate", "skate-daily", "Daily run", () => begin("daily"), { enabled: !riding });
@@ -663,6 +687,11 @@ export function SkateParkInterior() {
                     <strong>{view.score.toLocaleString("en-US")}</strong>
                   </span>
                   <span>{view.speed} km/h</span>
+                  {mode !== "free" && runRecord > 0 && (
+                    <span className={`skate-record${view.score > runRecord ? " is-beaten" : ""}`}>
+                      {view.score > runRecord ? "New best" : `Best ${runRecord.toLocaleString("en-US")}`}
+                    </span>
+                  )}
                   {view.combo > 0 && (
                     <span className={`skate-combo${view.multiplier >= 4 ? " is-hot" : ""}`} style={{ transform: `translateX(-50%) scale(${1 + 0.02 * view.multiplier})` }}>
                       <b>
@@ -759,7 +788,7 @@ export function SkateParkInterior() {
                         Step off
                       </button>
                     </div>
-                    <p className="skate-hint">Flip at speed. Manual (S) or grind to link.</p>
+                    <p className="skate-hint">Flip at speed. Manual (S) or grind to link. <span className="skate-esc"><kbd>Esc</kbd> pause</span></p>
                   </>
                 )}
               </>
