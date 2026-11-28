@@ -338,7 +338,8 @@ export class PeepholeController {
       delete this.button.dataset.loading;
       this.button.style.setProperty("--pp-load", "1");
       usePeephole.setState({ armed: true, ...(held ? { announce: "" } : {}) });
-      this.root.classList.add("pp-live");
+      // No resting window onto the world: the "o" stays paper until a pull
+      // cracks it (owner, 2026-11-28).
       this.applyCounterMask();
       this.aimPeek(0);
       if (this.phase === "rest") {
@@ -992,7 +993,14 @@ export class PeepholeController {
       pullY: sim.py * VISUAL,
       tension: sim.tension,
       relax: 1,
-      holeOpen: this.counterOpen,
+      // The counter opens only through the crack: a tap, a wobble or a weak
+      // pull shows paper, never a clean window onto the world.
+      holeOpen:
+        this.phase === "rest"
+          ? 0
+          : this.phase === "peek"
+            ? this.counterOpen * smoothstep(0.004, 0.06, sim.crack)
+            : this.counterOpen,
       gap: 0,
       fronts: { back: 0, front: 0 },
       creaseFronts: { back: 0, front: 0 },
