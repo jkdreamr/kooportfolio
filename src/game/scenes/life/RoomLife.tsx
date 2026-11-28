@@ -253,7 +253,9 @@ export function RoomLifeLive({ kit, roomId }: { kit: Kit; roomId: string }) {
   const poolMesh = useRef<THREE.InstancedMesh>(null);
   const boardSteps = useRef(0);
   const boardVersion = useRef<(n: number) => void>(() => {});
-  const pending = useRef<{ run: PropRun; until: number } | null>(null);
+  /** A tapped item to use on arrival; `left` is game seconds (a slow frame
+   *  rate walks slower in real time, so a wall clock would give up early). */
+  const pending = useRef<{ run: PropRun; left: number } | null>(null);
   const seated = useRef<PropRun | null>(null);
   const hover = useRef<PropRun | null>(null);
 
@@ -505,7 +507,7 @@ export function RoomLifeLive({ kit, roomId }: { kit: Kit; roomId: string }) {
         Math.max(-room.walkX, Math.min(room.walkX, prop.x + (dx / length) * stand)),
         Math.max(room.minZ, Math.min(room.maxZ, prop.z + (dz / length) * stand)),
       );
-      pending.current = { run, until: performance.now() + 9000 };
+      pending.current = { run, left: 9 };
     };
     const move = (event: PointerEvent) => {
       if (event.pointerType !== "mouse") return;
@@ -554,8 +556,9 @@ export function RoomLifeLive({ kit, roomId }: { kit: Kit; roomId: string }) {
     const dt = Math.min(delta, 0.05);
     const g = useGame.getState();
     const still = reducedMotion();
-    const blocked =
-      g.paused || g.overlayLocked || g.traveling || g.panel !== "none" || g.near !== "" || !!useGameMode.getState().active || !gameInputEnabled(useStage.getState());
+    const halted = g.paused || g.overlayLocked || g.traveling || g.panel !== "none" || !!useGameMode.getState().active || !gameInputEnabled(useStage.getState());
+    // A door or exit prompt in reach has the key: no focus meanwhile.
+    const blocked = halted || g.near !== "";
     const focus = updateFocus(runtime.x, runtime.z, runtime.heading, blocked);
 
     // A tap from across the room: use it on arrival.
@@ -563,8 +566,10 @@ export function RoomLifeLive({ kit, roomId }: { kit: Kit; roomId: string }) {
     if (wait) {
       const prop = wait.run.prop;
       const moving = keys.size > 0 || Math.hypot(touch.x, touch.z) > 0.1;
-      if (blocked || moving || performance.now() > wait.until) pending.current = null;
-      else if (Math.hypot(prop.x - runtime.x, prop.z - runtime.z) <= (prop.reach ?? DEFAULT_REACH)) {
+      wait.left -= dt;
+      if (halted || moving || wait.left < 0) pending.current = null;
+      // Walking past a doorway only defers it.
+      else if (!blocked && Math.hypot(prop.x - runtime.x, prop.z - runtime.z) <= (prop.reach ?? DEFAULT_REACH)) {
         pending.current = null;
         runtime.path = [];
         runtime.target = null;
