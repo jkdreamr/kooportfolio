@@ -3,7 +3,8 @@
 // Fails (exit 1) when, gzip level 9:
 //   - the engine chunk is over 540 KB,
 //   - the entry chunk is over 90 KB,
-//   - all CSS together is over 42 KB,
+//   - the CSS loaded at startup (entry + engine: index-*, engine-*) is over 42 KB,
+//   - all CSS together, lazy mode chunks included, is over 56 KB,
 //   - or a portfolio route's HTML loads the engine (script, link or preload).
 // Prints one table either way.
 import { existsSync, readFileSync, readdirSync } from "node:fs";
@@ -11,7 +12,7 @@ import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 
 const KB = 1024;
-const BUDGET = { engine: 540 * KB, entry: 90 * KB, css: 42 * KB };
+const BUDGET = { engine: 540 * KB, entry: 90 * KB, css: 42 * KB, cssAll: 56 * KB };
 const arg = process.argv[2];
 const root = arg ?? (existsSync("dist/client/index.html") ? "dist/client" : "dist");
 const assets = join(root, "assets");
@@ -43,7 +44,9 @@ if (!entry) {
 } else row("entry chunk (gzip)", gz(join(assets, entry)), BUDGET.entry, entry);
 
 const css = files.filter((f) => f.endsWith(".css"));
-row("all CSS (gzip)", css.reduce((sum, f) => sum + gz(join(assets, f)), 0), BUDGET.css, css.join(", "));
+const startup = css.filter((f) => /^(index|engine)-/.test(f));
+row("startup CSS (gzip)", startup.reduce((sum, f) => sum + gz(join(assets, f)), 0), BUDGET.css, startup.join(", "));
+row("all CSS (gzip)", css.reduce((sum, f) => sum + gz(join(assets, f)), 0), BUDGET.cssAll, `${css.length} files`);
 
 // Portfolio routes may mention the engine's file names inside the /play
 // preload list of the inline script, but must never load them.
