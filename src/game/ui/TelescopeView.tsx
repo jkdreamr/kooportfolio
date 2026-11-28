@@ -1,6 +1,7 @@
 import {
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -8,7 +9,6 @@ import {
 } from "react";
 import {
   clampZoom,
-  eyepieceSkyColor,
   INITIAL_AIM,
   lunarPosition,
   observeSky,
@@ -19,6 +19,7 @@ import {
   starVisibility,
   telescopeSkyState,
   telescopeSkyTime,
+  wrapDegrees,
   type Horizontal,
   type SkyAim,
   type SkyWorld,
@@ -26,15 +27,40 @@ import {
 } from "../core/stargazing";
 import { rgbHex, TIME_PRESETS, wrapHour } from "../core/daylight";
 import { autoHour, useTimeOfDay } from "../core/timeOfDay";
+import { scopeScale, scopeSkyColor, villageSun } from "../core/telescopeClouds";
+import { useGame } from "../core/store";
+import { ScopeSky, warmScopeSky } from "./telescopeSky";
 import "./telescope.css";
 
 const RAD = Math.PI / 180;
+const VIEW_UNITS = 600;
 /** Magnitude bands: each fades as one group (8 CSS opacity transitions, not
  * thousands), so dusk brings stars in smoothly, brightest first. */
 const BANDS = Array.from({ length: 9 }, (_, i) => i - 1.5); // band centres
 const bandOf = (magnitude: number) =>
   Math.max(0, Math.min(BANDS.length - 1, Math.floor(magnitude + 2)));
 const MOON_RADIUS = 13;
+/** Sky gradient stops down the eyepiece (fractions of its height). */
+const SKY_STOPS = [0, 0.25, 0.5, 0.75, 1];
+/** Labels never render under 12 CSS px, whatever the eyepiece's size. */
+const LABEL_PX = 12;
+
+/** With the sun low the eyepiece opens on it (sunrise or sunset over the
+ * cloud sea, the sun a little right of centre); otherwise due south. */
+function openingAim(hour: number): SkyAim {
+  const sun = villageSun(hour);
+  return sun.altitude > -7 && sun.altitude < 16
+    ? { azimuth: wrapDegrees(sun.azimuth - 13), altitude: 14, zoom: 1 }
+    : INITIAL_AIM;
+}
+
+// Walking up to the telescope paints the cloud shapes in the browser's idle
+// moments, so the eyepiece opens with its weather ready.
+if (typeof window !== "undefined")
+  useGame.subscribe((state, previous) => {
+    if (state.near === "stargazing" && previous.near !== "stargazing")
+      warmScopeSky();
+  });
 
 /** Screen direction (unit, SVG y down) from the view centre towards `target`. */
 function screenDirection(target: Horizontal, aim: SkyAim) {
@@ -92,7 +118,14 @@ export function TelescopeView({
 }) {
   const location = SKY_LOCATIONS[worldId];
   const [now, setNow] = useState(() => Date.now());
-  const [aim, setAim] = useState(INITIAL_AIM);
+  const [aim, setAim] = useState(() =>
+    openingAim(useTimeOfDay.getState().hour),
+  );
+  const cloudCanvas = useRef<HTMLCanvasElement>(null);
+  const cloudLayer = useRef<ScopeSky | null>(null);
+  const [cloudsReady, setCloudsReady] = useState(false);
+  // Eyepiece width in CSS px, for the label size floor.
+  const [aperture, setAperture] = useState(VIEW_UNITS);
   const closeButton = useRef<HTMLButtonElement>(null);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const pinch = useRef<{ distance: number; zoom: number } | null>(null);
@@ -130,9 +163,19 @@ export function TelescopeView({
     () => solarPosition(shownTime, location),
     [shownTime, location],
   );
+  // Only the bands the sky shows are built: by day a pan projects no stars.
+  const bandMask = BANDS.reduce(
+    (mask, band, i) =>
+      starVisibility(band, sky.magnitudeLimit) > 0.001 ? mask | (1 << i) : mask,
+    0,
+  );
+  const labelSize =
+    Math.round(Math.max(10, (LABEL_PX * VIEW_UNITS) / aperture) * 2) / 2;
   const bands = useMemo(() => {
     const groups = BANDS.map(() => [] as ReactNode[]);
+    if (!bandMask) return groups;
     for (const star of stars) {
+      if (!(bandMask & (1 << bandOf(star.magnitude)))) continue;
       const point = projectStar(star, aim);
       if (!point) continue;
       const radius = Math.max(0.65, 2.8 - star.magnitude * 0.36);
@@ -158,7 +201,7 @@ export function TelescopeView({
               x={point.x + 8}
               y={point.y - 9}
               fill="#c5cbd1"
-              fontSize="10"
+              fontSize={labelSize}
               fontFamily="inherit"
             >
               {star.name}
@@ -168,7 +211,7 @@ export function TelescopeView({
       );
     }
     return groups;
-  }, [stars, aim, id]);
+  }, [stars, aim, id, bandMask, labelSize]);
   const moonPoint = projectStar(moon, aim);
   const moonAngle = useMemo(() => {
     // Lit limb faces the Sun: a small step from the Moon along the great
@@ -189,18 +232,34 @@ export function TelescopeView({
     return a && b ? Math.atan2(b.y - a.y, b.x - a.x) / RAD : 0;
   }, [moon, sun, aim]);
   const halfField = 35 / aim.zoom;
-  const skyTop = rgbHex(eyepieceSkyColor(sky, aim.altitude + halfField));
-  const skyMid = rgbHex(eyepieceSkyColor(sky, aim.altitude));
-  const skyBottom = rgbHex(eyepieceSkyColor(sky, aim.altitude - halfField));
-  // Sun glare stays outside the aperture: a soft bloom entering from the rim
-  // on the Sun's side, never the disc itself.
-  const sunUp = Math.max(0, Math.min(1, (sun.altitude + 2) / 4));
+  // The village's own gradient (horizon, mid, zenith) down the eyepiece.
+  const skyScale = scopeScale(aim.zoom);
+  const skyStops = SKY_STOPS.map((offset) =>
+    rgbHex(
+      scopeSkyColor(
+        sky.palette,
+        sky.stars,
+        aim.altitude - Math.atan(((offset - 0.5) * VIEW_UNITS) / skyScale) / RAD,
+      ),
+    ),
+  );
+  // The scenery sun is the village's (its sky is keyed to the hour); the
+  // weather layer draws its disc and bloom. Out of view, its glare still
+  // enters from the rim on the Sun's side.
+  const scenerySun = useMemo(() => villageSun(hour), [hour]);
+  const sunUp = Math.max(0, Math.min(1, (scenerySun.altitude + 2) / 4));
+  const sunAngle = angleBetween(scenerySun, aim);
+  const outside = Math.max(
+    0,
+    Math.min(1, (sunAngle - halfField * 0.7) / (halfField * 0.45)),
+  );
   const glare =
     sky.daylight *
     sunUp *
-    Math.max(0, Math.min(1, (80 - angleBetween(sun, aim)) / 60)) ** 2 *
+    Math.max(0, Math.min(1, (80 - sunAngle) / 60)) ** 2 *
+    outside *
     0.6;
-  const glareAt = screenDirection(sun, aim);
+  const glareAt = screenDirection(scenerySun, aim);
   const moonOpacity =
     moon.altitude > -1 ? 0.62 + 0.38 * (1 - sky.daylight) : 0;
   const skipping = mode === "night" && sky.phase !== "night";
@@ -226,6 +285,49 @@ export function TelescopeView({
   const phaseLabel =
     sky.phase === "day" ? "Daytime" : sky.phase === "twilight" ? "Twilight" : "Night";
 
+  // The weather layer: created first, so the aim and hour effects below
+  // reach it in the same commit and it draws in step with the star chart.
+  useLayoutEffect(() => {
+    const canvas = cloudCanvas.current;
+    if (!canvas) return;
+    const layer = new ScopeSky(canvas);
+    cloudLayer.current = layer;
+    layer.onReady = () => setCloudsReady(true);
+    const motion =
+      typeof matchMedia === "function"
+        ? matchMedia("(prefers-reduced-motion: reduce)")
+        : null;
+    const applyMotion = () => layer.setReducedMotion(!!motion?.matches);
+    applyMotion();
+    motion?.addEventListener("change", applyMotion);
+    const measure = () => {
+      const width = canvas.clientWidth;
+      if (!width) return;
+      // Clouds are soft: 1.5x is all the density they can use.
+      layer.resize(
+        Math.min(1000, width * Math.min(window.devicePixelRatio || 1, 1.5)),
+      );
+      setAperture(width);
+    };
+    measure();
+    const observer =
+      typeof ResizeObserver === "function" ? new ResizeObserver(measure) : null;
+    observer?.observe(canvas);
+    layer.start();
+    return () => {
+      layer.stop();
+      layer.onReady = null;
+      observer?.disconnect();
+      motion?.removeEventListener("change", applyMotion);
+      cloudLayer.current = null;
+    };
+  }, []);
+  useLayoutEffect(() => {
+    cloudLayer.current?.setHour(hour);
+  }, [hour]);
+  useLayoutEffect(() => {
+    cloudLayer.current?.setAim(aim);
+  }, [aim]);
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 30000);
     const refresh = () => setNow(Date.now());
@@ -399,17 +501,14 @@ export function TelescopeView({
                 <stop offset="1" stopColor="#ccdfff" stopOpacity="0" />
               </radialGradient>
               <linearGradient id={`${id}-sky`} x1="0" y1="0" x2="0" y2="1">
-                <stop className="telescope-fade" style={{ stopColor: skyTop }} />
-                <stop
-                  className="telescope-fade"
-                  offset="0.5"
-                  style={{ stopColor: skyMid }}
-                />
-                <stop
-                  className="telescope-fade"
-                  offset="1"
-                  style={{ stopColor: skyBottom }}
-                />
+                {skyStops.map((color, i) => (
+                  <stop
+                    key={i}
+                    className="telescope-fade"
+                    offset={SKY_STOPS[i]}
+                    style={{ stopColor: color }}
+                  />
+                ))}
               </linearGradient>
               <radialGradient id={`${id}-sun`}>
                 <stop stopColor={rgbHex(sky.palette.sun)} stopOpacity="0.95" />
@@ -471,7 +570,7 @@ export function TelescopeView({
                     x={MOON_RADIUS + 6}
                     y={-MOON_RADIUS - 4}
                     fill="#c5cbd1"
-                    fontSize="10"
+                    fontSize={labelSize}
                     fontFamily="inherit"
                     transform={`rotate(${-moonAngle})`}
                   >
@@ -490,6 +589,11 @@ export function TelescopeView({
               pointerEvents="none"
             />
           </svg>
+          <canvas
+            ref={cloudCanvas}
+            className={`telescope-clouds${cloudsReady ? " is-ready" : ""}`}
+            aria-hidden="true"
+          />
           <div className="telescope-reticle" aria-hidden="true" />
         </div>
         <div
