@@ -195,7 +195,7 @@ export function bendAhead(c: Course, s: number, within = Infinity): Bend | null 
 
 /**
  * The racing line's offset at s: outside at entry, inside at the apex
- * (|d| = 6.4), outside at exit, blended with a cos² window reaching 14 u
+ * (|d| = 5.4, a hull and its bow sweep clear of the buoy), outside at exit, blended with a cos² window reaching 14 u
  * beyond each bend. Bends close together (the chicane) add, then clamp.
  */
 export function lineOffset(c: Course, s: number): number {

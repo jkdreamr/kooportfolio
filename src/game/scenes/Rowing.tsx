@@ -14,7 +14,7 @@ import { Ball, Box, Cylinder, Sign, Tree } from "../world/Models";
 import { runtime, useGame } from "../core/store";
 import { keys } from "../core/input";
 import { CREWS, TICK, dailySeed, freshRowInput, newRace, stepRace, type Cup, type Race, type RaceMode, type RowEvent } from "../core/rowing";
-import { HALF_WIDTH, headingAt, toPlan } from "../core/rowCourse";
+import { HALF_WIDTH, bendAhead, headingAt, lineOffset, toPlan, wrapS } from "../core/rowCourse";
 import { botInput, rivalInput, rowBotMemory, ROW_BOTS, type RowBot } from "../core/rowRival";
 import { ghostAt, ghostRecorder, loadGhost, saveGhost, type Ghost } from "../core/rowGhost";
 import { registerGameQa } from "../core/gameQa";
@@ -51,6 +51,11 @@ export const useRaceHud = create<{
   finished: boolean;
   ghost: boolean;
   announce: string;
+  /** First-race tutorial step: 1 steer, 2 Power Ten, 3 the line; 0 = off. */
+  tut: number;
+  /** Next bend: −1 right, 1 left, 0 none near; and how far, in metres. */
+  turn: number;
+  turnIn: number;
 }>(() => ({
   mode: "gp",
   cup: "novice",
@@ -71,7 +76,26 @@ export const useRaceHud = create<{
   finished: false,
   ghost: false,
   announce: "",
+  tut: 0,
+  turn: 0,
+  turnIn: 0,
 }));
+
+/** The tutorial's clock: when the step began (race time) and steering held. */
+const tutor = { at: 0, steer: 0 };
+/** Ends the first-race tutorial (finished or skipped); it will not return. */
+export function endTutorial(done: boolean) {
+  if (!useRaceHud.getState().tut) return;
+  useRaceHud.setState({ tut: 0, announce: done ? "Tutorial done." : "Tutorial skipped." });
+  useGame.getState().remember("coach:rowing");
+  if (done) juice.banner("You've got it!", "great");
+}
+function tutStep(n: number) {
+  tutor.at = race.t;
+  tutor.steer = 0;
+  sound("chime", { gain: 0.4 });
+  useRaceHud.setState({ tut: n, announce: ["", "Steer", "Power Ten", "Follow the line"][n] });
+}
 
 /** m:ss.s for race times. */
 export function raceClock(seconds: number) {
@@ -98,6 +122,7 @@ function startRace() {
   const seed = mode === "daily" ? dailySeed() : (Date.now() & 0xffff) + 1;
   race = newRace({ mode, cup, seed, mirror: mode === "daily" && seed % 2 === 1 });
   control.done = false;
+  tutor.at = tutor.steer = 0;
   recorder.reset();
   ghost = mode === "tt" ? loadGhost(race.course.id) : null;
   juice.clock.reset();
@@ -116,7 +141,9 @@ function startRace() {
     split: "",
     gap: "",
     wrong: false,
-    coach: coached ? "" : "You are the cox. Steer.",
+    coach: "",
+    tut: coached ? 0 : 1,
+    turn: 0,
     announce: `${MODE_NAMES[mode]}${mode === "gp" ? `, ${CUP_NAMES[cup]}` : ""}. ${race.laps > 1 ? `${race.laps} laps` : race.course.name}. Ready.`,
   });
 }
@@ -141,6 +168,15 @@ function qaState() {
   };
 }
 function qaAct(name: string, value?: unknown) {
+  if (name === "pier") {
+    // QA: line the player up on the left bridge pier, a few lengths out.
+    const p = race.boats[0];
+    p.s = race.course.bridge - 9;
+    p.d = 3.2;
+    p.th = 0;
+    p.v = 11;
+    return;
+  }
   if (name === "speed") control.speed = Math.max(1, Math.min(64, Number(value) || 1)); // QA: up to 64× (SwiftShader renders ~1 fps)
   else if (name === "auto") control.bot = ROW_BOTS.includes(value as RowBot) ? (value as RowBot) : null;
   else if (name === "steer") control.steer = Math.max(-1, Math.min(1, Number(value) || 0));
@@ -218,6 +254,12 @@ function Course({ r }: { r: Race }) {
       posts,
       trees,
       chevrons: c.chevrons.map((ch) => ({ p: at(ch.s, ch.d), yaw: yaw(ch.s) })),
+      // The racing line, painted on the water as arrows every 6 u.
+      line: Array.from({ length: Math.floor((c.closed ? c.length : c.length - 6) / 6) }, (_, i) => {
+        const s = 3 + i * 6;
+        const slope = (lineOffset(c, s + 1) - lineOffset(c, s - 1)) / 2;
+        return { p: at(s, lineOffset(c, s)), yaw: yaw(s) + Math.atan(slope) };
+      }),
       bridge: { p: at(c.bridge, 0), yaw: yaw(c.bridge) },
       gates: r.cps.map((s, i) => ({ p: at(s, 0), yaw: yaw(s), start: i === 0 })),
       finish: c.closed ? null : { p: at(c.length, 0), yaw: yaw(c.length) },
@@ -244,6 +286,12 @@ function Course({ r }: { r: Race }) {
       {items.trees.map((t, i) => (
         <Tree key={i} p={t.p} size={0.8 + (t.v % 3) * 0.15} variant={t.v} />
       ))}
+      {items.line.map((a, i) => (
+        <group key={`l${i}`} position={a.p} rotation={[0, a.yaw, 0]}>
+          <Box p={[-0.32, -0.02, 0]} s={[0.8, 0.02, 0.2]} c="#bfe9ff" r={[0, -0.7, 0]} />
+          <Box p={[0.32, -0.02, 0]} s={[0.8, 0.02, 0.2]} c="#bfe9ff" r={[0, 0.7, 0]} />
+        </group>
+      ))}
       {items.chevrons.map((ch, i) => (
         <group key={i} position={ch.p} rotation={[0, ch.yaw, 0]}>
           {[0, 1.3, 2.6].map((z) => (
@@ -266,12 +314,12 @@ function Course({ r }: { r: Race }) {
         <group key={i} position={g.p} rotation={[0, g.yaw, 0]}>
           <Box p={[0, -0.035, 0]} s={[2 * HALF_WIDTH, 0.02, g.start ? 0.8 : 0.18]} c="#f7e6b9" />
           {[-HALF_WIDTH - 1.2, HALF_WIDTH + 1.2].map((x) => (
-            <Cylinder key={x} p={[x, 2.5, 0]} s={[0.11, 5, 0.11]} c="#a38d66" />
+            <Cylinder key={x} p={[x, g.start ? 3.5 : 2.5, 0]} s={[0.11, g.start ? 7 : 5, 0.11]} c="#a38d66" />
           ))}
           {g.start && (
             <>
-              <Box p={[0, 5, 0]} s={[2 * HALF_WIDTH + 2.4, 0.15, 0.15]} c="#b3a17c" />
-              <Sign text={c.closed ? "START · FINISH" : "START"} p={[0, 4.4, 0.15]} size={[6, 1]} />
+              <Box p={[0, 7, 0]} s={[2 * HALF_WIDTH + 2.4, 0.15, 0.15]} c="#b3a17c" />
+              <Sign text={c.closed ? "START · FINISH" : "START"} p={[0, 6.4, 0.15]} size={[6, 1]} />
             </>
           )}
         </group>
@@ -309,6 +357,30 @@ function PedalBoats() {
         </group>
       ))}
     </>
+  );
+}
+
+/** A bobbing arrow over the next apex buoy: keep it on your inside. */
+function NextBuoy() {
+  const ref = useRef<THREE.Group>(null);
+  const p = useMemo(() => ({ x: 0, y: 0 }), []);
+  useFrame(() => {
+    const g = ref.current;
+    if (!g) return;
+    const b = race.boats[0];
+    const bend = race.t > -1 && !b.finished ? bendAhead(race.course, b.s + 2, 90) : null;
+    g.visible = !!bend;
+    if (!bend) return;
+    toPlan(race.course, bend.apexS, bend.apexD, p);
+    g.position.set(p.x, 2.6 + Math.sin(race.t * 4) * 0.25, -p.y);
+    g.rotation.y = race.t * 1.5;
+  });
+  return (
+    <group ref={ref} visible={false}>
+      <Box p={[0, 0.5, 0]} s={[0.22, 0.9, 0.22]} c="#ffd97a" />
+      <Box p={[-0.2, 0.05, 0]} s={[0.22, 0.6, 0.22]} c="#ffd97a" r={[0, 0, 0.75]} />
+      <Box p={[0.2, 0.05, 0]} s={[0.22, 0.6, 0.22]} c="#ffd97a" r={[0, 0, -0.75]} />
+    </group>
   );
 }
 
@@ -351,6 +423,7 @@ export function Rowing() {
         if (mine) useRaceHud.setState({ coach: "Too early: wait for Go" });
         break;
       case "boost":
+        if (mine && hud.tut === 2) tutStep(3);
         if (mine) {
           sound("whistle", { gain: 0.35 });
           juice.banner("Power ten!", "great");
@@ -358,7 +431,7 @@ export function Rowing() {
         }
         break;
       case "wake":
-        if (mine && !hud.coach && !useGame.getState().save.memories?.includes("coach:rowing")) useRaceHud.setState({ coach: "Slipstream: stay in his wake, then pull out" });
+        if (mine && !hud.coach && !hud.tut && !useGame.getState().save.memories?.includes("coach:rowing")) useRaceHud.setState({ coach: "Slipstream: stay in his wake, then pull out" });
         break;
       case "sling":
         if (mine) {
@@ -368,6 +441,7 @@ export function Rowing() {
         }
         break;
       case "perfect":
+        if (mine && hud.tut === 3) endTutorial(true);
         if (mine) {
           sound("perfect", { gain: 0.6 });
           fx.haptic("tap");
@@ -376,30 +450,26 @@ export function Rowing() {
         }
         break;
       case "clean":
+        if (mine && hud.tut === 3) endTutorial(true);
         if (mine) {
           const [x, y] = fx.at(shellPoint(views[0]));
           fx.pop("Clean", x, y, "good");
         }
         break;
       case "buoy":
-        if (mine) {
-          sound("miss", { gain: 0.5 });
-          useRaceHud.setState({ split: "Buoy" });
-        }
-        break;
       case "scrape":
       case "pier":
-        if (mine) {
-          sound("miss");
-          fx.shake(0.6);
-          const [x, y] = fx.at(shellPoint(views[0]));
-          fx.pop(e.k === "pier" ? "Pier!" : "Scrape", x, y, "miss");
-        }
-        break;
       case "bump":
-        if (mine || e.v === 0) {
-          sound("land", { gain: 0.7 });
-          fx.shake(0.3);
+        // Solid obstacles: a thunk, a splash, a shake and "Bump!".
+        if (mine || (e.k === "bump" && e.v === 0)) {
+          const hard = e.k === "pier" || (e.k === "buoy" && (e.v ?? 0) > 3);
+          sound("land", { gain: hard ? 0.9 : 0.7 });
+          sound("splash", { gain: 0.5 });
+          fx.shake(hard ? 0.7 : 0.4);
+          fx.haptic("tap");
+          const [x, y] = fx.at(shellPoint(views[0]));
+          fx.ring(x, y, "miss");
+          fx.pop("Bump!", x, y, "miss");
         }
         break;
       case "chevron":
@@ -566,13 +636,32 @@ export function Rowing() {
         armed: p.armed,
         wake: p.inWake,
         gap,
+        turn: 0,
+        turnIn: 0,
       };
       if (count !== h.count && count > 0) {
         sound("tap");
         useRaceHud.setState({ announce: `${count}` });
       }
-      if (h.coach && r.t > 8 && h.coach === "You are the cox. Steer.") useRaceHud.setState({ coach: "Hold water (S) to turn tighter in the chicane" });
-      if (h.coach && r.t > 20 && h.coach.startsWith("Hold water")) useRaceHud.setState({ coach: "" });
+      // The first-race tutorial: steer, then a Power Ten, then the line.
+      if (h.tut && r.t > 0) {
+        const inStep = r.t - tutor.at;
+        if (h.tut === 1) {
+          if (Math.abs(p.steer) > 0.35) tutor.steer += 0.1;
+          if (tutor.steer >= 0.8 || r.t > 14) tutStep(2);
+        } else if (h.tut === 2 && inStep > 14) tutStep(3);
+        else if (h.tut === 3 && inStep > 18) endTutorial(true);
+      }
+      // The next bend: which way, and how far.
+      const bend = bendAhead(r.course, p.s, 70);
+      let turn = 0,
+        turnIn = 0;
+      if (bend && !p.finished && r.t > -1) {
+        turn = Math.sign(bend.k);
+        const w = wrapS(r.course, p.s);
+        turnIn = w >= bend.s0 && w <= bend.s1 ? 0 : Math.max(0, Math.round((bend.s0 - w + (bend.s0 < w ? r.course.length : 0)) / 5) * 5);
+      }
+      Object.assign(next, { turn, turnIn });
       if (h.coach && h.coach.startsWith("Slipstream") && p.armed) useRaceHud.setState({ coach: "Slingshot ready: pull out now" });
       if (h.coach && h.coach.startsWith("Slingshot") && !p.armed) useRaceHud.setState({ coach: "" });
       if (h.coach && h.coach.startsWith("Too early") && r.t > 3) useRaceHud.setState({ coach: "" });
@@ -591,6 +680,7 @@ export function Rowing() {
         <Course r={race} />
       </StaticBatch>
       <PedalBoats />
+      <NextBuoy />
       {[0, 1, 2, 3].map((i) => (
         <RowingShell key={i} state={() => views[i]} color={CREWS[i].blade} player={i === 0} />
       ))}

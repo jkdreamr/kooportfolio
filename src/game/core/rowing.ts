@@ -33,7 +33,18 @@ export const BUMP = { radius: 0.9, offsets: [-3.2, 0, 3.2], restitution: 0.3, lo
 export const BUOY = { radius: 0.6, mult: 0.85, time: 0.5 } as const;
 /** Hull half-beam for buoys and piers (the bump circles are wider: oars). */
 export const HULL_HALF = 0.3;
-export const PIER = { d: 3.2, radius: 0.9, mult: 0.35 } as const;
+export const PIER = { d: 3.2, radius: 0.9 } as const;
+/** Pedal boats: a solid circle crossing the course at 3 u/s. */
+export const PEDAL = { radius: 1.0, amp: 6.6 } as const;
+/**
+ * Solid obstacles (piers, buoys, pedal boats): the hull is five circles of
+ * HULL_HALF along the keel, pushed out of the obstacle every step. The speed
+ * into it is reflected with a small bounce (the boat keeps its heading, so a
+ * head-on hit stops it and kicks it back), the bow slides round towards the
+ * tangent while it leans on it, and a hard hit stuns the crew briefly.
+ */
+export const HIT = { restitution: 0.3, loss: 0.88, slide: 1.4, slip: 1.5, kickDecay: 7, stun: 0.35, hard: 3, cooldown: 0.5 } as const;
+const HULL_PTS = [-3.2, -1.6, 0, 1.6, 3.2] as const;
 export const WRONG = { angle: (110 * Math.PI) / 180, warn: 1, reset: 2 } as const;
 export const COUNT_IN = 3;
 /** Upper bound on any boat's speed: cruise × boost × chevron (§2.2 fairness). */
@@ -48,9 +59,11 @@ export type Cup = "novice" | "varsity" | "head";
 export type RaceMode = "gp" | "sprint" | "tt" | "daily";
 /** Rival pace by cup, Blue / White / Green. Plan: 0.920–1.000; moved by the
  * tuning bots (tests/rowing.tuning.test.ts), which are the judge. Varsity
- * and Head softened so the Line bot wins ~60% / ~18% (was 12% / 7.5%). */
+ * and Head softened so the Line bot wins ~60% / ~18% (was 12% / 7.5%).
+ * Novice eased again once the obstacles became solid: Line wins 90%, and
+ * Varsity / Head 40% / 27.5%. */
 export const SKILL: Readonly<Record<Cup, readonly [number, number, number]>> = {
-  novice: [0.92, 0.935, 0.95],
+  novice: [0.875, 0.89, 0.905],
   varsity: [0.931, 0.946, 0.961],
   head: [0.945, 0.96, 0.975],
 };
@@ -83,6 +96,11 @@ export type Boat = {
   rocketT: number;
   stallT: number;
   wrongT: number;
+  /** Knock-back velocity from a hit (s, d per second, decaying). */
+  kickS: number;
+  kickD: number;
+  /** Cooldown before another hit counts as a fresh one (sound, stun). */
+  hitT: number;
   rocketUsed: boolean;
   jumped: boolean;
   holding: boolean;
@@ -177,6 +195,9 @@ const newBoat = (id: number, s: number, d: number, skill: number): Boat => ({
   rocketT: 0,
   stallT: 0,
   wrongT: 0,
+  kickS: 0,
+  kickD: 0,
+  hitT: 0,
   rocketUsed: false,
   jumped: false,
   holding: false,
@@ -333,6 +354,13 @@ export function stepBoat(r: Race, b: Boat, input: RowInput, dt = TICK) {
   b.s += sd * dt;
   b.d += b.v * Math.sin(b.th) * dt;
   b.th += (omega - k * sd) * dt;
+  if (b.kickS !== 0 || b.kickD !== 0) {
+    b.s += b.kickS * dt;
+    b.d += b.kickD * dt;
+    const f = Math.exp(-dt * HIT.kickDecay);
+    b.kickS = Math.abs(b.kickS * f) < 0.01 ? 0 : b.kickS * f;
+    b.kickD = Math.abs(b.kickD * f) < 0.01 ? 0 : b.kickD * f;
+  }
   // Timers.
   b.boostT = Math.max(0, b.boostT - dt);
   b.slingT = Math.max(0, b.slingT - dt);
@@ -343,6 +371,7 @@ export function stepBoat(r: Race, b: Boat, input: RowInput, dt = TICK) {
   b.noGainT = Math.max(0, b.noGainT - dt);
   b.rocketT = Math.max(0, b.rocketT - dt);
   b.stallT = Math.max(0, b.stallT - dt);
+  b.hitT = Math.max(0, b.hitT - dt);
   b.stroke = (b.stroke + dt * ((30 + 8 * Math.max(0, Math.min(1, (b.v - 8) / 6)) + (b.boostT > 0 ? 4 : 0)) / 60)) % 1;
   // The bank.
   if (Math.abs(b.d) >= HALF_WIDTH) {
@@ -396,24 +425,16 @@ export function stepBoat(r: Race, b: Boat, input: RowInput, dt = TICK) {
         }
       }
     }
-    // The buoy itself.
-    if (b.buoyT <= 0) {
-      let ds = w1 - bend.apexS;
-      if (c.closed && ds > c.length / 2) ds -= c.length;
-      if (c.closed && ds < -c.length / 2) ds += c.length;
-      if (Math.abs(ds) < 4) {
-        for (const o of BUMP.offsets) {
-          const cs = ds + Math.cos(b.th) * o,
-            cd = b.d + Math.sin(b.th) * o - bend.apexD;
-          if (Math.hypot(cs, cd) < BUOY.radius + HULL_HALF) {
-            b.buoyT = BUOY.time;
-            b.bendVoid = true;
-            b.sectorClean = false;
-            emit(r, "buoy", b.id);
-            break;
-          }
-        }
-      }
+  }
+  // The apex buoys are solid.
+  for (let i = 0; i < c.bends.length; i++) {
+    const bend = c.bends[i];
+    const hit = collide(r, b, bend.apexS, bend.apexD, BUOY.radius, 0, dt);
+    if (hit > 0) {
+      b.bendVoid = true;
+      b.sectorClean = false;
+      if (b.buoyT <= 0) emit(r, "buoy", b.id, hit);
+      b.buoyT = BUOY.time;
     }
   }
   // Fast-water chevrons.
@@ -423,17 +444,12 @@ export function stepBoat(r: Race, b: Boat, input: RowInput, dt = TICK) {
       emit(r, "chevron", b.id);
     }
   }
-  // The bridge piers.
-  if (Math.abs(w1 - c.bridge) < PIER.radius + 1.5) {
-    for (const side of [-1, 1]) {
-      if (Math.abs(b.d - side * PIER.d) < PIER.radius + 0.45 && Math.abs(w1 - c.bridge) < PIER.radius + 0.4 && b.scrapeT <= 0) {
-        b.v *= PIER.mult;
-        b.th = -b.th * 0.5;
-        b.d = side * PIER.d + Math.sign(b.d - side * PIER.d || 1) * (PIER.radius + 0.5);
-        b.scrapeT = 0.6;
-        b.sectorClean = false;
-        emit(r, "pier", b.id);
-      }
+  // The bridge piers are solid.
+  for (const side of [-1, 1]) {
+    const hit = collide(r, b, c.bridge, side * PIER.d, PIER.radius, 0, dt);
+    if (hit > 0) {
+      b.sectorClean = false;
+      emit(r, "pier", b.id, hit);
     }
   }
   // Checkpoints, sectors and laps (progress is s, so none can be skipped).
@@ -479,6 +495,86 @@ export function stepBoat(r: Race, b: Boat, input: RowInput, dt = TICK) {
     b.lapTimes.push(b.finishTime);
     emit(r, "finish", b.id);
   }
+}
+
+/** Penetration of the hull (five circles) into a circle at (os, od) of
+ * radius R, in plan units; ≤ 0 when clear. Writes the push-out normal. */
+const hitN = { s: 0, d: 0 };
+let hitScale = 1;
+function squeeze(c: Race["course"], os: number, ds: number, od: number): number {
+  const k = (kappa(c, os) + kappa(c, os + ds * 0.5) + kappa(c, os + ds)) / 3;
+  return Math.max(0.3, 1 - od * k);
+}
+export function hullGap(r: Race, b: Boat, os: number, od: number, R: number): number {
+  const c = r.course;
+  let ds = (c.closed ? wrapS(c, b.s) : b.s) - os;
+  if (c.closed && ds > c.length / 2) ds -= c.length;
+  if (c.closed && ds < -c.length / 2) ds += c.length;
+  if (Math.abs(ds) > 8 + R) return -1;
+  // Along-course distance at the obstacle's offset (bends squeeze the inside;
+  // average the curvature between the two, so a chicane's flip counts).
+  const scale = squeeze(c, os, ds, od);
+  hitScale = scale;
+  const ch = Math.cos(b.th),
+    sh = Math.sin(b.th);
+  let pen = -Infinity;
+  for (const o of HULL_PTS) {
+    const px = ds * scale + ch * o,
+      py = b.d - od + sh * o;
+    const dist = Math.hypot(px, py);
+    const p = R + HULL_HALF - dist;
+    if (p > pen) {
+      pen = p;
+      if (dist > 1e-6) {
+        hitN.s = px / dist;
+        hitN.d = py / dist;
+      } else {
+        hitN.s = 0;
+        hitN.d = Math.sign(b.d - od) || 1;
+      }
+    }
+  }
+  return pen;
+}
+
+/** Resolve the hull against a solid circle (moving across at `ovd`): push
+ * out, reflect the speed into it, slide the bow round. Returns the impact
+ * speed of a fresh hit, 0 for leaning or no contact. */
+export function collide(r: Race, b: Boat, os: number, od: number, R: number, ovd: number, dt: number): number {
+  const pen = hullGap(r, b, os, od, R);
+  if (pen <= 0) return 0;
+  const ns = hitN.s,
+    nd = hitN.d;
+  b.s += (ns * pen) / hitScale;
+  b.d += nd * pen;
+  const ch = Math.cos(b.th),
+    sh = Math.sin(b.th);
+  const vn = b.v * (ch * ns + sh * nd) - ovd * nd;
+  if (vn >= 0) return 0;
+  // Reflect the closing speed with a little bounce; the boat keeps its heading.
+  const ws = b.v * ch - (1 + HIT.restitution) * vn * ns,
+    wd = b.v * sh - (1 + HIT.restitution) * vn * nd;
+  const fresh = b.hitT <= 0;
+  const head = Math.min(1, -vn / Math.max(1, b.v));
+  b.v = Math.max(0, ws * ch + wd * sh) * (fresh ? HIT.loss : 1);
+  b.kickS += -HIT.restitution * vn * ns * (fresh ? 1 : 0.2);
+  b.kickD += -HIT.restitution * vn * nd * (fresh ? 1 : 0.2);
+  // Slide off: the bow turns the way you steer (or, hands off, towards the
+  // tangent nearer the heading), and the hull slips along the obstacle, so a
+  // boat leaning on it is never pinned.
+  const cross = ch * nd - sh * ns;
+  const turn = Math.abs(b.steer) > 0.3 ? Math.sign(b.steer) : cross >= 0 ? 1 : -1;
+  b.th += HIT.slide * dt * turn * Math.max(0.5, head);
+  const along = ch * -nd + sh * ns >= 0 ? 1 : -1;
+  const slip = Math.max(HIT.slip, Math.abs(b.v * (ch * -nd + sh * ns)));
+  b.s += (-nd * along * slip * dt) / hitScale;
+  b.d += ns * along * slip * dt;
+  if (!fresh) return 0;
+  b.hitT = HIT.cooldown;
+  const impact = -vn;
+  if (impact > HIT.hard) b.stallT = Math.max(b.stallT, HIT.stun);
+  b.noGainT = Math.max(b.noGainT, BUMP.noGain);
+  return Math.max(impact, 0.01);
 }
 
 /** Wake check for one boat against the others (2–14 u behind, within 2.2). */
@@ -591,20 +687,19 @@ export function stepRace(r: Race, inputs: readonly RowInput[], dt = TICK) {
   if (before < 0 && r.t >= 0) emit(r, "go", 0);
   for (const b of r.boats) wake(r, b, dt);
   for (const b of r.boats) stepBoat(r, b, inputs[b.id], dt);
-  // Pedal boats cross on fixed paths at 3 u/s.
+  // Pedal boats cross on fixed paths at 3 u/s, and are solid.
   for (const p of r.pedals) {
-    p.d = Math.sin(r.t * (3 / 8) + p.phase) * 8;
+    p.d = Math.sin(r.t * (3 / 8) + p.phase) * PEDAL.amp;
+    const pv = Math.cos(r.t * (3 / 8) + p.phase) * PEDAL.amp * (3 / 8);
     for (const b of r.boats) {
-      const ds = wrapS(r.course, b.s) - p.s;
-      if (Math.abs(ds) < 4.4 && Math.abs(b.d - p.d) < 1.5 && b.scrapeT <= 0 && b.noGainT <= 0) {
-        b.v *= 0.7;
-        b.d += Math.sign(b.d - p.d || 1) * 0.6;
-        b.scrapeT = 0.3;
-        b.noGainT = 1.2;
+      const hit = collide(r, b, p.s, p.d, PEDAL.radius, pv, dt);
+      if (hit > 0) {
+        b.noGainT = Math.max(b.noGainT, 1.2);
         b.sectorClean = false;
         b.bumps++;
-        emit(r, "bump", b.id);
+        emit(r, "bump", b.id, -1);
       }
+      if (Math.abs(b.d) > HALF_WIDTH) b.d = Math.sign(b.d) * HALF_WIDTH;
     }
   }
   for (let i = 0; i < 16; i++) bumpCd[i] = Math.max(0, bumpCd[i] - dt);
