@@ -35,6 +35,7 @@ import type { PlaceId } from "../core/world";
 import { npcName } from "../core/npcState";
 import { TravelMap } from "./TravelMap";
 import { useLaunchers } from "../core/launchers";
+import { gameSpotFor } from "../core/gameSpots";
 import { cue } from "../core/audio/cues";
 import {
   isMuteKey,
@@ -472,6 +473,21 @@ function useSceneFocus(hudShown: boolean) {
 function RoomLaunchers({ scene }: { scene: Scene }) {
   const launchers = useLaunchers(scene);
   const playing = useGameMode((s) => !!s.active);
+  const spot = gameSpotFor(scene);
+  const atRace = useGame((s) => s.near === "race");
+  if (!launchers.length && spot?.walk && !playing && !atRace)
+    return (
+      <div className="interior-launchers">
+        <button
+          type="button"
+          className="launcher is-primary"
+          onClick={() => walkTo(spot.x, spot.z + 0.6)}
+        >
+          Go to {spot.title}
+        </button>
+        <span className="launcher-hint">Walk to the glowing circle to play</span>
+      </div>
+    );
   if (!launchers.length || playing) return null;
   return (
     <div className="interior-launchers">

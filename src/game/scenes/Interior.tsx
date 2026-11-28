@@ -11,6 +11,7 @@ import {
 import { Walker } from "../world/Hub";
 import { StaticBatch } from "../world/StaticBatch";
 import { InteriorCraft } from "./InteriorCraft";
+import { GameSpotMarker } from "./GameSpot";
 import { useGame, walkTo } from "../core/store";
 import { useGameMode } from "../core/gameMode";
 import { doors } from "../core/world";
@@ -94,6 +95,7 @@ export function Interior() {
   return (
     <group>
       {walkFloor}
+      <GameSpotMarker scene={scene} />
       <StaticBatch id={`interior-${world}-${scene}`}>
         <Box
           p={[0, -0.4, 0]}
@@ -172,7 +174,11 @@ export function Interior() {
                 s={[4.2, 0.1, 3]}
                 c={office ? "#768973" : "#758f8a"}
               />
-              <Ring p={[0, 0.17, -2]} radius={1.2} tube={0.035} c="#e6d2a8" />
+              {/* A ring only where standing on it does something; a game's
+                  ring is GameSpotMarker's (pulsing, labelled). */}
+              {(office || cognition) && (
+                <Ring p={[0, 0.17, -2]} radius={1.2} tube={0.035} c="#e6d2a8" />
+              )}
             </>
           )}
         {office ? (

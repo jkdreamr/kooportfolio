@@ -538,7 +538,10 @@
    Blur belongs to floating surfaces; nested controls use a cheaper glaze.
    Reference: Apple HIG / Materials — denser glass for reading surfaces. */
 .game-shell {
-  --hud-face: #13212c4d;
+  /* Tinted, near-opaque faces: the scene behind them can be white sky or a
+     sunlit cream floor, and ink must stay >= 4.5:1 over either (face over
+     white: ink 9:1, muted 8:1). Frost is a highlight, never the contrast. */
+  --hud-face: rgb(19 33 44 / 0.88);
   --hud-low: #18232f;
   --hud-edge: #e6f0ff45;
   --hud-rim: #ffffffb3;
@@ -547,8 +550,8 @@
   --hud-gold: #dce8f5;
   --hud-shadow: 0 8px 28px #06101e2e;
   --glass-fill: linear-gradient(135deg, #ffffff26, #ffffff08 28%, #ffffff00 60%, #e4eeff0d), var(--hud-face);
-  --glass-panel-fill: linear-gradient(135deg, #ffffff2e, #ffffff0d 28%, #ffffff03 62%, #ffffff14), #101b2952;
-  --glass-control: linear-gradient(145deg, #ffffff26, #ffffff06 48%, #e4eeff0d), #08121d1a;
+  --glass-panel-fill: linear-gradient(135deg, #ffffff1f, #ffffff08 28%, #ffffff00 62%, #ffffff0d), rgb(16 27 41 / 0.92);
+  --glass-control: linear-gradient(145deg, #ffffff1f, #ffffff06 48%, #e4eeff0d), rgb(16 28 40 / 0.72);
   --glass-selected: linear-gradient(145deg, #ffffff38, #ffffff12 55%, #e4eeff24), #d9e8f51a;
   --glass-edge: 1px solid var(--hud-edge);
   --silver-shadow: inset 0 1px 0 #ffffffb3, inset 1px 0 0 #ffffff3d, inset 0 -1px 0 #ffffff1a, 0 1px 2px #030b1826, 0 10px 30px #030b1833;
@@ -656,7 +659,7 @@
   display: none;
 }
 .game-shell :is(.writing-header, .writing-list) {
-  background: #101c2c45;
+  background: rgb(16 28 44 / 0.86);
   border-color: var(--hud-edge);
 }
 .game-shell select {
@@ -725,4 +728,28 @@
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
+}
+
+/* ── Legibility floor ──────────────────────────────────────────────────────
+   Panels that float straight over the world wear the tinted face, never the
+   old translucent cream (near-white ink on cream read at ~1.2:1). Titles
+   and secondary lines stay >= 4.5:1 over a white sky or a sunlit floor. */
+.game-shell .race-select {
+  color: var(--hud-ink);
+  background: var(--glass-panel-fill);
+  border: 1px solid var(--hud-edge);
+  border-radius: 16px;
+  box-shadow: var(--silver-shadow);
+}
+.game-shell .race-select b {
+  color: var(--hud-ink);
+}
+.game-shell .race-select span {
+  color: var(--hud-muted);
+}
+.game-shell .race-select > button {
+  border-top-color: rgb(255 255 255 / 0.16);
+}
+.game-shell .race-select > button:first-child {
+  border-top-color: transparent;
 }

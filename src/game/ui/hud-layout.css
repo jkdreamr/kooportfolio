@@ -63,16 +63,23 @@
 }
 
 /* ── Footer: legible, quiet, one pulse per save ───────────────────────── */
+/* Footer lines sit straight on the world (white sky, sunlit floors), so each
+   wears a small tinted chip: ink 9:1 over anything. */
 .game-shell.game-shell .game-footer {
   font-size: var(--text-xs);
-  color: rgb(255 255 255 / 0.7);
-  text-shadow: 0 1px 4px #0d233b80;
+  color: var(--glass-muted);
+  text-shadow: none;
   letter-spacing: 0;
+}
+.game-shell.game-shell .game-footer :is(.save-indicator, button) {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgb(14 28 38 / 0.78);
 }
 .game-shell.game-shell .game-footer button {
   font-size: var(--text-xs);
-  color: rgb(255 255 255 / 0.7);
-  text-shadow: 0 1px 4px #0d233b80;
+  color: var(--glass-muted);
+  text-shadow: none;
 }
 .game-shell.game-shell .game-footer button:hover {
   color: #fff;

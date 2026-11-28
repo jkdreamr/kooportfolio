@@ -5,9 +5,9 @@
 :root {
   /* Fills. --glass-bg sits behind --glass-blur; -strong carries long copy;
      -dense is for small surfaces that do not blur; -solid is the fallback. */
-  --glass-bg: rgb(14 28 38 / 0.72);
-  --glass-bg-strong: rgb(15 29 39 / 0.84);
-  --glass-bg-dense: rgb(18 33 43 / 0.84);
+  --glass-bg: rgb(14 28 38 / 0.86);
+  --glass-bg-strong: rgb(15 29 39 / 0.92);
+  --glass-bg-dense: rgb(18 33 43 / 0.92);
   --glass-bg-solid: #1b2f3a;
   --glass-blur: blur(22px) saturate(1.8) brightness(0.68);
   --glass-blur-sm: blur(8px) saturate(1.6) brightness(0.68);
@@ -90,13 +90,18 @@
 .game-shell .game-ui * {
   font-family: inherit;
 }
+.game-shell {
+  /* Halo for the few words drawn straight on the world (brand, place name):
+     a tight dark rim plus a soft glow keeps them readable on a white sky. */
+  --ink-halo: 0 1px 2px #0b1d2ce6, 0 0 3px #0b1d2cb3, 0 0 12px #0b1d2c99;
+}
 .game-shell .game-header {
-  background: linear-gradient(#142b3e66, #142b3e00);
+  background: linear-gradient(#142b3ea6, #142b3e00);
 }
 .game-shell .game-brand b {
   color: #fff;
   letter-spacing: 0.5px;
-  text-shadow: 0 1px 4px #0d233b40;
+  text-shadow: var(--ink-halo);
 }
 .game-shell .game-brand b span {
   color: #e1e8e5;
@@ -540,8 +545,8 @@
   left: max(24px, env(safe-area-inset-left));
   color: #fff;
   font-size: var(--text-xs);
-  font-weight: 600;
-  text-shadow: 0 1px 4px #173741;
+  font-weight: 700;
+  text-shadow: var(--ink-halo);
   pointer-events: none;
 }
 .game-shell:has(
