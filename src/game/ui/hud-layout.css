@@ -462,6 +462,17 @@
     inset: -1px;
     background: var(--glass-sheen) var(--glass-bg);
   }
+  /* The row reaches past the left third on narrow phones (≤ 390 px), so the
+     place name, Daily chip and first-steps hint stack below it instead. */
+  .game-shell.game-shell .world-name {
+    top: calc(var(--phone-row-top) + 56px);
+  }
+  .game-shell.game-shell .daily-chip {
+    top: calc(var(--phone-row-top) + 78px);
+  }
+  .game-shell.game-shell .first-steps {
+    top: calc(var(--phone-row-top) + 134px);
+  }
   .game-shell.game-shell .world-view-toggle {
     right: calc(var(--world-control-right) + var(--phone-chip) + var(--phone-zoom) + 12px);
     width: 44px;
