@@ -3,7 +3,6 @@ import { createRoot, hydrateRoot } from "react-dom/client";
 import { App, normalizePath } from "./site/App";
 import { isPlayPath } from "./stage/peephole/policy";
 import "./style.css";
-import "./site/glass.css";
 
 /**
  * Portfolio routes arrive prerendered (scripts/prerender.mjs) and are

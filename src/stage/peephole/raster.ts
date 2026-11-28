@@ -255,6 +255,15 @@ function visibleInViewport(r: DOMRect, w: number, h: number) {
   return r.bottom > -40 && r.top < h + 40 && r.right > -40 && r.left < w + 40;
 }
 
+/** The portfolio's paper grain tile (public/, 64 CSS px; `.portfolio` in
+    style.css). Decoded at load so the first raster already has it. */
+const PAPER_GRAIN = "/paper-grain.png";
+let grain: HTMLImageElement | null = null;
+if (typeof Image !== "undefined") {
+  grain = new Image();
+  grain.src = PAPER_GRAIN;
+}
+
 /**
  * Rasterise `root` as seen in the viewport. Elements matching
  * [data-paper-skip] (and their subtrees) are left out; `letter` is the
@@ -278,6 +287,18 @@ export function rasterizePage(root: HTMLElement, letter: HTMLElement | null, dpr
     if (grad) {
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, width, height);
+    }
+  }
+  // The paper grain (a tiled image on the root): same tile, same origin.
+  if (bodyImg && bodyImg.includes(PAPER_GRAIN) && grain?.complete && grain.naturalWidth) {
+    const pattern = ctx.createPattern(grain, "repeat");
+    if (pattern) {
+      const o = root.getBoundingClientRect();
+      ctx.save();
+      ctx.translate(o.left, o.top);
+      ctx.fillStyle = pattern;
+      ctx.fillRect(-o.left, -o.top, width, height);
+      ctx.restore();
     }
   }
   const range = document.createRange();

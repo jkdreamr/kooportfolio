@@ -5,6 +5,12 @@ import { peephole, usePeephole } from "../stage/peephole/controller";
 /** The owner's own Buy Me a Coffee page (his site: src/os/data.ts `links.coffee`). */
 const COFFEE_URL = "https://buymeacoffee.com/joshuakoo";
 
+const WORK = [
+  ["Code & experiments", "Public projects on GitHub", "https://github.com/jkdreamr"],
+  ["Music & sounds", "Listen on SoundCloud", "https://soundcloud.com/atkelix"],
+  ["JOSHUA.EXE", "A very unserious, playable small world", "/play"],
+] as const;
+
 /**
  * The portfolio. Quiet on purpose: the only secret is the first "o" of
  * "koo", which is a real <button> in the heading. Its counter is a window onto
@@ -28,9 +34,6 @@ export function Portfolio({ path, year }: { path: string; year: number }) {
       <header className="site-header">
         <a href="/" className="wordmark">
           JOSHUA KOO
-        </a>
-        <a href={`mailto:${profile.email}`} className="availability">
-          <i /> Say hello ↗
         </a>
       </header>
       <main className="editorial">
@@ -56,13 +59,13 @@ export function Portfolio({ path, year }: { path: string; year: number }) {
         </p>
         <p className="bio">{profile.bio}</p>
         <nav className="portfolio-nav" aria-label="Portfolio">
-          <a href="/about" className={path === "/about" ? "active" : ""} aria-current={path === "/about" ? "page" : undefined}>
+          <a href="/about" aria-current={path === "/about" ? "page" : undefined}>
             About
           </a>
-          <a href="/work" className={path === "/work" ? "active" : ""} aria-current={path === "/work" ? "page" : undefined}>
+          <a href="/work" aria-current={path === "/work" ? "page" : undefined}>
             Work
           </a>
-          <a href="/contact" className={path === "/contact" ? "active" : ""} aria-current={path === "/contact" ? "page" : undefined}>
+          <a href="/contact" aria-current={path === "/contact" ? "page" : undefined}>
             Contact
           </a>
           <a
@@ -80,7 +83,7 @@ export function Portfolio({ path, year }: { path: string; year: number }) {
         </nav>
         {path === "/about" && (
           <section className="editorial-content">
-            <h2>A little about me.</h2>
+            <h2>About</h2>
             <p>
               I’m Joshua. I study CS + math at Stanford, cox, and am an
               investment intern at CRV.
@@ -93,48 +96,37 @@ export function Portfolio({ path, year }: { path: string; year: number }) {
         )}
         {path === "/work" && (
           <section className="editorial-content">
-            <div className="eyebrow">SELECTED WORK</div>
-            <h2>Things in motion.</h2>
-            <a className="work-row" href="https://github.com/jkdreamr" target="_blank" rel="noreferrer">
-              <span>
-                <b>Code & experiments</b>
-                <small>Public projects on GitHub</small>
-              </span>
-              <span>↗</span>
-            </a>
-            <a className="work-row" href="https://soundcloud.com/atkelix" target="_blank" rel="noreferrer">
-              <span>
-                <b>Music & sounds</b>
-                <small>Listen on SoundCloud</small>
-              </span>
-              <span>↗</span>
-            </a>
-            <a className="work-row" href="/play">
-              <span>
-                <b>JOSHUA.EXE</b>
-                <small>A very unserious, playable small world</small>
-              </span>
-              <span>↗</span>
-            </a>
+            <h2>Work</h2>
+            <ul className="work-list">
+              {WORK.map(([title, note, href]) => (
+                <li key={href}>
+                  <a href={href} {...(href.startsWith("http") ? { target: "_blank", rel: "noreferrer" } : {})}>
+                    <b>{title}</b>
+                    <small>{note}</small>
+                  </a>
+                </li>
+              ))}
+            </ul>
           </section>
         )}
         {path === "/contact" && (
           <section className="editorial-content">
-            <div className="eyebrow">OPEN A CONVERSATION</div>
-            <h2>Good things start with hello.</h2>
-            <a className="email-link" href={`mailto:${profile.email}`}>
-              {profile.email} ↗
-            </a>
-            <p className="social-links">
-              {profile.socials.map(([name, url]) => (
-                <a key={name} href={url} target="_blank" rel="noreferrer">
-                  {name} ↗
-                </a>
-              ))}
+            <h2>Contact</h2>
+            <p>
+              <a href={`mailto:${profile.email}`}>{profile.email}</a>
             </p>
+            <ul className="social-links">
+              {profile.socials.map(([name, url]) => (
+                <li key={name}>
+                  <a href={url} target="_blank" rel="noreferrer">
+                    {name}
+                  </a>
+                </li>
+              ))}
+            </ul>
             <p className="support-link">
               <a href={COFFEE_URL} target="_blank" rel="noreferrer">
-                Buy me a coffee ↗
+                Buy me a coffee
               </a>
             </p>
           </section>

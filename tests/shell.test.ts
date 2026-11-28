@@ -19,7 +19,7 @@ function boot({
 } = {}) {
   const props = new Map<string, string>();
   const links: Record<string, string>[] = [];
-  let theme = "#fbfbf9";
+  let theme = "#ffffff";
   const docEl = {
     className: "",
     style: {
@@ -95,7 +95,7 @@ describe("index.html boot sky", () => {
     const site = boot({ path: "/about" });
     expect(site.className).toBe("");
     expect(site.background).toBe("");
-    expect(site.theme).toBe("#fbfbf9");
+    expect(site.theme).toBe("#ffffff");
     expect(site.links).toHaveLength(0);
     const play = boot({ path: "/play" });
     expect(play.className).toContain("play");
@@ -152,9 +152,9 @@ describe("prerendered portfolio", () => {
     const year = String(new Date().getFullYear());
     for (const [route, text] of [
       ["/", "joshua koo"],
-      ["/about", "A little about me."],
-      ["/work", "Things in motion."],
-      ["/contact", "Good things start with hello."],
+      ["/about", "<h2>About</h2>"],
+      ["/work", "<h2>Work</h2>"],
+      ["/contact", "<h2>Contact</h2>"],
     ]) {
       const a = renderRoute(route);
       expect(a).toBe(renderRoute(route));
@@ -294,7 +294,7 @@ describe("console gate allowlist (A11)", () => {
 
 describe("portfolio type sizes", () => {
   it("sets no text below 12 px in the portfolio stylesheets", () => {
-    for (const file of ["../src/style.css", "../src/site/glass.css"]) {
+    for (const file of ["../src/style.css"]) {
       const css = readFileSync(new URL(file, import.meta.url), "utf8");
       const sizes = [...css.matchAll(/font(?:-size)?\s*:[^;{}]*?(\d+(?:\.\d+)?)px/g)].map((m) => +m[1]);
       if (file.endsWith("style.css")) expect(sizes.length).toBeGreaterThan(10);

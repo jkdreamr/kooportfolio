@@ -761,7 +761,7 @@ export class PeepholeController {
     this.sim.tune.commitT = this.armedFlag ? 1 : Infinity;
     this.sim.tune.flickT = this.armedFlag ? 0.85 : Infinity;
     document.documentElement.classList.remove("in-game");
-    setThemeColor("#fbfbf9");
+    setThemeColor("#ffffff");
     const st = useStage.getState();
     st.setMode("site");
     st.setWorldVisible(true);

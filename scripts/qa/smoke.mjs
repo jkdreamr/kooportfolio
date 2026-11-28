@@ -110,9 +110,9 @@ console.log(`smoke: ${BASE} → ${OUT}${QUICK ? " (quick)" : ""}`);
 
 const ROUTES = [
   { path: "/", title: "Joshua Koo", h1: "joshua koo" },
-  { path: "/about", title: "About — Joshua Koo", h1: "joshua koo", h2: "A little about me." },
-  { path: "/work", title: "Work — Joshua Koo", h1: "joshua koo", h2: "Things in motion." },
-  { path: "/contact", title: "Contact — Joshua Koo", h1: "joshua koo", h2: "Good things start with hello." },
+  { path: "/about", title: "About — Joshua Koo", h1: "joshua koo", h2: "About" },
+  { path: "/work", title: "Work — Joshua Koo", h1: "joshua koo", h2: "Work" },
+  { path: "/contact", title: "Contact — Joshua Koo", h1: "joshua koo", h2: "Contact" },
   // The page a static host serves for a missing path (vercel.json has no
   // catch-all rewrite, so Vercel answers with this file and a 404 status).
   { path: "/404.html", title: "Nothing here — Joshua Koo", h1: "Nothing here.", static: true },
@@ -184,9 +184,9 @@ async function siteRun(browser, label, options) {
       await page.goto(`${BASE}/`);
       const tap = (locator) => (options.hasTouch ? locator.tap() : locator.click());
       for (const [name, target, heading] of [
-        ["About", "/about", "A little about me."],
-        ["Work", "/work", "Things in motion."],
-        ["Contact", "/contact", "Good things start with hello."],
+        ["About", "/about", "About"],
+        ["Work", "/work", "Work"],
+        ["Contact", "/contact", "Contact"],
       ]) {
         await tap(page.locator(".portfolio-nav").getByRole("link", { name, exact: true }));
         await page.waitForURL(BASE + target);
