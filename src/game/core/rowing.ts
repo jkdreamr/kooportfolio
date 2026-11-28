@@ -47,11 +47,12 @@ export function strokeDrive(phase: number) {
 export type Cup = "novice" | "varsity" | "head";
 export type RaceMode = "gp" | "sprint" | "tt" | "daily";
 /** Rival pace by cup, Blue / White / Green. Plan: 0.920–1.000; moved by the
- * tuning bots (tests/rowing.tuning.test.ts), which are the judge. */
+ * tuning bots (tests/rowing.tuning.test.ts), which are the judge. Varsity
+ * and Head softened so the Line bot wins ~60% / ~18% (was 12% / 7.5%). */
 export const SKILL: Readonly<Record<Cup, readonly [number, number, number]>> = {
   novice: [0.92, 0.935, 0.95],
-  varsity: [0.95, 0.965, 0.98],
-  head: [0.975, 0.99, 1.0],
+  varsity: [0.931, 0.946, 0.961],
+  head: [0.945, 0.96, 0.975],
 };
 export const CREWS = [
   { name: "You", blade: "#8c1515" },

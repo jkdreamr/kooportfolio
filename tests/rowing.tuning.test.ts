@@ -45,6 +45,17 @@ describe("Regatta tuning bots (Grand Prix, seeds 1–40 per cup)", () => {
     expect(rate(runs("line", "novice"), (r) => r.place === 1)).toBeGreaterThanOrEqual(0.85);
     for (const c of CUPS) expect(median(runs("line", c).map((r) => r.place))).toBeLessThanOrEqual(median(runs("centre", c).map((r) => r.place)));
   }, 600_000);
+  // Plan 45–70% / 10–35%; measured 60% (24/40) Varsity, 17.5% (7/40) Head
+  // after softening their rival pace. The pace→win curve is a cliff
+  // (0.930 → 90%, 0.932 → 30%), so the bounds are wide.
+  it("Line wins Varsity 40–75%, Head 5–35%", () => {
+    const v = rate(runs("line", "varsity"), (r) => r.place === 1);
+    expect(v).toBeGreaterThanOrEqual(0.4);
+    expect(v).toBeLessThanOrEqual(0.75);
+    const h = rate(runs("line", "head"), (r) => r.place === 1);
+    expect(h).toBeGreaterThanOrEqual(0.05);
+    expect(h).toBeLessThanOrEqual(0.35);
+  }, 600_000);
   it("Masher (random steering at 3 Hz) always finishes inside 2.2× the winner", () => {
     for (const c of CUPS) for (const r of runs("masher", c)) expect(r.time).toBeLessThan(2.2 * r.winner);
   }, 600_000);
